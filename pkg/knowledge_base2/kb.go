@@ -150,6 +150,12 @@ func (kb *KnowledgeBase) HasDirectPath(from, to construct.ResourceId) bool {
 }
 
 func (kb *KnowledgeBase) HasFunctionalPath(from, to construct.ResourceId) bool {
+	fromType := from.QualifiedTypeName()
+	toType := to.QualifiedTypeName()
+	if fromType == toType {
+		// For resources that can reference themselves, such as aws:api_resource
+		return true
+	}
 	path, err := graph.ShortestPath(kb.underlying, from.QualifiedTypeName(), to.QualifiedTypeName())
 	if errors.Is(err, graph.ErrTargetNotReachable) {
 		return false

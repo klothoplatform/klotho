@@ -84,7 +84,6 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 
 		// because there can be multiple types if we only have classifications on the resource selector we want to loop over all ids
 		for _, id := range ids {
-
 			// if there is no functional path for the id then we can skip it since we know its not available to satisfy a valid graph
 			if action.Step.Direction == knowledgebase.DirectionDownstream &&
 				!action.ruleCtx.Solution.KnowledgeBase().HasFunctionalPath(resource.ID, id) {
@@ -106,11 +105,45 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				if collectionutil.Contains(action.CurrentIds, res.ID) {
 					continue
 				}
-				if !resourceSelector.IsMatch(configCtx, action.ruleCtx.Data, res) {
-					continue
+				if match, err := resourceSelector.IsMatch(configCtx, action.ruleCtx.Data, res); !match {
+					canUse, err := resourceSelector.CanUse(configCtx, action.ruleCtx.Data, res)
+					if err != nil {
+						return fmt.Errorf("error checking %s can use resource: %w", resId, err)
+					}
+					if !canUse {
+						continue
+					}
+					// This can happen if an empty resource was created via path expansion, but isn't yet set up.
+
+					tmpl, err := action.ruleCtx.Solution.KnowledgeBase().GetResourceTemplate(res.ID)
+					if err != nil {
+						return err
+					}
+					for k, v := range resourceSelector.Properties {
+						v, err := knowledgebase.TransformToPropertyValue(res.ID, k, v, configCtx, action.ruleCtx.Data)
+						if err != nil {
+							return err
+						}
+						err = res.SetProperty(k, v)
+						if err != nil {
+							return err
+						}
+						if tmpl.GetProperty(k).Namespace {
+							oldId := res.ID
+							res.ID.Namespace = resource.ID.Namespace
+							err := action.ruleCtx.Solution.OperationalView().UpdateResourceID(oldId, res.ID)
+							if err != nil {
+								return err
+							}
+						}
+					}
+				} else if err != nil {
+					return fmt.Errorf("error checking %s matches selector: %w", resId, err)
 				}
-				if satisfy, err := action.doesResourceSatisfyNamespace(resource, res); !satisfy || err != nil {
+				if satisfy, err := action.doesResourceSatisfyNamespace(resource, res); !satisfy {
 					continue
+				} else if err != nil {
+					return fmt.Errorf("error checking %s satisfies namespace: %w", resId, err)
 				}
 				availableResources = append(availableResources, res)
 			}

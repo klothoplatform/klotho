@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,8 +24,6 @@ type (
 		Resources []ResourceSelector `json:"resources" yaml:"resources"`
 		// NumNeeded defines the number of resources that must satisfy the rule
 		NumNeeded int `json:"num_needed" yaml:"num_needed"`
-
-		ReplacementCondition string `json:"replacement_condition" yaml:"replacement_condition"`
 
 		FailIfMissing bool `json:"fail_if_missing" yaml:"fail_if_missing"`
 		// Unique defines if the resource that is created should be unique
@@ -80,53 +77,66 @@ func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge
 }
 
 // IsMatch checks if the resource selector is a match for the given resource
-func (p ResourceSelector) IsMatch(ctx DynamicValueContext, data DynamicValueData, res *construct.Resource) bool {
+func (p ResourceSelector) IsMatch(ctx DynamicValueContext, data DynamicValueData, res *construct.Resource) (bool, error) {
+	return p.matches(ctx, data, res, false)
+}
+
+// CanUse checks if the `res` can be used to satisfy the resource selector. This differs from [IsMatch] because it will
+// also consider unset properties to be able to be used. This is primarily used for when empty resources are created
+// during path expansion, other resources' selectors can be used to configure those empty resources.
+func (p ResourceSelector) CanUse(ctx DynamicValueContext, data DynamicValueData, res *construct.Resource) (bool, error) {
+	return p.matches(ctx, data, res, true)
+}
+
+func (p ResourceSelector) matches(
+	ctx DynamicValueContext,
+	data DynamicValueData,
+	res *construct.Resource,
+	allowEmpty bool,
+) (bool, error) {
 	ids, err := p.ExtractResourceIds(ctx, data)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("error extracting resource ids in resource selector: %w", err)
 	}
-	var resourceTypes construct.ResourceList
+	matchesType := false
 	for _, id := range ids {
-		resourceTypes = append(resourceTypes, construct.ResourceId{Provider: id.Provider, Type: id.Type})
+		// We only check if the resource selector is a match in terms of properties and classifications (not the actual id)
+		// We do this because if we have explicit ids in the selector and someone changes the id of a side effect resource
+		// we would no longer think it is a side effect since the id would no longer match.
+		// To combat this we just check against type
+		sel := construct.ResourceId{Provider: id.Provider, Type: id.Type}
+		if sel.Matches(res.ID) {
+			matchesType = true
+			break
+		}
+	}
+	if !matchesType {
+		return false, nil
 	}
 
-	// We only check if the resource selector is a match in terms of properties and classifications (not the actual id)
-	// We do this because if we have explicit ids in the selector and someone changes the id of a side effect resource
-	// we would no longer think it is a side effect since the id would no longer match.
-	// To combat this we just check against type
-	if len(resourceTypes) > 0 {
-		matchesType := false
-		for _, resourceType := range resourceTypes {
-			if resourceType.Matches(res.ID) {
-				matchesType = true
-			}
-		}
-		if !matchesType {
-			return false
-		}
+	template, err := ctx.KB().GetResourceTemplate(res.ID)
+	if err != nil {
+		return false, fmt.Errorf("error getting resource template in resource selector: %w", err)
 	}
 	for k, v := range p.Properties {
 		property, err := res.GetProperty(k)
 		if err != nil {
-			return false
+			return false, err
 		}
 		selectorPropertyVal, err := TransformToPropertyValue(res.ID, k, v, ctx, data)
 		if err != nil {
-			zap.S().Errorf("error transforming property value in resource selector: %s", err)
-			return false
+			return false, fmt.Errorf("error transforming property value in resource selector: %w", err)
 		}
 		if property != selectorPropertyVal {
-			return false
-		}
-		template, err := ctx.KB().GetResourceTemplate(res.ID)
-		if err != nil || template == nil {
-			return false
+			if !(allowEmpty && property == nil) {
+				return false, nil
+			}
 		}
 		if !template.ResourceContainsClassifications(p.Classifications) {
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
 
 func (p *ResourceSelector) UnmarshalYAML(n *yaml.Node) error {

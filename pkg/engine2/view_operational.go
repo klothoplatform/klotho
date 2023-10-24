@@ -64,6 +64,10 @@ func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.
 	return view.propertyEval.AddResources(resources...)
 }
 
+func (view MakeOperationalView) UpdateResourceID(oldId, newId construct.ResourceId) error {
+	return view.propertyEval.UpdateId(oldId, newId)
+}
+
 func (view MakeOperationalView) Vertex(hash construct.ResourceId) (*construct.Resource, error) {
 	return view.raw().Vertex(hash)
 }

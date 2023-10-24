@@ -70,8 +70,13 @@ func stringTo(g Graph, w io.Writer) error {
 		sort.Sort(sortedIds(targets))
 
 		for _, t := range targets {
+			e := adjacent[id][t]
+			weight := ""
+			if e.Properties.Weight > 1 {
+				weight = fmt.Sprintf(" (weight=%d)", e.Properties.Weight)
+			}
 			// Adjacent edges always have `id` as the source, so just write the target.
-			_, err := fmt.Fprintf(w, "-> %s\n", t)
+			_, err := fmt.Fprintf(w, "-> %s%s\n", t, weight)
 			if err != nil {
 				return err
 			}

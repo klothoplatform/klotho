@@ -17,9 +17,8 @@ type (
 	propertyVertex struct {
 		Ref construct.PropertyRef
 
-		Template    *knowledgebase.Property
-		Constraints []constraints.ResourceConstraint
-		EdgeRules   map[construct.SimpleEdge][]knowledgebase.OperationalRule
+		Template  *knowledgebase.Property
+		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
 	}
 )
 
@@ -48,6 +47,18 @@ func (prop *propertyVertex) Dependencies(
 		if opRule := prop.Template.OperationalRule; opRule != nil {
 			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
 				return nil, nil, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
+			}
+		}
+
+		if !prop.Template.Namespace {
+			tmpl, err := cfgCtx.KB().GetResourceTemplate(prop.Ref.Resource)
+			if err != nil {
+				return nil, nil, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
+			}
+			for propKey, propTmpl := range tmpl.Properties {
+				if propTmpl.Namespace {
+					propCtx.refs.Add(construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey})
+				}
 			}
 		}
 	}
@@ -129,19 +140,24 @@ func (v *propertyVertex) Evaluate(eval *PropertyEval) error {
 func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContext, res *construct.Resource) error {
 	dynData := knowledgebase.DynamicValueData{Resource: res.ID}
 
-	var setConstraint *constraints.ResourceConstraint
-	for _, c := range v.Constraints {
-		if c.Operator == constraints.EqualsConstraintOperator {
-			setConstraint = &c
-			break
+	var setConstraint constraints.ResourceConstraint
+	var addConstraints []constraints.ResourceConstraint
+	for _, c := range sol.Constraints().Resources {
+		if c.Target != res.ID || c.Property != v.Ref.Property {
+			continue
 		}
+		if c.Operator == constraints.EqualsConstraintOperator {
+			setConstraint = c
+			continue
+		}
+		addConstraints = append(addConstraints, c)
 	}
 	currentValue, err := res.GetProperty(v.Ref.Property)
 	if err != nil {
 		return fmt.Errorf("could not get current value for %s: %w", v.Ref, err)
 	}
 
-	if currentValue == nil && setConstraint == nil && v.Template != nil && v.Template.DefaultValue != nil {
+	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && v.Template.DefaultValue != nil {
 		err = solution_context.ConfigureResource(
 			sol,
 			res,
@@ -152,7 +168,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 		if err != nil {
 			return fmt.Errorf("could not set default value for %s: %w", v.Ref, err)
 		}
-	} else if setConstraint != nil {
+	} else if setConstraint.Operator != "" {
 		kb := sol.KnowledgeBase()
 		resTemplate, err := kb.GetResourceTemplate(res.ID)
 		if err != nil {
@@ -182,7 +198,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 	dynData.Resource = res.ID // Update in case the property changes the ID
 
 	var errs error
-	for _, c := range v.Constraints {
+	for _, c := range addConstraints {
 		if c.Operator == constraints.EqualsConstraintOperator {
 			continue
 		}

@@ -87,6 +87,9 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 	for _, step := range opRule.Steps {
 		for _, stepRes := range step.Resources {
 			errs = errors.Join(errs, ctx.Execute(stepRes.Selector, data))
+			for _, propValue := range stepRes.Properties {
+				errs = errors.Join(errs, ctx.Execute(propValue, data))
+			}
 		}
 	}
 	return errs

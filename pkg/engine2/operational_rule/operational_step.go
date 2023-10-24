@@ -35,7 +35,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		return fmt.Errorf("resource %s not found: %w", resourceId, err)
 	}
 
-	replace, err := ctx.shouldReplace(step)
+	replace, err := ctx.shouldReplace(step, resource)
 	if err != nil {
 		return err
 	}
@@ -93,15 +93,73 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	return action.handleOperationalResourceAction(resource)
 }
 
-func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalStep) (bool, error) {
-	if step.ReplacementCondition != "" {
-		result := false
-		dyn := solution_context.DynamicCtx(ctx.Solution)
-		err := dyn.ExecuteDecode(step.ReplacementCondition, ctx.Data, &result)
+func (ctx OperationalRuleContext) shouldReplace(step knowledgebase.OperationalStep, resource *construct.Resource) (bool, error) {
+	if ctx.Property == nil {
+		return false, nil
+	}
+	prop, err := resource.GetProperty(ctx.Property.Path)
+	if err != nil {
+		return false, err
+	}
+	if prop == nil {
+		return false, nil
+	}
+	switch prop := prop.(type) {
+	case construct.ResourceId:
+		propRes, err := ctx.Solution.RawView().Vertex(prop)
 		if err != nil {
-			return result, err
+			return false, err
 		}
-		return result, nil
+		for i, sel := range step.Resources {
+			match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
+			if err != nil {
+				return false, fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
+			}
+			if !match {
+				zap.S().Debugf("%s no longer matches selector, removing", prop)
+				return true, nil
+			}
+		}
+
+	case []construct.ResourceId:
+		for _, id := range prop {
+			propRes, err := ctx.Solution.RawView().Vertex(id)
+			if err != nil {
+				return false, err
+			}
+			for i, sel := range step.Resources {
+				match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
+				if err != nil {
+					return false, fmt.Errorf("error checking if %s matches selector %d: %w", id, i, err)
+				}
+				if !match {
+					zap.S().Debugf("%s no longer matches selector, removing", prop)
+					return true, nil
+				}
+			}
+		}
+
+	case []any:
+		for _, propV := range prop {
+			id, ok := propV.(construct.ResourceId)
+			if !ok {
+				continue
+			}
+			propRes, err := ctx.Solution.RawView().Vertex(id)
+			if err != nil {
+				return false, err
+			}
+			for i, sel := range step.Resources {
+				match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
+				if err != nil {
+					zap.S().Debugf("%s no longer matches selector, removing", prop)
+					return false, fmt.Errorf("error checking if %s matches selector %d: %w", id, i, err)
+				}
+				if !match {
+					return true, nil
+				}
+			}
+		}
 	}
 	return false, nil
 }
@@ -127,8 +185,10 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	var resourcesOfType []construct.ResourceId
 	for _, dep := range resources {
 		for _, resourceSelector := range step.Resources {
-			if resourceSelector.IsMatch(dyn, ctx.Data, dep) {
+			if match, err := resourceSelector.IsMatch(dyn, ctx.Data, dep); match {
 				resourcesOfType = append(resourcesOfType, dep.ID)
+			} else if err != nil {
+				return nil, fmt.Errorf("error checking if %s is side effect of %s: %w", dep.ID, resource, err)
 			}
 		}
 	}
@@ -200,9 +260,22 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 		return nil
 	}
 
+	kb := ctx.Solution.KnowledgeBase()
+
+	removeDep := func(id construct.ResourceId) error {
+		err := ctx.removeDependencyForDirection(step.Direction, resource.ID, id)
+		if err != nil {
+			return err
+		}
+		if kb.GetFunctionality(id) == knowledgebase.Unknown {
+			return reconciler.RemoveResource(ctx.Solution, id, false)
+		}
+		return nil
+	}
+
 	switch val := val.(type) {
 	case construct.ResourceId:
-		err := ctx.removeDependencyForDirection(step.Direction, resource.ID, val)
+		err := removeDep(val)
 		if err != nil {
 			return err
 		}
@@ -211,7 +284,7 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 	case []construct.ResourceId:
 		var errs error
 		for _, id := range val {
-			errs = errors.Join(errs, ctx.removeDependencyForDirection(step.Direction, resource.ID, id))
+			errs = errors.Join(errs, removeDep(id))
 		}
 		if errs != nil {
 			return errs
@@ -222,7 +295,7 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 		var errs error
 		for _, elem := range val {
 			if id, ok := elem.(construct.ResourceId); ok {
-				errs = errors.Join(errs, ctx.removeDependencyForDirection(step.Direction, resource.ID, id))
+				errs = errors.Join(errs, removeDep(id))
 			}
 		}
 		if errs != nil {
@@ -301,7 +374,7 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 		if err != nil {
 			return fmt.Errorf("error setting field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}
-		zap.S().Infof("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
+		zap.S().Debugf("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
 		// See if we need to namespace the resource due to setting the property
 		if ctx.Property.Namespace {
 			resource.ID.Namespace = fieldResource.ID.Name

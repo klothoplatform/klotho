@@ -32,6 +32,7 @@ type (
 		construct.Graph
 
 		MakeResourcesOperational(resources []*construct.Resource) error
+		UpdateResourceID(oldId, newId construct.ResourceId) error
 		MakeEdgesOperational(edges []construct.Edge) error
 	}
 )

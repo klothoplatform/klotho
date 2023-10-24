@@ -59,7 +59,6 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 		"closestDownstream": ctx.ClosestDownstream,
 		"allDownstream":     ctx.AllDownstream,
 		"shortestPath":      ctx.ShortestPath,
-		"longestPath":       ctx.LongestPath,
 		"fieldValue":        ctx.FieldValue,
 		"hasField":          ctx.HasField,
 		"fieldRef":          ctx.FieldRef,
@@ -80,10 +79,12 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 		"hasSuffix": func(s, suffix string) bool {
 			return strings.HasSuffix(s, suffix)
 		},
-		"toLower": strings.ToLower,
+		"toLower":      strings.ToLower,
+		"sanitizeName": sanitizeName,
 
-		"add": add,
-		"sub": sub,
+		"add":  add,
+		"sub":  sub,
+		"last": last,
 	}
 }
 
@@ -244,7 +245,7 @@ func (data DynamicValueData) Log(level string, message string, args ...interface
 	if !data.Resource.IsZero() {
 		l = l.With(zap.String("resource", data.Resource.String()))
 	}
-	if !data.Edge.Source.IsZero() {
+	if data.Edge != nil {
 		l = l.With(zap.String("edge", data.Edge.Source.String()+" -> "+data.Edge.Target.String()))
 	}
 	switch strings.ToLower(level) {
@@ -434,29 +435,6 @@ func (ctx DynamicValueContext) ShortestPath(source, destination any) (construct.
 	return graph.ShortestPath(ctx.Graph, srcId, dstId)
 }
 
-// LongestPath returns all the resource IDs on the longest path from source to destination
-func (ctx DynamicValueContext) LongestPath(source, destination any) ([]construct.ResourceId, error) {
-	srcId, err := TemplateArgToRID(source)
-	if err != nil {
-		return nil, err
-	}
-	dstId, err := TemplateArgToRID(destination)
-	if err != nil {
-		return nil, err
-	}
-	paths, err := graph.AllPathsBetween(ctx.Graph, srcId, dstId)
-	if err != nil {
-		return nil, err
-	}
-	var longest []construct.ResourceId
-	for _, path := range paths {
-		if len(path) > len(longest) {
-			longest = path
-		}
-	}
-	return longest, nil
-}
-
 // FieldValue returns the value of `field` on `resource` in json
 func (ctx DynamicValueContext) FieldValue(field string, resource any) (any, error) {
 	resId, err := TemplateArgToRID(resource)
@@ -624,6 +602,17 @@ func sub(args ...int) int {
 	return total
 }
 
+func last(list any) (any, error) {
+	v := reflect.ValueOf(list)
+	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
+		return nil, fmt.Errorf("list is not a slice or array, is %s", v.Kind())
+	}
+	if v.Len() == 0 {
+		return nil, fmt.Errorf("list is empty")
+	}
+	return v.Index(v.Len() - 1).Interface(), nil
+}
+
 func replaceRegex(pattern, replace, value string) (string, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -631,4 +620,12 @@ func replaceRegex(pattern, replace, value string) (string, error) {
 	}
 	s := re.ReplaceAllString(value, replace)
 	return s, nil
+}
+
+// invalidNameCharacters matches characters that are not allowed in resource names. Basically,
+// the same as [construct2.resourceNamePattern] except inverted.
+var invalidNameCharacters = regexp.MustCompile(`[^a-zA-Z0-9_./\-:\[\]]`)
+
+func sanitizeName(name string) string {
+	return invalidNameCharacters.ReplaceAllString(name, "")
 }

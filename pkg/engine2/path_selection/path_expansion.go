@@ -138,29 +138,23 @@ func ExpandEdge(
 			return
 		}
 
-		if !newSource && !newTarget {
-			// edge already exists in the graph, just add it
-			errs = errors.Join(errs, g.AddEdge(source, target, weight))
-			return
-		}
-
 		tmpl := ctx.KnowledgeBase().GetEdgeTemplate(source, target)
 		if tmpl == nil {
 			errs = errors.Join(errs, fmt.Errorf("could not find edge template for %s -> %s", source, target))
 			return
 		}
-		if newSource && tmpl.Unique.Source {
+		if tmpl.Unique.Target {
 			pred := predecessors[target]
 			for origSource := range pred {
-				if tmpl.Source.Matches(origSource) {
+				if tmpl.Source.Matches(origSource) && origSource != source {
 					return
 				}
 			}
 		}
-		if newTarget && tmpl.Unique.Target {
+		if tmpl.Unique.Source {
 			adj := adjacent[source]
 			for origTarget := range adj {
-				if tmpl.Target.Matches(origTarget) {
+				if tmpl.Target.Matches(origTarget) && origTarget != target {
 					return
 				}
 			}
@@ -199,6 +193,8 @@ func ExpandEdge(
 	if errs != nil {
 		return nil, errs
 	}
+
+	fmt.Println(construct.String(g))
 
 	return graph.ShortestPath(g, dep.Source.ID, dep.Target.ID)
 }

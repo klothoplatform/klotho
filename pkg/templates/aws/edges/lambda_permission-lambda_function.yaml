@@ -1,2 +1,4 @@
 source: aws:lambda_permission
 target: aws:lambda_function
+unique:
+  source: true

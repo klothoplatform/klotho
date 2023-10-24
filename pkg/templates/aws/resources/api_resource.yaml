@@ -5,42 +5,37 @@ properties:
   RestApi:
     type: resource(aws:rest_api)
     namespace: true
-    operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:rest_api
+    # no operational rule because this is set by the child resource or integration as part of their selectors
   ParentResource:
     type: resource(aws:api_resource)
+    configuration_disabled: true
     operational_rule:
       if: | # Only need a parent resource if this one isn't the root
-        {{ $integration := downstream "aws:api_integration" .Self }}
-        {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
-        {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-        {{ lt (len $paths) (len $parts) }}
+        {{ $parts := slice (split (fieldValue "FullPath" .Self) "/") 1 }}
+        {{ .Log "info" "parts=%s" $parts }}
+        {{ gt (len $parts) 1 }}
       steps:
         - direction: upstream
           resources:
-            - |
-              {{ $integration := downstream "aws:api_integration" .Self }}
-              {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
-              {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-              {{ $parents := slice $parts 0 (sub (len $parts) (len $paths)) }}
-              {{ $name := join $parents "-" | replace "\\{([^}+]+)\\+?\\}" "$1" | replace "^/" "" | replace "/" "-" }}
-              aws:api_resource:{{ $name }}
-          unique: true
+            - selector: |
+                {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
+                {{ $parts := slice $parts 1 (sub (len $parts) 1) -}}
+                aws:api_resource:{{ join $parts "-" | sanitizeName }}
+              properties:
+                FullPath: |
+                  {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
+                  {{ $parts := slice $parts 0 (sub (len $parts) 1) -}}
+                  {{ join $parts "/" }}
+                RestApi: '{{ fieldValue "RestApi" .Self }}'
+  FullPath:
+    type: string
+    configuration_disabled: true
   PathPart:
     type: string
-    operational_rule:
-      configuration_rules:
-        - resource: '{{ .Self }}'
-          configuration:
-            field: PathPart
-            value: |
-              {{ $integration := downstream "aws:api_integration" .Self }}
-              {{ $parts := slice (split (fieldValue "Route" $integration) "/") 1 }}
-              {{ $paths := shortestPath .Self $integration | filterIds "aws:api_resource" }}
-              {{ index $parts (sub (len $parts) (len $paths)) }}
+    configuration_disabled: true
+    default_value: |
+      {{ $parts := split (fieldValue "FullPath" .Self) "/" }}
+      {{ last $parts }}
 
 classification:
 

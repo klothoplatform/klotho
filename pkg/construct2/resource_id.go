@@ -141,7 +141,7 @@ var (
 	resourceProviderPattern  = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	resourceTypePattern      = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	resourceNamespacePattern = regexp.MustCompile(`^[a-zA-Z0-9_./\-\[\]]*$`) // like name, but `:` not allowed
-	resourceNamePattern      = regexp.MustCompile(`^[a-zA-Z0-9_./\-:\[\]#]*$`)
+	resourceNamePattern      = regexp.MustCompile(`^[a-zA-Z0-9_./\-:\[\]]*$`)
 )
 
 func (id *ResourceId) UnmarshalText(data []byte) error {

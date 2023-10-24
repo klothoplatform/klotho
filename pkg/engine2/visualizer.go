@@ -145,7 +145,12 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 						continue
 					}
 					seenSmall.Add(dst)
-					if knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst) {
+					isSideEffect, err := knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst)
+					if err != nil {
+						errs = errors.Join(errs, err)
+						continue
+					}
+					if isSideEffect {
 						node.Children.Add(dst)
 					}
 				case NoRenderTag:

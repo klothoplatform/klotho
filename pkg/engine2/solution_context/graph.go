@@ -29,6 +29,6 @@ func UpstreamFunctional(sol SolutionContext, resource construct.ResourceId) ([]c
 	return knowledgebase.UpstreamFunctional(sol.DataflowGraph(), sol.KnowledgeBase(), resource)
 }
 
-func IsOperationalResourceSideEffect(sol SolutionContext, rid, sideEffect construct.ResourceId) bool {
+func IsOperationalResourceSideEffect(sol SolutionContext, rid, sideEffect construct.ResourceId) (bool, error) {
 	return knowledgebase.IsOperationalResourceSideEffect(sol.DataflowGraph(), sol.KnowledgeBase(), rid, sideEffect)
 }

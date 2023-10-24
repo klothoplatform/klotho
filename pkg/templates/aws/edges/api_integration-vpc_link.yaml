@@ -24,3 +24,5 @@ operational_rules:
         configuration:
           field: Uri
           value: '{{ fieldRef "NlbUri" (downstream "aws:load_balancer" .Target)}}'
+unique:
+  source: true

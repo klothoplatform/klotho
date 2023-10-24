@@ -1,6 +1,7 @@
 package knowledgebase2
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -40,7 +41,11 @@ func resourceLocal(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
-		if IsOperationalResourceSideEffect(dag, kb, rid, id) {
+		isSideEffect, err := IsOperationalResourceSideEffect(dag, kb, rid, id)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if isSideEffect {
 			(*ids) = append(*ids, id)
 			return nil
 		}
@@ -94,7 +99,8 @@ func DependenciesSkipEdgeLayer(
 	switch layer {
 	case ResourceLocalLayer:
 		return func(e construct.Edge) bool {
-			return !IsOperationalResourceSideEffect(dag, kb, rid, e.Target)
+			isSideEffect, err := IsOperationalResourceSideEffect(dag, kb, rid, e.Target)
+			return err != nil || !isSideEffect
 		}
 
 	case ResourceGlueLayer:
@@ -185,18 +191,18 @@ func UpstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.R
 	return result, err
 }
 
-func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, sideEffect construct.ResourceId) bool {
+func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, sideEffect construct.ResourceId) (bool, error) {
 	template, err := kb.GetResourceTemplate(rid)
-	if template == nil || err != nil {
-		return false
+	if err != nil {
+		return false, fmt.Errorf("error cheecking %s is side effect of %s: %w", sideEffect, rid, err)
 	}
 	sideEffectResource, err := dag.Vertex(sideEffect)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("could not find side effect resource %s: %w", sideEffect, err)
 	}
 	resource, err := dag.Vertex(rid)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("could not find resource %s: %w", rid, err)
 	}
 
 	dynCtx := DynamicValueContext{Graph: dag, KnowledgeBase: kb}
@@ -206,15 +212,20 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 			continue
 		}
 		rule := property.OperationalRule
-		for _, step := range rule.Steps {
+		for i, step := range rule.Steps {
 			// We only check if the resource selector is a match in terms of properties and classifications (not the actual id)
 			// We do this because if we have explicit ids in the selector and someone changes the id of a side effect resource
 			// we would no longer think it is a side effect since the id would no longer match.
 			// To combat this we just check against type
-			for _, resourceSelector := range step.Resources {
-				if resourceSelector.IsMatch(dynCtx, DynamicValueData{Resource: rid}, sideEffectResource) {
+			for j, resourceSelector := range step.Resources {
+				if match, err := resourceSelector.IsMatch(dynCtx, DynamicValueData{Resource: rid}, sideEffectResource); match {
 					ruleSatisfied = true
 					break
+				} else if err != nil {
+					return false, fmt.Errorf(
+						"error checking if %s is side effect of %s in step %d, resource %d: %w",
+						sideEffect, rid, i, j, err,
+					)
 				}
 			}
 
@@ -242,16 +253,16 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 				if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
 					for i := 0; i < val.Len(); i++ {
 						if arrId, ok := val.Index(i).Interface().(construct.ResourceId); ok && arrId == sideEffect {
-							return true
+							return true, nil
 						}
 					}
 				} else {
 					if valId, ok := val.Interface().(construct.ResourceId); ok && valId == sideEffect {
-						return true
+						return true, nil
 					}
 				}
 			}
 		}
 	}
-	return false
+	return false, nil
 }
