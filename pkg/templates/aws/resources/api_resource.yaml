@@ -12,7 +12,6 @@ properties:
     operational_rule:
       if: | # Only need a parent resource if this one isn't the root
         {{ $parts := slice (split (fieldValue "FullPath" .Self) "/") 1 }}
-        {{ .Log "info" "parts=%s" $parts }}
         {{ gt (len $parts) 1 }}
       steps:
         - direction: upstream
@@ -34,7 +33,7 @@ properties:
     type: string
     configuration_disabled: true
     default_value: |
-      {{ $parts := split (fieldValue "FullPath" .Self) "/" }}
+      {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
       {{ last $parts }}
 
 classification:
