@@ -129,8 +129,6 @@ func (eval *PropertyEval) writeGraph(filename string) {
 		return
 	}
 
-	fmt.Println("dot output\n", svgContent.String())
-
 	svgFile, err := os.Create(filename + ".gv.svg")
 	if err != nil {
 		zap.S().Errorf("could not create file %s: %v", filename, err)
