@@ -4,7 +4,7 @@ operational_rules:
   - if: '{{ eq (fieldValue "LogGroup" .Source) .Target }}'
     then: 'alert'
     configuration_rules:
-      - resource: aws:log_group:{{ .Source.Name }}-log-group
+      - resource: '{{ .Target }}'
         configuration:
           field: LogGroupName
           value: /aws/lambda/{{ .Source.Name }}

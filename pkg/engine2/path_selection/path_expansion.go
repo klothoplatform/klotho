@@ -193,8 +193,5 @@ func ExpandEdge(
 	if errs != nil {
 		return nil, errs
 	}
-
-	fmt.Println(construct.String(g))
-
 	return graph.ShortestPath(g, dep.Source.ID, dep.Target.ID)
 }

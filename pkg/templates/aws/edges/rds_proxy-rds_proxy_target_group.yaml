@@ -18,17 +18,13 @@ operational_rules:
         direction: upstream
         resources:
           - aws:iam_policy:{{(fieldValue "RdsInstance" .Target).Name}}-secret-policy
-      - resource: aws:iam_policy:{{(fieldValue "RdsInstance" .Target).Name}}-secret-policy
-        direction: downstream
-        resources:
-          - aws:secret_version:{{(fieldValue "RdsInstance" .Target).Name}}-credentials
   - if: | # if the proxy does not have the instances secret version downstream
-      {{ not (hasDownstream (upstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) .Source) }}
+      {{ hasField "Secret" (upstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) }}
     steps:
       - resource: '{{ .Source }}'
         direction: downstream
         resources: #attach the secret versions secret to the proxy
-          - '{{ upstream "aws:secret_version" (fieldValue "RdsInstance" .Target) }}'
+          - '{{ fieldValue "Secret" (upstream "aws:secret_version" (fieldValue "RdsInstance" .Target)) }}'
       - resource: '{{ fieldValue "Role" .Source }}'
         direction: downstream
         resources: # attach the secret version policy to the proxies role
