@@ -9,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -30,16 +31,13 @@ func (eval *PropertyEval) Evaluate() error {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
 		}
 
-		evaluated := make([]EvaluationKey, len(ready))
-		for i, v := range ready {
-			evaluated[i] = v.Key()
-		}
+		evaluated := make(set.Set[EvaluationKey])
 		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
 
 		var errs error
-		for i, v := range ready {
+		for _, v := range ready {
+			evaluated.Add(v.Key())
 			errs = errors.Join(errs, v.Evaluate(eval))
-			evaluated[i] = v.Key()
 		}
 		if errs != nil {
 			return errs

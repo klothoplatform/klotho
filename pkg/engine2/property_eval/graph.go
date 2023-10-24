@@ -258,14 +258,14 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 	}
 
 	removeKey := func(k EvaluationKey) error {
-		err := graph_addons.RemoveVertexAndEdges(g, k)
-		unevalErr := graph_addons.RemoveVertexAndEdges(g, k)
-		if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-			// if the key is already evaluated, it won't be in the unevaluated graph, thus would
-			// return an [ErrVertexNotFound]. Ignore those
-			unevalErr = nil
+		err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, k)
+		if err == nil {
+			return graph_addons.RemoveVertexAndEdges(g, k)
+		} else if errors.Is(err, graph.ErrVertexNotFound) {
+			// the key was already evaluated, leave it in the graph for debugging purposes
+			return nil
 		}
-		return errors.Join(err, unevalErr)
+		return err
 	}
 
 	var errs error

@@ -21,7 +21,7 @@ type (
 
 		unevaluated Graph
 
-		evaluatedOrder [][]EvaluationKey
+		evaluatedOrder []set.Set[EvaluationKey]
 	}
 
 	EvaluationKey struct {
@@ -257,12 +257,16 @@ func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
 	}
 
 	for i, keys := range eval.evaluatedOrder {
-		for j, key := range keys {
+		for key := range keys {
+			oldKey := key
 			if key.Ref.Resource == oldId {
 				key.Ref.Resource = newId
 			}
 			key.Edge = UpdateEdgeId(key.Edge, oldId, newId)
-			eval.evaluatedOrder[i][j] = key
+			if key != oldKey {
+				eval.evaluatedOrder[i].Remove(oldKey)
+				eval.evaluatedOrder[i].Add(key)
+			}
 		}
 	}
 
