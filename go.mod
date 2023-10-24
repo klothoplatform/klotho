@@ -13,6 +13,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/gojek/heimdall/v7 v7.0.2
 	github.com/golang-jwt/jwt/v4 v4.4.3
+	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
 	github.com/google/uuid v1.3.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
