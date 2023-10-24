@@ -246,7 +246,7 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 				}
 
 				propertyVal, err := resource.GetProperty(property.Path)
-				if err != nil {
+				if err != nil || propertyVal == nil {
 					continue
 				}
 				val := reflect.ValueOf(propertyVal)
@@ -257,6 +257,9 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 						}
 					}
 				} else {
+					if val.IsZero() {
+						continue
+					}
 					if valId, ok := val.Interface().(construct.ResourceId); ok && valId == sideEffect {
 						return true, nil
 					}
