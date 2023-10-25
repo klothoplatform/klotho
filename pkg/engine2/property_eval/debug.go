@@ -9,31 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dominikbraun/graph"
-	"github.com/dominikbraun/graph/draw"
 	"github.com/google/pprof/third_party/svgpan"
-	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
-
-func PrintGraph(g Graph) {
-	nodes, err := graph.TopologicalSort(g)
-	if err != nil {
-		panic(err)
-	}
-
-	adj, err := g.AdjacencyMap()
-	if err != nil {
-		panic(err)
-	}
-
-	for _, node := range nodes {
-		fmt.Println(node)
-		for adj := range adj[node] {
-			fmt.Printf("  -> %s\n", adj)
-		}
-	}
-}
 
 func (eval *PropertyEval) writeGraph(filename string) {
 	f, err := os.Create(filename + ".gv")
@@ -42,77 +20,8 @@ func (eval *PropertyEval) writeGraph(filename string) {
 	}
 	defer f.Close()
 
-	setAttributes := func(key EvaluationKey, attribs map[string]string, rank int) {
-		if !key.Ref.Resource.IsZero() {
-			attribs["label"] = fmt.Sprintf(`(%d) %s\n%s`, rank, key.Ref.Resource, key.Ref.Property)
-			attribs["shape"] = "box"
-		} else if key.GraphState != "" {
-			attribs["label"] = fmt.Sprintf(`(%d) %s`, rank, key.GraphState)
-			attribs["shape"] = "box"
-			attribs["style"] = "dashed"
-		} else {
-			attribs["label"] = fmt.Sprintf(`(%d) %s\n→ %s`, rank, key.Edge.Source, key.Edge.Target)
-			attribs["shape"] = "parallelogram"
-		}
-	}
-
-	var extraStatements []string
-	evaluated := make(set.Set[EvaluationKey])
-	for rank, keys := range eval.evaluatedOrder {
-		extraStatements = append(extraStatements,
-			fmt.Sprintf(`"eval%d" [style="invis"]`, rank),
-		)
-		if rank > 0 {
-			extraStatements = append(extraStatements,
-				fmt.Sprintf(`"eval%d" -> "eval%d" [style="invis"]`, rank, rank-1),
-			)
-		}
-		sb := new(strings.Builder)
-		sb.WriteString("{rank = same; ")
-		fmt.Fprintf(sb, `"eval%d"; `, rank)
-		for key := range keys {
-			sb.WriteString(fmt.Sprintf(`"%s"; `, key))
-			evaluated.Add(key)
-
-			_, props, err := eval.graph.VertexWithProperties(key)
-			if err != nil {
-				zap.S().Errorf("error getting vertex properties for property eval debug output: %v", err)
-				continue
-			}
-			setAttributes(key, props.Attributes, rank)
-		}
-		sb.WriteString("}")
-		extraStatements = append(extraStatements, sb.String())
-	}
-
-	// don't trust eval.unevaluated because if there's anything here, it means something went wrong, which could
-	// have impacted what the unevaluated graph contains.
-	topo, err := graph.TopologicalSort(eval.graph)
-	if err != nil {
-		zap.S().Errorf("could not get topological sort: %v", err)
-		return
-	}
-	for _, key := range topo {
-		if evaluated.Contains(key) {
-			continue
-		}
-		_, props, err := eval.graph.VertexWithProperties(key)
-		if err != nil {
-			zap.S().Errorf("error getting unevaluated vertex properties for property eval debug output: %v", err)
-			continue
-		}
-
-		setAttributes(key, props.Attributes, 999)
-		props.Attributes["style"] = "filled"
-		props.Attributes["fillcolor"] = "#e87b7b"
-	}
-
 	dotContent := new(bytes.Buffer)
-	err = draw.DOT(eval.graph, io.MultiWriter(f, dotContent), func(d *draw.Description) {
-		d.Attributes["rankdir"] = "BT"
-		d.Attributes["ranksep"] = "1"
-		d.ExtraStatements = extraStatements
-	})
+	err = graphToDOT(eval, io.MultiWriter(f, dotContent))
 	if err != nil {
 		zap.S().Errorf("could not render graph to file %s: %v", filename, err)
 		return
