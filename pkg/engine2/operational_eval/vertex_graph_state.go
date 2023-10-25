@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -12,8 +12,8 @@ type graphStateVertex struct {
 	Test func(construct.Graph) (bool, error)
 }
 
-func (gv graphStateVertex) Key() EvaluationKey {
-	return EvaluationKey{GraphState: gv.repr}
+func (gv graphStateVertex) Key() Key {
+	return Key{GraphState: gv.repr}
 }
 
 func (gv *graphStateVertex) Dependencies(
@@ -22,13 +22,13 @@ func (gv *graphStateVertex) Dependencies(
 	return nil, nil, nil
 }
 
-func (gv *graphStateVertex) UpdateFrom(other EvaluationVertex) {
+func (gv *graphStateVertex) UpdateFrom(other Vertex) {
 	if gv.repr != other.Key().GraphState {
 		panic("cannot merge graph states with different reprs")
 	}
 }
 
-func (gv *graphStateVertex) Evaluate(eval *PropertyEval) error {
+func (gv *graphStateVertex) Evaluate(eval *Evaluator) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", gv.repr)
 	return nil
 }

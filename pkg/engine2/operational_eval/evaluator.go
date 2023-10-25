@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 )
 
 type (
-	PropertyEval struct {
+	Evaluator struct {
 		Solution solution_context.SolutionContext
 
 		// graph holds all of the property dependencies regardless of whether they've been evaluated or not
@@ -21,36 +21,36 @@ type (
 
 		unevaluated Graph
 
-		evaluatedOrder []set.Set[EvaluationKey]
+		evaluatedOrder []set.Set[Key]
 	}
 
-	EvaluationKey struct {
+	Key struct {
 		Ref        construct.PropertyRef
 		Edge       construct.SimpleEdge
 		GraphState string
 	}
 
-	EvaluationVertex interface {
-		Key() EvaluationKey
-		Evaluate(eval *PropertyEval) error
-		UpdateFrom(other EvaluationVertex)
+	Vertex interface {
+		Key() Key
+		Evaluate(eval *Evaluator) error
+		UpdateFrom(other Vertex)
 		Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], graphStates, error)
 	}
 
-	verticesAndDeps map[EvaluationVertex]set.Set[EvaluationKey]
+	verticesAndDeps map[Vertex]set.Set[Key]
 
 	graphStates map[string]func(construct.Graph) (bool, error)
 )
 
-func NewPropertyEval(ctx solution_context.SolutionContext) *PropertyEval {
-	return &PropertyEval{
+func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
+	return &Evaluator{
 		Solution:    ctx,
 		graph:       newGraph(),
 		unevaluated: newGraph(),
 	}
 }
 
-func (key EvaluationKey) String() string {
+func (key Key) String() string {
 	if !key.Ref.Resource.IsZero() {
 		return key.Ref.String()
 	}
@@ -60,7 +60,7 @@ func (key EvaluationKey) String() string {
 	return key.Edge.String()
 }
 
-func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
+func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 	var errs error
 	for v, deps := range vs {
 		key := v.Key()
@@ -135,43 +135,43 @@ func (vs *verticesAndDeps) AddAll(other verticesAndDeps) {
 	}
 	for v, deps := range other {
 		if (*vs)[v] == nil {
-			(*vs)[v] = make(set.Set[EvaluationKey])
+			(*vs)[v] = make(set.Set[Key])
 		}
 		(*vs)[v].AddFrom(deps)
 	}
 }
 
-func (vs *verticesAndDeps) AddRefs(k EvaluationVertex, deps set.Set[construct.PropertyRef]) {
+func (vs *verticesAndDeps) AddRefs(k Vertex, deps set.Set[construct.PropertyRef]) {
 	if *vs == nil {
 		*vs = make(verticesAndDeps)
 	}
 	if (*vs)[k] == nil {
-		(*vs)[k] = make(set.Set[EvaluationKey])
+		(*vs)[k] = make(set.Set[Key])
 	}
 	for dep := range deps {
-		(*vs)[k].Add(EvaluationKey{Ref: dep})
+		(*vs)[k].Add(Key{Ref: dep})
 	}
 }
 
-func (vs *verticesAndDeps) AddGraphStates(k EvaluationVertex, states graphStates) {
+func (vs *verticesAndDeps) AddGraphStates(k Vertex, states graphStates) {
 	if *vs == nil {
 		*vs = make(verticesAndDeps)
 	}
 	for repr, test := range states {
 		v := &graphStateVertex{repr: repr, Test: test}
-		(*vs)[v] = make(set.Set[EvaluationKey])
+		(*vs)[v] = make(set.Set[Key])
 		(*vs)[k].Add(v.Key())
 	}
 }
 
-func (vs *verticesAndDeps) AddDependencies(cfgCtx knowledgebase.DynamicValueContext, v EvaluationVertex) error {
+func (vs *verticesAndDeps) AddDependencies(cfgCtx knowledgebase.DynamicValueContext, v Vertex) error {
 	deps, gs, err := v.Dependencies(cfgCtx)
 	vs.AddRefs(v, deps)
 	vs.AddGraphStates(v, gs)
 	return err
 }
 
-func VertexLess(a, b EvaluationKey) bool {
+func VertexLess(a, b Key) bool {
 	if a.Ref.Resource.IsZero() != b.Ref.Resource.IsZero() {
 		// sort properties before edges
 		return a.Ref.Resource.IsZero()
@@ -191,7 +191,7 @@ func VertexLess(a, b EvaluationKey) bool {
 	return a.Ref.Property < b.Ref.Property
 }
 
-func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
+func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 	if oldId == newId {
 		return nil
 	}
@@ -214,13 +214,13 @@ func (eval *PropertyEval) UpdateId(oldId, newId construct.ResourceId) error {
 
 	var errs error
 
-	replaceVertex := func(oldKey EvaluationKey, vertex EvaluationVertex) {
+	replaceVertex := func(oldKey Key, vertex Vertex) {
 		errs = errors.Join(errs,
-			graph_addons.ReplaceVertex(eval.graph, oldKey, EvaluationVertex(vertex), EvaluationVertex.Key),
+			graph_addons.ReplaceVertex(eval.graph, oldKey, Vertex(vertex), Vertex.Key),
 		)
 		if _, err := eval.unevaluated.Vertex(oldKey); err == nil {
 			errs = errors.Join(errs,
-				graph_addons.ReplaceVertex(eval.unevaluated, oldKey, EvaluationVertex(vertex), EvaluationVertex.Key),
+				graph_addons.ReplaceVertex(eval.unevaluated, oldKey, Vertex(vertex), Vertex.Key),
 			)
 		} else if !errors.Is(err, graph.ErrVertexNotFound) {
 			errs = errors.Join(errs, err)

@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -17,8 +17,8 @@ type edgeVertex struct {
 	Rules []knowledgebase.OperationalRule
 }
 
-func (ev edgeVertex) Key() EvaluationKey {
-	return EvaluationKey{Edge: ev.Edge}
+func (ev edgeVertex) Key() Key {
+	return Key{Edge: ev.Edge}
 }
 
 func (ev *edgeVertex) Dependencies(
@@ -45,7 +45,7 @@ func (ev *edgeVertex) Dependencies(
 	return propCtx.refs, propCtx.graphState, nil
 }
 
-func (ev *edgeVertex) UpdateFrom(other EvaluationVertex) {
+func (ev *edgeVertex) UpdateFrom(other Vertex) {
 	if ev == other {
 		return
 	}
@@ -59,7 +59,7 @@ func (ev *edgeVertex) UpdateFrom(other EvaluationVertex) {
 	ev.Rules = append(ev.Rules, otherEdge.Rules...)
 }
 
-func (ev *edgeVertex) Evaluate(eval *PropertyEval) error {
+func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", ev.Edge)
 
 	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}

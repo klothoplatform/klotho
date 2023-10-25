@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"bytes"
@@ -33,7 +33,7 @@ func PrintGraph(g Graph) {
 	}
 }
 
-func (eval *PropertyEval) writeGraph(filename string) {
+func (eval *Evaluator) writeGraph(filename string) {
 	f, err := os.Create(filename + ".gv")
 	if err != nil {
 		zap.S().Errorf("could not create file %s: %v", filename, err)

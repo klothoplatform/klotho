@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -14,24 +14,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type Graph graph.Graph[EvaluationKey, EvaluationVertex]
+type Graph graph.Graph[Key, Vertex]
 
 func newGraph() Graph {
 	g := graph.NewWithStore(
-		EvaluationVertex.Key,
-		graph_addons.NewMemoryStore[EvaluationKey, EvaluationVertex](),
+		Vertex.Key,
+		graph_addons.NewMemoryStore[Key, Vertex](),
 		graph.Directed(),
 		graph.PreventCycles(),
 	)
-	g = graph_addons.LoggingGraph[EvaluationKey, EvaluationVertex]{
+	g = graph_addons.LoggingGraph[Key, Vertex]{
 		Graph: g,
 		Log:   zap.L().With(zap.String("graph", "evaluation")).Sugar(),
-		Hash:  EvaluationVertex.Key,
+		Hash:  Vertex.Key,
 	}
 	return g
 }
 
-func (eval *PropertyEval) AddResources(rs ...*construct.Resource) error {
+func (eval *Evaluator) AddResources(rs ...*construct.Resource) error {
 	vs := make(verticesAndDeps)
 	var errs error
 	for _, res := range rs {
@@ -53,7 +53,7 @@ func (eval *PropertyEval) AddResources(rs ...*construct.Resource) error {
 	return eval.enqueue(vs)
 }
 
-func (eval *PropertyEval) AddEdges(es ...construct.Edge) error {
+func (eval *Evaluator) AddEdges(es ...construct.Edge) error {
 	vs := make(verticesAndDeps)
 	var errs error
 	for _, e := range es {
@@ -84,7 +84,7 @@ func UpdateEdgeId(e construct.SimpleEdge, oldId, newId construct.ResourceId) con
 	return e
 }
 
-func (eval *PropertyEval) resourceVertices(
+func (eval *Evaluator) resourceVertices(
 	res *construct.Resource,
 	tmpl *knowledgebase.ResourceTemplate,
 ) (verticesAndDeps, error) {
@@ -122,7 +122,7 @@ func (eval *PropertyEval) resourceVertices(
 	return vs, errs
 }
 
-func (eval *PropertyEval) edgeVertices(
+func (eval *Evaluator) edgeVertices(
 	edge construct.Edge,
 	tmpl *knowledgebase.EdgeTemplate,
 ) (verticesAndDeps, error) {
@@ -160,7 +160,7 @@ func (eval *PropertyEval) edgeVertices(
 			}
 			vertex, ok := vertices[ref]
 			if !ok {
-				existing, err := eval.graph.Vertex(EvaluationKey{Ref: ref})
+				existing, err := eval.graph.Vertex(Key{Ref: ref})
 				switch {
 				case errors.Is(err, graph.ErrVertexNotFound):
 					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule)}
@@ -201,7 +201,7 @@ func (eval *PropertyEval) edgeVertices(
 	return vs, errs
 }
 
-func (eval *PropertyEval) removeKey(k EvaluationKey) error {
+func (eval *Evaluator) removeKey(k Key) error {
 	err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, k)
 	if err == nil {
 		return graph_addons.RemoveVertexAndEdges(eval.graph, k)
@@ -212,7 +212,7 @@ func (eval *PropertyEval) removeKey(k EvaluationKey) error {
 	return err
 }
 
-func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error {
+func (eval *Evaluator) RemoveEdge(source, target construct.ResourceId) error {
 	g := eval.graph
 	edge := construct.SimpleEdge{Source: source, Target: target}
 
@@ -222,7 +222,7 @@ func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error 
 	}
 
 	var errs error
-	checkStates := make(set.Set[EvaluationKey])
+	checkStates := make(set.Set[Key])
 	for key := range pred {
 		v, err := g.Vertex(key)
 		if err != nil {
@@ -272,7 +272,7 @@ func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error 
 
 // RemoveResource removes all edges from the resource. any property references (as [ResourceId] or [PropertyRef])
 // to the resource, and finally the resource itself.
-func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
+func (eval *Evaluator) RemoveResource(id construct.ResourceId) error {
 	g := eval.graph
 
 	pred, err := g.PredecessorMap()
@@ -281,7 +281,7 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 	}
 
 	var errs error
-	checkStates := make(set.Set[EvaluationKey])
+	checkStates := make(set.Set[Key])
 	for key := range pred {
 		v, err := g.Vertex(key)
 		if err != nil {

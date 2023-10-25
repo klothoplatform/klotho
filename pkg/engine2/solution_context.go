@@ -3,7 +3,7 @@ package engine2
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
-	property_eval "github.com/klothoplatform/klotho/pkg/engine2/property_eval"
+	property_eval "github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -20,7 +20,7 @@ type (
 		stack           []solution_context.KV
 		mappedResources map[construct.ResourceId]construct.ResourceId
 		constraints     constraints.Constraints
-		propertyEval    *property_eval.PropertyEval
+		propertyEval    *property_eval.Evaluator
 	}
 )
 
@@ -36,7 +36,7 @@ func NewSolutionContext(kb knowledgebase.TemplateKB) *solutionContext {
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
 	}
-	ctx.propertyEval = property_eval.NewPropertyEval(ctx)
+	ctx.propertyEval = property_eval.NewEvaluator(ctx)
 	return ctx
 }
 

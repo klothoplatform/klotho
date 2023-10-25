@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"

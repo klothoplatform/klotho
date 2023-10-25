@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func keyAttributes(eval *PropertyEval, key EvaluationKey) map[string]string {
+func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	attribs := make(map[string]string)
 	if !key.Ref.Resource.IsZero() {
 		attribs["label"] = fmt.Sprintf(`%s\n%s`, key.Ref.Resource, key.Ref.Property)
@@ -50,10 +50,10 @@ func attributesToString(attribs map[string]string) string {
 
 type evalRank struct {
 	Rank     int
-	SubRanks [][]EvaluationKey
+	SubRanks [][]Key
 }
 
-func toRanks(eval *PropertyEval) ([]evalRank, error) {
+func toRanks(eval *Evaluator) ([]evalRank, error) {
 	ranks := make([]evalRank, len(eval.evaluatedOrder))
 
 	pred, err := eval.graph.PredecessorMap()
@@ -66,8 +66,8 @@ func toRanks(eval *PropertyEval) ([]evalRank, error) {
 
 		if len(keys) > 20 {
 			// split large ranks into smaller ones
-			var noDeps []EvaluationKey
-			var hasDeps []EvaluationKey
+			var noDeps []Key
+			var hasDeps []Key
 			for key := range keys {
 				if len(pred[key]) == 0 {
 					noDeps = append(noDeps, key)
@@ -80,10 +80,10 @@ func toRanks(eval *PropertyEval) ([]evalRank, error) {
 			}
 			rank.SubRanks = append(rank.SubRanks, hasDeps)
 		} else {
-			rank.SubRanks = [][]EvaluationKey{keys.ToSlice()}
+			rank.SubRanks = [][]Key{keys.ToSlice()}
 		}
 	}
-	var unevaluated []EvaluationKey
+	var unevaluated []Key
 	for key := range pred {
 		evaluated := false
 		for _, keys := range eval.evaluatedOrder {
@@ -99,13 +99,13 @@ func toRanks(eval *PropertyEval) ([]evalRank, error) {
 	if len(unevaluated) > 0 {
 		ranks = append(ranks, evalRank{
 			Rank:     len(ranks),
-			SubRanks: [][]EvaluationKey{unevaluated},
+			SubRanks: [][]Key{unevaluated},
 		})
 	}
 	return ranks, nil
 }
 
-func graphToDOT(eval *PropertyEval, out io.Writer) error {
+func graphToDOT(eval *Evaluator, out io.Writer) error {
 	var errs error
 	printf := func(s string, args ...any) {
 		_, err := fmt.Fprintf(out, s, args...)

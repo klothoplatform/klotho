@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -22,8 +22,8 @@ type (
 	}
 )
 
-func (prop propertyVertex) Key() EvaluationKey {
-	return EvaluationKey{Ref: prop.Ref}
+func (prop propertyVertex) Key() Key {
+	return Key{Ref: prop.Ref}
 }
 
 func (prop *propertyVertex) Dependencies(
@@ -80,7 +80,7 @@ func (prop *propertyVertex) Dependencies(
 	return propCtx.refs, propCtx.graphState, nil
 }
 
-func (prop *propertyVertex) UpdateFrom(otherV EvaluationVertex) {
+func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 	if prop == otherV {
 		return
 	}
@@ -108,7 +108,7 @@ func (prop *propertyVertex) UpdateFrom(otherV EvaluationVertex) {
 	}
 }
 
-func (v *propertyVertex) Evaluate(eval *PropertyEval) error {
+func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", v.Ref)
 
 	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)

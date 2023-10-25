@@ -1,4 +1,4 @@
-package property_eval
+package operational_eval
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (eval *PropertyEval) Evaluate() error {
+func (eval *Evaluator) Evaluate() error {
 	defer eval.writeGraph("property_deps")
 	for {
 		size, err := eval.unevaluated.Order()
@@ -31,7 +31,7 @@ func (eval *PropertyEval) Evaluate() error {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
 		}
 
-		evaluated := make(set.Set[EvaluationKey])
+		evaluated := make(set.Set[Key])
 		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
 
 		var errs error
@@ -49,13 +49,13 @@ func (eval *PropertyEval) Evaluate() error {
 	}
 }
 
-func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
+func (eval *Evaluator) popReady() ([]Vertex, error) {
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
 		return nil, err
 	}
 
-	var readyKeys []EvaluationKey
+	var readyKeys []Key
 
 	for v, deps := range adj {
 		if len(deps) == 0 {
@@ -63,8 +63,8 @@ func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
 		}
 	}
 
-	ready := make([]EvaluationVertex, 0, len(readyKeys))
-	graphOps := make([]EvaluationVertex, 0, len(readyKeys))
+	ready := make([]Vertex, 0, len(readyKeys))
+	graphOps := make([]Vertex, 0, len(readyKeys))
 	var errs error
 	for _, key := range readyKeys {
 		v, err := eval.unevaluated.Vertex(key)
@@ -127,7 +127,7 @@ func (eval *PropertyEval) popReady() ([]EvaluationVertex, error) {
 // There is likely a way to determine which vertices need to be recalculated, but the runtime impact of just
 // recalculating them all isn't large at the size of graphs we're currently running with.
 // Running on a medium sized input, this accounted for 0.18s of the total 0.69s, or ~26% of the runtime.
-func (eval *PropertyEval) RecalculateUnevaluated() error {
+func (eval *Evaluator) RecalculateUnevaluated() error {
 	zap.S().Debug("Recalculating unevaluated graph for updated dependencies")
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
