@@ -107,17 +107,18 @@ func RemoveResource(g Graph, id ResourceId) error {
 		return err
 	}
 
-	removeId := func(path PropertyPathItem) error {
+	removeId := func(path PropertyPathItem) (bool, error) {
 		itemVal := path.Get()
 		itemId, ok := itemVal.(ResourceId)
 		if ok && itemId == id {
-			return path.Remove(nil)
+			return true, path.Remove(nil)
+
 		}
 		itemRef, ok := itemVal.(PropertyRef)
 		if ok && itemRef.Resource == id {
-			return path.Remove(nil)
+			return true, path.Remove(nil)
 		}
-		return nil
+		return false, nil
 	}
 
 	for neighborId := range adj {
@@ -125,14 +126,22 @@ func RemoveResource(g Graph, id ResourceId) error {
 		if err != nil {
 			return err
 		}
-		err = neighbor.WalkProperties(func(path PropertyPath, err error) error {
-			err = errors.Join(err, removeId(path))
+		err = neighbor.WalkProperties(func(path PropertyPath, nerr error) error {
+			removed, err := removeId(path)
+			nerr = errors.Join(nerr, err)
+			if removed {
+				return SkipProperty
+			}
 			kv, ok := path.Last().(PropertyKVItem)
 			if !ok {
 				return err
 			}
-			err = errors.Join(err, removeId(kv.Key()))
-			return err
+			removed, err = removeId(kv.Key())
+			nerr = errors.Join(nerr, err)
+			if removed {
+				return SkipProperty
+			}
+			return nerr
 		})
 		if err != nil {
 			return err

@@ -615,7 +615,9 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 			}
 
 		case reflect.Array, reflect.Slice:
-			for i := 0; i < v.Len(); i++ {
+			// Go backwards so that if the walk function removes an item, we don't skip items (or cause a panic)
+			// due to items shifting down.
+			for i := v.Len() - 1; i >= 0; i-- {
 				queue = append(queue, append(item, &arrayIndexPathItem{
 					_parent: item.Last(),
 					a:       v,
