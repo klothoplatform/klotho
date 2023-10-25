@@ -11,17 +11,24 @@ import (
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
 type Graph graph.Graph[EvaluationKey, EvaluationVertex]
 
 func newGraph() Graph {
-	return graph.NewWithStore(
+	g := graph.NewWithStore(
 		EvaluationVertex.Key,
 		graph_addons.NewMemoryStore[EvaluationKey, EvaluationVertex](),
 		graph.Directed(),
 		graph.PreventCycles(),
 	)
+	g = graph_addons.LoggingGraph[EvaluationKey, EvaluationVertex]{
+		Graph: g,
+		Log:   zap.L().With(zap.String("graph", "evaluation")).Sugar(),
+		Hash:  EvaluationVertex.Key,
+	}
+	return g
 }
 
 func (eval *PropertyEval) AddResources(rs ...*construct.Resource) error {
@@ -194,20 +201,20 @@ func (eval *PropertyEval) edgeVertices(
 	return vs, errs
 }
 
+func (eval *PropertyEval) removeKey(k EvaluationKey) error {
+	err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, k)
+	if err == nil {
+		return graph_addons.RemoveVertexAndEdges(eval.graph, k)
+	} else if errors.Is(err, graph.ErrVertexNotFound) {
+		// the key was already evaluated, leave it in the graph for debugging purposes
+		return nil
+	}
+	return err
+}
+
 func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error {
 	g := eval.graph
 	edge := construct.SimpleEdge{Source: source, Target: target}
-
-	removeKey := func(k EvaluationKey) error {
-		err := graph_addons.RemoveVertexAndEdges(g, k)
-		unevalErr := graph_addons.RemoveVertexAndEdges(g, k)
-		if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-			// if the key is already evaluated, it won't be in the unevaluated graph, thus would
-			// return an [ErrVertexNotFound]. Ignore those
-			unevalErr = nil
-		}
-		return errors.Join(err, unevalErr)
-	}
 
 	pred, err := g.PredecessorMap()
 	if err != nil {
@@ -215,6 +222,7 @@ func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error 
 	}
 
 	var errs error
+	checkStates := make(set.Set[EvaluationKey])
 	for key := range pred {
 		v, err := g.Vertex(key)
 		if err != nil {
@@ -232,17 +240,32 @@ func (eval *PropertyEval) RemoveEdge(source, target construct.ResourceId) error 
 
 		case *edgeVertex:
 			if v.Edge == edge {
-				errs = errors.Join(errs, removeKey(v.Key()))
+				errs = errors.Join(errs, eval.removeKey(v.Key()))
 			}
 
 		case *graphStateVertex:
-			if len(pred[v.Key()]) == 0 {
-				errs = errors.Join(errs, removeKey(v.Key()))
-			}
+			checkStates.Add(v.Key())
 		}
 	}
 	if errs != nil {
-		return fmt.Errorf("could not remove edge %s -> %s: %w", source, target, err)
+		return fmt.Errorf("could not remove edge %s: %w", edge, err)
+	}
+
+	// recompute the predecessors, since we may have removed some edges
+	pred, err = g.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	// Clean up any graph state keys that are no longer referenced. They don't do any harm except the performance
+	// impact of recomputing the dependencies.
+	for v := range checkStates {
+		if len(pred[v]) == 0 {
+			errs = errors.Join(errs, eval.removeKey(v))
+		}
+	}
+	if errs != nil {
+		return fmt.Errorf("could not clean up graph state keys when removing %s: %w", edge, errs)
 	}
 	return nil
 }
@@ -254,17 +277,6 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 
 	pred, err := g.PredecessorMap()
 	if err != nil {
-		return err
-	}
-
-	removeKey := func(k EvaluationKey) error {
-		err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, k)
-		if err == nil {
-			return graph_addons.RemoveVertexAndEdges(g, k)
-		} else if errors.Is(err, graph.ErrVertexNotFound) {
-			// the key was already evaluated, leave it in the graph for debugging purposes
-			return nil
-		}
 		return err
 	}
 
@@ -280,7 +292,7 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 		switch v := v.(type) {
 		case *propertyVertex:
 			if v.Ref.Resource == id {
-				errs = errors.Join(errs, removeKey(v.Key()))
+				errs = errors.Join(errs, eval.removeKey(v.Key()))
 				continue
 			}
 			for edge := range v.EdgeRules {
@@ -290,10 +302,9 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 			}
 
 		case *edgeVertex:
-			if v.Edge.Source != id && v.Edge.Target != id {
-				continue
+			if v.Edge.Source == id || v.Edge.Target == id {
+				errs = errors.Join(errs, eval.removeKey(v.Key()))
 			}
-			errs = errors.Join(errs, removeKey(v.Key()))
 
 		case *graphStateVertex:
 			checkStates.Add(v.Key())
@@ -309,9 +320,11 @@ func (eval *PropertyEval) RemoveResource(id construct.ResourceId) error {
 		return err
 	}
 
+	// Clean up any graph state keys that are no longer referenced. They don't do any harm except the performance
+	// impact of recomputing the dependencies.
 	for v := range checkStates {
 		if len(pred[v]) == 0 {
-			errs = errors.Join(errs, removeKey(v))
+			errs = errors.Join(errs, eval.removeKey(v))
 		}
 	}
 	if errs != nil {

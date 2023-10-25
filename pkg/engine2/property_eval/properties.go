@@ -76,6 +76,9 @@ func (eval *PropertyEval) enqueue(vs verticesAndDeps) error {
 			if err := eval.unevaluated.AddVertex(v); err != nil {
 				errs = errors.Join(errs, err)
 			}
+			if key.Edge.Source.Type == "lambda_function" && key.Edge.Target.Type == "s3_bucket" {
+				PrintGraph(eval.graph)
+			}
 
 		case err == nil:
 			existing, err := eval.graph.Vertex(v.Key())

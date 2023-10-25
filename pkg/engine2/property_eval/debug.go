@@ -9,9 +9,29 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/dominikbraun/graph"
 	"github.com/google/pprof/third_party/svgpan"
 	"go.uber.org/zap"
 )
+
+func PrintGraph(g Graph) {
+	topo, err := graph.TopologicalSort(g)
+	if err != nil {
+		zap.S().Errorf("could not topologically sort graph: %v", err)
+		return
+	}
+	adj, err := g.AdjacencyMap()
+	if err != nil {
+		zap.S().Errorf("could not get adjacency map: %v", err)
+		return
+	}
+	for _, v := range topo {
+		fmt.Println(v)
+		for dep := range adj[v] {
+			fmt.Printf("-> %s\n", dep)
+		}
+	}
+}
 
 func (eval *PropertyEval) writeGraph(filename string) {
 	f, err := os.Create(filename + ".gv")

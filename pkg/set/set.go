@@ -1,5 +1,10 @@
 package set
 
+import (
+	"fmt"
+	"strings"
+)
+
 type Set[T comparable] map[T]struct{}
 
 func (s Set[T]) Add(vs ...T) {
@@ -74,4 +79,17 @@ func (s Set[T]) Intersection(other Set[T]) Set[T] {
 		}
 	}
 	return intersection
+}
+
+func (s Set[T]) String() string {
+	sb := new(strings.Builder)
+	sb.WriteString("{")
+	for i, k := range s.ToSlice() {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(sb, "%v", k)
+	}
+	sb.WriteString("}")
+	return sb.String()
 }
