@@ -3,7 +3,7 @@ destination: aws:lambda_function
 direct_edge_only: false
 deployment_order_reversed: false
 deletion_dependent: false
-reuse:
+unique: true
 expansion:
   resources:
     - aws:lambda_permission:-lambdapermission

@@ -33,4 +33,4 @@ delete_context:
   requires_explicit_delete: true
 
 views:
-  dataflow: big
+  dataflow: parent

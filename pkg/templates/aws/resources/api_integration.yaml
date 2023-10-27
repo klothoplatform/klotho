@@ -7,7 +7,7 @@ properties:
     namespace: true
     operational_rule:
       steps:
-        - direction: upstream
+        - direction: downstream
           resources:
             - aws:rest_api
   Resource:
@@ -62,4 +62,4 @@ delete_context:
   requires_no_upstream_or_downstream: true
 
 views:
-  dataflow: small
+  dataflow: big
