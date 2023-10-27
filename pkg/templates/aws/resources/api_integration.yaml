@@ -7,7 +7,7 @@ properties:
     namespace: true
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:rest_api
   Resource:
