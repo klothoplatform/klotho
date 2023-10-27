@@ -133,9 +133,10 @@ func (em *EngineMain) AddEngine() error {
 }
 
 type resourceInfo struct {
-	Classifications []string       `json:"classifications"`
-	DisplayName     string         `json:"displayName"`
-	Properties      map[string]any `json:"properties"`
+	Classifications []string          `json:"classifications"`
+	DisplayName     string            `json:"displayName"`
+	Properties      map[string]any    `json:"properties"`
+	Views           map[string]string `json:"views"`
 }
 
 func addSubProperties(properties map[string]any, subProperties map[string]*knowledgebase.Property) {
@@ -180,6 +181,7 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 			Classifications: resourceType.Classification.Is,
 			Properties:      properties,
 			DisplayName:     resourceType.DisplayName,
+			Views:           resourceType.Views,
 		}
 	}
 	b, err := json.Marshal(typeAndClassifications)

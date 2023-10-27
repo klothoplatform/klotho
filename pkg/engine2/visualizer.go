@@ -98,7 +98,9 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		node := &TopologyNode{
 			Resource: src,
 			Children: make(set.Set[construct.ResourceId]),
+			Parent:   e.getParentFromNamespace(src, topo),
 		}
+
 		tag := e.GetResourceVizTag(string(DataflowView), src)
 		switch tag {
 		case ParentIconTag, BigIconTag:
@@ -187,9 +189,18 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 			continue
 		}
 		errs = errors.Join(errs, viewDag.AddVertex(res, graph.VertexAttributes(properties)))
+
 	}
 	if errs != nil {
 		return nil, errs
+	}
+
+	// Remove edges between children and parents
+	for _, node := range topo.Nodes {
+		if !node.Parent.IsZero() {
+			delete(topo.Edges, construct.SimpleEdge{Source: node.Resource, Target: node.Parent})
+			delete(topo.Edges, construct.SimpleEdge{Source: node.Parent, Target: node.Resource})
+		}
 	}
 
 	for edge, path := range topo.Edges {
@@ -203,9 +214,21 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		}
 		errs = errors.Join(errs, viewDag.AddEdge(edge.Source, edge.Target, graph.EdgeData(data)))
 	}
+
 	if errs != nil {
 		return nil, errs
 	}
 
 	return viewDag, nil
+}
+
+func (e *Engine) getParentFromNamespace(resource construct.ResourceId, topo Topology) construct.ResourceId {
+	if resource.Namespace != "" {
+		for _, potentialParent := range topo.Nodes {
+			if potentialParent.Resource.Provider == resource.Provider && potentialParent.Resource.Name == potentialParent.Resource.Name && e.GetResourceVizTag(string(DataflowView), potentialParent.Resource) == ParentIconTag {
+				return potentialParent.Resource
+			}
+		}
+	}
+	return construct.ResourceId{}
 }
