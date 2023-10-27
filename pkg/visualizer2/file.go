@@ -124,7 +124,7 @@ func (f *File) KeyFor(res construct.ResourceId) string {
 	resId := res
 	var providerInfo string
 	var namespaceInfo string
-	if resId.Provider != f.Provider {
+	if resId.Provider != f.Provider || resId.Namespace != "" {
 		providerInfo = resId.Provider + `:`
 	}
 	if resId.Namespace != "" {
