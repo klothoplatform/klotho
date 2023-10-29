@@ -2,6 +2,7 @@ package operational_eval
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -69,30 +70,27 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			err := eval.graph.AddVertex(v)
 			if err != nil {
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
 			}
-			zap.S().With("op", "enqueue").Debugf("Enqueued %s (%d deps)", v.Key(), len(deps))
+			zap.S().With("op", "enqueue").Debugf("Enqueued %s (%d deps)", key, len(deps))
 			if err := eval.unevaluated.AddVertex(v); err != nil {
 				errs = errors.Join(errs, err)
 			}
-			if key.Edge.Source.Type == "lambda_function" && key.Edge.Target.Type == "s3_bucket" {
-				PrintGraph(eval.graph)
-			}
 
 		case err == nil:
-			existing, err := eval.graph.Vertex(v.Key())
+			existing, err := eval.graph.Vertex(key)
 			if err != nil {
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 				continue
 			}
 			if v != existing {
-				zap.S().With("op", "enqueue").Debugf("Updating %s (%d deps)", v.Key(), len(deps))
+				zap.S().With("op", "enqueue").Debugf("Updating %s (%d deps)", key, len(deps))
 				existing.UpdateFrom(v)
 			}
 
 		case err != nil:
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 		}
 	}
 	if errs != nil {
@@ -105,7 +103,7 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 			if err != nil {
 				// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
 				// new vertex type of "overwrite me later".
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", source.Key(), target, err))
 			}
 			_, err = eval.unevaluated.Vertex(target)
 			switch {
@@ -115,11 +113,14 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 				zap.S().With("op", "deps").Debugf("  -> %s (done)", target)
 
 			case err != nil:
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("could not get unevaluated vertex %s: %w", target, err))
 
 			default:
 				zap.S().With("op", "deps").Debugf("  -> %s", target)
-				errs = errors.Join(errs, eval.unevaluated.AddEdge(source.Key(), target))
+				err := eval.unevaluated.AddEdge(source.Key(), target)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("could not add unevaluated edge %s -> %s: %w", source.Key(), target, err))
+				}
 			}
 		}
 	}

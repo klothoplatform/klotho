@@ -11,7 +11,8 @@ operational_rules:
       {{- if not (hasDownstream "kubernetes:service" .Target) }}
         false
       {{end}}
-      {{ ne (len (fieldValue "Object.Spec.Ports" .Target))  0 }}
+      {{ $service := (downstream "kubernetes:service" .Target) }}
+      {{ gt (len (fieldValue "Object.Spec.Ports" $service)) 0 }}
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:

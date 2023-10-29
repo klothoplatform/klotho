@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -120,7 +121,15 @@ func (ctx *fauxConfigContext) HasField(field string, resource any) (bool, error)
 	if ctx.refs == nil {
 		ctx.refs = make(set.Set[construct.PropertyRef])
 	}
-	ctx.refs.Add(construct.PropertyRef{Resource: resId, Property: field})
+	ref := construct.PropertyRef{
+		Resource: resId,
+		Property: field,
+	}
+	if bracketIdx := strings.Index(field, "["); bracketIdx != -1 {
+		// Cannot depend on properties within lists, stop at the list itself
+		ref.Property = field[:bracketIdx]
+	}
+	ctx.refs.Add(ref)
 
 	return ctx.inner.HasField(field, resId)
 }
@@ -137,7 +146,15 @@ func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error
 	if ctx.refs == nil {
 		ctx.refs = make(set.Set[construct.PropertyRef])
 	}
-	ctx.refs.Add(construct.PropertyRef{Resource: resId, Property: field})
+	ref := construct.PropertyRef{
+		Resource: resId,
+		Property: field,
+	}
+	if bracketIdx := strings.Index(field, "["); bracketIdx != -1 {
+		// Cannot depend on properties within lists, stop at the list itself
+		ref.Property = field[:bracketIdx]
+	}
+	ctx.refs.Add(ref)
 
 	value, err := ctx.inner.FieldValue(field, resId)
 	if err != nil {
