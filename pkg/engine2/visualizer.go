@@ -98,7 +98,7 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		node := &TopologyNode{
 			Resource: src,
 			Children: make(set.Set[construct.ResourceId]),
-			Parent:   e.getParentFromNamespace(src, topo),
+			Parent:   e.getParentFromNamespace(src, resources),
 		}
 
 		tag := e.GetResourceVizTag(string(DataflowView), src)
@@ -222,11 +222,11 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 	return viewDag, nil
 }
 
-func (e *Engine) getParentFromNamespace(resource construct.ResourceId, topo Topology) construct.ResourceId {
+func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources []construct.ResourceId) construct.ResourceId {
 	if resource.Namespace != "" {
-		for _, potentialParent := range topo.Nodes {
-			if potentialParent.Resource.Provider == resource.Provider && potentialParent.Resource.Name == potentialParent.Resource.Name && e.GetResourceVizTag(string(DataflowView), potentialParent.Resource) == ParentIconTag {
-				return potentialParent.Resource
+		for _, potentialParent := range resources {
+			if potentialParent.Provider == resource.Provider && potentialParent.Name == resource.Namespace && e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
+				return potentialParent
 			}
 		}
 	}
