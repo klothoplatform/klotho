@@ -36,6 +36,10 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+path_satisfaction:
+  as_target:
+    - network
+
 classification:
   is:
     - load_balancer

@@ -1,8 +1,9 @@
-source: aws:eks_cluster
-target: aws:security_group
+source: aws:security_group
+target: aws:eks_cluster
+deployment_order_reversed: true
 operational_rules:
   - configuration_rules:
-      - resource: '{{ .Target }}'
+      - resource: '{{ .Source }}'
         configuration:
           field: IngressRules
           value:

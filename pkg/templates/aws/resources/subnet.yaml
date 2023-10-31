@@ -55,5 +55,9 @@ properties:
     type: bool
     default_value: false
 
+classification:
+  is:
+    - network
+
 delete_context:
   require_no_upstream: true

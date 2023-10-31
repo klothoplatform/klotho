@@ -138,13 +138,6 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 
 	case constraints.MustNotExistConstraintOperator:
 		return removePath()
-
-	case constraints.MustContainConstraintOperator, constraints.MustNotContainConstraintOperator:
-		// recompute the path with the constraint applied
-		if err := removePath(); err != nil {
-			return err
-		}
-		return addPath()
 	}
 	return nil
 }

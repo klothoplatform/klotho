@@ -9,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
@@ -35,6 +36,9 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 	}
 
 	if action.numNeeded > 0 {
+		if resource.ID.String() == "aws:rds_subnet_group:rds_subnet_group-0" {
+			fmt.Println("t")
+		}
 		err := action.useAvailableResources(resource)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while using available resources: %w", err)
@@ -71,7 +75,7 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 
 func (action *operationalResourceAction) useAvailableResources(resource *construct.Resource) error {
 	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
-	var availableResources []*construct.Resource
+	availableResources := make(set.Set[*construct.Resource])
 	// Next we will loop through and try to use available resources if the unique flag is not set
 	for _, resourceSelector := range action.Step.Resources {
 		ids, err := resourceSelector.ExtractResourceIds(configCtx, action.ruleCtx.Data)
@@ -145,7 +149,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				} else if err != nil {
 					return fmt.Errorf("error checking %s satisfies namespace: %w", resId, err)
 				}
-				availableResources = append(availableResources, res)
+				availableResources.Add(res)
 			}
 		}
 	}
@@ -157,14 +161,14 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 }
 
 func (action *operationalResourceAction) placeResources(resource *construct.Resource,
-	availableResources []*construct.Resource) error {
+	availableResources set.Set[*construct.Resource]) error {
 	placerGen, ok := placerMap[action.Step.SelectionOperator]
 	if !ok {
 		return fmt.Errorf("unknown selection operator %s", action.Step.SelectionOperator)
 	}
 	placer := placerGen()
 	placer.SetCtx(action.ruleCtx)
-	return placer.PlaceResources(resource, action.Step, availableResources, &action.numNeeded)
+	return placer.PlaceResources(resource, action.Step, availableResources.ToSlice(), &action.numNeeded)
 }
 
 func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResource *construct.Resource, resource *construct.Resource) (bool, error) {
@@ -289,7 +293,7 @@ func (action *operationalResourceAction) createResource(
 }
 
 func (action *operationalResourceAction) createAndAddDependency(res, stepResource *construct.Resource) error {
-	err := action.ruleCtx.Solution.RawView().AddVertex(res)
+	err := action.ruleCtx.Solution.OperationalView().AddVertex(res)
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return err
 	}

@@ -24,12 +24,15 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
   IpAddress:
     type: string
 
+classification:
+  is:
+    - efs_access
 
 views:
   dataflow: small

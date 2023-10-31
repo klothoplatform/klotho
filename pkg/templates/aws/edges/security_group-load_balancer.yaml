@@ -1,0 +1,3 @@
+source: aws:security_group
+target: aws:load_balancer
+deployment_order_reversed: true

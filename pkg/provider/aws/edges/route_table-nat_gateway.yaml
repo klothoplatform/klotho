@@ -1,6 +1,6 @@
 source: aws:route_table
 destination: aws:nat_gateway
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

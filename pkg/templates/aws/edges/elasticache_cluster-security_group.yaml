@@ -1,2 +1,0 @@
-source: aws:elasticache_cluster
-target: aws:security_group

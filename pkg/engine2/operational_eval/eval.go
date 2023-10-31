@@ -7,7 +7,6 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -134,8 +133,6 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 		return err
 	}
 
-	dyn := solution_context.DynamicCtx(eval.Solution)
-
 	vs := make(verticesAndDeps)
 	var errs error
 	for _, key := range topo {
@@ -144,7 +141,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, vs.AddDependencies(dyn, vertex))
+		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, vertex))
 	}
 	if errs != nil {
 		return errs

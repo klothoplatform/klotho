@@ -26,7 +26,6 @@ func PrintGraph(g Graph) {
 		return
 	}
 	for _, v := range topo {
-		fmt.Println(v)
 		for dep := range adj[v] {
 			fmt.Printf("-> %s\n", dep)
 		}

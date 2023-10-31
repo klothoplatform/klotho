@@ -3,7 +3,6 @@ package constraints
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
@@ -24,10 +23,8 @@ type (
 	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
 
 	EdgeConstraint struct {
-		Operator   ConstraintOperator   `yaml:"operator"`
-		Target     Edge                 `yaml:"target"`
-		Node       construct.ResourceId `yaml:"node"`
-		Attributes map[string]any       `yaml:"attributes"`
+		Operator ConstraintOperator `yaml:"operator"`
+		Target   Edge               `yaml:"target"`
 	}
 )
 
@@ -73,36 +70,7 @@ func (constraint *EdgeConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 }
 
 func (constraint *EdgeConstraint) checkSatisfication(path []*construct.Resource, ctx ConstraintGraph) bool {
-	if constraint.Attributes != nil {
-		for i, res := range path {
-			for k := range constraint.Attributes {
-				if len(path) == 2 {
-					if !collectionutil.Contains(ctx.GetClassification(path[0].ID).Is, k) || !collectionutil.Contains(ctx.GetClassification(path[1].ID).Is, k) {
-						return false
-					}
-				} else {
-					if !collectionutil.Contains(ctx.GetClassification(res.ID).Is, k) && (i != 0 && i != len(path)-1) {
-						return false
-					}
-				}
-			}
-		}
-	}
-
 	switch constraint.Operator {
-	case MustContainConstraintOperator:
-		for _, res := range path {
-			if res.ID == constraint.Node {
-				return true
-			}
-		}
-	case MustNotContainConstraintOperator:
-		for _, res := range path {
-			if res.ID == constraint.Node {
-				return false
-			}
-		}
-		return true
 	case MustExistConstraintOperator:
 		return len(path) > 0
 	case MustNotExistConstraintOperator:
@@ -118,14 +86,9 @@ func (constraint *EdgeConstraint) Validate() error {
 	if (constraint.Target.Source == construct.ResourceId{} || constraint.Target.Target == construct.ResourceId{}) {
 		return fmt.Errorf("edge constraint must have a source and target defined")
 	}
-	if (constraint.Operator == MustContainConstraintOperator ||
-		constraint.Operator == MustNotContainConstraintOperator &&
-			constraint.Node == construct.ResourceId{}) {
-		return fmt.Errorf("edge constraint must have a node defined")
-	}
 	return nil
 }
 
 func (constraint *EdgeConstraint) String() string {
-	return fmt.Sprintf("EdgeConstraint{Operator: %s, Target: %s, Node: %s, Attributes: %v}", constraint.Operator, constraint.Target, constraint.Node, constraint.Attributes)
+	return fmt.Sprintf("EdgeConstraint{Operator: %s, Target: %s}", constraint.Operator, constraint.Target)
 }

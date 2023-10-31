@@ -57,6 +57,8 @@ properties:
     default_value: /{proxy+}
 
 classification:
+  is:
+    - api_route
 
 delete_context:
   requires_no_upstream_or_downstream: true

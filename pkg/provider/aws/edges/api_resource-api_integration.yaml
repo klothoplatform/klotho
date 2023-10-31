@@ -1,6 +1,6 @@
 source: aws:api_resource
 destination: aws:api_integration
-direct_edge_only: false
+
 deployment_order_reversed: true
 deletion_dependent: false
 reuse:

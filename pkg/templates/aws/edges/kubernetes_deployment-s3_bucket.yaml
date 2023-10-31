@@ -1,9 +1,0 @@
-source: kubernetes:deployment
-target: aws:s3_bucket
-
-operational_rules:
-  - steps:
-      - resource: '{{ downstream "aws:iam_role" .Source }}'
-        direction: downstream
-        resources:
-          - '{{ .Target }}'

@@ -23,6 +23,7 @@ func NewGraph(options ...func(*graph.Traits)) Graph {
 		graph_addons.NewMemoryStore[ResourceId, *Resource](),
 		append(options,
 			graph.Directed(),
+			graph.Weighted(),
 		)...,
 	))
 }

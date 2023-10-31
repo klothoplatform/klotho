@@ -30,6 +30,6 @@ properties:
 
 classification:
   is:
-    - proxy
+    - rds_proxy_target_group
   gives:
     - reliability:storage

@@ -14,6 +14,12 @@ classification:
     - messaging
     - email
 
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
 delete_context:
   require_no_upstream: true
 views:

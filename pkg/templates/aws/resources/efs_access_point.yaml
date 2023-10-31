@@ -38,6 +38,10 @@ properties:
         type: string
         default_value: /mnt/efs
 
+classification:
+  is:
+    - efs_access
+
 delete_context:
   requires_no_upstream: true
 views:

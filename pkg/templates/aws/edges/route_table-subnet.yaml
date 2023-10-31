@@ -1,0 +1,11 @@
+source: aws:route_table
+target: aws:subnet
+operational_rules:
+  - if: |
+      {{ ne (fieldValue "Vpc" .Source) (fieldValue "Vpc" .Target) }}
+    configuration_rules:
+      - resource: '{{.Source}}'
+        configuration:
+          field: Routes
+          value:
+            CidrBlock: '{{ fieldValue "CidrBlock" .Target }}'

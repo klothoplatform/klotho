@@ -41,7 +41,7 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
   Subnets:
@@ -63,6 +63,10 @@ properties:
           resources:
             - aws:ecs_task_definition:{{ .Self.Name }}
           unique: true
+
+path_satisfaction:
+  as_target:
+    - network
 
 classification:
   is:

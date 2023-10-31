@@ -202,7 +202,7 @@ func (ctx DynamicValueContext) ResolveConfig(config Configuration, data DynamicV
 
 		field := reflect.ValueOf(res).Elem().FieldByName(config.Field)
 		if !field.IsValid() {
-			return config, fmt.Errorf("field %s not found on resource %s", config.Field, data.Resource)
+			return config, fmt.Errorf("field %s not found on resource %s when trying to ResolveConfig", config.Field, data.Resource)
 		}
 
 		valueRefl := reflect.New(field.Type())

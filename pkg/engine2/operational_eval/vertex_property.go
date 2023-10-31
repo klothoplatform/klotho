@@ -27,8 +27,9 @@ func (prop propertyVertex) Key() Key {
 }
 
 func (prop *propertyVertex) Dependencies(
-	cfgCtx knowledgebase.DynamicValueContext,
+	ctx solution_context.SolutionContext,
 ) (set.Set[construct.PropertyRef], graphStates, error) {
+	cfgCtx := solution_context.DynamicCtx(ctx)
 	propCtx := &fauxConfigContext{
 		propRef:    prop.Ref,
 		inner:      cfgCtx,

@@ -47,6 +47,12 @@ properties:
   RangeKey:
     type: string
 
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
 classification:
   is:
     - storage
@@ -56,6 +62,8 @@ classification:
     - kv
     - high-availability
     - scalable
+
+
 
 delete_context:
   requires_no_upstream: true

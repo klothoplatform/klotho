@@ -6,6 +6,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -22,8 +23,9 @@ func (ev edgeVertex) Key() Key {
 }
 
 func (ev *edgeVertex) Dependencies(
-	cfgCtx knowledgebase.DynamicValueContext,
+	ctx solution_context.SolutionContext,
 ) (set.Set[construct.PropertyRef], graphStates, error) {
+	cfgCtx := solution_context.DynamicCtx(ctx)
 	propCtx := &fauxConfigContext{inner: cfgCtx, refs: make(set.Set[construct.PropertyRef])}
 
 	data := knowledgebase.DynamicValueData{Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}}

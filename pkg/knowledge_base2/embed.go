@@ -87,7 +87,6 @@ func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTem
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-
 		resTemplate := &ResourceTemplate{}
 		err = yaml.NewDecoder(f).Decode(resTemplate)
 		if err != nil {

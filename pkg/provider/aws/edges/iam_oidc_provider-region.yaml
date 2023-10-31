@@ -1,6 +1,6 @@
 source: aws:iam_oidc_provider
 destination: aws:region
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

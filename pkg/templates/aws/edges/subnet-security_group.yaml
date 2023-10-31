@@ -1,0 +1,14 @@
+source: aws:subnet
+target: aws:security_group
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: IngressRules
+          value:
+            - Description: Allow ingress traffic from ip addresses within the vpc
+              CidrBlocks:
+                - '{{ .Source }}#CidrBlock'
+              FromPort: 0
+              Protocol: '-1'
+              ToPort: 0

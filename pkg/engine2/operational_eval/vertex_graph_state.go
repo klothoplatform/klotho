@@ -2,7 +2,7 @@ package operational_eval
 
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ func (gv graphStateVertex) Key() Key {
 }
 
 func (gv *graphStateVertex) Dependencies(
-	cfgCtx knowledgebase.DynamicValueContext,
+	ctx solution_context.SolutionContext,
 ) (set.Set[construct.PropertyRef], graphStates, error) {
 	return nil, nil, nil
 }

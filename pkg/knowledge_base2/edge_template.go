@@ -28,6 +28,8 @@ type (
 		Unique Unique `yaml:"unique"`
 
 		OperationalRules []OperationalRule `yaml:"operational_rules"`
+
+		Classification []string
 	}
 
 	// Unique is used to specify whether the source or target of an edge must only have a single edge of this type

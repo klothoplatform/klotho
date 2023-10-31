@@ -49,9 +49,17 @@ properties:
       Secret:
         type: resource(aws:secret)
 
+path_satisfaction:
+  as_source:
+    - rds_proxy_target_group
+  as_target:
+    - network
+    - permissions
+
 classification:
   is:
     - proxy
+    - storage
   gives:
     - reliability:storage
 

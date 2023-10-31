@@ -17,6 +17,12 @@ properties:
   Tags:
     type: map(string,string)
 
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
 classification:
   is:
     - queue

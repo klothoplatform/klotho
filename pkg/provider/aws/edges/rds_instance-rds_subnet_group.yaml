@@ -1,6 +1,6 @@
 source: aws:rds_instance
 destination: aws:rds_subnet_group
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

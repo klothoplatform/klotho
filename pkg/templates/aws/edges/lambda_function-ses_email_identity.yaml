@@ -1,8 +1,0 @@
-source: aws:lambda_function
-target: aws:ses_email_identity
-operational_rules:
-  - steps:
-      - resource: '{{ .Target }}'
-        direction: upstream
-        resources:
-          - '{{ fieldValue "ExecutionRole" .Source}}'

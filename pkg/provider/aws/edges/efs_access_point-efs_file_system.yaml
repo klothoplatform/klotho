@@ -1,6 +1,6 @@
 source: aws:efs_access_point
 destination: aws:efs_file_system
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:
