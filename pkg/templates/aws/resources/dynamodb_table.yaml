@@ -36,16 +36,22 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-  Name:
-    type: string
-    configuration_disabled: true
-    deploy_time: true
   HashKey:
     type: string
     default_value: id
     required: true
   RangeKey:
     type: string
+  TableName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
 
 classification:
   is:
@@ -56,6 +62,8 @@ classification:
     - kv
     - high-availability
     - scalable
+
+
 
 delete_context:
   requires_no_upstream: true

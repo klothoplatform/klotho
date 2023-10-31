@@ -34,6 +34,6 @@ function properties(object: aws.dynamodb.Table, args: Args) {
         DynamoTableBackupArn: pulumi.interpolate`${object.arn}/backup/*`,
         DynamoTableExportArn: pulumi.interpolate`${object.arn}/export/*`,
         DynamoTableIndexArn: pulumi.interpolate`${object.arn}/index/*`,
-        Name: object.name,
+        TableName: object.name,
     }
 }
