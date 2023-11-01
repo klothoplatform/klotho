@@ -26,9 +26,10 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:

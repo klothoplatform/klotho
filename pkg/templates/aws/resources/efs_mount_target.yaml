@@ -27,12 +27,15 @@ properties:
         - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   IpAddress:
     type: string
 
 classification:
   is:
     - efs_access
+    - network
+    - network#Subnet
 
 views:
   dataflow: small

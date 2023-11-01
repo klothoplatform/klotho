@@ -1,0 +1,12 @@
+qualified_type_name: aws:SERVICE_API
+display_name: Service Api
+            
+classification:
+  is:
+    - network
+    - service_endpoint
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+
+no_iac: true

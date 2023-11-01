@@ -38,6 +38,7 @@ properties:
         - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   KubeConfig:
     type: model(kubernetes:KubeConfig)
 

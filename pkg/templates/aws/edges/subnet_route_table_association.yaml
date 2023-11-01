@@ -1,3 +1,5 @@
 source: aws:subnet
 target: aws:route_table_association
 deployment_order_reversed: true
+unique:
+  source: true

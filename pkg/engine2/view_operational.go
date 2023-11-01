@@ -93,9 +93,13 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	if errs != nil {
 		return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, errs)
 	}
-	err = view.raw().AddEdge(source, target)
-	if err != nil {
-		return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, err)
+	// Only add to view if there is an edge template, otherwise theres the potential to cause circular dependencies since path
+	// solving will not have been run on the edge yet for intermediate resource
+	if view.KB.GetEdgeTemplate(source, target) != nil {
+		err = view.raw().AddEdge(source, target)
+		if err != nil {
+			return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, err)
+		}
 	}
 	return view.propertyEval.AddEdges(graph.Edge[construct.ResourceId]{Source: source, Target: target})
 }

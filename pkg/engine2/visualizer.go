@@ -8,6 +8,8 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
+	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -71,16 +73,6 @@ func (e *Engine) GetResourceVizTag(view string, resource construct.ResourceId) T
 	return Tag(tag)
 }
 
-func (e *Engine) RenderConnection(path construct.Path) bool {
-	for _, res := range path[1 : len(path)-1] {
-		tag := e.GetResourceVizTag(string(DataflowView), res)
-		if tag == BigIconTag || tag == ParentIconTag {
-			return false
-		}
-	}
-	return true
-}
-
 func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (construct.Graph, error) {
 	topo := Topology{
 		Nodes: make(map[string]*TopologyNode),
@@ -127,15 +119,23 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		})
 		seenSmall := make(set.Set[construct.ResourceId])
 		for _, path := range deps.Paths {
-			for i, dst := range path[1:] {
+			for _, dst := range path[1:] {
 				dstTag := e.GetResourceVizTag(string(DataflowView), dst)
 				switch dstTag {
 				case ParentIconTag:
-					if node.Parent.IsZero() && e.RenderConnection(path[:i+2]) {
+					hasPath, err := HasPath(topo, ctx, src, dst)
+					if err != nil {
+						errs = errors.Join(errs, err)
+					}
+					if node.Parent.IsZero() && hasPath {
 						node.Parent = dst
 					}
 				case BigIconTag:
-					if e.RenderConnection(path) {
+					hasPath, err := HasPath(topo, ctx, src, dst)
+					if err != nil {
+						errs = errors.Join(errs, err)
+					}
+					if hasPath {
 						edge := construct.SimpleEdge{
 							Source: src,
 							Target: dst,
@@ -201,6 +201,12 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 			delete(topo.Edges, construct.SimpleEdge{Source: node.Resource, Target: node.Parent})
 			delete(topo.Edges, construct.SimpleEdge{Source: node.Parent, Target: node.Resource})
 		}
+		for edge := range topo.Edges {
+			if edge.Source == node.Parent || edge.Target == node.Parent {
+				delete(topo.Edges, edge)
+				delete(topo.Edges, edge)
+			}
+		}
 	}
 
 	for edge, path := range topo.Edges {
@@ -231,4 +237,65 @@ func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources
 		}
 	}
 	return construct.ResourceId{}
+}
+
+func HasPath(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
+	var errs error
+	pathsCache := map[construct.SimpleEdge][][]construct.ResourceId{}
+	pathSatisfactions, err := sol.KnowledgeBase().GetPathSatisfactionsFromEdge(source, target)
+	if err != nil {
+		return false, err
+	}
+	sourceRes, err := sol.RawView().Vertex(source)
+	if err != nil {
+		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+	}
+	targetRes, err := sol.RawView().Vertex(target)
+	if err != nil {
+		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+	}
+	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
+	for _, satisfaction := range pathSatisfactions {
+		expansions, err := operational_eval.DeterminePathSatisfactionInputs(sol, satisfaction, edge)
+		if err != nil {
+			return false, err
+		}
+		for _, expansion := range expansions {
+			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
+			paths, found := pathsCache[simple]
+			if !found {
+				var err error
+				paths, err = graph.AllPathsBetween(sol.RawView(), expansion.Dep.Source.ID, expansion.Dep.Target.ID)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+				pathsCache[simple] = paths
+			}
+			if len(paths) == 0 {
+				return false, nil
+			}
+			containedClassification := false
+			if expansion.Classification != nil {
+			PATHS:
+				for _, path := range paths {
+					for i, res := range path {
+						if i != 0 && i < len(path)-1 && topo.Nodes[res.String()] != nil {
+							continue PATHS
+						}
+					}
+					if path_selection.PathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
+						containedClassification = true
+						break
+					}
+				}
+			} else {
+				containedClassification = true
+			}
+			if !containedClassification {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
 }

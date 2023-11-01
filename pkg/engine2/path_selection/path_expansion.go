@@ -44,13 +44,12 @@ func expandEdge(
 	}
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
-	visited := make(map[construct.ResourceId]string)
 	for _, path := range paths {
-		errs = errors.Join(errs, ExpandPath(ctx, dep, path, tempGraph, visited))
+		errs = errors.Join(errs, ExpandPath(ctx, dep, path, tempGraph, g))
 	}
 	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
 	if err != nil {
-		return errors.Join(errs, err)
+		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", dep.Source.ID, dep.Target.ID, err))
 	}
 	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
 	// rename phantom nodes
@@ -71,7 +70,7 @@ func ExpandPath(
 	dep construct.ResourceEdge,
 	path []construct.ResourceId,
 	g construct.Graph,
-	visited map[construct.ResourceId]string,
+	resultGraph construct.Graph,
 ) error {
 	if len(path) == 2 {
 		return nil
@@ -114,8 +113,7 @@ func ExpandPath(
 		return -1
 	}
 
-	// Add all other candidates which exist within the graph
-	construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	addCandidates := func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		matchIdx := matchesNonBoundary(id)
 		if matchIdx < 0 {
 			return nil
@@ -136,6 +134,12 @@ func ExpandPath(
 		nerr = errors.Join(nerr, err)
 		if collectionutil.Contains(upstreams, id) {
 			candidates[matchIdx][id] += 10
+		}
+
+		// See if its currently in the result graph and if so add weight to increase chances of being reused
+		_, err = resultGraph.Vertex(id)
+		if err == nil {
+			candidates[matchIdx][id] += 9
 		}
 
 		if candidates[matchIdx][id] >= 10 {
@@ -180,6 +184,16 @@ func ExpandPath(
 
 		candidates[matchIdx][id] += availableWeight
 		return nerr
+	}
+	// We need to add candidates which exist in our current result graph so we can reuse them. We do this in case
+	// we have already performed expansions to ensure the namespaces are connected, etc
+	construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		return addCandidates(id, resource, nerr)
+	})
+
+	// Add all other candidates which exist within the graph
+	construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		return addCandidates(id, resource, nerr)
 	})
 
 	predecessors, err := ctx.DataflowGraph().PredecessorMap()
@@ -198,41 +212,43 @@ func ExpandPath(
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
 
-		weight := calculateEdgeWeight(source.id, target.id, ctx.KnowledgeBase())
+		weight := calculateEdgeWeight(construct.SimpleEdge{Source: dep.Source.ID, Target: dep.Target.ID},
+			source.id, target.id, ctx.KnowledgeBase())
 		// These phantom resources should already exist in the graph
 
-		if source.id != dep.Source.ID && target.id != dep.Target.ID {
+		if source.id != dep.Source.ID {
 			if source.divideWeightBy != 0 {
 				weight /= source.divideWeightBy
 			}
+		}
+		if target.id != dep.Target.ID {
 			if target.divideWeightBy != 0 {
 				weight /= target.divideWeightBy
 			}
 		}
 
 		tmpl := ctx.KnowledgeBase().GetEdgeTemplate(source.id, target.id)
-		if source.id.Provider != SERVICE_API_PROVIDER && target.id.Provider != SERVICE_API_PROVIDER {
-			if tmpl == nil {
-				errs = errors.Join(errs, fmt.Errorf("could not find edge template for %s -> %s", source.id, target.id))
-				return
-			}
-			if tmpl.Unique.Target {
-				pred := predecessors[target.id]
-				for origSource := range pred {
-					if tmpl.Source.Matches(origSource) && origSource != source.id {
-						return
-					}
-				}
-			}
-			if tmpl.Unique.Source {
-				adj := adjacent[source.id]
-				for origTarget := range adj {
-					if tmpl.Target.Matches(origTarget) && origTarget != target.id {
-						return
-					}
+		if tmpl == nil {
+			errs = errors.Join(errs, fmt.Errorf("could not find edge template for %s -> %s", source.id, target.id))
+			return
+		}
+		if tmpl.Unique.Target {
+			pred := predecessors[target.id]
+			for origSource := range pred {
+				if tmpl.Source.Matches(origSource) && origSource != source.id {
+					return
 				}
 			}
 		}
+		if tmpl.Unique.Source {
+			adj := adjacent[source.id]
+			for origTarget := range adj {
+				if tmpl.Target.Matches(origTarget) && origTarget != target.id {
+					return
+				}
+			}
+		}
+
 		err := g.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
 		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) && !errors.Is(err, graph.ErrEdgeCreatesCycle) {
 			errs = errors.Join(errs, err)
@@ -266,7 +282,6 @@ func ExpandPath(
 }
 
 func runOnNamespaces(src, target *construct.Resource, ctx solution_context.SolutionContext, g construct.Graph) error {
-
 	if src.ID.Namespace != "" && target.ID.Namespace != "" {
 		kb := ctx.KnowledgeBase()
 		targetNamespaceResourceId, err := kb.GetResourcesNamespaceResource(target)
@@ -284,12 +299,20 @@ func runOnNamespaces(src, target *construct.Resource, ctx solution_context.Solut
 		if err != nil {
 			return err
 		}
-		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: srcNamespaceResourceId, Target: targetNamespaceResourceId}, kb, nil)
+		srcNamespaceResource, err := ctx.RawView().Vertex(srcNamespaceResourceId)
 		if err != nil {
 			return err
 		}
-		err = expandEdge(ctx, construct.ResourceEdge{Source: src, Target: target}, tg, g)
+		targetNamespaceResource, err := ctx.RawView().Vertex(targetNamespaceResourceId)
+		if err != nil {
+			return err
+		}
+		// if we have a namespace resource that is not the same as the target namespace resource
+		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: srcNamespaceResourceId, Target: targetNamespaceResourceId}, kb, nil)
+		if err != nil {
+			return fmt.Errorf("could not build path selection graph: %w", err)
+		}
+		err = expandEdge(ctx, construct.ResourceEdge{Source: srcNamespaceResource, Target: targetNamespaceResource}, tg, g)
 		if err != nil {
 			return err
 		}

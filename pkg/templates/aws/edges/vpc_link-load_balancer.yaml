@@ -6,3 +6,5 @@ operational_rules:
         configuration:
           field: Target
           value: '{{ .Target }}'
+classification:
+  - network

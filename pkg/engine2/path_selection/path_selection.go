@@ -12,11 +12,8 @@ import (
 )
 
 const PHANTOM_PREFIX = "phantom-"
-const SERVICE_API_PROVIDER = "Service"
 const GLUE_WEIGHT = 100
 const FUNCTIONAL_WEIGHT = 10000
-
-var SERVICE_API_PROVIDER_CLASSIFICATIONS = []string{"network"}
 
 func BuildPathSelectionGraph(
 	dep construct.SimpleEdge,
@@ -24,70 +21,26 @@ func BuildPathSelectionGraph(
 	classification *string) (construct.Graph, error) {
 
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
-
 	paths, err := kb.AllPaths(dep.Source, dep.Target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all paths between resources while building path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
 	}
-	srcTemplate, err := kb.GetResourceTemplate(dep.Source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource template for %s while building path selection graph for %s -> %s: %w", dep.Target, dep.Source, dep.Target, err)
-	}
 	err = tempGraph.AddVertex(construct.CreateResource(dep.Source))
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
-	}
-	dstTemplate, err := kb.GetResourceTemplate(dep.Target)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get resource template for %s while building path selection graph for %s -> %s: %w", dep.Target, dep.Source, dep.Target, err)
 	}
 	err = tempGraph.AddVertex(construct.CreateResource(dep.Target))
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
 	}
 
-	// If the destination can be communicated through its cloud service api, then we want to have paths from that service api to our target
-	// Glue weight will allow it to be chosen relatively easily, but because we favor existing resources, we should favor creating
-	// vpc endpoints to satisfy the path. By multiplying glue weight * 2 we allow it to count the same as the new edges from
-	// x -> cloud specific private service endpoint -> dst
-	// This way if it has to create more networking resources than just the cloud specific private endpoint, we will choose
-	// the public api endpoint (the assumption the compute is then not in a private network to begin with)
-	var serviceApi construct.ResourceId
-	if dstTemplate.HasServiceApi && (classification != nil &&
-		collectionutil.Contains(SERVICE_API_PROVIDER_CLASSIFICATIONS, *classification)) {
-		serviceApi = construct.ResourceId{
-			Provider: SERVICE_API_PROVIDER,
-			Type:     dep.Target.Type,
-		}
-		err := tempGraph.AddVertex(construct.CreateResource(serviceApi))
-		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-			return nil, err
-		}
-		err = tempGraph.AddEdge(dep.Source, serviceApi, graph.EdgeWeight(GLUE_WEIGHT*2))
-		if err != nil {
-			return nil, err
-		}
-		if srcTemplate.GetFunctionality() == knowledgebase.Compute {
-			err := tempGraph.AddEdge(serviceApi, dep.Target, graph.EdgeWeight(GLUE_WEIGHT*2))
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-PATHS:
 	for _, path := range paths {
-		if containsUnneccessaryHopsInPath(dep, path, kb) {
-			continue
+		resourcePath := []construct.ResourceId{}
+		for _, res := range path {
+			resourcePath = append(resourcePath, res.Id())
 		}
-		if classification != nil {
-			for i, res := range path {
-				if collectionutil.Contains(res.Classification.Is, *classification) {
-					break
-				}
-				if i == len(path)-1 {
-					continue PATHS
-				}
-			}
+		if !PathSatisfiesClassification(kb, resourcePath, classification) {
+			continue
 		}
 		var prevRes construct.ResourceId
 		for i, res := range path {
@@ -98,26 +51,15 @@ PATHS:
 			} else if i == len(path)-1 {
 				id = dep.Target
 			}
-
-			// If the destination can be communicated through its cloud service api, then we want to have compute paths to that service api
-			if dstTemplate.HasServiceApi && (classification != nil &&
-				collectionutil.Contains(SERVICE_API_PROVIDER_CLASSIFICATIONS, *classification)) {
-				if res.GetFunctionality() == knowledgebase.Compute && !res.Id().Matches(dep.Source) {
-					err := tempGraph.AddEdge(id, serviceApi, graph.EdgeWeight(GLUE_WEIGHT*2))
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			err := tempGraph.AddVertex(construct.CreateResource(id))
+			resource := construct.CreateResource(id)
+			err = tempGraph.AddVertex(resource)
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, err
 			}
 			if !prevRes.IsZero() {
 				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
 				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
-					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(prevRes, id, kb)))
+					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, kb)))
 					if err != nil {
 						return nil, err
 					}
@@ -128,6 +70,37 @@ PATHS:
 	}
 
 	return tempGraph, nil
+}
+
+func PathSatisfiesClassification(
+	kb knowledgebase.TemplateKB,
+	path []construct.ResourceId,
+	classification *string,
+) bool {
+	if ContainsUnneccessaryHopsInPath(path, kb) {
+		return false
+	}
+	if classification != nil {
+		for i, res := range path {
+			resTemplate, err := kb.GetResourceTemplate(res)
+			if err != nil {
+				return false
+			}
+			if collectionutil.Contains(resTemplate.Classification.Is, *classification) {
+				return true
+			}
+			if i > 0 {
+				et := kb.GetEdgeTemplate(path[i-1], res)
+				if collectionutil.Contains(et.Classification, *classification) {
+					return true
+				}
+			}
+			if i == len(path)-1 {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func generateStringSuffix(n int) string {
@@ -141,6 +114,7 @@ func generateStringSuffix(n int) string {
 }
 
 func calculateEdgeWeight(
+	dep construct.SimpleEdge,
 	source, target construct.ResourceId,
 	kb knowledgebase.TemplateKB,
 ) int {
@@ -148,38 +122,28 @@ func calculateEdgeWeight(
 	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
 	// This will achieve priority for existing resources over newly created ones
 	weight := GLUE_WEIGHT
-	if kb.GetFunctionality(source) != knowledgebase.Unknown {
+	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
 		weight += FUNCTIONAL_WEIGHT
 	}
-	if kb.GetFunctionality(target) != knowledgebase.Unknown {
+	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
 		weight += FUNCTIONAL_WEIGHT
+	}
+	et := kb.GetEdgeTemplate(source, target)
+	if et != nil && et.EdgeWeightMultiplier != 0 {
+		return weight * et.EdgeWeightMultiplier
 	}
 	return weight
 }
 
-// containsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
+// ContainsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
 //
 // We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
 // is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
 // in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
-func containsUnneccessaryHopsInPath(dep construct.SimpleEdge, p []*knowledgebase.ResourceTemplate, kb knowledgebase.TemplateKB) bool {
+func ContainsUnneccessaryHopsInPath(p []construct.ResourceId, kb knowledgebase.TemplateKB) bool {
 	if len(p) == 2 {
 		return false
 	}
-
-	// Track the functionality we find in the path to make sure we dont duplicate resource functions
-	foundFunc := map[knowledgebase.Functionality]bool{}
-	srcTemplate, err := kb.GetResourceTemplate(dep.Source)
-	if err != nil {
-		return false
-	}
-	dstTempalte, err := kb.GetResourceTemplate(dep.Target)
-	if err != nil {
-		return false
-	}
-	foundFunc[srcTemplate.GetFunctionality()] = true
-	foundFunc[dstTempalte.GetFunctionality()] = true
-
 	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
 	for i, res := range p {
 
@@ -188,14 +152,14 @@ func containsUnneccessaryHopsInPath(dep construct.SimpleEdge, p []*knowledgebase
 			continue
 		}
 
-		resFunctionality := res.GetFunctionality()
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil {
+			return true
+		}
+		resFunctionality := resTemplate.GetFunctionality()
 		// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
 		if resFunctionality != knowledgebase.Unknown {
 			return true
-			// if foundFunc[resFunctionality] {
-			// 	return true
-			// }
-			// foundFunc[resFunctionality] = true
 		}
 	}
 	return false

@@ -1,5 +1,9 @@
 source: aws:route_table_association
 target: aws:route_table
+
+unique:
+  target: true
+  
 operational_rules:
   - if: '{{ eq (fieldValue "Type" (upstream "aws:subnet" .Source)) "private" }}'
     steps:

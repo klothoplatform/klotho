@@ -16,6 +16,7 @@ properties:
         - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
@@ -44,6 +45,8 @@ properties:
 path_satisfaction:
   as_target:
     - network
+    - network#Subnet
+
 
 classification:
   is:

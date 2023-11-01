@@ -16,6 +16,7 @@ properties:
         - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   DatabaseName:
     type: string
     default_value: '{{ .Self.Name }}'

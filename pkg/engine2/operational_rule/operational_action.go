@@ -36,9 +36,6 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 	}
 
 	if action.numNeeded > 0 {
-		if resource.ID.String() == "aws:rds_subnet_group:rds_subnet_group-0" {
-			fmt.Println("t")
-		}
 		err := action.useAvailableResources(resource)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while using available resources: %w", err)

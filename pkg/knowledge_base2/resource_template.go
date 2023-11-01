@@ -27,6 +27,8 @@ type (
 		DeleteContext DeleteContext `json:"delete_context" yaml:"delete_context"`
 		// Views defines the views that the resource should be added to as a distinct node
 		Views map[string]string `json:"views" yaml:"views"`
+
+		NoIac bool `json:"no_iac" yaml:"no_iac"`
 	}
 
 	Properties map[string]*Property

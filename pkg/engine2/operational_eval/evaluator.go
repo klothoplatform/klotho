@@ -8,6 +8,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -28,7 +29,7 @@ type (
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
 		GraphState        string
-		PathSatisfication pathSatisfication
+		PathSatisfication knowledgebase.EdgePathSatisfaction
 	}
 
 	Vertex interface {
@@ -58,9 +59,9 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return key.GraphState
 	}
-	if (key.PathSatisfication != pathSatisfication{}) && key.Edge != (construct.SimpleEdge{}) {
+	if (key.PathSatisfication != knowledgebase.EdgePathSatisfaction{}) && key.Edge != (construct.SimpleEdge{}) {
 		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
-			key.PathSatisfication.asTarget, *key.PathSatisfication.classification)
+			key.PathSatisfication.AsTarget, *key.PathSatisfication.Classification)
 	}
 	return key.Edge.String()
 }

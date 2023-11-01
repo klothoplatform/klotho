@@ -3,6 +3,7 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -18,19 +19,13 @@ import (
 type pathExpandVertex struct {
 	Edge          construct.SimpleEdge
 	TempGraph     construct.Graph
-	Satisfication pathSatisfication
+	Satisfication knowledgebase.EdgePathSatisfaction
 }
 
-type pathSatisfication struct {
-	// Signals if the classification is derived from the target or not
-	// we need this to know how to construct the edge we are going to run expansion on if we have resource values in the classification
-	asTarget       bool
-	classification *string
-}
-
-type expansionInput struct {
-	dep       construct.ResourceEdge
-	tempGraph construct.Graph
+type ExpansionInput struct {
+	Dep            construct.ResourceEdge
+	Classification *string
+	TempGraph      construct.Graph
 }
 
 func (v *pathExpandVertex) Key() Key {
@@ -51,9 +46,9 @@ func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
 	return errs
 }
 
-func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion expansionInput) error {
+func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInput) error {
 	var errs error
-	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion.dep, expansion.tempGraph)
+	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion.Dep, expansion.TempGraph)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate path expand vertex. could not expand edge %s -> %s: %w", v.Edge.Source, v.Edge.Target, err)
 	}
@@ -72,15 +67,16 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion expansionInpu
 			return err
 		}
 	} else if len(adj) == 2 {
-		return eval.Solution.OperationalView().MakeEdgesOperational([]construct.Edge{{Source: expansion.dep.Source.ID, Target: expansion.dep.Target.ID}})
+		err = eval.Solution.RawView().AddEdge(v.Edge.Source, v.Edge.Target)
+		if err != nil {
+			return err
+		}
+		return eval.Solution.OperationalView().MakeEdgesOperational([]construct.Edge{{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}})
 	}
 
 	// Once the path is selected & expanded, first add all the resources to the graph
 	resources := []*construct.Resource{}
 	for pathId := range adj {
-		if pathId.Provider == path_selection.SERVICE_API_PROVIDER {
-			continue
-		}
 		res, err := eval.Solution.OperationalView().Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
@@ -102,10 +98,6 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion expansionInpu
 	edges := []construct.Edge{}
 	for _, edgeMap := range adj {
 		for _, edge := range edgeMap {
-
-			if edge.Source.Provider == path_selection.SERVICE_API_PROVIDER || edge.Target.Provider == path_selection.SERVICE_API_PROVIDER {
-				continue
-			}
 			pstr = append(pstr, fmt.Sprintf("%s -> %s", edge.Source, edge.Target))
 			errs = errors.Join(errs, eval.Solution.RawView().AddEdge(edge.Source, edge.Target))
 			edges = append(edges, edge)
@@ -115,9 +107,9 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion expansionInpu
 	if errs != nil {
 		return errs
 	}
-	if v.Satisfication.classification != nil {
-		zap.S().Infof("Satisfied %s for %s -> %s through %s", *v.Satisfication.classification, v.Edge.Source,
-			v.Edge.Target, strings.Join(pstr, " -> "))
+	if v.Satisfication.Classification != nil {
+		zap.S().Infof("Satisfied %s for %s -> %s through %s", *v.Satisfication.Classification, v.Edge.Source,
+			v.Edge.Target, strings.Join(pstr, ", "))
 	} else {
 		zap.S().Infof("Satisfied %s -> %s through %s", v.Edge.Source, v.Edge.Target, strings.Join(pstr, ", "))
 	}
@@ -129,7 +121,8 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion expansionInpu
 	return eval.AddEdges(edges...)
 }
 
-func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]expansionInput, error) {
+func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput, error) {
+	var result []ExpansionInput
 	var errs error
 	sourceRes, err := eval.Solution.RawView().Vertex(v.Edge.Source)
 	if err != nil {
@@ -140,69 +133,29 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]expansionInput
 		return nil, fmt.Errorf("failed to evaluate path expand vertex. could not find target resource %s: %w", v.Edge.Target, err)
 	}
 	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
-	expansions := []expansionInput{}
-	if v.Satisfication.classification != nil && strings.Contains(*v.Satisfication.classification, "#") {
-		parts := strings.Split(*v.Satisfication.classification, "#")
-
-		resources := []construct.ResourceId{v.Edge.Source}
-		if v.Satisfication.asTarget {
-			resources = []construct.ResourceId{v.Edge.Target}
-		}
-
-		for i, part := range parts {
-			fieldValueResources := []construct.ResourceId{}
-			if i == 0 {
-				continue
-			}
-			for _, resId := range resources {
-				r, err := eval.Solution.RawView().Vertex(resId)
-				if r == nil || err != nil {
-					errs = errors.Join(errs, fmt.Errorf("failed to evaluate path expand vertex. could not find resource %s: %w", resId, err))
-					continue
-				}
-				val, err := r.GetProperty(part)
-				if err != nil || val == nil {
-					errs = errors.Join(errs, fmt.Errorf("failed to evaluate path expand vertex. could not find property %s on resource %s: %w", part, resId, err))
-				}
-				if id, ok := val.(construct.ResourceId); ok {
-					fieldValueResources = append(fieldValueResources, id)
-				} else if ids, ok := val.([]interface{}); ok {
-					for _, idVal := range ids {
-						if id, ok := idVal.(construct.ResourceId); ok {
-							fieldValueResources = append(fieldValueResources, id)
-						} else {
-							errs = errors.Join(errs, fmt.Errorf("failed to evaluate path expand vertex. property %s on resource %s is not a resource id", part, resId))
-						}
-					}
-				} else {
-					errs = errors.Join(errs, fmt.Errorf("failed to evaluate path expand vertex. property %s on resource %s is not a resource id", part, resId))
-				}
-			}
-			resources = fieldValueResources
-		}
-		for _, resId := range resources {
-			res, err := eval.Solution.RawView().Vertex(resId)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("failed to evaluate path expand vertex. could not find resource %s: %w", resId, err))
-				continue
-			}
-			simple := construct.SimpleEdge{Source: res.ID, Target: v.Edge.Target}
-			e := construct.ResourceEdge{Source: res, Target: targetRes}
-			if v.Satisfication.asTarget {
-				simple = construct.SimpleEdge{Source: v.Edge.Source, Target: res.ID}
-				e = construct.ResourceEdge{Source: sourceRes, Target: res}
-			}
-			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), &parts[0])
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			expansions = append(expansions, expansionInput{dep: e, tempGraph: tempGraph})
-		}
-	} else {
-		expansions = append(expansions, expansionInput{dep: edge, tempGraph: v.TempGraph})
+	expansions, err := DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication, edge)
+	if err != nil {
+		errs = errors.Join(errs, err)
 	}
-	return expansions, errs
+	for _, expansion := range expansions {
+		if expansion.Dep.Source != edge.Source || expansion.Dep.Target != edge.Target {
+			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
+			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
+				continue
+			}
+			temp, err := tempGraph.Clone()
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not clone path selection graph: %w", err))
+				continue
+			}
+			result = append(result, ExpansionInput{Dep: expansion.Dep, Classification: expansion.Classification, TempGraph: temp})
+		} else {
+			result = append(result, ExpansionInput{Dep: expansion.Dep, Classification: expansion.Classification, TempGraph: v.TempGraph})
+		}
+	}
+	return result, errs
 }
 
 func (v *pathExpandVertex) UpdateFrom(other Vertex) {
@@ -272,11 +225,11 @@ func (v *pathExpandVertex) Dependencies(
 	}
 
 	var errs error
-	if v.Satisfication.classification != nil {
-		parts := strings.Split(*v.Satisfication.classification, "#")
+	if v.Satisfication.Classification != nil {
+		parts := strings.Split(*v.Satisfication.Classification, "#")
 		if len(parts) >= 2 {
 			currResources := []construct.ResourceId{v.Edge.Source}
-			if v.Satisfication.asTarget {
+			if v.Satisfication.AsTarget {
 				currResources = []construct.ResourceId{v.Edge.Target}
 			}
 			for i, part := range parts {
@@ -327,12 +280,12 @@ func (eval *Evaluator) AddPath(source, target construct.ResourceId) (err error) 
 		vs verticesAndDeps,
 		edge construct.SimpleEdge,
 		kb knowledgebase.TemplateKB,
-		satisfication pathSatisfication) error {
+		satisfication knowledgebase.EdgePathSatisfaction) error {
 		var tempGraph construct.Graph
-		if satisfication.classification == nil || !strings.Contains(*satisfication.classification, "#") {
-			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.classification)
+		if satisfication.Classification == nil || !strings.Contains(*satisfication.Classification, "#") {
+			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification)
 			if err != nil {
-				return err
+				return fmt.Errorf("error in AddPath: could not build path selection graph: %w", err)
 			}
 		}
 		vertex := pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
@@ -340,24 +293,9 @@ func (eval *Evaluator) AddPath(source, target construct.ResourceId) (err error) 
 	}
 
 	kb := eval.Solution.KnowledgeBase()
-	srcTempalte, err := kb.GetResourceTemplate(source)
-	if err != nil {
-		return err
-	}
-	targetTemplate, err := kb.GetResourceTemplate(target)
-	if err != nil {
-		return err
-	}
+
 	edge := construct.SimpleEdge{Source: source, Target: target}
-	pathSatisfications := []pathSatisfication{}
-	for _, src := range srcTempalte.PathSatisfaction.AsSource {
-		srcString := src
-		pathSatisfications = append(pathSatisfications, pathSatisfication{asTarget: false, classification: &srcString})
-	}
-	for _, trgt := range targetTemplate.PathSatisfaction.AsTarget {
-		trgtString := trgt
-		pathSatisfications = append(pathSatisfications, pathSatisfication{asTarget: true, classification: &trgtString})
-	}
+	pathSatisfications, err := kb.GetPathSatisfactionsFromEdge(source, target)
 
 	vs := make(verticesAndDeps)
 	var errs error
@@ -365,7 +303,74 @@ func (eval *Evaluator) AddPath(source, target construct.ResourceId) (err error) 
 		errs = errors.Join(errs, generateAndAddVertex(vs, edge, kb, satisfication))
 	}
 	if len(pathSatisfications) == 0 {
-		errs = errors.Join(errs, generateAndAddVertex(vs, edge, kb, pathSatisfication{}))
+		errs = errors.Join(errs, generateAndAddVertex(vs, edge, kb, knowledgebase.EdgePathSatisfaction{}))
 	}
 	return errors.Join(errs, eval.enqueue(vs))
+}
+
+func DeterminePathSatisfactionInputs(
+	sol solution_context.SolutionContext,
+	satisfaction knowledgebase.EdgePathSatisfaction,
+	edge construct.ResourceEdge,
+) (expansions []ExpansionInput, errs error) {
+	if satisfaction.Classification != nil && strings.Contains(*satisfaction.Classification, "#") {
+		parts := strings.Split(*satisfaction.Classification, "#")
+
+		resources := []construct.ResourceId{edge.Source.ID}
+		if satisfaction.AsTarget {
+			resources = []construct.ResourceId{edge.Target.ID}
+		}
+
+		for i, part := range parts {
+			fieldValueResources := []construct.ResourceId{}
+			if i == 0 {
+				continue
+			}
+			for _, resId := range resources {
+				r, err := sol.RawView().Vertex(resId)
+				if r == nil || err != nil {
+					errs = errors.Join(errs, fmt.Errorf("failed to determine path satisfaction inputs. could not find resource %s: %w", resId, err))
+					continue
+				}
+				val, err := r.GetProperty(part)
+				if err != nil || val == nil {
+					continue
+				}
+				if id, ok := val.(construct.ResourceId); ok {
+					fieldValueResources = append(fieldValueResources, id)
+				} else if rval := reflect.ValueOf(val); rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array {
+					for i := 0; i < rval.Len(); i++ {
+						idVal := rval.Index(i).Interface()
+						if id, ok := idVal.(construct.ResourceId); ok {
+							fieldValueResources = append(fieldValueResources, id)
+						} else {
+							errs = errors.Join(errs, fmt.Errorf("failed to determine path satisfaction inputs. array property %s on resource %s is not a resource id", part, resId))
+						}
+					}
+				} else {
+					errs = errors.Join(errs, fmt.Errorf("failed to determine path satisfaction inputs. property %s on resource %s is not a resource id", part, resId))
+				}
+			}
+			resources = fieldValueResources
+		}
+		for _, resId := range resources {
+			res, err := sol.RawView().Vertex(resId)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to determine path satisfaction inputs. could not find resource %s: %w", resId, err))
+				continue
+			}
+			e := construct.ResourceEdge{Source: res, Target: edge.Target}
+			if satisfaction.AsTarget {
+				e = construct.ResourceEdge{Source: edge.Source, Target: res}
+			}
+			exp := ExpansionInput{Dep: e}
+			if satisfaction.Classification != nil {
+				exp.Classification = &strings.Split(*satisfaction.Classification, "#")[0]
+			}
+			expansions = append(expansions, exp)
+		}
+	} else {
+		expansions = append(expansions, ExpansionInput{Dep: edge, Classification: satisfaction.Classification})
+	}
+	return
 }
