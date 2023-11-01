@@ -19,10 +19,16 @@ type (
 
 		Classification Classification `json:"classification" yaml:"classification"`
 
+		HasServiceApi bool `json:"has_service_api" yaml:"has_service_api"`
+
+		PathSatisfaction PathSatisfaction `json:"path_satisfaction" yaml:"path_satisfaction"`
+
 		// DeleteContext defines the context in which a resource can be deleted
 		DeleteContext DeleteContext `json:"delete_context" yaml:"delete_context"`
 		// Views defines the views that the resource should be added to as a distinct node
 		Views map[string]string `json:"views" yaml:"views"`
+
+		NoIac bool `json:"no_iac" yaml:"no_iac"`
 	}
 
 	Properties map[string]*Property
@@ -50,8 +56,8 @@ type (
 	}
 
 	Classification struct {
-		Is    []string `json:"is"`
-		Gives []Gives  `json:"gives"`
+		Is    []string `json:"is" yaml:"is"`
+		Gives []Gives  `json:"gives" yaml:"gives"`
 	}
 
 	Gives struct {
@@ -67,6 +73,11 @@ type (
 		RequiresNoDownstream bool `yaml:"requires_no_downstream" toml:"requires_no_downstream"`
 		// RequiresNoUpstreamOrDownstream is a boolean that tells us if deletion relies on there being no upstream or downstream resources
 		RequiresNoUpstreamOrDownstream bool `yaml:"requires_no_upstream_or_downstream" toml:"requires_no_upstream_or_downstream"`
+	}
+
+	PathSatisfaction struct {
+		AsTarget []string `json:"as_target" yaml:"as_target"`
+		AsSource []string `json:"as_source" yaml:"as_source"`
 	}
 
 	Functionality string

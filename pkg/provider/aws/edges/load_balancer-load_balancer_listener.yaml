@@ -1,6 +1,6 @@
 source: aws:load_balancer
 destination: aws:load_balancer_listener
-direct_edge_only: false
+
 deployment_order_reversed: true
 deletion_dependent: false
 reuse:

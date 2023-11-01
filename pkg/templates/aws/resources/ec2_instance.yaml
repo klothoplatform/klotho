@@ -13,9 +13,10 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
@@ -40,6 +41,12 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+
+path_satisfaction:
+  as_target:
+    - network
+    - network#Subnet
+
 
 classification:
   is:

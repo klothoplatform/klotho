@@ -1,2 +1,0 @@
-source: aws:ecs_service
-target: aws:security_group

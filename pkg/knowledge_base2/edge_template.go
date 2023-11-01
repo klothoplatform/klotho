@@ -28,6 +28,37 @@ type (
 		Unique Unique `yaml:"unique"`
 
 		OperationalRules []OperationalRule `yaml:"operational_rules"`
+
+		EdgeWeightMultiplier int `yaml:"edge_weight_multiplier"`
+
+		Classification []string `yaml:"classification"`
+	}
+
+	MultiEdgeTemplate struct {
+		Resource construct.ResourceId   `yaml:"resource"`
+		Sources  []construct.ResourceId `yaml:"sources"`
+		Targets  []construct.ResourceId `yaml:"targets"`
+
+		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths
+		// and can only be used as a direct edge
+		DirectEdgeOnly bool `yaml:"direct_edge_only"`
+
+		// DeploymentOrderReversed is specified when the edge is in the opposite direction of the deployment order
+		DeploymentOrderReversed bool `yaml:"deployment_order_reversed"`
+
+		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
+		// a true value specifies the target being deleted is dependent on the source and do not need to depend on
+		// satisfication of the deletion criteria to attempt to delete the true source of the edge.
+		DeletetionDependent bool `yaml:"deletion_dependent"`
+
+		// Unique see type [Unique]
+		Unique Unique `yaml:"unique"`
+
+		OperationalRules []OperationalRule `yaml:"operational_rules"`
+
+		EdgeWeightMultiplier int `yaml:"edge_weight_multiplier"`
+
+		Classification []string `yaml:"classification"`
 	}
 
 	// Unique is used to specify whether the source or target of an edge must only have a single edge of this type
@@ -46,6 +77,37 @@ type (
 		Target bool `yaml:"target"`
 	}
 )
+
+func EdgeTemplatesFromMulti(multi MultiEdgeTemplate) []EdgeTemplate {
+	var templates []EdgeTemplate
+	for _, source := range multi.Sources {
+		templates = append(templates, EdgeTemplate{
+			Source:                  source,
+			Target:                  multi.Resource,
+			DirectEdgeOnly:          multi.DirectEdgeOnly,
+			DeploymentOrderReversed: multi.DeploymentOrderReversed,
+			DeletetionDependent:     multi.DeletetionDependent,
+			Unique:                  multi.Unique,
+			OperationalRules:        multi.OperationalRules,
+			EdgeWeightMultiplier:    multi.EdgeWeightMultiplier,
+			Classification:          multi.Classification,
+		})
+	}
+	for _, target := range multi.Targets {
+		templates = append(templates, EdgeTemplate{
+			Source:                  multi.Resource,
+			Target:                  target,
+			DirectEdgeOnly:          multi.DirectEdgeOnly,
+			DeploymentOrderReversed: multi.DeploymentOrderReversed,
+			DeletetionDependent:     multi.DeletetionDependent,
+			Unique:                  multi.Unique,
+			OperationalRules:        multi.OperationalRules,
+			EdgeWeightMultiplier:    multi.EdgeWeightMultiplier,
+			Classification:          multi.Classification,
+		})
+	}
+	return templates
+}
 
 func (u *Unique) UnmarshalYAML(n *yaml.Node) error {
 	type helper Unique

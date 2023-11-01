@@ -26,9 +26,10 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -49,9 +50,17 @@ properties:
       Secret:
         type: resource(aws:secret)
 
+path_satisfaction:
+  as_source:
+    - rds_proxy_target_group
+  as_target:
+    - network
+    - permissions
+
 classification:
   is:
     - proxy
+    - storage
   gives:
     - reliability:storage
 

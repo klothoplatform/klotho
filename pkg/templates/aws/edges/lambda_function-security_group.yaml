@@ -1,2 +1,0 @@
-source: aws:lambda_function
-target: aws:security_group

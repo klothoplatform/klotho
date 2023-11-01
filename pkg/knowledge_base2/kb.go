@@ -26,11 +26,19 @@ type (
 		GetClassification(id construct.ResourceId) Classification
 		GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error)
 		GetResourcePropertyType(resource construct.ResourceId, propertyName string) string
+		GetPathSatisfactionsFromEdge(source, target construct.ResourceId) ([]EdgePathSatisfaction, error)
 	}
 
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
 	KnowledgeBase struct {
 		underlying graph.Graph[string, *ResourceTemplate]
+	}
+
+	EdgePathSatisfaction struct {
+		// Signals if the classification is derived from the target or not
+		// we need this to know how to construct the edge we are going to run expansion on if we have resource values in the classification
+		AsTarget       bool
+		Classification *string
 	}
 )
 
@@ -251,6 +259,28 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 		return Classification{}
 	}
 	return template.Classification
+}
+
+func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.ResourceId) ([]EdgePathSatisfaction, error) {
+	srcTempalte, err := kb.GetResourceTemplate(source)
+	if err != nil {
+		return nil, err
+	}
+	targetTemplate, err := kb.GetResourceTemplate(target)
+	if err != nil {
+		return nil, err
+	}
+	pathSatisfications := []EdgePathSatisfaction{}
+	for _, src := range srcTempalte.PathSatisfaction.AsSource {
+		srcString := src
+		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: false, Classification: &srcString})
+	}
+	for _, trgt := range targetTemplate.PathSatisfaction.AsTarget {
+		trgtString := trgt
+		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: true, Classification: &trgtString})
+	}
+
+	return pathSatisfications, nil
 }
 
 func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error) {

@@ -13,9 +13,10 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   DatabaseName:
     type: string
     default_value: '{{ .Self.Name }}'
@@ -58,6 +59,12 @@ classification:
     - sql
     - database
     - relational
+
+path_satisfaction:
+  as_target:
+    - network#SubnetGroup#Subnets
+    - network  
+    - permissions
 
 delete_context:
   requires_no_upstream: true

@@ -1,6 +1,6 @@
 source: aws:iam_policy
 target: aws:private_dns_namespace
-direct_edge_only: true
+
 operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'

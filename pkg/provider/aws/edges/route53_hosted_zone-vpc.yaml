@@ -1,6 +1,6 @@
 source: aws:route53_hosted_zone
 destination: aws:vpc
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

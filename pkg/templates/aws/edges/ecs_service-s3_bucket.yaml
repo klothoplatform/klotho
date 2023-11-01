@@ -1,8 +1,0 @@
-source: aws:ecs_service
-target: aws:s3_bucket
-operational_rules:
-  - steps:
-      - resource: '{{ .Target }}'
-        direction: upstream
-        resources:
-          - '{{ fieldValue "ExecutionRole" (fieldValue "TaskDefinition" .Source)}}'

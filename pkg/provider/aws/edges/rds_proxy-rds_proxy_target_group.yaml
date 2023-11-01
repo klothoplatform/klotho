@@ -1,6 +1,6 @@
 source: aws:rds_proxy
 destination: aws:rds_proxy_target_group
-direct_edge_only: false
+
 deployment_order_reversed: true
 deletion_dependent: false
 reuse: downstream

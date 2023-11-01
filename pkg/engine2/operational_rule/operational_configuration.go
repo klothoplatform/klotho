@@ -33,6 +33,9 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 
 	resolvedField := config.Config.Field
 	err = dyn.ExecuteDecode(config.Config.Field, ctx.Data, &resolvedField)
+	if err != nil {
+		return err
+	}
 	config.Config.Field = resolvedField
 
 	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, action)

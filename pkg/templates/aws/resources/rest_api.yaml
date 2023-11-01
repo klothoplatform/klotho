@@ -19,6 +19,11 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+
+path_satisfaction:
+  as_source:
+    - api_route
+
 classification:
   is:
     - serverless

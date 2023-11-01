@@ -22,17 +22,12 @@ type (
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
 
-	if rule.If != "" {
-		result := false
-		dyn := solution_context.DynamicCtx(ctx.Solution)
-		err := dyn.ExecuteDecode(rule.If, ctx.Data, &result)
-		if err != nil {
-			return err
-		}
-		if !result {
-			zap.S().Debugf("rule did not match if condition, skipping")
-			return nil
-		}
+	shouldRun, err := ctx.EvaluateIfCondition(rule)
+	if err != nil {
+		return err
+	}
+	if !shouldRun {
+		return nil
 	}
 
 	if ctx.Property != nil && len(rule.Steps) > 0 {
@@ -188,4 +183,17 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 	}
 
 	return nil
+}
+
+func (ctx OperationalRuleContext) EvaluateIfCondition(rule knowledgebase.OperationalRule) (bool, error) {
+	if rule.If == "" {
+		return true, nil
+	}
+	result := false
+	dyn := solution_context.DynamicCtx(ctx.Solution)
+	err := dyn.ExecuteDecode(rule.If, ctx.Data, &result)
+	if err != nil {
+		return false, err
+	}
+	return result, nil
 }

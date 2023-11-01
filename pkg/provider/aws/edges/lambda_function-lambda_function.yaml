@@ -1,6 +1,6 @@
 source: aws:lambda_function:src
 destination: aws:lambda_function:dst
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

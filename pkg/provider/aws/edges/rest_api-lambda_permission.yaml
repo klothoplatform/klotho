@@ -1,6 +1,6 @@
 source: aws:rest_api
 destination: aws:lambda_permission
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

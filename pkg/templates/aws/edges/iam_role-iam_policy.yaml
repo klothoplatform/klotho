@@ -1,9 +1,0 @@
-source: aws:iam_role
-target: aws:iam_policy
-operational_rules:
-  - configuration_rules:
-      - resource: '{{ .Source }}'
-        configuration:
-          field: ManagedPolicies
-          value:
-            - '{{ .Target }}#Arn'

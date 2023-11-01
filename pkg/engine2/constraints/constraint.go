@@ -66,14 +66,12 @@ const (
 	EdgeConstraintScope        ConstraintScope = "edge"
 	ResourceConstraintScope    ConstraintScope = "resource"
 
-	MustExistConstraintOperator      ConstraintOperator = "must_exist"
-	MustNotExistConstraintOperator   ConstraintOperator = "must_not_exist"
-	MustContainConstraintOperator    ConstraintOperator = "must_contain"
-	MustNotContainConstraintOperator ConstraintOperator = "must_not_contain"
-	AddConstraintOperator            ConstraintOperator = "add"
-	RemoveConstraintOperator         ConstraintOperator = "remove"
-	ReplaceConstraintOperator        ConstraintOperator = "replace"
-	EqualsConstraintOperator         ConstraintOperator = "equals"
+	MustExistConstraintOperator    ConstraintOperator = "must_exist"
+	MustNotExistConstraintOperator ConstraintOperator = "must_not_exist"
+	AddConstraintOperator          ConstraintOperator = "add"
+	RemoveConstraintOperator       ConstraintOperator = "remove"
+	ReplaceConstraintOperator      ConstraintOperator = "replace"
+	EqualsConstraintOperator       ConstraintOperator = "equals"
 )
 
 func (cs ConstraintList) MarshalYAML() (interface{}, error) {

@@ -3,244 +3,147 @@ package path_selection
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-type (
+const PHANTOM_PREFIX = "phantom-"
+const GLUE_WEIGHT = 100
+const FUNCTIONAL_WEIGHT = 10000
 
-	// EdgeConstraint is an object defined on EdgeData which can influence the path picked when expansion occurs.
-	EdgeConstraint struct {
-		// NodeMustExist specifies a list of resources which must exist in the path when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustExist []construct.ResourceId
-		// NodeMustNotExist specifies a list of resources which must not exist when edge expansion occurs. The resources type will be correlated to the types in the generated paths
-		NodeMustNotExist []construct.ResourceId
-	}
+func BuildPathSelectionGraph(
+	dep construct.SimpleEdge,
+	kb knowledgebase.TemplateKB,
+	classification *string) (construct.Graph, error) {
 
-	// EdgeData is an object attached to edges in the ResourceGraph to help the knowledge base understand context when performing expansion and configuration tasks
-	EdgeData struct {
-		// Constraint refers to the EdgeConstraints defined during the edge expansion
-		Constraint EdgeConstraint
-		// Attributes is a map of attributes which can be used to store arbitrary data on the edge
-		Attributes map[string]any
-	}
-)
-
-func SelectPath(ctx solution_context.SolutionContext, dep construct.ResourceEdge, edgeData EdgeData) ([]construct.ResourceId, error) {
-	kb := ctx.KnowledgeBase()
-	// if its a direct edge and theres no constraint on what needs to exist then we should be able to just return
-	// We need to make sure we check this since some direct paths may have the DirectEdgeOnly flag set to true in their edge template
-	// This flag could then devalue the direct path when it is supposed to be used
-	if kb.HasDirectPath(dep.Source.ID, dep.Target.ID) && len(edgeData.Constraint.NodeMustExist) == 0 {
-		return []construct.ResourceId{dep.Source.ID, dep.Target.ID}, nil
-	}
-
-	tempGraph, err := buildTempGraph(dep, edgeData, kb)
+	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
+	paths, err := kb.AllPaths(dep.Source, dep.Target)
 	if err != nil {
-		return nil, fmt.Errorf("could not build temp graph for path selection on edge %s -> %s, err: %s", dep.Source.ID, dep.Target.ID, err.Error())
+		return nil, fmt.Errorf("failed to get all paths between resources while building path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
+	}
+	err = tempGraph.AddVertex(construct.CreateResource(dep.Source))
+	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
+	}
+	err = tempGraph.AddVertex(construct.CreateResource(dep.Target))
+	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
 	}
 
-	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
-	if err != nil || len(path) == 0 {
-		return nil, fmt.Errorf("could not find path for edge %s -> %s, err: %s", dep.Source.ID, dep.Target.ID, err.Error())
-	}
-	if containsUnneccessaryHopsInPath(dep, path, edgeData, kb) {
-		return nil, fmt.Errorf("path for edge %s -> %s contains unnecessary hops", dep.Source, dep.Target)
+	for _, path := range paths {
+		resourcePath := []construct.ResourceId{}
+		for _, res := range path {
+			resourcePath = append(resourcePath, res.Id())
+		}
+		if !PathSatisfiesClassification(kb, resourcePath, classification) {
+			continue
+		}
+		var prevRes construct.ResourceId
+		for i, res := range path {
+			id := res.Id()
+			id.Name = fmt.Sprintf("%s%s", PHANTOM_PREFIX, generateStringSuffix(5))
+			if i == 0 {
+				id = dep.Source
+			} else if i == len(path)-1 {
+				id = dep.Target
+			}
+			resource := construct.CreateResource(id)
+			err = tempGraph.AddVertex(resource)
+			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+				return nil, err
+			}
+			if !prevRes.IsZero() {
+				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
+				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
+					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, kb)))
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+			prevRes = id
+		}
 	}
 
-	return path, nil
-}
-
-// buildTempGraph will build a temporary graph that contains all resources and edges that are needed
-// to determine the shortest path when selecting a path from the source of the dependency to the destination of the dependency
-func buildTempGraph(dep construct.ResourceEdge, edgeData EdgeData, kb knowledgebase.TemplateKB) (graph.Graph[construct.ResourceId, construct.ResourceId], error) {
-	tempGraph := graph.New(
-		func(r construct.ResourceId) construct.ResourceId {
-			return r
-		},
-		graph.Directed(),
-		graph.Weighted(),
-	)
-
-	err := addResourcesToTempGraph(tempGraph, dep, edgeData, kb)
-	if err != nil {
-		return nil, err
-	}
-
-	err = addEdgesToTempGraph(tempGraph, dep, edgeData, kb)
-	if err != nil {
-		return nil, err
-	}
 	return tempGraph, nil
 }
 
-// addResourcesToTempGraph  will add all resources to the graph if they:
-// 1. are the origin source or destination
-// 2. Are specified as needing to exist within a constraint
-// or if they meet the following conditions:
-// 1. They meet the attributes specified
-// 2. are not explicitly disallowed
-// 3. are not the same type as the source or destination
-// 4. They are not the same type as a resource in the must exist list
-func addResourcesToTempGraph(tempGraph graph.Graph[construct.ResourceId, construct.ResourceId], dep construct.ResourceEdge, edgeData EdgeData, kb knowledgebase.TemplateKB) error {
-	err := tempGraph.AddVertex(dep.Source.ID)
-	if err != nil {
-		return err
+func PathSatisfiesClassification(
+	kb knowledgebase.TemplateKB,
+	path []construct.ResourceId,
+	classification *string,
+) bool {
+	if ContainsUnneccessaryHopsInPath(path, kb) {
+		return false
 	}
-
-	err = tempGraph.AddVertex(dep.Target.ID)
-	if err != nil {
-		return err
-	}
-
-	for _, mustExist := range edgeData.Constraint.NodeMustExist {
-		err := tempGraph.AddVertex(mustExist)
-		if err != nil {
-			return err
-		}
-	}
-
-	// We add nodes to the graph if they meet the following conditions:
-	// 1. They meet the attributes specified
-	// 2. are not explicitly disallowed
-	// 3. are not the same type as the source or destination
-	// 4. They are not the same type as a resource in the must exist list
-RESOURCES:
-	for _, res := range kb.ListResources() {
-
-		// skip over any type which matches our source or target since they are automatically added
-		if res.Id().Matches(dep.Source.ID) || res.Id().Matches(dep.Target.ID) {
-			continue
-		}
-
-		// Since we have already added nodes which correspond to constraints, skip over adding those skeleton nodes again
-		for _, mustExist := range edgeData.Constraint.NodeMustExist {
-			if res.Id().Matches(mustExist) {
-				continue RESOURCES
+	if classification != nil {
+		for i, res := range path {
+			resTemplate, err := kb.GetResourceTemplate(res)
+			if err != nil {
+				return false
 			}
-		}
-
-		// skip over any type which matches the must not exist list
-		for _, mustNotExist := range edgeData.Constraint.NodeMustNotExist {
-			if res.Id().Matches(mustNotExist) {
-				continue RESOURCES
+			if collectionutil.Contains(resTemplate.Classification.Is, *classification) {
+				return true
 			}
-		}
-
-		for k := range edgeData.Attributes {
-			// If its a direct edge we need to make sure the source contains the attributes, otherwise ignore the source and destination of the dependency in checking if the edge satisfies the attributes
-			if !collectionutil.Contains(res.Classification.Is, k) {
-				continue RESOURCES
-			}
-		}
-
-		err := tempGraph.AddVertex(res.Id())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// addEdgesToTempGraph will add all edges to the graph and substitue the source, destination, and Must Exist nodes where necessary.
-//
-// Weights are calculated as follows:
-// 1. If the source or destination of the edge has a known functionality, we add 1 to the weight for each functionality
-// 2. If the edge is a direct edge, we add 100 to the weight
-// 3. If the source or destination of the edge is from a constraint node, we subtract 1000 from the weight
-func addEdgesToTempGraph(tempGraph graph.Graph[construct.ResourceId, construct.ResourceId], dep construct.ResourceEdge,
-	edgeData EdgeData, kb knowledgebase.TemplateKB) error {
-
-	edges, err := kb.Edges()
-	if err != nil {
-		return err
-	}
-	for _, edge := range edges {
-
-		edgeTemplate := kb.GetEdgeTemplate(edge.Source.Id(), edge.Target.Id())
-		weight := 0
-
-		if edge.Source.GetFunctionality() != knowledgebase.Unknown {
-			weight++
-		}
-		if edge.Target.GetFunctionality() != knowledgebase.Unknown {
-			weight++
-		}
-		// TODO: Evaluate if we need direct edge only flag
-		if edgeTemplate.DirectEdgeOnly {
-			weight += 100
-		}
-
-		srcId := edge.Source.Id()
-		dstId := edge.Target.Id()
-		// Now we will add edges to the graph if they have a vertex of the same type in the graph
-		// We will need to check if the type of the src and dst are any of the dependency source, dest, or must exist constraints
-		// and add edges for all of the above to build a complete graph
-		if edge.Source.Id().Matches(dep.Source.ID) {
-			srcId = dep.Source.ID
-		}
-		if edge.Target.Id().Matches(dep.Target.ID) {
-			dstId = dep.Target.ID
-		}
-		for _, mustExist := range edgeData.Constraint.NodeMustExist {
-			if edge.Source.Id().Matches(mustExist) {
-				err := tempGraph.AddEdge(mustExist, dstId, graph.EdgeWeight(weight-1000))
-				if err != nil {
-					return err
+			if i > 0 {
+				et := kb.GetEdgeTemplate(path[i-1], res)
+				if collectionutil.Contains(et.Classification, *classification) {
+					return true
 				}
 			}
-			if edge.Target.Id().Matches(mustExist) {
-				err := tempGraph.AddEdge(srcId, mustExist, graph.EdgeWeight(weight-1000))
-				if err != nil {
-					return err
-				}
+			if i == len(path)-1 {
+				return false
 			}
 		}
-
-		err := tempGraph.AddEdge(srcId, dstId, graph.EdgeWeight(weight))
-		// If the vertex isnt found its because the edge is not relevant to the path selection
-		// the scenarios could be:
-		// 1. the src or dst id are of a skeleton type when we dont add the resource to the graph
-		//  1. a. this is because the node is added from a node must exist constraint
-		//  1. b. or because the node is not relevant to the path (doesnt satisfy attributes, etc)
-		// 2. The edge is not in a relevant direction
-		//  2. a. the edge is an incoming edge to the src of the edge
-		//  2. b. the edge is an outgoing edge from the dst of the edge
-		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-			return err
-		}
-
 	}
-	return nil
+	return true
 }
 
-// containsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
+func generateStringSuffix(n int) string {
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+
+}
+
+func calculateEdgeWeight(
+	dep construct.SimpleEdge,
+	source, target construct.ResourceId,
+	kb knowledgebase.TemplateKB,
+) int {
+	// We start with a weight of 10 for glue and 10000 for functionality for newly created edges of "phantom" resources
+	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
+	// This will achieve priority for existing resources over newly created ones
+	weight := GLUE_WEIGHT
+	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
+		weight += FUNCTIONAL_WEIGHT
+	}
+	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
+		weight += FUNCTIONAL_WEIGHT
+	}
+	et := kb.GetEdgeTemplate(source, target)
+	if et != nil && et.EdgeWeightMultiplier != 0 {
+		return weight * et.EdgeWeightMultiplier
+	}
+	return weight
+}
+
+// ContainsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
 //
 // We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
 // is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
 // in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
-func containsUnneccessaryHopsInPath(dep construct.ResourceEdge, p []construct.ResourceId, edgeData EdgeData, kb knowledgebase.TemplateKB) bool {
+func ContainsUnneccessaryHopsInPath(p []construct.ResourceId, kb knowledgebase.TemplateKB) bool {
 	if len(p) == 2 {
 		return false
 	}
-
-	// Track the functionality we find in the path to make sure we dont duplicate resource functions
-	foundFunc := map[knowledgebase.Functionality]bool{}
-	srcTemplate, err := kb.GetResourceTemplate(dep.Source.ID)
-	if err != nil {
-		return false
-	}
-	dstTempalte, err := kb.GetResourceTemplate(dep.Target.ID)
-	if err != nil {
-		return false
-	}
-	foundFunc[srcTemplate.GetFunctionality()] = true
-	foundFunc[dstTempalte.GetFunctionality()] = true
-
 	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
 	for i, res := range p {
 
@@ -251,20 +154,12 @@ func containsUnneccessaryHopsInPath(dep construct.ResourceEdge, p []construct.Re
 
 		resTemplate, err := kb.GetResourceTemplate(res)
 		if err != nil {
-			return false
+			return true
 		}
 		resFunctionality := resTemplate.GetFunctionality()
-
-		if collectionutil.Contains(edgeData.Constraint.NodeMustExist, res) {
-			continue
-		}
-
 		// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
 		if resFunctionality != knowledgebase.Unknown {
-			if foundFunc[resFunctionality] {
-				return true
-			}
-			foundFunc[resFunctionality] = true
+			return true
 		}
 	}
 	return false

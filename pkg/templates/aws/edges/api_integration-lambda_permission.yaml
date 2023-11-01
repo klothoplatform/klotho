@@ -30,3 +30,6 @@ operational_rules:
           value: lambda:InvokeFunction
 unique:
   source: true
+
+classification:
+  - network

@@ -24,6 +24,12 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+  
 classification:
   is:
     - storage

@@ -1,0 +1,17 @@
+resource: aws:SERVICE_API
+
+sources:
+  - aws:lambda_function
+  - aws:ecs_service
+  - aws:ec2_instance
+  - aws:app_runner_service
+  - kubernetes:pod
+  - kubernetes:deployment
+targets:
+  - aws:lambda_function
+  - aws:dynamodb_table
+  - aws:log_group
+  - aws:s3_bucket
+  - aws:sqs_queue
+
+edge_weight_multiplier: 20

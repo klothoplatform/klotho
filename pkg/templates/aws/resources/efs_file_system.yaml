@@ -32,12 +32,18 @@ properties:
   CreationToken: 
     type: string
 
+path_satisfaction:
+  as_target:
+    - network
+    - efs_access
+
 classifications:
   is:
     - file_system
     - scalable
     - elastic
     - storage
+
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true

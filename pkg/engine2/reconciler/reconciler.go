@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -14,7 +12,7 @@ import (
 )
 
 func RemoveResource(c solution_context.SolutionContext, resource construct.ResourceId, explicit bool) error {
-
+	zap.S().Debugf("reconciling removal of resource %s ", resource)
 	upstreams, downstreams, err := construct.Neighbors(c.DataflowGraph(), resource)
 	if err != nil {
 		return err
@@ -30,13 +28,6 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 	}
 	if !canDelete {
 		return nil
-	}
-
-	if template.GetFunctionality() == knowledgebase.Unknown {
-		err := reconnectFunctionalResources(c, resource)
-		if err != nil {
-			return err
-		}
 	}
 
 	op := c.OperationalView()
@@ -61,56 +52,6 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 	// try to cleanup, if the resource is removable
 	for res := range upstreams.Union(downstreams) {
 		errs = errors.Join(errs, RemoveResource(c, res, false))
-	}
-	return nil
-}
-
-func reconnectFunctionalResources(ctx solution_context.SolutionContext, resource construct.ResourceId) error {
-	log := zap.S().With(zap.String("id", resource.String()))
-	functionalUpstreams, err := knowledgebase.UpstreamFunctional(ctx.DataflowGraph(), ctx.KnowledgeBase(), resource)
-	ctxConstraints := ctx.Constraints()
-	if err != nil {
-		log.Errorf("Error getting functional upstreams for resource %s", resource)
-		return err
-	}
-	functionalDownstreams, err := solution_context.DownstreamFunctional(ctx, resource)
-	if err != nil {
-		log.Errorf("Error getting functional downstreams for resource %s", resource)
-		return err
-	}
-	for _, u := range functionalUpstreams {
-		for _, d := range functionalDownstreams {
-			paths, err := graph.AllPathsBetween(ctx.DataflowGraph(), u, d)
-			if err != nil {
-				zap.S().Debugf("Error getting paths between %s and %s", u, d)
-				continue
-			}
-			var pathsWithoutRes [][]construct.ResourceId
-		PATHS:
-			for _, path := range paths {
-				for _, res := range path {
-					if res == resource {
-						continue PATHS
-					}
-				}
-				pathsWithoutRes = append(pathsWithoutRes, path)
-			}
-			if len(pathsWithoutRes) == 0 {
-				log.Debugf("Adding dependency between %s and %s resources to reconnect path", u, d)
-				ctxConstraints.Edges = append(ctxConstraints.Edges, constraints.EdgeConstraint{
-					Operator: constraints.MustNotContainConstraintOperator,
-					Target: constraints.Edge{
-						Source: u,
-						Target: d,
-					},
-					Node: resource,
-				})
-				err := ctx.OperationalView().AddEdge(u, d)
-				if err != nil {
-					return err
-				}
-			}
-		}
 	}
 	return nil
 }
@@ -233,13 +174,13 @@ func ignoreCriteria(ctx solution_context.SolutionContext, resource construct.Res
 
 	for up := range upstreams {
 		t := ctx.KnowledgeBase().GetEdgeTemplate(up, resource)
-		if !t.DeletetionDependent {
+		if t == nil || !t.DeletetionDependent {
 			return false, nil
 		}
 	}
 	for down := range downstreams {
 		t := ctx.KnowledgeBase().GetEdgeTemplate(resource, down)
-		if !t.DeletetionDependent {
+		if t == nil || !t.DeletetionDependent {
 			return false, nil
 		}
 	}

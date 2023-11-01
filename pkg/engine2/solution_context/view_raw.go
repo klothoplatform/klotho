@@ -21,16 +21,21 @@ func (view RawAccessView) Traits() *graph.Traits {
 
 func (view RawAccessView) AddVertex(value *construct.Resource, options ...func(*graph.VertexProperties)) error {
 	dfErr := view.inner.DataflowGraph().AddVertex(value, options...)
-	deplErr := view.inner.DeploymentGraph().AddVertex(value, options...)
-	if errors.Is(dfErr, graph.ErrVertexAlreadyExists) && errors.Is(deplErr, graph.ErrVertexAlreadyExists) {
-		return graph.ErrVertexAlreadyExists
+	rt, err := view.inner.KnowledgeBase().GetResourceTemplate(value.ID)
+	if err != nil {
+		return err
 	}
-	var err error
+	if !rt.NoIac {
+		deplErr := view.inner.DeploymentGraph().AddVertex(value, options...)
+		if errors.Is(dfErr, graph.ErrVertexAlreadyExists) && errors.Is(deplErr, graph.ErrVertexAlreadyExists) {
+			return graph.ErrVertexAlreadyExists
+		}
+		if deplErr != nil && !errors.Is(deplErr, graph.ErrVertexAlreadyExists) {
+			err = errors.Join(err, deplErr)
+		}
+	}
 	if dfErr != nil && !errors.Is(dfErr, graph.ErrVertexAlreadyExists) {
 		err = errors.Join(err, dfErr)
-	}
-	if deplErr != nil && !errors.Is(deplErr, graph.ErrVertexAlreadyExists) {
-		err = errors.Join(err, deplErr)
 	}
 	if err != nil {
 		return err
@@ -72,10 +77,17 @@ func (view RawAccessView) VertexWithProperties(hash construct.ResourceId) (*cons
 }
 
 func (view RawAccessView) RemoveVertex(hash construct.ResourceId) error {
-	err := errors.Join(
-		view.inner.DataflowGraph().RemoveVertex(hash),
-		view.inner.DeploymentGraph().RemoveVertex(hash),
-	)
+	err := view.inner.DataflowGraph().RemoveVertex(hash)
+	rt, terr := view.inner.KnowledgeBase().GetResourceTemplate(hash)
+	if terr != nil {
+		return terr
+	}
+	if !rt.NoIac {
+		err = errors.Join(
+			err,
+			view.inner.DeploymentGraph().RemoveVertex(hash),
+		)
+	}
 	if err != nil {
 		return err
 	}
@@ -88,13 +100,23 @@ func (view RawAccessView) AddEdge(source, target construct.ResourceId, options .
 
 	var deplErr error
 	et := view.inner.KnowledgeBase().GetEdgeTemplate(source, target)
-	if et != nil && et.DeploymentOrderReversed {
-		deplErr = view.inner.DeploymentGraph().AddEdge(target, source)
-	} else {
-		deplErr = view.inner.DeploymentGraph().AddEdge(source, target)
+	srcRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(source)
+	if terr != nil {
+		return terr
 	}
-	if errors.Is(dfErr, graph.ErrEdgeAlreadyExists) && errors.Is(deplErr, graph.ErrEdgeAlreadyExists) {
-		return graph.ErrEdgeAlreadyExists
+	dstRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(target)
+	if terr != nil {
+		return terr
+	}
+	if !srcRt.NoIac && !dstRt.NoIac {
+		if et != nil && et.DeploymentOrderReversed {
+			deplErr = view.inner.DeploymentGraph().AddEdge(target, source)
+		} else {
+			deplErr = view.inner.DeploymentGraph().AddEdge(source, target)
+		}
+		if errors.Is(dfErr, graph.ErrEdgeAlreadyExists) && errors.Is(deplErr, graph.ErrEdgeAlreadyExists) {
+			return graph.ErrEdgeAlreadyExists
+		}
 	}
 
 	var err error
@@ -140,10 +162,20 @@ func (view RawAccessView) UpdateEdge(source, target construct.ResourceId, option
 
 	var deplErr error
 	et := view.inner.KnowledgeBase().GetEdgeTemplate(source, target)
-	if et != nil && et.DeploymentOrderReversed {
-		deplErr = view.inner.DeploymentGraph().UpdateEdge(target, source, options...)
-	} else {
-		deplErr = view.inner.DeploymentGraph().UpdateEdge(source, target, options...)
+	srcRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(source)
+	if terr != nil {
+		return terr
+	}
+	dstRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(target)
+	if terr != nil {
+		return terr
+	}
+	if !srcRt.NoIac && !dstRt.NoIac {
+		if et != nil && et.DeploymentOrderReversed {
+			deplErr = view.inner.DeploymentGraph().UpdateEdge(target, source, options...)
+		} else {
+			deplErr = view.inner.DeploymentGraph().UpdateEdge(source, target, options...)
+		}
 	}
 	return errors.Join(dfErr, deplErr)
 }
@@ -152,11 +184,21 @@ func (view RawAccessView) RemoveEdge(source, target construct.ResourceId) error 
 	dfErr := view.inner.DataflowGraph().RemoveEdge(source, target)
 
 	var deplErr error
-	et := view.inner.KnowledgeBase().GetEdgeTemplate(source, target)
-	if et != nil && et.DeploymentOrderReversed {
-		deplErr = view.inner.DeploymentGraph().RemoveEdge(target, source)
-	} else {
-		deplErr = view.inner.DeploymentGraph().RemoveEdge(source, target)
+	srcRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(source)
+	if terr != nil {
+		return terr
+	}
+	dstRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(target)
+	if terr != nil {
+		return terr
+	}
+	if !srcRt.NoIac && !dstRt.NoIac {
+		et := view.inner.KnowledgeBase().GetEdgeTemplate(source, target)
+		if et != nil && et.DeploymentOrderReversed {
+			deplErr = view.inner.DeploymentGraph().RemoveEdge(target, source)
+		} else {
+			deplErr = view.inner.DeploymentGraph().RemoveEdge(source, target)
+		}
 	}
 
 	if err := errors.Join(dfErr, deplErr); err != nil {

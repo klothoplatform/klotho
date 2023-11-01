@@ -13,12 +13,11 @@ import (
 
 func Test_PathSelection(t *testing.T) {
 	tests := []struct {
-		name     string
-		dep      construct.ResourceEdge
-		edgeData EdgeData
-		kb       []mock.Call
-		want     []construct.ResourceId
-		wantErr  bool
+		name    string
+		dep     construct.ResourceEdge
+		kb      []mock.Call
+		want    []construct.ResourceId
+		wantErr bool
 	}{
 		{
 			name: "can select a direct path",

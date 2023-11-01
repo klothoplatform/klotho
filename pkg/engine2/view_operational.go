@@ -3,14 +3,10 @@ package engine2
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"go.uber.org/zap"
 )
 
 type MakeOperationalView solutionContext
@@ -97,73 +93,15 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	if errs != nil {
 		return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, errs)
 	}
-
-	var data path_selection.EdgeData
-	for _, constr := range view.constraints.Edges {
-		if !constr.Target.Source.Matches(source) || !constr.Target.Target.Matches(target) {
-			continue
-		}
-
-		switch constr.Operator {
-		case constraints.MustContainConstraintOperator:
-			data.Constraint.NodeMustExist = append(data.Constraint.NodeMustExist, constr.Node)
-
-		case constraints.MustNotContainConstraintOperator:
-			data.Constraint.NodeMustNotExist = append(data.Constraint.NodeMustNotExist, constr.Node)
+	// Only add to view if there is an edge template, otherwise theres the potential to cause circular dependencies since path
+	// solving will not have been run on the edge yet for intermediate resource
+	if view.KB.GetEdgeTemplate(source, target) != nil {
+		err = view.raw().AddEdge(source, target)
+		if err != nil {
+			return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, err)
 		}
 	}
-
-	validPath, err := path_selection.SelectPath(solutionContext(view), dep, data)
-	if err != nil {
-		return err
-	}
-	path, err := path_selection.ExpandEdge(solutionContext(view), dep, validPath)
-	if err != nil {
-		return err
-	}
-	// Once the path is selected & expanded, first add all the resources to the graph
-	resources := make([]*construct.Resource, len(path))
-	for i, pathId := range path {
-		res, err := view.Vertex(pathId)
-		switch {
-		case errors.Is(err, graph.ErrVertexNotFound):
-			res = construct.CreateResource(pathId)
-			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
-			errs = errors.Join(errs, view.raw().AddVertex(res))
-
-		case err != nil:
-			errs = errors.Join(errs, err)
-		}
-		resources[i] = res
-	}
-	if errs != nil {
-		return errs
-	}
-
-	// After all the resources, then add all the dependencies
-	pstr := make([]string, len(path))
-	edges := make([]construct.Edge, len(path)-1)
-	for i, pathId := range path {
-		pstr[i] = pathId.String()
-		if i == 0 {
-			continue
-		}
-		edge := construct.Edge{Source: path[i-1], Target: pathId}
-		errs = errors.Join(errs, view.raw().AddEdge(edge.Source, edge.Target))
-		edges[i-1] = edge
-	}
-	if len(pstr) > 2 {
-		zap.S().Debugf("Expanded %s -> %s to %s", source, target, strings.Join(pstr, " -> "))
-	}
-	if errs != nil {
-		return errs
-	}
-
-	if err := view.MakeResourcesOperational(resources); err != nil {
-		return err
-	}
-
-	return view.MakeEdgesOperational(edges)
+	return view.propertyEval.AddEdges(graph.Edge[construct.ResourceId]{Source: source, Target: target})
 }
 
 func (view MakeOperationalView) MakeEdgesOperational(edges []construct.Edge) error {

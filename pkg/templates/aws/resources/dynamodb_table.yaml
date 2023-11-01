@@ -53,6 +53,12 @@ path_satisfaction:
     - network
     - permissions
 
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
 classification:
   is:
     - storage

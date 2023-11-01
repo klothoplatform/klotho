@@ -24,15 +24,20 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   NodeType:
     type: string
     default_value: cache.t2.micro
   NumCacheNodes:
     type: int
     default_value: 1
+
+path_satisfaction:
+  as_target:
+    - network
 
 classification:
   is:

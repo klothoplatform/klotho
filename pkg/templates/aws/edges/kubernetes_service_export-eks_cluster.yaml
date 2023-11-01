@@ -6,9 +6,11 @@ operational_rules:
       {{ $needsCreation := true}}
       {{ $charts := allUpstream "kubernetes:kustomize_directory" .Target }}
       {{ range $index, $chart := $charts }}
-        {{- if eq (fieldValue "Directory" $chart) "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release" }}
-          {{ $needsCreation = false }}
-          {{break}}
+        {{- if (hasField "Directory" $chart)}}
+          {{- if eq (fieldValue "Directory" $chart) "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release" }}
+           {{ $needsCreation = false }}
+            {{break}}
+          {{- end }}
         {{- end }}
       {{ end }}
       {{ $needsCreation }}

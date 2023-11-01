@@ -78,9 +78,11 @@ properties:
 classification:
   is:
     - role
+    - permissions
   gives:
     - permissions
     - security
+    
 delete_context:
   requires_no_upstream: true
 views:

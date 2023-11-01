@@ -26,9 +26,10 @@ properties:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -56,7 +57,9 @@ properties:
       steps:
         - direction: downstream
           resources:
-            - aws:log_group:{{ .Self.Name }}-log-group
+            - selector: aws:log_group:{{ .Self.Name }}-log-group
+              properties:
+                LogGroupName: /aws/lambda/{{ .Self.Name }}
           unique: true
   LambdaIntegrationUri:
     type: string
@@ -66,6 +69,12 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
 
 classification:
   is:

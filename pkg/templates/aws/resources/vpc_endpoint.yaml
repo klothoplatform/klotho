@@ -5,7 +5,11 @@ properties:
   Vpc:
     type: resource(aws:vpc)
     namespace: true
-    default_value: '{{ downstream "aws:vpc" .Self }}'
+    operational_rule:
+    steps:
+      - direction: downstream
+        resources:
+          - aws:vpc
   Region:
     type: string
     operational_rule:

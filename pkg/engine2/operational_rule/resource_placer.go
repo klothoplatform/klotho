@@ -130,7 +130,7 @@ func (p ClosestPlacer) PlaceResources(
 		return nil
 	}
 	resourceDepths := make(map[construct.ResourceId]int)
-	undirectedGraph, err := p.buildUndirectedGraph()
+	undirectedGraph, err := BuildUndirectedGraph(p.ctx.Solution)
 	if err != nil {
 		return err
 	}
@@ -179,25 +179,25 @@ func (p *ClosestPlacer) SetCtx(ctx OperationalRuleContext) {
 	p.ctx = ctx
 }
 
-func (p *ClosestPlacer) buildUndirectedGraph() (construct.Graph, error) {
+func BuildUndirectedGraph(ctx solution_context.SolutionContext) (construct.Graph, error) {
 	undirected := graph.NewWithStore(
 		construct.ResourceHasher,
 		graph_addons.NewMemoryStore[construct.ResourceId, *construct.Resource](),
 	)
-	err := undirected.AddVerticesFrom(p.ctx.Solution.RawView())
+	err := undirected.AddVerticesFrom(ctx.RawView())
 	if err != nil {
 		return nil, err
 	}
-	edges, err := p.ctx.Solution.RawView().Edges()
+	edges, err := ctx.RawView().Edges()
 	if err != nil {
 		return nil, err
 	}
 	for _, e := range edges {
 		weight := 1
 		// increase weights for edges that are connected to a functional resource
-		if p.ctx.Solution.KnowledgeBase().GetFunctionality(e.Source) != knowledgebase.Unknown {
+		if ctx.KnowledgeBase().GetFunctionality(e.Source) != knowledgebase.Unknown {
 			weight = 1000
-		} else if p.ctx.Solution.KnowledgeBase().GetFunctionality(e.Target) != knowledgebase.Unknown {
+		} else if ctx.KnowledgeBase().GetFunctionality(e.Target) != knowledgebase.Unknown {
 			weight = 1000
 		}
 		err := undirected.AddEdge(e.Source, e.Target, graph.EdgeWeight(weight))

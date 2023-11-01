@@ -59,6 +59,7 @@ func (eval *Evaluator) AddEdges(es ...construct.Edge) error {
 	for _, e := range es {
 		tmpl := eval.Solution.KnowledgeBase().GetEdgeTemplate(e.Source, e.Target)
 		if tmpl == nil {
+			errs = errors.Join(errs, eval.AddPath(e.Source, e.Target))
 			continue
 		}
 		evs, err := eval.edgeVertices(e, tmpl)
@@ -91,8 +92,6 @@ func (eval *Evaluator) resourceVertices(
 	vs := make(verticesAndDeps)
 	var errs error
 
-	cfgCtx := solution_context.DynamicCtx(eval.Solution)
-
 	queue := []knowledgebase.Properties{tmpl.Properties}
 	var props knowledgebase.Properties
 	for len(queue) > 0 {
@@ -104,7 +103,7 @@ func (eval *Evaluator) resourceVertices(
 				EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
 			}
 
-			err := vs.AddDependencies(cfgCtx, vertex)
+			err := vs.AddDependencies(eval.Solution, vertex)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
@@ -189,13 +188,13 @@ func (eval *Evaluator) edgeVertices(
 	}
 
 	if len(opVertex.Rules) > 0 {
-		errs = errors.Join(errs, vs.AddDependencies(cfgCtx, opVertex))
+		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, opVertex))
 	}
 
 	// do this in a second pass so that edges config that reference the same property (rare, but possible)
 	// will get batched before calling [depsForProp].
 	for _, vertex := range vertices {
-		errs = errors.Join(errs, vs.AddDependencies(cfgCtx, vertex))
+		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, vertex))
 	}
 
 	return vs, errs

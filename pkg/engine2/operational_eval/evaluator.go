@@ -26,16 +26,17 @@ type (
 	}
 
 	Key struct {
-		Ref        construct.PropertyRef
-		Edge       construct.SimpleEdge
-		GraphState string
+		Ref               construct.PropertyRef
+		Edge              construct.SimpleEdge
+		GraphState        string
+		PathSatisfication knowledgebase.EdgePathSatisfaction
 	}
 
 	Vertex interface {
 		Key() Key
 		Evaluate(eval *Evaluator) error
 		UpdateFrom(other Vertex)
-		Dependencies(cfgCtx knowledgebase.DynamicValueContext) (set.Set[construct.PropertyRef], graphStates, error)
+		Dependencies(ctx solution_context.SolutionContext) (set.Set[construct.PropertyRef], graphStates, error)
 	}
 
 	verticesAndDeps map[Vertex]set.Set[Key]
@@ -57,6 +58,10 @@ func (key Key) String() string {
 	}
 	if key.GraphState != "" {
 		return key.GraphState
+	}
+	if (key.PathSatisfication != knowledgebase.EdgePathSatisfaction{}) && key.Edge != (construct.SimpleEdge{}) {
+		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
+			key.PathSatisfication.AsTarget, *key.PathSatisfication.Classification)
 	}
 	return key.Edge.String()
 }
@@ -165,8 +170,8 @@ func (vs *verticesAndDeps) AddGraphStates(k Vertex, states graphStates) {
 	}
 }
 
-func (vs *verticesAndDeps) AddDependencies(cfgCtx knowledgebase.DynamicValueContext, v Vertex) error {
-	deps, gs, err := v.Dependencies(cfgCtx)
+func (vs *verticesAndDeps) AddDependencies(ctx solution_context.SolutionContext, v Vertex) error {
+	deps, gs, err := v.Dependencies(ctx)
 	vs.AddRefs(v, deps)
 	vs.AddGraphStates(v, gs)
 	return err

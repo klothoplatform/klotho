@@ -78,7 +78,9 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 			for i := 0; i < len(noDeps); i += 20 {
 				rank.SubRanks = append(rank.SubRanks, noDeps[i:min(i+20, len(noDeps))])
 			}
-			rank.SubRanks = append(rank.SubRanks, hasDeps)
+			if len(hasDeps) > 0 {
+				rank.SubRanks = append(rank.SubRanks, hasDeps)
+			}
 		} else {
 			rank.SubRanks = [][]Key{keys.ToSlice()}
 		}

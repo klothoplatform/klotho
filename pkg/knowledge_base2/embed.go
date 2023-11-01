@@ -87,7 +87,6 @@ func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTem
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-
 		resTemplate := &ResourceTemplate{}
 		err = yaml.NewDecoder(f).Decode(resTemplate)
 		if err != nil {
@@ -128,6 +127,29 @@ func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 		err = yaml.NewDecoder(f).Decode(edgeTemplate)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error decoding edge template %s: %w", path, err))
+		}
+		if edgeTemplate.Source.IsZero() || edgeTemplate.Target.IsZero() {
+			f, err := dir.Open(path)
+			if err != nil {
+				return errors.Join(nerr, fmt.Errorf("error opening edge template %s: %w", path, err))
+			}
+			multiEdgeTemplate := &MultiEdgeTemplate{}
+			err = yaml.NewDecoder(f).Decode(multiEdgeTemplate)
+			if err != nil {
+				return errors.Join(nerr, fmt.Errorf("error decoding edge template %s: %w", path, err))
+			}
+			if !multiEdgeTemplate.Resource.IsZero() && (len(multiEdgeTemplate.Sources) > 0 || len(multiEdgeTemplate.Targets) > 0) {
+				edgeTemplates := EdgeTemplatesFromMulti(*multiEdgeTemplate)
+				for _, edgeTemplate := range edgeTemplates {
+					id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
+					if templates[id] != nil {
+						return errors.Join(nerr, fmt.Errorf("duplicate template for %s in %s", id, path))
+					}
+					et := edgeTemplate
+					templates[id] = &et
+				}
+				return nil
+			}
 		}
 
 		id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
