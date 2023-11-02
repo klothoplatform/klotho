@@ -16,7 +16,7 @@ properties:
       steps:
         - direction: upstream
           resources:
-            - aws:api_resource
+            - '{{ upstream "aws:api_resource" (downstream "aws:api_integration" .Self)}}'
   HttpMethod:
     type: string
     default_value: ANY

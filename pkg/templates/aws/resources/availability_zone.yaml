@@ -4,9 +4,7 @@ display_name: Availability Zone
 properties:
   Index:
     type: int
-    default_value: |
-      {{ $region := (fieldValue "Region" .Self) }} 
-      {{ sub (len (allUpstream "aws:availability_zone" $region)) 1 }}
+    default_value: '{{ replace `.*(\d)$` `$1` .Self.Name }}' # This relies on how we name resources due to operational rules to be correct
   Region:
     type: resource(aws:region)
     namespace: true

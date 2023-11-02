@@ -5,7 +5,11 @@ properties:
   RestApi:
     type: resource(aws:rest_api)
     namespace: true
-    # no operational rule because this is set by the child resource or integration as part of their selectors
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:rest_api          
   ParentResource:
     type: resource(aws:api_resource)
     configuration_disabled: true

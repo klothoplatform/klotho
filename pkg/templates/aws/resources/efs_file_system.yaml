@@ -37,7 +37,7 @@ path_satisfaction:
     - network
     - efs_access
 
-classifications:
+classification:
   is:
     - file_system
     - scalable

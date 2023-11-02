@@ -17,6 +17,15 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = key.GraphState
 		attribs["shape"] = "box"
 		attribs["style"] = "dashed"
+	} else if key.PathSatisfication != nil {
+		classification := ""
+		if key.PathSatisfication.Classification != nil {
+			classification = *key.PathSatisfication.Classification
+		}
+		attribs["label"] = fmt.Sprintf(`%s\n→ %s target=%v#%v`, key.Edge.Source, key.Edge.Target,
+			key.PathSatisfication.AsTarget, classification)
+		attribs["shape"] = "parallelogram"
+		attribs["style"] = "dashed"
 	} else {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		attribs["shape"] = "parallelogram"

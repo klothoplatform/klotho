@@ -29,7 +29,7 @@ type ExpansionInput struct {
 }
 
 func (v *pathExpandVertex) Key() Key {
-	return Key{PathSatisfication: v.Satisfication, Edge: v.Edge}
+	return Key{PathSatisfication: &v.Satisfication, Edge: v.Edge}
 }
 
 func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {

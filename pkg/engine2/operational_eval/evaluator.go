@@ -29,7 +29,7 @@ type (
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
 		GraphState        string
-		PathSatisfication knowledgebase.EdgePathSatisfaction
+		PathSatisfication *knowledgebase.EdgePathSatisfaction
 	}
 
 	Vertex interface {
@@ -59,9 +59,13 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return key.GraphState
 	}
-	if (key.PathSatisfication != knowledgebase.EdgePathSatisfaction{}) && key.Edge != (construct.SimpleEdge{}) {
+	if (key.PathSatisfication != nil) && key.Edge != (construct.SimpleEdge{}) {
+		classification := ""
+		if key.PathSatisfication.Classification != nil {
+			classification = *key.PathSatisfication.Classification
+		}
 		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
-			key.PathSatisfication.AsTarget, *key.PathSatisfication.Classification)
+			key.PathSatisfication.AsTarget, classification)
 	}
 	return key.Edge.String()
 }

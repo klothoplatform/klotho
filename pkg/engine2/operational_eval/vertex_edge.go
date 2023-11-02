@@ -63,6 +63,10 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", ev.Edge)
+	if ev.Edge.Source.Type == "subnet" {
+		a := 1
+		a++
+	}
 
 	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}
 

@@ -14,7 +14,7 @@ properties:
     properties:
       Description:
         type: string
-      CidrBlock:
+      CidrBlocks:
         type: list(string)
       FromPort:
         type: int
@@ -29,7 +29,7 @@ properties:
     properties:
       Description:
         type: string
-      CidrBlock:
+      CidrBlocks:
         type: list(string)
       FromPort:
         type: int

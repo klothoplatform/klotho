@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -64,6 +65,7 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 
 	ready := make([]Vertex, 0, len(readyKeys))
 	graphOps := make([]Vertex, 0, len(readyKeys))
+	defaults := make([]Vertex, 0, len(readyKeys))
 	var errs error
 	for _, key := range readyKeys {
 		v, err := eval.unevaluated.Vertex(key)
@@ -82,6 +84,13 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 			} else {
 				graphOps = append(graphOps, state)
 			}
+		} else if propertyVertex, ok := v.(*propertyVertex); ok {
+			if propertyVertex.Template != nil &&
+				collectionutil.Contains([]string{"map", "list", "set"}, propertyVertex.Template.Type) {
+				defaults = append(defaults, propertyVertex)
+			} else {
+				ready = append(ready, propertyVertex)
+			}
 		} else {
 			ready = append(ready, v)
 		}
@@ -92,6 +101,9 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 
 	if len(ready) == 0 {
 		ready = graphOps
+		if len(ready) == 0 {
+			ready = defaults
+		}
 		zap.S().With("op", "dequeue").Debugf("Only graph ops left, dequeued %d", len(ready))
 	} else {
 		zap.S().With("op", "dequeue").Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))

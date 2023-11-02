@@ -2,11 +2,8 @@ resource: aws:SERVICE_API
 
 sources:
   - aws:lambda_function
-  - aws:ecs_service
-  - aws:ec2_instance
   - aws:app_runner_service
-  - kubernetes:pod
-  - kubernetes:deployment
+  - aws:subnet
 targets:
   - aws:lambda_function
   - aws:dynamodb_table

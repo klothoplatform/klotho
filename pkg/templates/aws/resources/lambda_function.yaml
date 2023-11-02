@@ -75,6 +75,8 @@ path_satisfaction:
   as_target:
     - network
     - permissions
+  as_source:
+    - network#Subnets
 
 classification:
   is:

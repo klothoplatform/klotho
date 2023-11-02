@@ -253,6 +253,7 @@ func (action *operationalResourceAction) addSelectorProperties(properties map[st
 	if err != nil {
 		return err
 	}
+	var errs error
 	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
 	for key, value := range properties {
 		property := template.GetProperty(key)
@@ -265,10 +266,10 @@ func (action *operationalResourceAction) addSelectorProperties(properties map[st
 		}
 		err = resource.SetProperty(key, selectorPropertyVal)
 		if err != nil {
-			return err
+			errs = errors.Join(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 func (action *operationalResourceAction) createResource(
@@ -277,13 +278,13 @@ func (action *operationalResourceAction) createResource(
 	stepResource *construct.Resource,
 ) error {
 	newRes := construct.CreateResource(resourceType)
-	if err := action.addSelectorProperties(selector.Properties, newRes); err != nil {
-		return err
-	}
 	if err := action.generateResourceName(&newRes.ID, stepResource.ID); err != nil {
 		return err
 	}
 	if err := action.createAndAddDependency(newRes, stepResource); err != nil {
+		return err
+	}
+	if err := action.addSelectorProperties(selector.Properties, newRes); err != nil {
 		return err
 	}
 	return nil
