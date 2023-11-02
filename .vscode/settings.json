@@ -15,7 +15,7 @@
     "pkg/provider": true,
     "pkg/construct": true,
     "pkg/engine": true,
-    "pkg/knowledge_base2": true,
+    "pkg/knowledge_base": true,
     "**/node_modules": true
   }
 }
