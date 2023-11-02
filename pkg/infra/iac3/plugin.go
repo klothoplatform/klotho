@@ -2,6 +2,7 @@ package iac3
 
 import (
 	"bufio"
+	"bytes"
 	"embed"
 	"errors"
 	"fmt"
@@ -141,8 +142,7 @@ func renderGlobals(w io.Writer) error {
 }
 
 func addTemplate(name string, t *template.Template, data any) (*kio.RawFile, error) {
-	buf := getBuffer()
-	defer releaseBuffer(buf)
+	buf := new(bytes.Buffer) // Don't use the buffer pool since RawFile uses the byte array
 
 	err := t.Execute(buf, data)
 	if err != nil {
