@@ -31,7 +31,7 @@ function create(args: Args): docker.Image {
                     platform: 'linux/amd64',
                 },
                 skipPush: true,
-                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.Tag}-base`,
+                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:{{ if .Tag }}${args.Tag}-{{ end }}base`,
             },
             //TMPL {{- if .BaseImage }}
             {
@@ -66,7 +66,7 @@ function create(args: Args): docker.Image {
                             password: registryToken.password,
                         }
                     }),
-                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:${args.Tag}-${sha256}`,
+                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:{{ if .Tag }}${args.Tag}-{{ end }}${sha256}`,
             },
             { parent: base }
         )

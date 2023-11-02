@@ -18,8 +18,10 @@ properties:
             - aws:ecr_repo
   Context:
     type: string
+    default_value: '.'
   Dockerfile:
     type: string
+    default_value: '{{ .Self.Name }}.Dockerfile'
 classification:
   is:
     - image

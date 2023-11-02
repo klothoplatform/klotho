@@ -40,28 +40,26 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 	if err != nil {
 		return nil, err
 	}
-	if tmpl.PropertyTemplates == nil {
-		return nil, fmt.Errorf("resource %s does not have any properties", ref.Resource)
-	} else if _, ok := tmpl.PropertyTemplates[ref.Property]; !ok {
-		return nil, fmt.Errorf("resource %s does not have property %s", ref.Resource, ref.Property)
-	}
 
 	refRes, err := tc.graph.Vertex(ref.Resource)
 	if err != nil {
 		return nil, err
 	}
 
-	if mapping, ok := tmpl.PropertyTemplates[ref.Property]; ok {
-		inputArgs, err := tc.getInputArgs(refRes, tmpl)
-		if err != nil {
-			return nil, err
+	if tmpl.PropertyTemplates != nil {
+		if mapping, ok := tmpl.PropertyTemplates[ref.Property]; ok {
+			inputArgs, err := tc.getInputArgs(refRes, tmpl)
+			if err != nil {
+				return nil, err
+			}
+			data := PropertyTemplateData{
+				Object: tc.vars[ref.Resource],
+				Input:  inputArgs,
+			}
+			return executeToString(mapping, data)
 		}
-		data := PropertyTemplateData{
-			Object: tc.vars[ref.Resource],
-			Input:  inputArgs,
-		}
-		return executeToString(mapping, data)
 	}
+
 	path, err := refRes.PropertyPath(ref.Property)
 	if err != nil {
 		return nil, err

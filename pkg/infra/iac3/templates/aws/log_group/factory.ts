@@ -13,3 +13,9 @@ function create(args: Args): aws.cloudwatch.LogGroup {
         retentionInDays: args.RetentionInDays,
     })
 }
+
+function properties(object: aws.cloudwatch.LogGroup, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}
