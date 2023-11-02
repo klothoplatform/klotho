@@ -56,6 +56,13 @@ properties:
                       Value:
                         type: string
 
+classification:
+  is:
+    - kubernetes
+  gives:
+    - scalability:compute
+    - highly_available:compute
+
 delete_context:
   requires_no_upstream_or_downstream: true
 views:

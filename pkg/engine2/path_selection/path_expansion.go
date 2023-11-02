@@ -125,12 +125,12 @@ func ExpandPath(
 		if _, ok := candidates[matchIdx][id]; !ok {
 			candidates[matchIdx][id] = 0
 		}
-		downstreams, err := solution_context.Downstream(ctx, dep.Source.ID, knowledgebase.AllDepsLayer)
+		downstreams, err := solution_context.Downstream(ctx, dep.Source.ID, knowledgebase.ResourceGlueLayer)
 		nerr = errors.Join(nerr, err)
 		if collectionutil.Contains(downstreams, id) {
 			candidates[matchIdx][id] += 10
 		}
-		upstreams, err := solution_context.Upstream(ctx, dep.Target.ID, knowledgebase.AllDepsLayer)
+		upstreams, err := solution_context.Upstream(ctx, dep.Target.ID, knowledgebase.ResourceGlueLayer)
 		nerr = errors.Join(nerr, err)
 		if collectionutil.Contains(upstreams, id) {
 			candidates[matchIdx][id] += 10
@@ -140,10 +140,6 @@ func ExpandPath(
 		_, err = resultGraph.Vertex(id)
 		if err == nil {
 			candidates[matchIdx][id] += 9
-		}
-
-		if candidates[matchIdx][id] >= 10 {
-			return nerr
 		}
 
 		undirected, err := operational_rule.BuildUndirectedGraph(ctx)
@@ -156,15 +152,18 @@ func ExpandPath(
 		}
 
 		// We start at 8 so its weighted less than actually being upstream of the target or downstream of the src
-		availableWeight := 8
+		availableWeight := 10
 		shortestPath, err := pather.ShortestPath(dep.Source.ID)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
 		for _, res := range shortestPath {
 			if ctx.KnowledgeBase().GetFunctionality(res) != knowledgebase.Unknown {
+				availableWeight -= 2
+			} else {
 				availableWeight -= 1
 			}
+
 		}
 
 		shortestPath, err = pather.ShortestPath(dep.Target.ID)

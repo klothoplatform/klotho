@@ -67,7 +67,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 			return err
 		}
 	} else if len(adj) == 2 {
-		err = eval.Solution.RawView().AddEdge(v.Edge.Source, v.Edge.Target)
+		err = eval.Solution.RawView().AddEdge(expansion.Dep.Source.ID, expansion.Dep.Target.ID)
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 		case errors.Is(err, graph.ErrVertexNotFound):
 			res = construct.CreateResource(pathId)
 			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
-			errs = errors.Join(errs, eval.Solution.RawView().AddVertex(res))
+			errs = errors.Join(errs, eval.Solution.OperationalView().AddVertex(res))
 
 		case err != nil:
 			errs = errors.Join(errs, err)
