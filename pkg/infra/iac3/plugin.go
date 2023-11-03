@@ -80,6 +80,9 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		errs = errors.Join(errs, tc.RenderResource(buf, r))
 		buf.WriteString("\n")
 	}
+	if errs != nil {
+		return nil, errs
+	}
 
 	indexTs := &kio.RawFile{
 		FPath:   `index.ts`,
@@ -113,7 +116,16 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		Content: content,
 	}
 
-	return []kio.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}, errs
+	files := []kio.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}
+
+	dockerfiles, err := RenderDockerfiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	files = append(files, dockerfiles...)
+
+	return files, nil
 }
 
 func renderGlobals(w io.Writer) error {
