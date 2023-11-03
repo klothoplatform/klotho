@@ -38,3 +38,17 @@ function create(args: Args): aws.apprunner.Service {
         },
     })
 }
+
+function properties(object: ReturnType<typeof create>, args: Args) {
+    return {}
+}
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        Url: object.serviceUrl,
+    }
+}
