@@ -19,7 +19,7 @@ func (tc *TemplatesCompiler) RenderImports(out io.Writer) error {
 	allImports := make(map[string]struct{})
 	var errs error
 	for _, r := range resources {
-		t, err := tc.templates.ResourceTemplate(r)
+		t, err := tc.ResourceTemplate(r)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue

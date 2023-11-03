@@ -36,7 +36,7 @@ func executeToString(tmpl *template.Template, data any) (string, error) {
 }
 
 func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, error) {
-	tmpl, err := tc.templates.ResourceTemplate(ref.Resource)
+	tmpl, err := tc.ResourceTemplate(ref.Resource)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +53,9 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 				return nil, err
 			}
 			data := PropertyTemplateData{
-				Object: tc.vars[ref.Resource],
-				Input:  inputArgs,
+				Resource: ref.Resource,
+				Object:   tc.vars[ref.Resource],
+				Input:    inputArgs,
 			}
 			return executeToString(mapping, data)
 		}

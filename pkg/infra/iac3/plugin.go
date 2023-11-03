@@ -132,7 +132,7 @@ func renderGlobals(w io.Writer) error {
 		if strings.HasPrefix(text, "import") {
 			continue
 		}
-		_, err := fmt.Fprintln(w, scan.Text())
+		_, err := fmt.Fprintln(w, text)
 		if err != nil {
 			return err
 		}

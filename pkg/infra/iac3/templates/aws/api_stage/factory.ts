@@ -21,3 +21,13 @@ function properties(object: aws.apigateway.Stage, args: Args) {
         StageInvokeUrl: object.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
     }
 }
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        InvokeUrl: props.StageInvokeUrl,
+    }
+}

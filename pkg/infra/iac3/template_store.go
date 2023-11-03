@@ -12,7 +12,8 @@ type templateStore struct {
 	resourceTemplates map[string]*ResourceTemplate
 }
 
-func (ts *templateStore) ResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error) {
+func (tc *TemplatesCompiler) ResourceTemplate(id construct.ResourceId) (*ResourceTemplate, error) {
+	ts := tc.templates
 	typeName := id.QualifiedTypeName()
 	if ts.resourceTemplates == nil {
 		ts.resourceTemplates = make(map[string]*ResourceTemplate)
@@ -26,7 +27,7 @@ func (ts *templateStore) ResourceTemplate(id construct.ResourceId) (*ResourceTem
 	if err != nil {
 		return nil, fmt.Errorf("could not find template for %s: %w", typeName, err)
 	}
-	template, err := ParseTemplate(typeName, f)
+	template, err := tc.ParseTemplate(typeName, f)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse template for %s: %w", typeName, err)
 	}

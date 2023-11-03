@@ -12,6 +12,8 @@ import (
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
@@ -26,11 +28,13 @@ type (
 		PropertyTemplates map[string]*template.Template
 		Args              map[string]Arg
 		Path              string
+		Exports           map[string]*template.Template
 	}
 
 	PropertyTemplateData struct {
-		Object string
-		Input  map[string]any
+		Resource construct.ResourceId
+		Object   string
+		Input    templateInputArgs
 	}
 
 	Arg struct {
@@ -68,11 +72,14 @@ var (
 	//go:embed find_args.scm
 	findArgs string
 
+	//go:embed find_export_func.scm
+	findExportFunc string
+
 	curlyEscapes     = regexp.MustCompile(`~~{{`)
 	templateComments = regexp.MustCompile(`//*TMPL\s+`)
 )
 
-func ParseTemplate(name string, r io.Reader) (*ResourceTemplate, error) {
+func (tc *TemplatesCompiler) ParseTemplate(name string, r io.Reader) (*ResourceTemplate, error) {
 	rt := &ResourceTemplate{Name: name}
 
 	node, err := parseFile(r)
@@ -93,6 +100,10 @@ func ParseTemplate(name string, r io.Reader) (*ResourceTemplate, error) {
 		return nil, err
 	}
 	rt.Args, err = parseArgs(node, name)
+	if err != nil {
+		return nil, err
+	}
+	rt.Exports, err = exportsNodeToTemplate(tc, rt, node, name)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +192,58 @@ func propertiesNodeToTemplate(node *sitter.Node, name string) (map[string]*templ
 	return propTemplates, errs
 }
 
+func exportsNodeToTemplate(tc *TemplatesCompiler, tmpl *ResourceTemplate, node *sitter.Node, name string) (map[string]*template.Template, error) {
+	exportFunc := doQuery(node, findExportFunc)
+	exportsNode, found := exportFunc()
+	if !found {
+		return nil, nil
+	}
+	fmt.Println(lang.PrintNodes(exportsNode))
+
+	exportsTemplates := make(map[string]*template.Template)
+	var errs error
+	nextProp := doQuery(exportsNode["body"], findPropertyQuery)
+	for {
+		propMatches, found := nextProp()
+		if !found {
+			break
+		}
+		propName := propMatches["key"].Content()
+		valueBase := propMatches["value"].Content()
+		valueBase = parameterizeArgs(valueBase, ".Input")
+		valueBase = parameterizeObject(valueBase)
+		valueBase = parameterizeProps(valueBase)
+		t, err := template.New(propName).Funcs(template.FuncMap{
+			"property": func(propName string, rid construct.ResourceId) (any, error) {
+				mapping, ok := tmpl.PropertyTemplates[propName]
+				if !ok {
+					return nil, fmt.Errorf("no property template found for %s", propName)
+				}
+				refRes, err := tc.graph.Vertex(rid)
+				if err != nil {
+					return nil, err
+				}
+				inputArgs, err := tc.getInputArgs(refRes, tmpl)
+				if err != nil {
+					return nil, err
+				}
+				data := PropertyTemplateData{
+					Resource: rid,
+					Object:   tc.vars[rid],
+					Input:    inputArgs,
+				}
+				return executeToString(mapping, data)
+			},
+		}).Parse(valueBase)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error parsing property %q: %w", propName, err))
+			continue
+		}
+		exportsTemplates[propName] = t
+	}
+	return exportsTemplates, errs
+}
+
 var templateTSLang = types.SourceLanguage{
 	ID:     types.LanguageId("ts"),
 	Sitter: typescript.GetLanguage(),
@@ -247,6 +310,18 @@ var (
 func parameterizeObject(contents string) string {
 	contents = curlyObjectEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
 	contents = parameterizeObjectRegex.ReplaceAllString(contents, `{{.Object}}$1`)
+	return contents
+}
+
+var (
+	curlyPropsEscapes      = regexp.MustCompile(`({+)(props\.)`)
+	parameterizePropsRegex = regexp.MustCompile(`\bprops\.(\w+)`)
+)
+
+// parameterizeObject is like [parameterizeArgs], but for "object.foo" -> "{{.Object}}.foo".
+func parameterizeProps(contents string) string {
+	contents = curlyPropsEscapes.ReplaceAllString(contents, "{{`$1`}}$2")
+	contents = parameterizePropsRegex.ReplaceAllString(contents, `{{ property "$1" .Resource }}`)
 	return contents
 }
 

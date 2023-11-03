@@ -19,7 +19,7 @@ import (
 type templateInputArgs map[string]any
 
 func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.ResourceId) error {
-	resTmpl, err := tc.templates.ResourceTemplate(rid)
+	resTmpl, err := tc.ResourceTemplate(rid)
 	if err != nil {
 		return err
 	}
@@ -41,6 +41,28 @@ func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.Resourc
 	err = resTmpl.Template.Execute(out, inputs)
 	if err != nil {
 		return fmt.Errorf("could not render resource %s: %w", rid, err)
+	}
+
+	exportData := PropertyTemplateData{
+		Resource: rid,
+		Object:   tc.vars[rid],
+		Input:    inputs,
+	}
+	var errs error
+	for export, tmpl := range resTmpl.Exports {
+		_, err = fmt.Fprintf(out, "\nexport const %s_%s = ", tc.vars[rid], export)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not render export name %s: %w", export, err))
+			continue
+		}
+		err = tmpl.Execute(out, exportData)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not render export value %s: %w", export, err))
+			continue
+		}
+	}
+	if errs != nil {
+		return errs
 	}
 
 	return nil
