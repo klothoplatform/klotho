@@ -307,7 +307,11 @@ func runOnNamespaces(src, target *construct.Resource, ctx solution_context.Solut
 			return err
 		}
 		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: srcNamespaceResourceId, Target: targetNamespaceResourceId}, kb, nil)
+		tg, err := BuildPathSelectionGraph(
+			construct.SimpleEdge{Source: srcNamespaceResourceId, Target: targetNamespaceResourceId},
+			kb,
+			"",
+		)
 		if err != nil {
 			return fmt.Errorf("could not build path selection graph: %w", err)
 		}
@@ -353,7 +357,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			continue
 		}
 		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, nil)
+		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, "")
 		if err != nil {
 			continue
 		}

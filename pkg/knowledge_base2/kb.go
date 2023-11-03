@@ -38,7 +38,7 @@ type (
 		// Signals if the classification is derived from the target or not
 		// we need this to know how to construct the edge we are going to run expansion on if we have resource values in the classification
 		AsTarget       bool
-		Classification *string
+		Classification string
 	}
 )
 
@@ -272,12 +272,10 @@ func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.R
 	}
 	pathSatisfications := []EdgePathSatisfaction{}
 	for _, src := range srcTempalte.PathSatisfaction.AsSource {
-		srcString := src
-		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: false, Classification: &srcString})
+		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: false, Classification: src})
 	}
 	for _, trgt := range targetTemplate.PathSatisfaction.AsTarget {
-		trgtString := trgt
-		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: true, Classification: &trgtString})
+		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{AsTarget: true, Classification: trgt})
 	}
 
 	return pathSatisfications, nil

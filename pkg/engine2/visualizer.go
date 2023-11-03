@@ -276,7 +276,7 @@ func HasPath(topo Topology, sol solution_context.SolutionContext, source, target
 				return false, nil
 			}
 			containedClassification := false
-			if expansion.Classification != nil {
+			if expansion.Classification != "" {
 			PATHS:
 				for _, path := range paths {
 					for i, res := range path {

@@ -6,6 +6,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
 func keyAttributes(eval *Evaluator, key Key) map[string]string {
@@ -18,17 +20,26 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["shape"] = "box"
 		attribs["style"] = "dashed"
 	} else if key.PathSatisfication != nil {
-		classification := ""
-		if key.PathSatisfication.Classification != nil {
-			classification = *key.PathSatisfication.Classification
+		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
+		var extra []string
+		if key.PathSatisfication.Classification != "" {
+			extra = append(extra, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		attribs["label"] = fmt.Sprintf(`%s\n→ %s target=%v#%v`, key.Edge.Source, key.Edge.Target,
-			key.PathSatisfication.AsTarget, classification)
+		if key.PathSatisfication.AsTarget {
+			extra = append(extra, "(target)")
+		}
+		if len(extra) > 0 {
+			attribs["label"] += `\n` + strings.Join(extra, " ")
+		}
+
 		attribs["shape"] = "parallelogram"
 		attribs["style"] = "dashed"
-	} else {
+	} else if key.Edge != (construct.SimpleEdge{}) {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		attribs["shape"] = "parallelogram"
+	} else {
+		attribs["label"] = fmt.Sprintf(`%s\n(UNKOWN)`, key)
+		attribs["color"] = "#fc8803"
 	}
 	evaluated := false
 	for _, eval := range eval.evaluatedOrder {

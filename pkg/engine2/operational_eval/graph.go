@@ -170,7 +170,7 @@ func (eval *Evaluator) edgeVertices(
 				default:
 					_, unevalErr := eval.unevaluated.Vertex(key)
 					if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-						errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluted node for %s", ref))
+						errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluated node %s for %s", ref, resEdge))
 						continue
 					} else if err != nil {
 						errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))

@@ -59,15 +59,14 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return key.GraphState
 	}
-	if (key.PathSatisfication != nil) && key.Edge != (construct.SimpleEdge{}) {
-		classification := ""
-		if key.PathSatisfication.Classification != nil {
-			classification = *key.PathSatisfication.Classification
-		}
-		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
-			key.PathSatisfication.AsTarget, classification)
+	if key.Edge != (construct.SimpleEdge{}) {
+		return key.Edge.String()
 	}
-	return key.Edge.String()
+	if key.PathSatisfication != nil {
+		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
+			key.PathSatisfication.AsTarget, key.PathSatisfication.Classification)
+	}
+	return "<empty>"
 }
 
 func (eval *Evaluator) enqueue(vs verticesAndDeps) error {

@@ -18,7 +18,7 @@ const FUNCTIONAL_WEIGHT = 10000
 func BuildPathSelectionGraph(
 	dep construct.SimpleEdge,
 	kb knowledgebase.TemplateKB,
-	classification *string) (construct.Graph, error) {
+	classification string) (construct.Graph, error) {
 
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 	paths, err := kb.AllPaths(dep.Source, dep.Target)
@@ -75,29 +75,30 @@ func BuildPathSelectionGraph(
 func PathSatisfiesClassification(
 	kb knowledgebase.TemplateKB,
 	path []construct.ResourceId,
-	classification *string,
+	classification string,
 ) bool {
 	if ContainsUnneccessaryHopsInPath(path, kb) {
 		return false
 	}
-	if classification != nil {
-		for i, res := range path {
-			resTemplate, err := kb.GetResourceTemplate(res)
-			if err != nil {
-				return false
-			}
-			if collectionutil.Contains(resTemplate.Classification.Is, *classification) {
+	if classification == "" {
+		return true
+	}
+	for i, res := range path {
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil {
+			return false
+		}
+		if collectionutil.Contains(resTemplate.Classification.Is, classification) {
+			return true
+		}
+		if i > 0 {
+			et := kb.GetEdgeTemplate(path[i-1], res)
+			if collectionutil.Contains(et.Classification, classification) {
 				return true
 			}
-			if i > 0 {
-				et := kb.GetEdgeTemplate(path[i-1], res)
-				if collectionutil.Contains(et.Classification, *classification) {
-					return true
-				}
-			}
-			if i == len(path)-1 {
-				return false
-			}
+		}
+		if i == len(path)-1 {
+			return false
 		}
 	}
 	return true
