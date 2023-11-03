@@ -159,7 +159,8 @@ func (eval *Evaluator) edgeVertices(
 			}
 			vertex, ok := vertices[ref]
 			if !ok {
-				existing, err := eval.graph.Vertex(Key{Ref: ref})
+				key := Key{Ref: ref}
+				existing, err := eval.graph.Vertex(key)
 				switch {
 				case errors.Is(err, graph.ErrVertexNotFound):
 					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule)}
@@ -167,6 +168,14 @@ func (eval *Evaluator) edgeVertices(
 					errs = errors.Join(errs, fmt.Errorf("could not attempt to get existing vertex for %s: %w", ref, err))
 					continue
 				default:
+					_, unevalErr := eval.unevaluated.Vertex(key)
+					if errors.Is(unevalErr, graph.ErrVertexNotFound) {
+						errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluted node for %s", ref))
+						continue
+					} else if err != nil {
+						errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))
+						continue
+					}
 					if v, ok := existing.(*propertyVertex); ok {
 						vertex = v
 					} else {
