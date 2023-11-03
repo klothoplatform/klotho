@@ -23,6 +23,7 @@ type (
 		unevaluated Graph
 
 		evaluatedOrder []set.Set[Key]
+		errored        set.Set[Key]
 	}
 
 	Key struct {
@@ -49,6 +50,7 @@ func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 		Solution:    ctx,
 		graph:       newGraph(),
 		unevaluated: newGraph(),
+		errored:     make(set.Set[Key]),
 	}
 }
 
@@ -59,12 +61,12 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return key.GraphState
 	}
-	if key.Edge != (construct.SimpleEdge{}) {
-		return key.Edge.String()
-	}
 	if key.PathSatisfication != nil {
 		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
 			key.PathSatisfication.AsTarget, key.PathSatisfication.Classification)
+	}
+	if key.Edge != (construct.SimpleEdge{}) {
+		return key.Edge.String()
 	}
 	return "<empty>"
 }

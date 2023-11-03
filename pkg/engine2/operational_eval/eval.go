@@ -37,7 +37,11 @@ func (eval *Evaluator) Evaluate() error {
 		var errs error
 		for _, v := range ready {
 			evaluated.Add(v.Key())
-			errs = errors.Join(errs, v.Evaluate(eval))
+			err := v.Evaluate(eval)
+			if err != nil {
+				eval.errored.Add(v.Key())
+				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", v.Key(), err))
+			}
 		}
 		if errs != nil {
 			return errs

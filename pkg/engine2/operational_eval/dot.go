@@ -10,15 +10,18 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
+const rankSize = 20
+
 func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	attribs := make(map[string]string)
+	var style []string
 	if !key.Ref.Resource.IsZero() {
 		attribs["label"] = fmt.Sprintf(`%s\n%s`, key.Ref.Resource, key.Ref.Property)
 		attribs["shape"] = "box"
 	} else if key.GraphState != "" {
 		attribs["label"] = key.GraphState
 		attribs["shape"] = "box"
-		attribs["style"] = "dashed"
+		style = append(style, "dashed")
 	} else if key.PathSatisfication != nil {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		var extra []string
@@ -33,7 +36,7 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		}
 
 		attribs["shape"] = "parallelogram"
-		attribs["style"] = "dashed"
+		style = append(style, "dashed")
 	} else if key.Edge != (construct.SimpleEdge{}) {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		attribs["shape"] = "parallelogram"
@@ -41,17 +44,11 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = fmt.Sprintf(`%s\n(UNKOWN)`, key)
 		attribs["color"] = "#fc8803"
 	}
-	evaluated := false
-	for _, eval := range eval.evaluatedOrder {
-		if eval.Contains(key) {
-			evaluated = true
-			break
-		}
-	}
-	if !evaluated {
-		attribs["style"] = "filled"
+	if eval.errored.Contains(key) {
+		style = append(style, "filled")
 		attribs["fillcolor"] = "#e87b7b"
 	}
+	attribs["style"] = strings.Join(style, ",")
 	return attribs
 }
 
@@ -69,12 +66,13 @@ func attributesToString(attribs map[string]string) string {
 }
 
 type evalRank struct {
-	Rank     int
-	SubRanks [][]Key
+	Unevaluated bool
+	Rank        int
+	SubRanks    [][]Key
 }
 
 func toRanks(eval *Evaluator) ([]evalRank, error) {
-	ranks := make([]evalRank, len(eval.evaluatedOrder))
+	ranks := make([]evalRank, len(eval.evaluatedOrder), len(eval.evaluatedOrder)+1)
 
 	pred, err := eval.graph.PredecessorMap()
 	if err != nil {
@@ -84,7 +82,7 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 		ranks[i] = evalRank{Rank: i}
 		rank := &ranks[i]
 
-		if len(keys) > 20 {
+		if len(keys) > rankSize {
 			// split large ranks into smaller ones
 			var noDeps []Key
 			var hasDeps []Key
@@ -95,11 +93,13 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 					hasDeps = append(hasDeps, key)
 				}
 			}
-			for i := 0; i < len(noDeps); i += 20 {
-				rank.SubRanks = append(rank.SubRanks, noDeps[i:min(i+20, len(noDeps))])
+			for i := 0; i < len(noDeps); i += rankSize {
+				rank.SubRanks = append(rank.SubRanks, noDeps[i:min(i+rankSize, len(noDeps))])
 			}
 			if len(hasDeps) > 0 {
-				rank.SubRanks = append(rank.SubRanks, hasDeps)
+				for i := 0; i < len(hasDeps); i += rankSize {
+					rank.SubRanks = append(rank.SubRanks, hasDeps[i:min(i+rankSize, len(hasDeps))])
+				}
 			}
 		} else {
 			rank.SubRanks = [][]Key{keys.ToSlice()}
@@ -119,10 +119,15 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 		}
 	}
 	if len(unevaluated) > 0 {
-		ranks = append(ranks, evalRank{
-			Rank:     len(ranks),
-			SubRanks: [][]Key{unevaluated},
-		})
+		rank := evalRank{
+			Unevaluated: true,
+			Rank:        len(ranks),
+		}
+		for i := 0; i < len(unevaluated); i += rankSize {
+			rank.SubRanks = append(rank.SubRanks, unevaluated[i:min(i+rankSize, len(unevaluated))])
+		}
+
+		ranks = append(ranks, rank)
 	}
 	return ranks, nil
 }
@@ -148,13 +153,24 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 	for _, evalRank := range ranks {
 		rank := evalRank.Rank
 		printf("  subgraph cluster_%d {\n", rank)
-		printf("    label = \"Evaluation Order %d\"\n", rank)
+		if evalRank.Unevaluated {
+			printf(`    label = "Unevaluated"
+			style=filled
+			color="#e3cf9d"`)
+		} else {
+			printf("    label = \"Evaluation Order %d\"\n", rank)
+		}
 		printf("    labelloc=b\n")
 		for i, subrank := range evalRank.SubRanks {
-			printf("    { rank=same\n")
+			printf("    {")
+			if evalRank.Unevaluated {
+				printf("\n")
+			} else {
+				printf("rank=same\n")
+			}
 			for _, key := range subrank {
 				attribs := keyAttributes(eval, key)
-				attribs["group"] = fmt.Sprintf("group%d-%d", rank, i)
+				attribs["group"] = fmt.Sprintf("group%d.%d", rank, i)
 				printf("    %q [%s]\n", key, attributesToString(attribs))
 			}
 			printf("    }\n")
@@ -163,9 +179,12 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 					prevRank := ranks[rank-1]
 					lastSubrank := prevRank.SubRanks[len(prevRank.SubRanks)-1]
 					printf("    %q -> %q [style=invis, weight=10]\n", subrank[0], lastSubrank[0])
+					printf("    %q -> %q [style=invis, weight=10]\n", subrank[len(subrank)-1], lastSubrank[len(lastSubrank)-1])
 				}
 			} else {
-				printf("    %q -> %q [style=invis, weight=10]\n", subrank[0], evalRank.SubRanks[i-1][0])
+				lastSubrank := evalRank.SubRanks[i-1]
+				printf("    %q -> %q [style=invis, weight=10]\n", subrank[0], lastSubrank[0])
+				printf("    %q -> %q [style=invis, weight=10]\n", subrank[len(subrank)-1], lastSubrank[len(lastSubrank)-1])
 			}
 		}
 		printf("  }\n")
@@ -177,7 +196,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 	}
 	for src, a := range adj {
 		for tgt := range a {
-			printf("  %q -> %q\n", src, tgt)
+			printf("  %q -> %q [constraint=false]\n", src, tgt)
 		}
 	}
 	printf("}\n")

@@ -107,12 +107,12 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		return nil, err
 	}
 	var content []byte
-	content, err = files.ReadFile("tsConfig.json")
+	content, err = files.ReadFile("tsconfig.json")
 	if err == nil {
 		return nil, err
 	}
 	tsConfig := &kio.RawFile{
-		FPath:   "tsConfig.json",
+		FPath:   "tsconfig.json",
 		Content: content,
 	}
 
