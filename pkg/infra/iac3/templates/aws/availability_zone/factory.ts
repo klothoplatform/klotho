@@ -3,6 +3,7 @@ import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
+    Index: number
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -11,5 +12,5 @@ function create(args: Args): pulumi.Output<pulumi.UnwrappedObject<aws.GetAvailab
         aws.getAvailabilityZones({
             state: 'available',
         })
-    ).names[args.Name]
+    ).names[args.Index]
 }

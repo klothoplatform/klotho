@@ -5,7 +5,7 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: VpcLink
-          value: aws:vpc_link
+          value: '{{ .Target }}'
       - resource: '{{ .Source }}'
         configuration:
           field: ConnectionType

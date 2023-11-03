@@ -2,6 +2,7 @@ import * as aws from '@pulumi/aws'
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
+import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
     LogGroup: aws.cloudwatch.LogGroup
@@ -11,7 +12,7 @@ interface Args {
     Memory?: string
     NetworkMode?: string
     ExecutionRole: aws.iam.Role
-    EnvironmentVariables: Record<string, pulumi.Output<string>>
+    EnvironmentVariables: TemplateWrapper<Record<string, pulumi.Output<string>>>
     Image: docker.Image
     PortMappings?: Record<string, object>
     RequiresCompatibilities?: string[]
@@ -41,11 +42,7 @@ function create(args: Args): aws.ecs.TaskDefinition {
                 image: args.Image.imageName,
                 portMappings: args.PortMappings,
                 //TMPL {{- if .EnvironmentVariables }}
-                environment: [
-                    //TMPL {{- range $name, $value := .EnvironmentVariables }}
-                    //TMPL { name: "{{ $name }}", value: {{ $value }} },
-                    //TMPL {{- end }}
-                ],
+                environment: args.EnvironmentVariables,
                 //TMPL {{- end }}
                 logConfiguration: {
                     logDriver: 'awslogs',

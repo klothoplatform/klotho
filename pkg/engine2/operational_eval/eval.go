@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -89,8 +88,7 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 				graphOps = append(graphOps, state)
 			}
 		} else if propertyVertex, ok := v.(*propertyVertex); ok {
-			if propertyVertex.Template != nil &&
-				collectionutil.Contains([]string{"map", "list", "set"}, propertyVertex.Template.Type) {
+			if propertyVertex.Template != nil && propertyVertex.Template.OperationalRule == nil {
 				defaults = append(defaults, propertyVertex)
 			} else {
 				ready = append(ready, propertyVertex)
@@ -107,8 +105,10 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 		ready = graphOps
 		if len(ready) == 0 {
 			ready = defaults
+			zap.S().With("op", "dequeue").Debugf("Only defaults left, dequeued %d", len(ready))
+		} else {
+			zap.S().With("op", "dequeue").Debugf("Only graph ops left, dequeued %d", len(ready))
 		}
-		zap.S().With("op", "dequeue").Debugf("Only graph ops left, dequeued %d", len(ready))
 	} else {
 		zap.S().With("op", "dequeue").Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
 	}

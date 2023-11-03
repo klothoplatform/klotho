@@ -222,16 +222,17 @@ func (v *pathExpandVertex) Dependencies(
 				errs = errors.Join(errs, err)
 				continue
 			}
-			if prop.OperationalRule != nil {
-				opCtx := operational_rule.OperationalRuleContext{
-					Property: prop,
-					Solution: ctx,
-					Data:     knowledgebase.DynamicValueData{Resource: res},
-				}
-				canRun, err := opCtx.EvaluateIfCondition(*prop.OperationalRule)
-				if err != nil || !canRun {
-					continue
-				}
+			if prop.OperationalRule == nil {
+				continue
+			}
+			opCtx := operational_rule.OperationalRuleContext{
+				Property: prop,
+				Solution: ctx,
+				Data:     knowledgebase.DynamicValueData{Resource: res},
+			}
+			canRun, err := opCtx.EvaluateIfCondition(*prop.OperationalRule)
+			if err != nil || !canRun {
+				continue
 			}
 
 			resType, ok := pt.(*knowledgebase.ResourcePropertyType)

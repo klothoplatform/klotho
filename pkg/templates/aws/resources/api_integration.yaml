@@ -54,9 +54,14 @@ properties:
     type: resource(aws:vpc_link)
   Uri:
     type: string
+    configuration_disabled: true
   Route:
     type: string
     default_value: /{proxy+}
+
+path_satisfaction:
+  as_source:
+    - target
 
 classification:
   is:

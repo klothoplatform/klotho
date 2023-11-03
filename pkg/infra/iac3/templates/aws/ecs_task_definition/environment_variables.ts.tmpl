@@ -1,0 +1,5 @@
+[
+    {{- range $name, $value := . }}
+    { name: "{{ $name }}", value: {{ modelCase $value }} },
+    {{- end }}
+]

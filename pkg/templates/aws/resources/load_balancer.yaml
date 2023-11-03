@@ -27,6 +27,7 @@ properties:
               properties:
                 Type: private
             - aws:subnet
+          num_needed: 2
   Tags:
     type: map(string,string)
   Type:

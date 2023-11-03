@@ -1,0 +1,6 @@
+{
+    "name": "efs_access_point",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

@@ -12,3 +12,5 @@ operational_rules:
           value:
             - TargetGroup: '{{ .Target }}'
               Type: forward
+classification:
+  - target

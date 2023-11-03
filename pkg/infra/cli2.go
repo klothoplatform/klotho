@@ -8,6 +8,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	engine "github.com/klothoplatform/klotho/pkg/engine2"
 	"github.com/klothoplatform/klotho/pkg/infra/iac3"
+	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/templates"
@@ -56,7 +57,15 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
+	kubernetesPlugin := kubernetes.Plugin{
+		Config: &config.Application{AppName: generateIacCfg.appName},
+		KB:     kb,
+	}
+	k8sfiles, err := kubernetesPlugin.Translate(solCtx)
+	if err != nil {
+		return err
+	}
+	files = append(files, k8sfiles...)
 	switch generateIacCfg.provider {
 	case "pulumi":
 		pulumiPlugin := iac3.Plugin{

@@ -1,0 +1,6 @@
+{
+    "name": "efs_mount_target",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}
