@@ -13,7 +13,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/lang"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
@@ -198,7 +197,6 @@ func exportsNodeToTemplate(tc *TemplatesCompiler, tmpl *ResourceTemplate, node *
 	if !found {
 		return nil, nil
 	}
-	fmt.Println(lang.PrintNodes(exportsNode))
 
 	exportsTemplates := make(map[string]*template.Template)
 	var errs error
