@@ -38,7 +38,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 	}
 	inputF, err := os.Open(generateIacCfg.inputGraph)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open input graph: %w", err)
 	}
 	defer inputF.Close()
 	var input construct.YamlGraph
