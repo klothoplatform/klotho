@@ -68,6 +68,7 @@ properties:
 path_satisfaction:
   as_target:
     - network
+    - network#SecurityGroups
     - network#Subnets
 
 classification:

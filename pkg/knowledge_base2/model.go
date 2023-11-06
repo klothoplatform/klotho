@@ -2,6 +2,7 @@ package knowledgebase2
 
 import (
 	"fmt"
+	"reflect"
 )
 
 type (
@@ -12,7 +13,6 @@ type (
 )
 
 func updateModels(property *Property, properties Properties, models map[string]*Model) error {
-
 	for name, p := range properties {
 		modelType := p.ModelType()
 		if modelType != nil {
@@ -49,6 +49,29 @@ func updateModels(property *Property, properties Properties, models map[string]*
 		err := updateModels(p, p.Properties, models)
 		if err != nil {
 			return err
+		}
+		// Substitute default values
+		if p.DefaultValue != nil {
+			fmt.Println(name, p)
+			if prop, found := properties[name]; found {
+				prop.DefaultValue = p.DefaultValue
+			} else {
+				// If we are spreading a model into the resource template we need to inspect
+				// the keys of the default values for field names
+				rval := reflect.ValueOf(p.DefaultValue)
+				for _, key := range rval.MapKeys() {
+					if !rval.MapIndex(key).IsValid() || rval.MapIndex(key).IsNil() {
+						continue
+					}
+					keyStr, found := key.Interface().(string)
+					if !found {
+						return fmt.Errorf("map key is not a string")
+					}
+					if prop, found := properties[keyStr]; found {
+						prop.DefaultValue = rval.MapIndex(key).Interface()
+					}
+				}
+			}
 		}
 	}
 	return nil

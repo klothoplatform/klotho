@@ -3,6 +3,7 @@ package knowledgebase2
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"gopkg.in/yaml.v3"
@@ -28,6 +29,8 @@ type (
 		FailIfMissing bool `json:"fail_if_missing" yaml:"fail_if_missing"`
 		// Unique defines if the resource that is created should be unique
 		Unique bool `json:"unique" yaml:"unique"`
+		// UseRef defines if the rule should set the field to the property reference instead of the resource itself
+		UsePropertyRef string `json:"use_property_ref" yaml:"use_property_ref"`
 		// SelectionOperator defines how the rule should select a resource if one does not exist
 		SelectionOperator SelectionOperator `json:"selection_operator" yaml:"selection_operator"`
 	}
@@ -41,8 +44,6 @@ type (
 	Configuration struct {
 		// Field defines a field that should be set on the resource
 		Field string `json:"field" yaml:"field"`
-		// Fields defines a set of field that should be set on the resource
-		Fields []string `json:"fields" yaml:"fields"`
 		// Value defines the value that should be set on the resource
 		Value any `json:"value" yaml:"value"`
 	}
@@ -127,7 +128,7 @@ func (p ResourceSelector) matches(
 		if err != nil {
 			return false, fmt.Errorf("error transforming property value in resource selector: %w", err)
 		}
-		if property != selectorPropertyVal {
+		if !reflect.DeepEqual(property, selectorPropertyVal) {
 			if !(allowEmpty && property == nil) {
 				return false, nil
 			}

@@ -17,6 +17,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          ApiVersion: about.k8s.io/v1alpha1
+          Kind: ConfigMap
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Immutable:

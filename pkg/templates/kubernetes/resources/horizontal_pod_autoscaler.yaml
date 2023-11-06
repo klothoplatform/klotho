@@ -16,6 +16,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          ApiVersion: autoscaling/v1
+          Kind: HorizontalPodAutoscaler
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Spec:

@@ -16,6 +16,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          ApiVersion: multicluster.x-k8s.io/v1alpha1
+          Kind: ServiceExport
       Metadata:
         type: model(kubernetes:ObjectMeta)
 

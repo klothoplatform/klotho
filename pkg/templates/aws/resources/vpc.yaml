@@ -17,7 +17,9 @@ classification:
   is:
     - network
     - virtual_network
-
+path_satisfaction:
+  as_target:
+    - network
 delete_context:
   requires_no_upstream: true
 views:

@@ -4,13 +4,15 @@ properties:
     type: string
     required: true
   Image:
-    type: resource
+    type: string
     operational_rule:
       steps:
         - direction: downstream
           resources:
             - classifications:
                 - image
+          unique: true
+          use_property_ref: ImageName
     required: true
   Command:
     type: list(string)

@@ -53,8 +53,10 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
 		"hasUpstream":       ctx.HasUpstream,
 		"upstream":          ctx.Upstream,
+		"layeredUpstream":   ctx.LayeredUpstream,
 		"allUpstream":       ctx.AllUpstream,
 		"hasDownstream":     ctx.HasDownstream,
+		"layeredDownstream": ctx.LayeredDownstream,
 		"downstream":        ctx.Downstream,
 		"closestDownstream": ctx.ClosestDownstream,
 		"allDownstream":     ctx.AllDownstream,
@@ -322,6 +324,37 @@ func (ctx DynamicValueContext) Upstream(selector any, resource construct.Resourc
 	return up, nil
 }
 
+// LayeredUpstream returns the first resource that matches `selector` which is upstream of `resource` for the specified layer
+func (ctx DynamicValueContext) LayeredUpstream(
+	selector any,
+	resource construct.ResourceId,
+	layer string,
+) (construct.ResourceId, error) {
+	selId, err := TemplateArgToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+
+	dependencyLayer := DependencyLayer(layer)
+	f, err := layerWalkFunc(ctx.Graph, ctx.KnowledgeBase, resource, dependencyLayer, nil)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	result := construct.ResourceId{}
+	wrapper := func(id construct.ResourceId, nerr error) error {
+		if selId.Matches(id) {
+			result = id
+			return graph_addons.StopWalk
+		}
+		return f(id, nerr)
+	}
+	err = graph_addons.WalkUp(ctx.Graph, resource, wrapper)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	return result, nil
+}
+
 // AllUpstream is like Upstream but returns all transitive upstream resources.
 // nolint: lll
 func (ctx DynamicValueContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
@@ -361,6 +394,37 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 	})
 
 	return match, err
+}
+
+// LayeredUpstream returns the first resource that matches `selector` which is upstream of `resource` for the specified layer
+func (ctx DynamicValueContext) LayeredDownstream(
+	selector any,
+	resource construct.ResourceId,
+	layer string,
+) (construct.ResourceId, error) {
+	selId, err := TemplateArgToRID(selector)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+
+	dependencyLayer := DependencyLayer(layer)
+	f, err := layerWalkFunc(ctx.Graph, ctx.KnowledgeBase, resource, dependencyLayer, nil)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	result := construct.ResourceId{}
+	wrapper := func(id construct.ResourceId, nerr error) error {
+		if selId.Matches(id) {
+			result = id
+			return graph_addons.StopWalk
+		}
+		return f(id, nerr)
+	}
+	err = graph_addons.WalkDown(ctx.Graph, resource, wrapper)
+	if err != nil {
+		return construct.ResourceId{}, err
+	}
+	return result, nil
 }
 
 // Downstream returns the first resource that matches `selector` which is downstream of `resource`

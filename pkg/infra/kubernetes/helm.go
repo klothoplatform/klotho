@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"gopkg.in/yaml.v3"
@@ -49,7 +50,9 @@ func AddObject(res *construct.Resource) (*ObjectOutput, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to find object property on resource %s: %w", res.ID, err)
 	}
-	output := &ObjectOutput{}
+	output := &ObjectOutput{
+		Values: make(map[string]construct.PropertyRef),
+	}
 	converted, err := output.convertObject(object)
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert object property on resource %s: %w", res.ID, err)
@@ -117,7 +120,8 @@ func (h ObjectOutput) convertObject(arg any) (any, error) {
 				if err != nil {
 					return "", err
 				}
-				yamlMap[keyStr] = output
+				keyResult := strcase.ToLowerCamel(keyStr)
+				yamlMap[keyResult] = output
 			}
 			return yamlMap, nil
 		case reflect.Struct:

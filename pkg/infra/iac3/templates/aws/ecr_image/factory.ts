@@ -72,3 +72,9 @@ function create(args: Args): docker.Image {
         )
     })()
 }
+
+function properties(object: docker.Image, args: Args) {
+    return {
+        ImageName: object.imageName,
+    }
+}

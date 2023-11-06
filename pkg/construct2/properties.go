@@ -162,6 +162,9 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 			if err != nil {
 				return nil, &PropertyPathError{Path: pathParts[:i], Cause: err}
 			}
+			if !value.IsValid() || value.IsZero() {
+				value = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf((*any)(nil)).Elem()), 0, idx+1)
+			}
 			if idx < 0 || idx >= value.Len() {
 				return nil, &PropertyPathError{
 					Path:  pathParts[:i],

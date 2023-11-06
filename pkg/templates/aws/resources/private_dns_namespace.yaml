@@ -4,7 +4,11 @@ display_name: Private DNS Namespace
 properties:
   Vpc:
     type: resource(aws:vpc)
-    default_value: '{{ downstream "aws:vpc" .Self }}'
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:vpc
 
 classification:
   is:

@@ -16,6 +16,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          ApiVersion: v1
+          Kind: Namespace
       Metadata:
         type: model(kubernetes:ObjectMeta)
 

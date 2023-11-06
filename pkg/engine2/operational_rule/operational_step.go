@@ -148,9 +148,16 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 			if id, ok := elem.(construct.ResourceId); ok {
 				ids = append(ids, id)
 				errs = errors.Join(errs, addDep(id))
+			} else if ref, ok := elem.(construct.PropertyRef); ok {
+				ids = append(ids, ref.Resource)
+				errs = errors.Join(errs, addDep(ref.Resource))
 			}
 		}
 		return ids, errs
+	default:
+		if ref, ok := val.(construct.PropertyRef); ok {
+			return []construct.ResourceId{ref.Resource}, addDep(ref.Resource)
+		}
 	}
 	return nil, fmt.Errorf("cannot add dependencies from property %s on resource %s", propertyName, resource.ID)
 }
@@ -253,6 +260,12 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 	// snapshot the ID from before any field changes
 	oldId := resource.ID
 
+	var propertyValue any
+	propertyValue = fieldResource.ID
+	if step.UsePropertyRef != "" {
+		propertyValue = construct.PropertyRef{Resource: fieldResource.ID, Property: step.UsePropertyRef}
+	}
+
 	if ctx.Property.IsPropertyTypeScalar() {
 		res, err := resource.GetProperty(ctx.Property.Path)
 		if err != nil {
@@ -273,8 +286,9 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 				}
 			}
 		}
+
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err = resource.SetProperty(ctx.Property.Path, fieldResource.ID)
+		err = resource.SetProperty(ctx.Property.Path, propertyValue)
 		if err != nil {
 			return fmt.Errorf("error setting field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}
@@ -303,7 +317,7 @@ func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Re
 			}
 		}
 		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err = resource.AppendProperty(ctx.Property.Path, []construct.ResourceId{fieldResource.ID})
+		err = resource.AppendProperty(ctx.Property.Path, propertyValue)
 		if err != nil {
 			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
 		}

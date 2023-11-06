@@ -1,2 +1,8 @@
 source: kubernetes:pod
 target: aws:ecr_image
+operational_rules:
+  - configuration_rules:
+      - resource: '{{.Source}}'
+        configuration:
+          field: Object.Spec.Containers[0].Image
+          value: '{{ fieldRef "ImageName" .Target }}'

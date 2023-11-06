@@ -58,10 +58,12 @@ properties:
   Route:
     type: string
     default_value: /{proxy+}
-
-path_satisfaction:
-  as_source:
-    - target
+  Target:
+    type: resource
+  LbUri:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
   is:

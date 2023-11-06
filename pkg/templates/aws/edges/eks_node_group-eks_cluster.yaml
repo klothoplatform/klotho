@@ -42,7 +42,7 @@ operational_rules:
             properties:
               Cluster: '{{ .Target }}'
               Object.Metadata.Name: amazon-cloudwatch
-              Object.Metadata.Labels.name: aamazon-cloudwatch
+              Object.Metadata.Labels.name: amazon-cloudwatch
 
 
   - if: | # check if there is an fluent bit config map
@@ -62,8 +62,6 @@ operational_rules:
           - selector: kubernetes:config_map:fluent-bit-cluster-info
             properties:
               Cluster: '{{.Target}}'
-              Object.ApiVersion: v1
-              Object.Kind: ConfigMap
               Object.Metadata.Name: fluent-bit-cluster-info
               Object.Metadata.Namespace: kubernetes:namespace:{{.Target.Name}}:amazon-cloudwatch
               "Object.Metadata.Labels.k8s-app": fluent-bit

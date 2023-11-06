@@ -3,6 +3,7 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
@@ -113,7 +114,6 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	zap.S().With("op", "eval").Debugf("Evaluating %s", v.Ref)
 
 	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
-
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
@@ -133,6 +133,11 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
 		return err
+	}
+
+	if strings.HasPrefix(v.Template.Type, "list") || strings.HasPrefix(v.Template.Type, "set") {
+		// If we have modified a list or set we want to re add the resource to be evaluated so the nested fields are ensured to be set if required
+		return eval.AddResources(res)
 	}
 
 	return nil
@@ -169,6 +174,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 		if err != nil {
 			return fmt.Errorf("could not set default value for %s: %w", v.Ref, err)
 		}
+
 	} else if setConstraint.Operator != "" {
 		kb := sol.KnowledgeBase()
 		resTemplate, err := kb.GetResourceTemplate(res.ID)

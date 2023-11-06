@@ -33,13 +33,6 @@ operational_rules:
           - selector: kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
             properties:
               Directory: 'https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release'
-
-      - resource: kubernetes:cluster_set:cluster-set
-        direction: downstream
-        resources:
-          - selector: kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
-            properties:
-              Directory: 'https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release'
               
 
       - resource: '{{ .Source }}'
@@ -53,7 +46,3 @@ operational_rules:
 
                 Spec:
                   Value: '{{ .Target }}#ClusterName'
-      - resource: kubernetes:cluster_set:{{ .Target.Name }}
-        direction: downstream
-        resources:
-          - kubernetes:kustomize_directory:aws-cloud-map-mcs-controller

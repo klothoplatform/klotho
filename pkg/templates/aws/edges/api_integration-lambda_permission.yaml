@@ -4,6 +4,10 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
+          field: Target
+          value: '{{ fieldValue "LambdaFunction" .Target }}'
+      - resource: '{{ .Source }}'
+        configuration:
           field: Uri
           value: |
             {{ downstream "aws:lambda_function" .Target }}#LambdaIntegrationUri

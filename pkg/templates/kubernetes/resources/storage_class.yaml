@@ -16,6 +16,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Provisioner:

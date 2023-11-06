@@ -18,20 +18,21 @@ type (
 	//  once a functional resource is reached.
 	// 3. FirstFunctionalLayer (layer 3) represents all upstream/downstream resources that represent glue and
 	//  the first functional resource in other paths from the target resource.
-	DependencyLayer int
+	DependencyLayer string
 )
 
 const (
-	_ DependencyLayer = iota
 
 	// ResourceLocalLayer (layer 1)
-	ResourceLocalLayer
+	ResourceLocalLayer DependencyLayer = "local"
+	// ResourceDirectLayer (layer 2)
+	ResourceDirectLayer DependencyLayer = "direct"
 	// ResourceGlueLayer (layer 2)
-	ResourceGlueLayer
+	ResourceGlueLayer DependencyLayer = "glue"
 	// FirstFunctionalLayer (layer 3)
-	FirstFunctionalLayer
+	FirstFunctionalLayer DependencyLayer = "first"
 	// AllDepsLayer (layer 4)
-	AllDepsLayer
+	AllDepsLayer DependencyLayer = "all"
 )
 
 func resourceLocal(
@@ -46,8 +47,22 @@ func resourceLocal(
 			return errors.Join(nerr, err)
 		}
 		if isSideEffect {
-			(*ids) = append(*ids, id)
+			if ids != nil {
+				(*ids) = append(*ids, id)
+			}
 			return nil
+		}
+		return graph_addons.SkipPath
+	}
+}
+
+func resourceDirect(
+	dag construct.Graph,
+	ids *[]construct.ResourceId,
+) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	return func(id construct.ResourceId, nerr error) error {
+		if ids != nil {
+			(*ids) = append(*ids, id)
 		}
 		return graph_addons.SkipPath
 	}
@@ -59,7 +74,9 @@ func resourceGlue(
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
 		if kb.GetFunctionality(id) == Unknown {
-			(*ids) = append(*ids, id)
+			if ids != nil {
+				(*ids) = append(*ids, id)
+			}
 			return nil
 		}
 		return graph_addons.SkipPath
@@ -71,7 +88,9 @@ func firstFunctional(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
-		(*ids) = append(*ids, id)
+		if ids != nil {
+			(*ids) = append(*ids, id)
+		}
 		if kb.GetFunctionality(id) == Unknown {
 			return nil
 		}
@@ -83,7 +102,9 @@ func allDeps(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
-		(*ids) = append(*ids, id)
+		if ids != nil {
+			(*ids) = append(*ids, id)
+		}
 		return nil
 	}
 }
@@ -135,6 +156,8 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 	switch layer {
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
+	case ResourceDirectLayer:
+		f = resourceDirect(dag, &result)
 	case ResourceGlueLayer:
 		f = resourceGlue(kb, &result)
 	case FirstFunctionalLayer:
@@ -166,6 +189,8 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 	switch layer {
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
+	case ResourceDirectLayer:
+		f = resourceDirect(dag, &result)
 	case ResourceGlueLayer:
 		f = resourceGlue(kb, &result)
 	case FirstFunctionalLayer:
@@ -177,6 +202,29 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 	}
 	err := graph_addons.WalkUp(dag, rid, f)
 	return result, err
+}
+
+func layerWalkFunc(
+	dag construct.Graph,
+	kb TemplateKB,
+	rid construct.ResourceId,
+	layer DependencyLayer,
+	result []construct.ResourceId,
+) (graph_addons.WalkGraphFunc[construct.ResourceId], error) {
+	switch layer {
+	case ResourceLocalLayer:
+		return resourceLocal(dag, kb, rid, &result), nil
+	case ResourceDirectLayer:
+		return resourceDirect(dag, &result), nil
+	case ResourceGlueLayer:
+		return resourceGlue(kb, &result), nil
+	case FirstFunctionalLayer:
+		return firstFunctional(kb, &result), nil
+	case AllDepsLayer:
+		return allDeps(&result), nil
+	default:
+		return nil, fmt.Errorf("unknown layer %d", layer)
+	}
 }
 
 func UpstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {

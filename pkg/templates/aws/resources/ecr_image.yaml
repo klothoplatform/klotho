@@ -2,9 +2,6 @@ qualified_type_name: aws:ecr_image
 display_name: ECR Image
 
 properties:
-  ImageName:
-    type: string
-    default_value: '{{ .Self.Name }}'
   BaseImage:
     type: string
   Tag:
@@ -22,6 +19,11 @@ properties:
   Dockerfile:
     type: string
     default_value: '{{ .Self.Name }}.Dockerfile'
+  ImageName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  
 classification:
   is:
     - image

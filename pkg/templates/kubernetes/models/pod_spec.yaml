@@ -31,3 +31,4 @@ properties:
           unique: true
   AutomountServiceAccountToken:
     type: bool
+    default_value: true

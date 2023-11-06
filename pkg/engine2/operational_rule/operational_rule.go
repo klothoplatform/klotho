@@ -78,22 +78,33 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		return nil
 	}
 
-	switch prop := prop.(type) {
-	case construct.ResourceId:
-		propRes, err := ctx.Solution.RawView().Vertex(prop)
+	checkResForMatch := func(res construct.ResourceId) (bool, error) {
+		propRes, err := ctx.Solution.RawView().Vertex(res)
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, step := range rule.Steps {
 			for i, sel := range step.Resources {
 				match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
 				if err != nil {
-					return fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
+					return false, fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
 				}
 				if match {
-					return nil
+					return true, nil
 				}
 			}
+		}
+		return false, nil
+	}
+
+	switch prop := prop.(type) {
+	case construct.ResourceId:
+		isMatch, err := checkResForMatch(prop)
+		if err != nil {
+			return err
+		}
+		if isMatch {
+			return nil
 		}
 		log.Infof("removing %s, does not match selectors", prop)
 		err = path.Remove(nil)
@@ -105,23 +116,13 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 	case []construct.ResourceId:
 		matching := make([]construct.ResourceId, 0, len(prop))
 		toRemove := make(set.Set[construct.ResourceId])
-	ridElemLoop:
 		for _, id := range prop {
-			propRes, err := ctx.Solution.RawView().Vertex(id)
+			isMatch, err := checkResForMatch(id)
 			if err != nil {
 				return err
 			}
-			for _, step := range rule.Steps {
-				for i, sel := range step.Resources {
-					match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
-					if err != nil {
-						return fmt.Errorf("error checking if %s matches selector %d: %w", id, i, err)
-					}
-					if match {
-						matching = append(matching, id)
-						continue ridElemLoop
-					}
-				}
+			if isMatch {
+				continue
 			}
 			toRemove.Add(id)
 		}
@@ -142,28 +143,22 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 	case []any:
 		matching := make([]any, 0, len(prop))
 		toRemove := make(set.Set[construct.ResourceId])
-	anyElemLoop:
 		for _, propV := range prop {
 			id, ok := propV.(construct.ResourceId)
 			if !ok {
-				matching = append(matching, propV)
-				continue
+				propRef, ok := propV.(construct.PropertyRef)
+				if !ok {
+					matching = append(matching, propV)
+					continue
+				}
+				id = propRef.Resource
 			}
-			propRes, err := ctx.Solution.RawView().Vertex(id)
+			isMatch, err := checkResForMatch(id)
 			if err != nil {
 				return err
 			}
-			for _, step := range rule.Steps {
-				for i, sel := range step.Resources {
-					match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
-					if err != nil {
-						return fmt.Errorf("error checking if %s matches selector %d: %w", id, i, err)
-					}
-					if match {
-						matching = append(matching, id)
-						continue anyElemLoop
-					}
-				}
+			if isMatch {
+				continue
 			}
 			toRemove.Add(id)
 		}
@@ -180,6 +175,27 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			log.Infof("removing %s, does not match selectors", prop)
 			errs = errors.Join(errs, reconciler.RemoveResource(ctx.Solution, rem, false))
 		}
+	default:
+		remove := false
+		propRef, ok := prop.(construct.PropertyRef)
+		if !ok {
+			remove = true
+		}
+		if !remove {
+			isMatch, err := checkResForMatch(propRef.Resource)
+			if err != nil {
+				return err
+			}
+			if !isMatch {
+				remove = true
+			}
+		}
+		log.Infof("removing %s, does not match selectors", prop)
+		err = path.Remove(nil)
+		if err != nil {
+			return err
+		}
+		return reconciler.RemoveResource(ctx.Solution, propRef.Resource, false)
 	}
 
 	return nil

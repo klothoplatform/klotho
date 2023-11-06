@@ -1,0 +1,7 @@
+[
+    (obj: any, opts: pulumi.CustomResourceOptions) => {
+        //TMPL {{- range $key, $value := .Transformations }}
+        //TMPL obj.{{ $key }} = {{ modelCase $value }}
+        //TMPL {{- end }}
+    },
+]

@@ -2,7 +2,7 @@ name: kubernetes:ObjectMeta
 properties:
   Name:
     type: string
-    default_value: '{{ .Self.Name}}'
+    default_value: '{{ .Self.Name }}'
   Namespace:
     type: resource(kubernetes:namespace)
   Labels:

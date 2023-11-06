@@ -3,6 +3,7 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -150,7 +151,37 @@ func (eval *Evaluator) resourceVertices(
 			}
 
 			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
-				// Because lists/sets will start as empty, do not recurse into their sub-properties
+				// Because lists/sets will start as empty, do not recurse into their sub-properties if its not set.
+				// To allow for defaults within list objects and operational rules to be run, we will look in the property to see if there are values
+				if p, err := res.GetProperty(prop.Path); err == nil && p != nil {
+					var len int
+					if strings.HasPrefix(prop.Type, "list") {
+						len = reflect.ValueOf(p).Len()
+					} else if strings.HasPrefix(prop.Type, "set") {
+						len = reflect.ValueOf(p).FieldByName("m").Len()
+					}
+					for i := 0; i < len; i++ {
+						for _, subProp := range prop.Properties {
+							if subProp.OperationalRule != nil {
+								propTemplate := subProp.Clone()
+								propTemplate.Path = fmt.Sprintf("%s[%d]%s",
+									prop.Path, i, strings.TrimPrefix(subProp.Path, prop.Path))
+								vertex := &propertyVertex{
+									Ref:       construct.PropertyRef{Resource: res.ID, Property: propTemplate.Path},
+									Template:  propTemplate,
+									EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
+								}
+
+								err := changes.AddVertex(eval.Solution, vertex)
+								if err != nil {
+									errs = errors.Join(errs, err)
+									continue
+								}
+							}
+
+						}
+					}
+				}
 				continue
 			}
 			if prop.Properties != nil {

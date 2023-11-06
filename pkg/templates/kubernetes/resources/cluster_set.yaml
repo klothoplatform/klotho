@@ -23,7 +23,7 @@ properties:
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Spec:
-        value: string
+        type: string
 
 delete_context:
   requires_no_upstream: true

@@ -16,6 +16,8 @@ properties:
                 - kubernetes
   Repo:
     type: string
+  Directory:
+    type: string
   Version:
     type: string
   Namespace:

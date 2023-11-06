@@ -12,6 +12,7 @@ interface Args {
     VpcLink: aws.apigateway.VpcLink
     RequestParameters: Record<string, string>
     Uri: pulumi.Output<string>
+    Route: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -41,4 +42,10 @@ function create(args: Args): aws.apigateway.Integration {
         },
         { parent: args.Method }
     )
+}
+
+function properties(object: aws.apigateway.Integration, args: Args) {
+    return {
+        LbUri: pulumi.interpolate`http://${(args.Target as aws.lb.LoadBalancer).dnsName}${args.Route.replace("+", "")}`,
+    }
 }

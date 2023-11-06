@@ -9,6 +9,10 @@ import (
 )
 
 func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
+	if strings.HasPrefix(config.Config.Field, "Object.Spec") {
+		a := 1
+		a++
+	}
 	dyn := solution_context.DynamicCtx(ctx.Solution)
 	res, err := knowledgebase.ExecuteDecodeAsResourceId(dyn, config.Resource, ctx.Data)
 	if err != nil {

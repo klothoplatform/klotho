@@ -10,6 +10,8 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/chart"
 )
 
 type Plugin struct {
@@ -24,16 +26,14 @@ func (p Plugin) Name() string {
 const HELM_CHARTS_DIR = "helm_charts"
 
 func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
-	internalChart := construct.CreateResource(construct.ResourceId{Provider: "kubernetes", Type: "helm_chart", Name: "klotho-internals"})
-	err := internalChart.SetProperty("Internal", true)
-
+	internalChart := construct.CreateResource(construct.ResourceId{Provider: "kubernetes", Type: "helm_chart", Name: "klotho-internals-chart"})
 	customerChart := construct.CreateResource(construct.ResourceId{Provider: "kubernetes", Type: "helm_chart", Name: "application-chart"})
 
 	files := make([]kio.File, 0)
 	resourcesInInternalChart := make(map[construct.ResourceId]bool)
 	resourcesInCustomerChart := make(map[construct.ResourceId]bool)
 
-	err = construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err := construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		if id.Provider == "kubernetes" {
 			output, err := AddObject(resource)
 			if err != nil {
@@ -44,13 +44,13 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 			}
 			if prop, err := resource.GetProperty("Internal"); err == nil && prop == true {
 				files = append(files, &kio.RawFile{
-					FPath:   fmt.Sprintf("%s/%s/templates/%s.yaml", HELM_CHARTS_DIR, internalChart.ID.Name, id.Name),
+					FPath:   fmt.Sprintf("%s/%s/templates/%s_%s.yaml", HELM_CHARTS_DIR, internalChart.ID.Name, id.Type, id.Name),
 					Content: output.Content,
 				})
 				resourcesInInternalChart[id] = true
 			} else {
 				files = append(files, &kio.RawFile{
-					FPath:   fmt.Sprintf("%s/%s/templates/%s.yaml", HELM_CHARTS_DIR, customerChart.ID.Name, id.Name),
+					FPath:   fmt.Sprintf("%s/%s/templates/%s_%s.yaml", HELM_CHARTS_DIR, customerChart.ID.Name, id.Type, id.Name),
 					Content: output.Content,
 				})
 				resourcesInCustomerChart[id] = true
@@ -58,13 +58,47 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		}
 		return nerr
 	})
-
-	if err != nil {
-		return nil, err
-	}
 	var errs error
-	errs = errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInInternalChart, internalChart))
-	errs = errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInCustomerChart, customerChart))
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if len(resourcesInCustomerChart) > 0 {
+		errs := errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInCustomerChart, customerChart))
+		file, err := writeChartYaml(customerChart)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		} else {
+			files = append(files, file)
+		}
+	}
+	if len(resourcesInInternalChart) > 0 {
+		err = internalChart.SetProperty("Internal", true)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		err = internalChart.SetProperty("Directory", internalChart.ID.Name)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		err = internalChart.SetProperty("Directory", customerChart.ID.Name)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		errs = errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInInternalChart, internalChart))
+
+		// Add the chart.yaml files
+		file, err := writeChartYaml(internalChart)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		} else {
+			files = append(files, file)
+		}
+	}
+
 	return files, errs
 }
 
@@ -85,7 +119,6 @@ func ReplaceResourcesInChart(ctx solution_context.SolutionContext, resources map
 			return err
 		}
 
-		var errs error
 		for _, e := range edges {
 			if e.Source != res && e.Target != res {
 				continue
@@ -111,24 +144,28 @@ func ReplaceResourcesInChart(ctx solution_context.SolutionContext, resources map
 		if errs != nil {
 			return errs
 		}
-
 		errs = errors.Join(errs, ctx.RawView().RemoveVertex(res))
 	}
 	return errs
 }
 
-// func writeChartYaml(c *construct.Resource) error {
-// 	chartContent = &chart.Chart{
-// 		Metadata: &chart.Metadata{
-// 			Name:        c.ID.Name,
-// 			APIVersion:  "v2",
-// 			AppVersion:  "0.0.1",
-// 			Version:     "0.0.1",
-// 			KubeVersion: ">= 1.19.0-0",
-// 			Type:        "application",
-// 		},
-// 	}
-// 	chartFile, err := yamlLang.NewFile(fmt.Sprintf("%s/Chart.yaml", khChart.Name), bytes.NewBuffer(output))
-
-// 	return nil
-// }
+func writeChartYaml(c *construct.Resource) (kio.File, error) {
+	chartContent := &chart.Chart{
+		Metadata: &chart.Metadata{
+			Name:        c.ID.Name,
+			APIVersion:  "v2",
+			AppVersion:  "0.0.1",
+			Version:     "0.0.1",
+			KubeVersion: ">= 1.19.0-0",
+			Type:        "application",
+		},
+	}
+	output, err := yaml.Marshal(chartContent.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	return &kio.RawFile{
+		FPath:   fmt.Sprintf("%s/%s/Chart.yaml", HELM_CHARTS_DIR, c.ID.Name),
+		Content: output,
+	}, nil
+}

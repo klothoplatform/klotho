@@ -245,7 +245,7 @@ func (action *operationalResourceAction) getPriorityResourceType() (
 			return construct.ResourceId{Provider: id.Provider, Type: id.Type, Namespace: id.Namespace, Name: id.Name}, resourceSelector, nil
 		}
 	}
-	return construct.ResourceId{}, knowledgebase.ResourceSelector{}, fmt.Errorf("no resource types found for step")
+	return construct.ResourceId{}, knowledgebase.ResourceSelector{}, fmt.Errorf("no resource types found for step, %s", action.Step.Resource)
 }
 
 func (action *operationalResourceAction) addSelectorProperties(properties map[string]any, resource *construct.Resource) error {

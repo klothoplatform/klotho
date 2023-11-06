@@ -16,6 +16,9 @@ properties:
     properties:
       kubernetes:TypeMeta:
         type: model
+        default_value:
+          apiVersion: apps/v1
+          kind: Deployment
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Spec:
@@ -33,13 +36,16 @@ properties:
             properties:
               Type:
                 type: string
+                default_value: RollingUpdate
               RollingUpdate:
                 type: map
                 properties:
                   MaxUnavailable:
                     type: any
+                    default_value: 1
                   MaxSurge:
                     type: any
+                    default_value: 1
 classification:
   is:
     - compute

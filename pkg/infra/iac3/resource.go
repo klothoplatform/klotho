@@ -142,6 +142,7 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *ResourceTemplate) (templateInputArgs, error) {
 	var errs error
 	inputs := make(map[string]any, len(r.Properties)+len(globalVariables)+2) // +2 for Name and dependsOn
+	selfReferences := make(map[string]construct.PropertyRef)
 
 	for name, value := range r.Properties {
 		templateArg := template.Args[name]
@@ -153,6 +154,8 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 				errs = errors.Join(errs, fmt.Errorf("could not use nested template for arg %q: %w", name, err))
 				continue
 			}
+		} else if ref, ok := value.(construct.PropertyRef); ok && ref.Resource.Matches(r.ID) {
+			selfReferences[name] = ref
 		} else {
 			argValue, err = tc.convertArg(value, &templateArg)
 			if err != nil {
@@ -165,6 +168,25 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 			inputs[name] = argValue
 		}
 	}
+
+	for name, value := range selfReferences {
+		if mapping, ok := template.PropertyTemplates[value.Property]; ok {
+			data := PropertyTemplateData{
+				Resource: r.ID,
+				Object:   tc.vars[r.ID],
+				Input:    inputs,
+			}
+			result, err := executeToString(mapping, data)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not execute self-reference %q: %w", name, err))
+				continue
+			}
+			inputs[name] = result
+		} else {
+			errs = errors.Join(errs, fmt.Errorf("could not find mapping for self-reference %q", name))
+		}
+	}
+
 	if errs != nil {
 		return templateInputArgs{}, errs
 	}
@@ -248,7 +270,6 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 	}
 
 	tmpl, err := template.New(nestedTemplatePath).Funcs(template.FuncMap{
-		// "parseVal":       tc.parseVal,
 		"modelCase":      tc.modelCase,
 		"lowerCamelCase": tc.lowerCamelCase,
 		"camelCase":      tc.camelCase,
@@ -266,10 +287,6 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 	}
 	return result.String(), nil
 }
-
-// func (tc *TemplatesCompiler) parseVal(val any) (any, error) {
-// 	return tc.convertArg(val, nil)
-// }
 
 func (tc *TemplatesCompiler) modelCase(val any) (any, error) {
 	return tc.convertArg(val, &Arg{Wrapper: string(ModelCaseWrapper)})
