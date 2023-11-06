@@ -52,7 +52,6 @@ func updateModels(property *Property, properties Properties, models map[string]*
 		}
 		// Substitute default values
 		if p.DefaultValue != nil {
-			fmt.Println(name, p)
 			if prop, found := properties[name]; found {
 				prop.DefaultValue = p.DefaultValue
 			} else {
