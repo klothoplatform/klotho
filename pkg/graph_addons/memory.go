@@ -270,6 +270,10 @@ func (s *MemoryStore[K, T]) ListEdges() ([]graph.Edge[K], error) {
 // Because CreatesCycle doesn't need to modify the PredecessorMap, we can use
 // inEdges instead to compute the same thing without creating any copies.
 func (s *MemoryStore[K, T]) CreatesCycle(source, target K) (bool, error) {
+	if source == target {
+		return true, nil
+	}
+
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -279,10 +283,6 @@ func (s *MemoryStore[K, T]) CreatesCycle(source, target K) (bool, error) {
 
 	if _, _, err := s.vertexWithLock(target); err != nil {
 		return false, fmt.Errorf("could not get target vertex: %w", err)
-	}
-
-	if source == target {
-		return true, nil
 	}
 
 	stack := []K{source}

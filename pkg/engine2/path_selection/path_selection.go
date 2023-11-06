@@ -23,15 +23,18 @@ func BuildPathSelectionGraph(
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 	paths, err := kb.AllPaths(dep.Source, dep.Target)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all paths between resources while building path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
+		return nil, fmt.Errorf(
+			"failed to get all paths between resources while building path selection graph for %s: %w",
+			dep, err,
+		)
 	}
 	err = tempGraph.AddVertex(construct.CreateResource(dep.Source))
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
+		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
 	}
 	err = tempGraph.AddVertex(construct.CreateResource(dep.Target))
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s -> %s: %w", dep.Source, dep.Target, err)
+		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
 
 	for _, path := range paths {

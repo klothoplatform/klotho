@@ -3,6 +3,7 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -29,7 +30,7 @@ type (
 	Key struct {
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
-		GraphState        string
+		GraphState        graphStateRepr
 		PathSatisfication *knowledgebase.EdgePathSatisfaction
 	}
 
@@ -37,12 +38,20 @@ type (
 		Key() Key
 		Evaluate(eval *Evaluator) error
 		UpdateFrom(other Vertex)
-		Dependencies(ctx solution_context.SolutionContext) (set.Set[construct.PropertyRef], graphStates, error)
+		Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error)
 	}
 
-	verticesAndDeps map[Vertex]set.Set[Key]
+	vertexDependencies struct {
+		Outgoing    set.Set[Key]
+		Incoming    set.Set[Key]
+		GraphStates []*graphStateVertex
+	}
 
-	graphStates map[string]func(construct.Graph) (bool, error)
+	graphChanges struct {
+		nodes set.Set[Vertex]
+		// edges is map[source]targets
+		edges map[Key]set.Set[Key]
+	}
 )
 
 func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
@@ -59,11 +68,17 @@ func (key Key) String() string {
 		return key.Ref.String()
 	}
 	if key.GraphState != "" {
-		return key.GraphState
+		return string(key.GraphState)
 	}
 	if key.PathSatisfication != nil {
-		return fmt.Sprintf("%s -> %s ^ target=%v#%v", key.Edge.Source, key.Edge.Target,
-			key.PathSatisfication.AsTarget, key.PathSatisfication.Classification)
+		args := []string{
+			key.Edge.String(),
+			key.PathSatisfication.Classification,
+		}
+		if key.PathSatisfication.AsTarget {
+			args = append(args, "target")
+		}
+		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
 	}
 	if key.Edge != (construct.SimpleEdge{}) {
 		return key.Edge.String()
@@ -71,9 +86,9 @@ func (key Key) String() string {
 	return "<empty>"
 }
 
-func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
+func (eval *Evaluator) enqueue(changes graphChanges) error {
 	var errs error
-	for v, deps := range vs {
+	for v := range changes.nodes {
 		key := v.Key()
 		_, err := eval.graph.Vertex(key)
 		switch {
@@ -83,7 +98,7 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
 			}
-			zap.S().With("op", "enqueue").Debugf("Enqueued %s (%d deps)", key, len(deps))
+			zap.S().With("op", "enqueue").Debugf("Enqueued %s", key)
 			if err := eval.unevaluated.AddVertex(v); err != nil {
 				errs = errors.Join(errs, err)
 			}
@@ -95,7 +110,7 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 				continue
 			}
 			if v != existing {
-				zap.S().With("op", "enqueue").Debugf("Updating %s (%d deps)", key, len(deps))
+				zap.S().With("op", "enqueue").Debugf("Updating %s", key)
 				existing.UpdateFrom(v)
 			}
 
@@ -106,20 +121,22 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 	if errs != nil {
 		return errs
 	}
-	for source, targets := range vs {
-		zap.S().With("op", "deps").Debug(source.Key())
+	for source, targets := range changes.edges {
+		zap.S().With("op", "deps").Debug(source)
 		for target := range targets {
-			err := eval.graph.AddEdge(source.Key(), target)
+			err := eval.graph.AddEdge(source, target)
 			if err != nil {
 				// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
-				// new vertex type of "overwrite me later".
-				errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", source.Key(), target, err))
+				// new vertex type of "overwrite me later". It would be an odd situation though, which is why it is
+				// an error for now.
+				errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", source, target, err))
+				continue
 			}
 			_, err = eval.unevaluated.Vertex(target)
 			switch {
 			case errors.Is(err, graph.ErrVertexNotFound):
 				// the 'graph.AddEdge' succeeded, thus the target exists in the total graph
-				// which means that the target vertex is done, so don't add the edge
+				// which means that the target vertex is done, so ignore adding the edge to the unevaluated graph
 				zap.S().With("op", "deps").Debugf("  -> %s (done)", target)
 
 			case err != nil:
@@ -127,9 +144,9 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 
 			default:
 				zap.S().With("op", "deps").Debugf("  -> %s", target)
-				err := eval.unevaluated.AddEdge(source.Key(), target)
+				err := eval.unevaluated.AddEdge(source, target)
 				if err != nil {
-					errs = errors.Join(errs, fmt.Errorf("could not add unevaluated edge %s -> %s: %w", source.Key(), target, err))
+					errs = errors.Join(errs, fmt.Errorf("could not add unevaluated edge %s -> %s: %w", source, target, err))
 				}
 			}
 		}
@@ -140,66 +157,60 @@ func (eval *Evaluator) enqueue(vs verticesAndDeps) error {
 	return nil
 }
 
-func (vs *verticesAndDeps) AddAll(other verticesAndDeps) {
-	if *vs == nil {
-		*vs = make(verticesAndDeps)
+func newDeps() vertexDependencies {
+	return vertexDependencies{
+		Outgoing: make(set.Set[Key]),
+		Incoming: make(set.Set[Key]),
 	}
-	for v, deps := range other {
-		if (*vs)[v] == nil {
-			(*vs)[v] = make(set.Set[Key])
+}
+
+func newChanges() graphChanges {
+	return graphChanges{
+		nodes: make(set.Set[Vertex]),
+		edges: make(map[Key]set.Set[Key]),
+	}
+}
+
+func (changes graphChanges) AddVertex(sol solution_context.SolutionContext, v Vertex) error {
+	changes.nodes.Add(v)
+	deps, err := v.Dependencies(sol)
+	if err != nil {
+		return err
+	}
+	vKey := v.Key()
+	out, ok := changes.edges[vKey]
+	if !ok {
+		out = make(set.Set[Key])
+		changes.edges[vKey] = out
+	}
+	out.AddFrom(deps.Outgoing)
+
+	for in := range deps.Incoming {
+		incoming, ok := changes.edges[in]
+		if !ok {
+			incoming = make(set.Set[Key])
+			changes.edges[in] = incoming
 		}
-		(*vs)[v].AddFrom(deps)
+		incoming.Add(vKey)
 	}
+
+	for _, state := range deps.GraphStates {
+		changes.nodes.Add(state)
+	}
+
+	return nil
 }
 
-func (vs *verticesAndDeps) AddRefs(k Vertex, deps set.Set[construct.PropertyRef]) {
-	if *vs == nil {
-		*vs = make(verticesAndDeps)
-	}
-	if (*vs)[k] == nil {
-		(*vs)[k] = make(set.Set[Key])
-	}
-	for dep := range deps {
-		(*vs)[k].Add(Key{Ref: dep})
-	}
-}
-
-func (vs *verticesAndDeps) AddGraphStates(k Vertex, states graphStates) {
-	if *vs == nil {
-		*vs = make(verticesAndDeps)
-	}
-	for repr, test := range states {
-		v := &graphStateVertex{repr: repr, Test: test}
-		(*vs)[v] = make(set.Set[Key])
-		(*vs)[k].Add(v.Key())
-	}
-}
-
-func (vs *verticesAndDeps) AddDependencies(ctx solution_context.SolutionContext, v Vertex) error {
-	deps, gs, err := v.Dependencies(ctx)
-	vs.AddRefs(v, deps)
-	vs.AddGraphStates(v, gs)
-	return err
-}
-
-func VertexLess(a, b Key) bool {
-	if a.Ref.Resource.IsZero() != b.Ref.Resource.IsZero() {
-		// sort properties before edges
-		return a.Ref.Resource.IsZero()
-	}
-	if a.Ref.Resource.IsZero() {
-		// both are edges, sort by source first then by target
-		if a.Edge.Source != b.Edge.Source {
-			return construct.ResourceIdLess(a.Edge.Source, b.Edge.Source)
+func (changes graphChanges) Merge(other graphChanges) {
+	changes.nodes.AddFrom(other.nodes)
+	for k, v := range other.edges {
+		out, ok := changes.edges[k]
+		if !ok {
+			out = make(set.Set[Key])
+			changes.edges[k] = out
 		}
-		return construct.ResourceIdLess(a.Edge.Target, b.Edge.Target)
+		out.AddFrom(v)
 	}
-
-	// both are properties
-	if a.Ref.Resource != b.Ref.Resource {
-		return construct.ResourceIdLess(a.Ref.Resource, b.Ref.Resource)
-	}
-	return a.Ref.Property < b.Ref.Property
 }
 
 func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
@@ -218,7 +229,7 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 		return err
 	}
 
-	topo, err := graph.StableTopologicalSort(eval.graph, VertexLess)
+	topo, err := graph.TopologicalSort(eval.graph)
 	if err != nil {
 		return err
 	}

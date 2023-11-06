@@ -19,7 +19,7 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = fmt.Sprintf(`%s\n%s`, key.Ref.Resource, key.Ref.Property)
 		attribs["shape"] = "box"
 	} else if key.GraphState != "" {
-		attribs["label"] = key.GraphState
+		attribs["label"] = string(key.GraphState)
 		attribs["shape"] = "box"
 		style = append(style, "dashed")
 	} else if key.PathSatisfication != nil {
@@ -78,6 +78,10 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 	if err != nil {
 		return nil, err
 	}
+	adj, err := eval.graph.AdjacencyMap()
+	if err != nil {
+		return nil, err
+	}
 	for i, keys := range eval.evaluatedOrder {
 		ranks[i] = evalRank{Rank: i}
 		rank := &ranks[i]
@@ -85,20 +89,31 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 		if len(keys) > rankSize {
 			// split large ranks into smaller ones
 			var noDeps []Key
-			var hasDeps []Key
+			var onlyDownstream []Key
+			var hasUpstream []Key
 			for key := range keys {
-				if len(pred[key]) == 0 {
+				switch {
+				case len(pred[key]) == 0 && len(adj[key]) == 0:
 					noDeps = append(noDeps, key)
-				} else {
-					hasDeps = append(hasDeps, key)
+
+				case len(pred[key]) == 0:
+					onlyDownstream = append(onlyDownstream, key)
+
+				default:
+					hasUpstream = append(hasUpstream, key)
+				}
+			}
+			if len(onlyDownstream) > 0 {
+				for i := 0; i < len(onlyDownstream); i += rankSize {
+					rank.SubRanks = append(rank.SubRanks, onlyDownstream[i:min(i+rankSize, len(onlyDownstream))])
 				}
 			}
 			for i := 0; i < len(noDeps); i += rankSize {
 				rank.SubRanks = append(rank.SubRanks, noDeps[i:min(i+rankSize, len(noDeps))])
 			}
-			if len(hasDeps) > 0 {
-				for i := 0; i < len(hasDeps); i += rankSize {
-					rank.SubRanks = append(rank.SubRanks, hasDeps[i:min(i+rankSize, len(hasDeps))])
+			if len(hasUpstream) > 0 {
+				for i := 0; i < len(hasUpstream); i += rankSize {
+					rank.SubRanks = append(rank.SubRanks, hasUpstream[i:min(i+rankSize, len(hasUpstream))])
 				}
 			}
 		} else {
@@ -132,7 +147,7 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 	return ranks, nil
 }
 
-func graphToDOT(eval *Evaluator, out io.Writer) error {
+func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
 	var errs error
 	printf := func(s string, args ...any) {
 		_, err := fmt.Fprintf(out, s, args...)
@@ -141,7 +156,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 
 	printf(`strict digraph {
   rankdir = "BT"
-	ranksep = 1
+	ranksep = 4
 	newrank = true
 `)
 
@@ -150,9 +165,14 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 		return err
 	}
 
+	adj, err := eval.graph.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+
 	for _, evalRank := range ranks {
 		rank := evalRank.Rank
-		printf("  subgraph cluster_%d {\n", rank)
+		printf("  subgraph group_%d {\n", rank)
 		if evalRank.Unevaluated {
 			printf(`    label = "Unevaluated"
 			style=filled
@@ -172,6 +192,10 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 				attribs := keyAttributes(eval, key)
 				attribs["group"] = fmt.Sprintf("group%d.%d", rank, i)
 				printf("    %q [%s]\n", key, attributesToString(attribs))
+
+				for tgt := range adj[key] {
+					printf("  %q -> %q\n", key, tgt)
+				}
 			}
 			printf("    }\n")
 			if i == 0 {
@@ -190,16 +214,45 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 		printf("  }\n")
 	}
 
+	printf("}\n")
+
+	return errs
+}
+
+func graphToDOT(eval *Evaluator, out io.Writer) error {
+	var errs error
+	printf := func(s string, args ...any) {
+		_, err := fmt.Fprintf(out, s, args...)
+		errs = errors.Join(errs, err)
+	}
+
+	printf(`strict digraph {
+  rankdir = "BT"
+	ranksep = 1
+`)
 	adj, err := eval.graph.AdjacencyMap()
 	if err != nil {
 		return err
 	}
+
+	evalOrder := make(map[Key]int)
+	for i, keys := range eval.evaluatedOrder {
+		for key := range keys {
+			evalOrder[key] = i
+		}
+	}
+
 	for src, a := range adj {
+		attribs := keyAttributes(eval, src)
+		order, hasOrder := evalOrder[src]
+		if hasOrder {
+			attribs["label"] = fmt.Sprintf("[%d] %s", order, attribs["label"])
+		}
+		printf("  %q [%s]\n", src, attributesToString(attribs))
 		for tgt := range a {
-			printf("  %q -> %q [constraint=false]\n", src, tgt)
+			printf("  %q -> %q\n", src, tgt)
 		}
 	}
 	printf("}\n")
-
 	return errs
 }

@@ -8,7 +8,6 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -175,6 +174,11 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput
 		errs = errors.Join(errs, err)
 	}
 	for _, expansion := range expansions {
+		input := ExpansionInput{
+			Dep:            expansion.Dep,
+			Classification: expansion.Classification,
+			TempGraph:      v.TempGraph,
+		}
 		if expansion.Dep.Source != edge.Source || expansion.Dep.Target != edge.Target {
 			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
 			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification)
@@ -187,9 +191,10 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not clone path selection graph: %w", err))
 				continue
 			}
-			result = append(result, ExpansionInput{Dep: expansion.Dep, Classification: expansion.Classification, TempGraph: temp})
+			input.TempGraph = temp
+			result = append(result, input)
 		} else {
-			result = append(result, ExpansionInput{Dep: expansion.Dep, Classification: expansion.Classification, TempGraph: v.TempGraph})
+			result = append(result, input)
 		}
 	}
 	return result, errs
@@ -200,66 +205,150 @@ func (v *pathExpandVertex) UpdateFrom(other Vertex) {
 	v.TempGraph = otherVertex.TempGraph
 }
 
-func (v *pathExpandVertex) Dependencies(
+// addDepsFromProps checks to see if any properties in `res` match any of the `dependencies`.
+// If they do, add a dependency to that property - it may set up a resource that we could reuse,
+// depending on the path chosen. This is a conservative dependency, since we don't know which path
+// will be chosen.
+func (v *pathExpandVertex) addDepsFromProps(
 	ctx solution_context.SolutionContext,
-) (set.Set[construct.PropertyRef], graphStates, error) {
-	deps := make(set.Set[construct.PropertyRef])
-	cfgCtx := solution_context.DynamicCtx(ctx)
-
-	addDepsFromProps := func(
-		res construct.ResourceId,
-		dependencies []construct.ResourceId,
-		skipCheckRes construct.ResourceId,
-	) error {
-		tmpl, err := cfgCtx.KB().GetResourceTemplate(res)
+	deps vertexDependencies,
+	res construct.ResourceId,
+	dependencies []construct.ResourceId,
+) error {
+	tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(res)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for k, prop := range tmpl.Properties {
+		pt, err := prop.PropertyType()
 		if err != nil {
-			return err
+			errs = errors.Join(errs, err)
+			continue
 		}
-		var errs error
-		for k, prop := range tmpl.Properties {
-			pt, err := prop.PropertyType()
+		if prop.OperationalRule == nil {
+			// If the property can't create resources, skip it.
+			continue
+		}
+
+		resType, ok := pt.(*knowledgebase.ResourcePropertyType)
+		if !ok {
+			listType, ok := pt.(*knowledgebase.ListPropertyType)
+			if !ok || listType.Value == "" {
+				continue
+			}
+			pType := knowledgebase.Property{Type: listType.Value}
+			pt, err = pType.PropertyType()
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			if prop.OperationalRule == nil {
+			resType, ok = pt.(*knowledgebase.ResourcePropertyType)
+			if !ok {
 				continue
 			}
-			opCtx := operational_rule.OperationalRuleContext{
-				Property: prop,
-				Solution: ctx,
-				Data:     knowledgebase.DynamicValueData{Resource: res},
+		}
+
+		ref := construct.PropertyRef{Resource: res, Property: k}
+		for _, dep := range dependencies {
+			if dep == v.Edge.Source || dep == v.Edge.Target {
+				continue
 			}
-			canRun, err := opCtx.EvaluateIfCondition(*prop.OperationalRule)
-			if err != nil || !canRun {
+			if resType.Value.Matches(dep) {
+				deps.Outgoing.Add(Key{Ref: ref})
+			}
+		}
+	}
+	return errs
+}
+
+// addDepsFromEdge checks to see if the edge's template sets any properties via configuration rules.
+// If it does, go through all the existing resources and add an incoming dependency to any that match
+// the resource and property from that configuration rule.
+func (v *pathExpandVertex) addDepsFromEdge(
+	ctx solution_context.SolutionContext,
+	deps vertexDependencies,
+	edge construct.Edge,
+) error {
+	dyn := solution_context.DynamicCtx(ctx)
+	tmpl := ctx.KnowledgeBase().GetEdgeTemplate(edge.Source, edge.Target)
+	if tmpl == nil {
+		return nil
+	}
+
+	allRes, err := graph.TopologicalSort(ctx.RawView())
+	if err != nil {
+		return err
+	}
+
+	addDepsMatching := func(ref construct.PropertyRef) error {
+		for _, res := range allRes {
+			if !ref.Resource.Matches(res) {
+				continue
+			}
+			tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(res)
+			if err != nil {
+				return err
+			}
+			if _, hasProp := tmpl.Properties[ref.Property]; hasProp {
+				actualRef := construct.PropertyRef{
+					Resource: res,
+					Property: ref.Property,
+				}
+				deps.Incoming.Add(Key{Ref: actualRef})
+
+				se := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
+				se.Source.Name = ""
+				se.Target.Name = ""
+				zap.S().Debugf(
+					"Adding speculative dependency %s -> %s (matches %s from %s)",
+					actualRef, v.Key(), ref, se,
+				)
+			}
+		}
+		return nil
+	}
+
+	var errs error
+	for i, rule := range tmpl.OperationalRules {
+		for j, cfg := range rule.ConfigurationRules {
+			var err error
+			data := knowledgebase.DynamicValueData{Edge: &edge}
+			data.Resource, err = knowledgebase.ExecuteDecodeAsResourceId(dyn, cfg.Resource, data)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not decode resource for rule %d cfg %d: %w", i, j, err))
+				continue
+			}
+			if data.Resource.IsZero() {
 				continue
 			}
 
-			resType, ok := pt.(*knowledgebase.ResourcePropertyType)
-			if !ok {
-				listType, ok := pt.(*knowledgebase.ListPropertyType)
-				if !ok || listType.Value == "" {
-					continue
-				}
-				pType := knowledgebase.Property{Type: listType.Value}
-				pt, err = pType.PropertyType()
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				resType, ok = pt.(*knowledgebase.ResourcePropertyType)
-				if !ok {
-					continue
-				}
+			// NOTE(gg): does this need to consider `Fields`?
+			field := cfg.Config.Field
+			err = dyn.ExecuteDecode(field, data, &field)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not decode field for rule %d cfg %d: %w", i, j, err))
+				continue
 			}
-			for _, dep := range dependencies {
-				if resType.Value.Matches(dep) && !skipCheckRes.Matches(dep) {
-					deps.Add(construct.PropertyRef{Resource: res, Property: k})
-					break
-				}
+			if field == "" {
+				continue
 			}
+
+			ref := construct.PropertyRef{Resource: data.Resource, Property: field}
+			errs = errors.Join(errs, addDepsMatching(ref))
 		}
-		return errs
+	}
+	return errs
+}
+
+func (v *pathExpandVertex) Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error) {
+	deps := newDeps()
+	cfgCtx := solution_context.DynamicCtx(ctx)
+
+	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
+	// if we dont, we should return what we currently have
+	if v.TempGraph == nil {
+		return deps, nil
 	}
 
 	var errs error
@@ -277,7 +366,7 @@ func (v *pathExpandVertex) Dependencies(
 			for _, currResource := range currResources {
 				val, err := cfgCtx.FieldValue(part, currResource)
 				if err != nil {
-					deps.Add(construct.PropertyRef{Resource: currResource, Property: part})
+					deps.Outgoing.Add(Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}})
 					continue
 				}
 				if id, ok := val.(construct.ResourceId); ok {
@@ -290,58 +379,30 @@ func (v *pathExpandVertex) Dependencies(
 		}
 	}
 
-	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
-	// if we dont, we should return what we currently have
-	if v.TempGraph == nil {
-		return deps, nil, nil
-	}
-
 	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
 	if err != nil {
-		return deps, nil, err
+		return deps, err
 	}
-	errs = errors.Join(errs, addDepsFromProps(v.Edge.Source, srcDeps, v.Edge.Target))
+	errs = errors.Join(errs, v.addDepsFromProps(ctx, deps, v.Edge.Source, srcDeps))
 
 	targetDeps, err := construct.AllUpstreamDependencies(v.TempGraph, v.Edge.Target)
 	if err != nil {
-		return deps, nil, err
+		return deps, err
 	}
-	errs = errors.Join(errs, addDepsFromProps(v.Edge.Target, targetDeps, v.Edge.Source))
-	return deps, nil, errs
-}
-
-func (eval *Evaluator) AddPath(source, target construct.ResourceId) (err error) {
-
-	generateAndAddVertex := func(
-		vs verticesAndDeps,
-		edge construct.SimpleEdge,
-		kb knowledgebase.TemplateKB,
-		satisfication knowledgebase.EdgePathSatisfaction) error {
-		var tempGraph construct.Graph
-		if !strings.Contains(satisfication.Classification, "#") {
-			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification)
-			if err != nil {
-				return fmt.Errorf("error in AddPath: could not build path selection graph: %w", err)
-			}
-		}
-		vertex := pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
-		return vs.AddDependencies(eval.Solution, &vertex)
+	errs = errors.Join(errs, v.addDepsFromProps(ctx, deps, v.Edge.Target, targetDeps))
+	if errs != nil {
+		return deps, errs
 	}
 
-	kb := eval.Solution.KnowledgeBase()
-
-	edge := construct.SimpleEdge{Source: source, Target: target}
-	pathSatisfications, err := kb.GetPathSatisfactionsFromEdge(source, target)
-
-	vs := make(verticesAndDeps)
-	var errs error
-	for _, satisfication := range pathSatisfications {
-		errs = errors.Join(errs, generateAndAddVertex(vs, edge, kb, satisfication))
+	edges, err := v.TempGraph.Edges()
+	if err != nil {
+		return deps, err
 	}
-	if len(pathSatisfications) == 0 {
-		errs = errors.Join(errs, generateAndAddVertex(vs, edge, kb, knowledgebase.EdgePathSatisfaction{}))
+	for _, edge := range edges {
+		errs = errors.Join(errs, v.addDepsFromEdge(ctx, deps, edge))
 	}
-	return errors.Join(errs, eval.enqueue(vs))
+
+	return deps, errs
 }
 
 func DeterminePathSatisfactionInputs(

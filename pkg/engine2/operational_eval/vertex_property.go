@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -26,15 +25,12 @@ func (prop propertyVertex) Key() Key {
 	return Key{Ref: prop.Ref}
 }
 
-func (prop *propertyVertex) Dependencies(
-	ctx solution_context.SolutionContext,
-) (set.Set[construct.PropertyRef], graphStates, error) {
+func (prop *propertyVertex) Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error) {
 	cfgCtx := solution_context.DynamicCtx(ctx)
 	propCtx := &fauxConfigContext{
-		propRef:    prop.Ref,
-		inner:      cfgCtx,
-		refs:       make(set.Set[construct.PropertyRef]),
-		graphState: make(graphStates),
+		propRef: prop.Ref,
+		inner:   cfgCtx,
+		deps:    newDeps(),
 	}
 
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
@@ -42,23 +38,24 @@ func (prop *propertyVertex) Dependencies(
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
 		if err := propCtx.ExecuteValue(prop.Template.DefaultValue, resData); err != nil {
-			return nil, nil, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
+			return propCtx.deps, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
 		}
 
 		if opRule := prop.Template.OperationalRule; opRule != nil {
 			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
-				return nil, nil, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
+				return propCtx.deps, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 
 		if !prop.Template.Namespace {
 			tmpl, err := cfgCtx.KB().GetResourceTemplate(prop.Ref.Resource)
 			if err != nil {
-				return nil, nil, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
+				return propCtx.deps, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
 			}
 			for propKey, propTmpl := range tmpl.Properties {
 				if propTmpl.Namespace {
-					propCtx.refs.Add(construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey})
+					nsRef := construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey}
+					propCtx.deps.Outgoing.Add(Key{Ref: nsRef})
 				}
 			}
 		}
@@ -74,11 +71,14 @@ func (prop *propertyVertex) Dependencies(
 			errs = errors.Join(errs, propCtx.ExecuteOpRule(edgeData, rule))
 		}
 		if errs != nil {
-			return nil, nil, fmt.Errorf("could not execute %s for edge %s -> %s: %w", prop.Ref, edge.Source, edge.Target, errs)
+			return propCtx.deps, fmt.Errorf(
+				"could not execute %s for edge %s: %w",
+				prop.Ref, edge.Source, errs,
+			)
 		}
 	}
 
-	return propCtx.refs, propCtx.graphState, nil
+	return propCtx.deps, nil
 }
 
 func (prop *propertyVertex) UpdateFrom(otherV Vertex) {

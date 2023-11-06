@@ -53,6 +53,7 @@ func (eval *Evaluator) Evaluate() error {
 }
 
 func (eval *Evaluator) popReady() ([]Vertex, error) {
+	log := zap.S().With("op", "dequeue")
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
 		return nil, err
@@ -105,12 +106,12 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 		ready = graphOps
 		if len(ready) == 0 {
 			ready = defaults
-			zap.S().With("op", "dequeue").Debugf("Only defaults left, dequeued %d", len(ready))
+			log.Debugf("Only defaults left, dequeued %d", len(ready))
 		} else {
-			zap.S().With("op", "dequeue").Debugf("Only graph ops left, dequeued %d", len(ready))
+			log.Debugf("Only graph ops left, dequeued %d", len(ready))
 		}
 	} else {
-		zap.S().With("op", "dequeue").Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
+		log.Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
 	}
 
 	sort.SliceStable(ready, func(i, j int) bool {
@@ -128,8 +129,10 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 	})
 
 	for _, v := range ready {
+		log.Debugf(" - %s", v.Key())
+	}
+	for _, v := range ready {
 		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
-		zap.S().With("op", "dequeue").Debugf(" - %s", v.Key())
 	}
 
 	return ready, errs
@@ -141,7 +144,6 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 // able to be resolved until SomeRef is evaluated).
 // There is likely a way to determine which vertices need to be recalculated, but the runtime impact of just
 // recalculating them all isn't large at the size of graphs we're currently running with.
-// Running on a medium sized input, this accounted for 0.18s of the total 0.69s, or ~26% of the runtime.
 func (eval *Evaluator) RecalculateUnevaluated() error {
 	zap.S().Debug("Recalculating unevaluated graph for updated dependencies")
 	topo, err := graph.TopologicalSort(eval.unevaluated)
@@ -149,7 +151,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 		return err
 	}
 
-	vs := make(verticesAndDeps)
+	changes := newChanges()
 	var errs error
 	for _, key := range topo {
 		vertex, err := eval.unevaluated.Vertex(key)
@@ -157,10 +159,10 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, vertex))
+		errs = errors.Join(errs, changes.AddVertex(eval.Solution, vertex))
 	}
 	if errs != nil {
 		return errs
 	}
-	return eval.enqueue(vs)
+	return eval.enqueue(changes)
 }

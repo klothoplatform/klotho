@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/dominikbraun/graph"
 	"github.com/google/pprof/third_party/svgpan"
@@ -32,7 +33,21 @@ func PrintGraph(g Graph) {
 	}
 }
 
-func (eval *Evaluator) writeGraph(filename string) {
+func (eval *Evaluator) writeGraph(prefix string) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		writeGraph(eval, prefix, graphToClusterDOT)
+	}()
+	go func() {
+		defer wg.Done()
+		writeGraph(eval, prefix+"_flat", graphToDOT)
+	}()
+	wg.Wait()
+}
+
+func writeGraph(eval *Evaluator, filename string, toDot func(*Evaluator, io.Writer) error) {
 	f, err := os.Create(filename + ".gv")
 	if err != nil {
 		zap.S().Errorf("could not create file %s: %v", filename, err)
@@ -40,7 +55,7 @@ func (eval *Evaluator) writeGraph(filename string) {
 	defer f.Close()
 
 	dotContent := new(bytes.Buffer)
-	err = graphToDOT(eval, io.MultiWriter(f, dotContent))
+	err = toDot(eval, io.MultiWriter(f, dotContent))
 	if err != nil {
 		zap.S().Errorf("could not render graph to file %s: %v", filename, err)
 		return

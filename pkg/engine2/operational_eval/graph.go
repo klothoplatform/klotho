@@ -7,6 +7,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -32,7 +33,7 @@ func newGraph() Graph {
 }
 
 func (eval *Evaluator) AddResources(rs ...*construct.Resource) error {
-	vs := make(verticesAndDeps)
+	changes := newChanges()
 	var errs error
 	for _, res := range rs {
 		tmpl, err := eval.Solution.KnowledgeBase().GetResourceTemplate(res.ID)
@@ -45,34 +46,73 @@ func (eval *Evaluator) AddResources(rs ...*construct.Resource) error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		vs.AddAll(rvs)
+		changes.Merge(rvs)
 	}
 	if errs != nil {
 		return errs
 	}
-	return eval.enqueue(vs)
+	return eval.enqueue(changes)
 }
 
 func (eval *Evaluator) AddEdges(es ...construct.Edge) error {
-	vs := make(verticesAndDeps)
+	changes := newChanges()
 	var errs error
 	for _, e := range es {
 		tmpl := eval.Solution.KnowledgeBase().GetEdgeTemplate(e.Source, e.Target)
+		var evs graphChanges
+		var err error
 		if tmpl == nil {
-			errs = errors.Join(errs, eval.AddPath(e.Source, e.Target))
-			continue
+			evs, err = eval.pathVertices(e.Source, e.Target)
+		} else {
+			evs, err = eval.edgeVertices(e, tmpl)
 		}
-		evs, err := eval.edgeVertices(e, tmpl)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		vs.AddAll(evs)
+		changes.Merge(evs)
 	}
 	if errs != nil {
 		return errs
 	}
-	return eval.enqueue(vs)
+	return eval.enqueue(changes)
+}
+
+func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphChanges, error) {
+	changes := newChanges()
+
+	generateAndAddVertex := func(
+		edge construct.SimpleEdge,
+		kb knowledgebase.TemplateKB,
+		satisfication knowledgebase.EdgePathSatisfaction) error {
+		var tempGraph construct.Graph
+		if !strings.Contains(satisfication.Classification, "#") {
+			var err error
+			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification)
+			if err != nil {
+				return fmt.Errorf("could not build path selection graph: %w", err)
+			}
+		}
+		vertex := pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
+		return changes.AddVertex(eval.Solution, &vertex)
+	}
+
+	kb := eval.Solution.KnowledgeBase()
+
+	edge := construct.SimpleEdge{Source: source, Target: target}
+	pathSatisfications, err := kb.GetPathSatisfactionsFromEdge(source, target)
+	if err != nil {
+		return changes, fmt.Errorf("could not get path satisfications for %s: %w", edge, err)
+	}
+
+	var errs error
+	for _, satisfication := range pathSatisfications {
+		errs = errors.Join(errs, generateAndAddVertex(edge, kb, satisfication))
+	}
+	if len(pathSatisfications) == 0 {
+		errs = errors.Join(errs, generateAndAddVertex(edge, kb, knowledgebase.EdgePathSatisfaction{}))
+	}
+	return changes, nil
 }
 
 func UpdateEdgeId(e construct.SimpleEdge, oldId, newId construct.ResourceId) construct.SimpleEdge {
@@ -88,8 +128,8 @@ func UpdateEdgeId(e construct.SimpleEdge, oldId, newId construct.ResourceId) con
 func (eval *Evaluator) resourceVertices(
 	res *construct.Resource,
 	tmpl *knowledgebase.ResourceTemplate,
-) (verticesAndDeps, error) {
-	vs := make(verticesAndDeps)
+) (graphChanges, error) {
+	changes := newChanges()
 	var errs error
 
 	queue := []knowledgebase.Properties{tmpl.Properties}
@@ -103,7 +143,7 @@ func (eval *Evaluator) resourceVertices(
 				EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
 			}
 
-			err := vs.AddDependencies(eval.Solution, vertex)
+			err := changes.AddVertex(eval.Solution, vertex)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
@@ -118,14 +158,14 @@ func (eval *Evaluator) resourceVertices(
 			}
 		}
 	}
-	return vs, errs
+	return changes, errs
 }
 
 func (eval *Evaluator) edgeVertices(
 	edge construct.Edge,
 	tmpl *knowledgebase.EdgeTemplate,
-) (verticesAndDeps, error) {
-	vs := make(verticesAndDeps)
+) (graphChanges, error) {
+	changes := newChanges()
 	var errs error
 
 	cfgCtx := solution_context.DynamicCtx(eval.Solution)
@@ -193,20 +233,20 @@ func (eval *Evaluator) edgeVertices(
 		}
 	}
 	if errs != nil {
-		return nil, errs
+		return changes, errs
 	}
 
 	if len(opVertex.Rules) > 0 {
-		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, opVertex))
+		errs = errors.Join(errs, changes.AddVertex(eval.Solution, opVertex))
 	}
 
 	// do this in a second pass so that edges config that reference the same property (rare, but possible)
 	// will get batched before calling [depsForProp].
 	for _, vertex := range vertices {
-		errs = errors.Join(errs, vs.AddDependencies(eval.Solution, vertex))
+		errs = errors.Join(errs, changes.AddVertex(eval.Solution, vertex))
 	}
 
-	return vs, errs
+	return changes, errs
 }
 
 func (eval *Evaluator) removeKey(k Key) error {

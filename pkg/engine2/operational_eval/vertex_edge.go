@@ -8,7 +8,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
@@ -22,11 +21,12 @@ func (ev edgeVertex) Key() Key {
 	return Key{Edge: ev.Edge}
 }
 
-func (ev *edgeVertex) Dependencies(
-	ctx solution_context.SolutionContext,
-) (set.Set[construct.PropertyRef], graphStates, error) {
+func (ev *edgeVertex) Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error) {
 	cfgCtx := solution_context.DynamicCtx(ctx)
-	propCtx := &fauxConfigContext{inner: cfgCtx, refs: make(set.Set[construct.PropertyRef])}
+	propCtx := &fauxConfigContext{
+		inner: cfgCtx,
+		deps:  newDeps(),
+	}
 
 	data := knowledgebase.DynamicValueData{Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}}
 
@@ -38,13 +38,13 @@ func (ev *edgeVertex) Dependencies(
 		}
 	}
 	if errs != nil {
-		return nil, nil, fmt.Errorf(
+		return propCtx.deps, fmt.Errorf(
 			"could not execute dependencies for edge %s -> %s: %w",
 			ev.Edge.Source, ev.Edge.Target, errs,
 		)
 	}
 
-	return propCtx.refs, propCtx.graphState, nil
+	return propCtx.deps, nil
 }
 
 func (ev *edgeVertex) UpdateFrom(other Vertex) {
