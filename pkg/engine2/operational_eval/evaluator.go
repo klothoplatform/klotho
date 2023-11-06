@@ -196,6 +196,7 @@ func (changes graphChanges) AddVertex(sol solution_context.SolutionContext, v Ve
 
 	for _, state := range deps.GraphStates {
 		changes.nodes.Add(state)
+		out.Add(state.Key())
 	}
 
 	return nil

@@ -158,6 +158,7 @@ func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
   rankdir = "BT"
 	ranksep = 4
 	newrank = true
+	concentrate = true
 `)
 
 	ranks, err := toRanks(eval)
@@ -172,7 +173,7 @@ func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
 
 	for _, evalRank := range ranks {
 		rank := evalRank.Rank
-		printf("  subgraph group_%d {\n", rank)
+		printf("  subgraph cluster_%d {\n", rank)
 		if evalRank.Unevaluated {
 			printf(`    label = "Unevaluated"
 			style=filled
