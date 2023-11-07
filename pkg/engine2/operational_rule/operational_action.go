@@ -22,7 +22,6 @@ type (
 )
 
 func (action *operationalResourceAction) handleOperationalResourceAction(resource *construct.Resource) error {
-
 	if action.numNeeded <= 0 {
 		return nil
 	}

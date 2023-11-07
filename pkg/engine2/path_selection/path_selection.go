@@ -132,12 +132,16 @@ func calculateEdgeWeight(
 	// We start with a weight of 10 for glue and 10000 for functionality for newly created edges of "phantom" resources
 	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
 	// This will achieve priority for existing resources over newly created ones
-	weight := GLUE_WEIGHT
+	weight := 0
 	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
 		weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
+	} else {
+		weight += (GLUE_WEIGHT / divideSourceBy)
 	}
 	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
 		weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
+	} else {
+		weight += (GLUE_WEIGHT / divideTargetBy)
 	}
 	et := kb.GetEdgeTemplate(source, target)
 	if et != nil && et.EdgeWeightMultiplier != 0 {

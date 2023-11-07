@@ -52,6 +52,7 @@ func expandEdge(
 	if err != nil {
 		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", dep.Source.ID, dep.Target.ID, err))
 	}
+
 	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
 	// rename phantom nodes
 	result := make([]construct.ResourceId, len(path))
@@ -211,7 +212,6 @@ func ExpandPath(
 	// 2. If the edge exists, and its template specifies it is unique, only add it if it's an existing edge
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
-
 		weight := calculateEdgeWeight(
 			construct.SimpleEdge{Source: dep.Source.ID, Target: dep.Target.ID},
 			source.id, target.id,

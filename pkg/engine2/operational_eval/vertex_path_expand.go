@@ -8,6 +8,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -233,6 +234,11 @@ func (v *pathExpandVertex) addDepsFromProps(
 		}
 		if prop.OperationalRule == nil {
 			// If the property can't create resources, skip it.
+			continue
+		}
+		ready, err := operational_rule.EvaluateIfCondition(*prop.OperationalRule,
+			eval.Solution, knowledgebase.DynamicValueData{Resource: res})
+		if err != nil || !ready {
 			continue
 		}
 

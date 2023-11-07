@@ -22,7 +22,7 @@ type (
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
 
-	shouldRun, err := ctx.EvaluateIfCondition(rule)
+	shouldRun, err := EvaluateIfCondition(rule, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
 	}
@@ -193,13 +193,17 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 	return nil
 }
 
-func (ctx OperationalRuleContext) EvaluateIfCondition(rule knowledgebase.OperationalRule) (bool, error) {
+func EvaluateIfCondition(
+	rule knowledgebase.OperationalRule,
+	sol solution_context.SolutionContext,
+	data knowledgebase.DynamicValueData,
+) (bool, error) {
 	if rule.If == "" {
 		return true, nil
 	}
 	result := false
-	dyn := solution_context.DynamicCtx(ctx.Solution)
-	err := dyn.ExecuteDecode(rule.If, ctx.Data, &result)
+	dyn := solution_context.DynamicCtx(sol)
+	err := dyn.ExecuteDecode(rule.If, data, &result)
 	if err != nil {
 		return false, err
 	}
