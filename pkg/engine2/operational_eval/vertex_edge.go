@@ -66,22 +66,6 @@ func (ev *edgeVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 		}
 	}
 
-	if ev.Edge.Source.Type == "service" && ev.Edge.Target.Type == "pod" {
-		log := eval.Log()
-		log.Warnf("changes %s", ev.Edge)
-		log.Warn("nodes:")
-		for n := range changes.nodes {
-			log.Warnf(" - %q", n)
-		}
-		log.Warnf("edges:")
-		for src, targets := range changes.edges {
-			log.Warnf("%q", src)
-			for target := range targets {
-				log.Warnf(" -> %q", target)
-			}
-		}
-	}
-
 	return changes, nil
 }
 
