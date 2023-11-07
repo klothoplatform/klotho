@@ -119,6 +119,14 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 				errs = errors.Join(errs, err)
 				continue
 			}
+			if ref.Resource.IsZero() || ref.Property == "" {
+				// Can't determine the ref yet, continue
+				// NOTE(gg): It's possible that whatever this will eventually resolve to
+				// would get evaluated before this has a chance to add the dependency.
+				// If that ever occurs, we may need to add speculative dependencies
+				// for all refs that could match this.
+				continue
+			}
 			// set the source to the ref that is being configured, not necessarily the key that dependencies are being
 			// calculated for
 			ctx.src = Key{Ref: ref}
