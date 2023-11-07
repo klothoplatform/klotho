@@ -1,2 +1,14 @@
 source: aws:vpc_endpoint
 target: aws:s3_bucket
+
+unique:
+  source: true
+
+operational_rules:
+  - configuration_rules:
+      - configuration:
+          field: ServiceName
+          value: s3
+      - configuration:
+          field: VpcEndpointType
+          value: Gateway

@@ -62,7 +62,7 @@ func BuildPathSelectionGraph(
 			if !prevRes.IsZero() {
 				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
 				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
-					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, kb)))
+					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, kb)))
 					if err != nil {
 						return nil, err
 					}
@@ -120,17 +120,24 @@ func generateStringSuffix(n int) string {
 func calculateEdgeWeight(
 	dep construct.SimpleEdge,
 	source, target construct.ResourceId,
+	divideSourceBy, divideTargetBy int,
 	kb knowledgebase.TemplateKB,
 ) int {
+	if divideSourceBy == 0 {
+		divideSourceBy = 1
+	}
+	if divideTargetBy == 0 {
+		divideTargetBy = 1
+	}
 	// We start with a weight of 10 for glue and 10000 for functionality for newly created edges of "phantom" resources
 	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
 	// This will achieve priority for existing resources over newly created ones
 	weight := GLUE_WEIGHT
 	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
-		weight += FUNCTIONAL_WEIGHT
+		weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
 	}
 	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
-		weight += FUNCTIONAL_WEIGHT
+		weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
 	}
 	et := kb.GetEdgeTemplate(source, target)
 	if et != nil && et.EdgeWeightMultiplier != 0 {

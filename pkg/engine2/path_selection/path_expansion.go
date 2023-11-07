@@ -47,10 +47,12 @@ func expandEdge(
 	for _, path := range paths {
 		errs = errors.Join(errs, ExpandPath(ctx, dep, path, tempGraph, g))
 	}
+
 	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
 	if err != nil {
 		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", dep.Source.ID, dep.Target.ID, err))
 	}
+
 	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
 	// rename phantom nodes
 	result := make([]construct.ResourceId, len(path))
@@ -211,20 +213,11 @@ func ExpandPath(
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
 
-		weight := calculateEdgeWeight(construct.SimpleEdge{Source: dep.Source.ID, Target: dep.Target.ID},
-			source.id, target.id, ctx.KnowledgeBase())
-		// These phantom resources should already exist in the graph
-
-		if source.id != dep.Source.ID {
-			if source.divideWeightBy != 0 {
-				weight /= source.divideWeightBy
-			}
-		}
-		if target.id != dep.Target.ID {
-			if target.divideWeightBy != 0 {
-				weight /= target.divideWeightBy
-			}
-		}
+		weight := calculateEdgeWeight(
+			construct.SimpleEdge{Source: dep.Source.ID, Target: dep.Target.ID},
+			source.id, target.id,
+			source.divideWeightBy, target.divideWeightBy,
+			ctx.KnowledgeBase())
 
 		tmpl := ctx.KnowledgeBase().GetEdgeTemplate(source.id, target.id)
 		if tmpl == nil {

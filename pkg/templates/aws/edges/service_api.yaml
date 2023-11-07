@@ -11,4 +11,4 @@ targets:
   - aws:s3_bucket
   - aws:sqs_queue
 
-edge_weight_multiplier: 20
+edge_weight_multiplier: 2
