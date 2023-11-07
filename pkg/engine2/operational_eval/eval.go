@@ -21,6 +21,12 @@ func (eval *Evaluator) Evaluate() error {
 		if size == 0 {
 			return nil
 		}
+
+		// add to evaluatedOrder so that in popReady it has the correct group number
+		// which is based on `len(eval.evaluatedOrder)`
+		evaluated := make(set.Set[Key])
+		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
+
 		ready, err := eval.popReady()
 		if err != nil {
 			return err
@@ -28,9 +34,6 @@ func (eval *Evaluator) Evaluate() error {
 		if len(ready) == 0 {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
 		}
-
-		evaluated := make(set.Set[Key])
-		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
 
 		log := eval.Log().With("op", "eval")
 

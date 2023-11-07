@@ -252,7 +252,7 @@ func (ctx *fauxConfigContext) AllUpstream(selector any, resource construct.Resou
 		repr: graphStateRepr(fmt.Sprintf("AllUpstream(%s, %s)", selector, resource)),
 		Test: func(g construct.Graph) (ReadyPriority, error) {
 			// Can never say that [AllUpstream] is ready until it must be evaluated due to being one of the final ones
-			return NotReadyMid, nil
+			return NotReadyHigh, nil
 		},
 	})
 
@@ -336,7 +336,7 @@ func (ctx *fauxConfigContext) AllDownstream(selector any, resource construct.Res
 		repr: graphStateRepr(fmt.Sprintf("allDownstream(%s, %s)", selector, resource)),
 		Test: func(g construct.Graph) (ReadyPriority, error) {
 			// Can never say that [AllDownstream] is ready until it must be evaluated due to being one of the final ones
-			return NotReadyMid, nil
+			return NotReadyHigh, nil
 		},
 	})
 

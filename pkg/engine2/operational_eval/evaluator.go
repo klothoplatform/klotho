@@ -223,7 +223,6 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 				continue
 			}
 			if v != existing {
-				log.Debugf("Updating %s", key)
 				existing.UpdateFrom(v)
 			}
 

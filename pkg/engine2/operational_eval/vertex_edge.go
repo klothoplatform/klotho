@@ -58,6 +58,29 @@ func (ev *edgeVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 		)
 	}
 
+	// NOTE: begin hack - this is to help resolve the api_deployment#Triggers case
+	// The dependency graph doesn't currently handle this because:
+	// 1. Expand(api -> lambda) depends on Subnets to determine if it's reusable
+	// 2. Subnets depends on graphstate hasDownstream(vpc, lambda)
+	// 3. deploy -> api depends on graphstate allDownstream(integration, api)
+	//   to add the deploy -> integration edges
+	// 4. deploy -> integration sets #Triggers
+	//
+	//
+	pred, err := eval.graph.PredecessorMap()
+	if err != nil {
+		return changes, err
+	}
+	for src := range changes.edges {
+		isEvaluated, err := eval.isEvaluated(src)
+		if err == nil && isEvaluated && len(pred[src]) == 0 {
+			// this is okay, since it has no dependencies then changing it during evaluation
+			// won't impact anything. Remove the dependency, since we'll handle it in this vertex's
+			// Evaluate
+			delete(changes.edges, src)
+		}
+	}
+
 	return changes, nil
 }
 
@@ -76,6 +99,7 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 }
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
+	log := eval.Log().With("op", "eval")
 	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}
 
 	cfgCtx := solution_context.DynamicCtx(eval.Solution)
@@ -86,6 +110,11 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		},
 	}
 
+	pred, err := eval.graph.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
 	var errs error
 	for _, rule := range ev.Rules {
 		configRules := rule.ConfigurationRules
@@ -94,11 +123,13 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		err := opCtx.HandleOperationalRule(rule)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
-				"could not apply edge %s -> %s operational rule: %w",
-				ev.Edge.Source, ev.Edge.Target, err,
+				"could not apply edge %s operational rule: %w",
+				ev.Edge, err,
 			))
+			continue
 		}
 
+		configuration := make(map[construct.ResourceId][]knowledgebase.ConfigurationRule)
 		for _, config := range configRules {
 			var ref construct.PropertyRef
 			err := cfgCtx.ExecuteDecode(config.Resource, opCtx.Data, &ref.Resource)
@@ -120,7 +151,12 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 			}
 			_, unevalErr := eval.unevaluated.Vertex(key)
 			if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-				errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluated node %s for %s", ref, ev.Edge))
+				if len(pred[key]) == 0 {
+					configuration[ref.Resource] = append(configuration[ref.Resource], config)
+					log.Debugf("Allowing config on %s to be evaluated due to no dependents", key)
+				} else {
+					errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluated node %s for %s", ref, ev.Edge))
+				}
 				continue
 			} else if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))
@@ -133,6 +169,20 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 				})
 			} else {
 				errs = errors.Join(errs, fmt.Errorf("existing vertex for %s is not a property vertex", ref))
+				continue
+			}
+		}
+
+		rule.Steps = nil
+		for res, configRules := range configuration {
+			opCtx.Data.Resource = res
+			rule.ConfigurationRules = configRules
+			err := opCtx.HandleOperationalRule(rule)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"could not apply edge %s (res: %s) operational rule: %w",
+					ev.Edge, res, err,
+				))
 				continue
 			}
 		}

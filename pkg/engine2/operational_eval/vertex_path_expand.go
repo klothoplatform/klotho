@@ -291,7 +291,6 @@ func (v *pathExpandVertex) addDepsFromEdge(
 	se.Target.Name = ""
 
 	addDepsMatching := func(ref construct.PropertyRef) error {
-		eval.Log().Debugf("Checking speculative deps for %s in %s", ref, se)
 		for _, res := range allRes {
 			if !ref.Resource.Matches(res) {
 				continue
