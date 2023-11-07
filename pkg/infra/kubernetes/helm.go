@@ -19,27 +19,18 @@ type (
 	}
 )
 
-var includedChartObjects = []construct.ResourceId{
-	{Provider: "kubernetes", Type: "pod"},
-	{Provider: "kubernetes", Type: "service"},
-	{Provider: "kubernetes", Type: "deployment"},
-	{Provider: "kubernetes", Type: "target_group_binding"},
-	{Provider: "kubernetes", Type: "cluster_set"},
-	{Provider: "kubernetes", Type: "config_map"},
-	{Provider: "kubernetes", Type: "horizontal_pod_autoscaler"},
-	{Provider: "kubernetes", Type: "storage_class"},
-	{Provider: "kubernetes", Type: "persistent_volume_claim"},
-	{Provider: "kubernetes", Type: "persistent_volume"},
-	{Provider: "kubernetes", Type: "service_account"},
-	{Provider: "kubernetes", Type: "namespace"},
-	{Provider: "kubernetes", Type: "service_export"},
+var excludedObjects = []construct.ResourceId{
+	{Provider: "kubernetes", Type: "helm_chart"},
+	{Provider: "kubernetes", Type: "kustomize_directory"},
+	{Provider: "kubernetes", Type: "manifest"},
+	{Provider: "kubernetes", Type: "kube_config"},
 }
 
 func AddObject(res *construct.Resource) (*ObjectOutput, error) {
-	shouldInclude := false
-	for _, id := range includedChartObjects {
+	shouldInclude := true
+	for _, id := range excludedObjects {
 		if id.Matches(res.ID) {
-			shouldInclude = true
+			shouldInclude = false
 			break
 		}
 	}

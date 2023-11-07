@@ -1,0 +1,48 @@
+source: kubernetes:kube_config
+target: aws:eks_cluster
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: ApiVersion
+        value: v1
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Kind
+        value: Config
+    - resource: '{{ .Source }}'
+      configuration:
+        field: CurrentContext
+        value: '{{ fieldRef "Name" .Target }}'
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Clusters
+        value: 
+          - Name: '{{ .Target.Name }}'
+            Cluster:
+              Server: '{{ fieldRef "ClusterEndpoint" .Target }}'
+              CertificateAuthorityData: '{{ fieldRef "CertificateAuthorityData" .Target }}'
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Contexts
+        value: 
+          - Name: '{{ fieldRef "Name" .Target }}'
+            Context:
+              Cluster: '{{ fieldRef "Name" .Target }}'
+              User: '{{ fieldRef "Name" .Target }}'
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Users
+        value: 
+          - Name: '{{ fieldRef "Name" .Target }}'
+            User:
+              Exec:
+                ApiVersion: client.authentication.k8s.io/v1alpha1
+                Command: aws
+                Args:
+                  - "eks"
+                  - "get-token"
+                  - "--cluster-name"
+                  - '{{ fieldRef "Name" .Target }}'
+                  - "--region"
+                  - '{{ fieldRef "Name" (downstream "aws:region" .Target) }}'

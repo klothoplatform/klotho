@@ -5,7 +5,7 @@ interface Args {
     Name: string
     FilePath: string
     Transformations?: Record<string, pulumi.Output<string>>
-    clusterProvider: pulumi_k8s.Provider
+        Provider: pulumi_k8s.Provider
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -21,7 +21,7 @@ function create(args: Args): pulumi_k8s.yaml.ConfigFile {
         },
         {
             dependsOn: args.dependsOn,
-            provider: args.clusterProvider,
+            provider: args.Provider,
         }
     )
 }

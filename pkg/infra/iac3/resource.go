@@ -1,7 +1,6 @@
 package iac3
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -231,7 +230,27 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 		buf := getBuffer()
 		defer releaseBuffer(buf)
 		err = applied.Render(buf, func(w io.Writer) error {
-			return json.NewEncoder(w).Encode(dependsOn)
+			_, err := w.Write([]byte("["))
+			if err != nil {
+				return err
+			}
+			for i, dep := range dependsOn {
+				_, err = w.Write([]byte(dep))
+				if err != nil {
+					return err
+				}
+				if i < len(dependsOn)-1 {
+					_, err = w.Write([]byte(", "))
+					if err != nil {
+						return err
+					}
+				}
+			}
+			_, err = w.Write([]byte("]"))
+			if err != nil {
+				return err
+			}
+			return nil
 		})
 		if err != nil {
 			return templateInputArgs{}, err

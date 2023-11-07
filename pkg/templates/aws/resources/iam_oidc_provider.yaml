@@ -14,7 +14,18 @@ properties:
         - direction: downstream
           resources:
             - aws:region
-
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Sub:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Aud:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 classification:
   is:
     - authorization

@@ -9,7 +9,7 @@ interface Args {
     Values?: Record<string, pulumi.Output<any>>
     Version?: string
     Namespace?: string
-    clusterProvider: pulumi_k8s.Provider
+    Provider: pulumi_k8s.Provider
     dependsOn: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -40,7 +40,7 @@ function create(args: Args): pulumi_k8s.helm.v3.Chart {
             //TMPL {{- end }}
         },
         {
-            provider: args.clusterProvider,
+            provider: args.Provider,
             dependsOn: args.dependsOn,
         }
     )

@@ -19,3 +19,11 @@ function create(args: Args): aws.eks.Cluster {
         roleArn: args.ClusterRole.arn,
     })
 }
+
+function properties(object: aws.eks.Cluster, args: Args) {
+    return {
+        Name: object.name,
+        ClusterEndpoint: object.endpoint,
+        CertificateAuthorityData: object.certificateAuthorities[0].data,
+    }
+}

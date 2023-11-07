@@ -27,3 +27,10 @@ function create(args: Args): aws.iam.OpenIdConnectProvider {
         ],
     })
 }
+function properties(object: aws.iam.OpenIdConnectProvider, args: Args) {
+    return {
+        Arn: object.arn,
+        Sub: `${object.url}:sub`,
+        Aud: `${object.url}:aud`,
+    }
+}

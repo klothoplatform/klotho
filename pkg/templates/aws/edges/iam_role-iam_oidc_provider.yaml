@@ -16,5 +16,5 @@ operational_rules:
                     - '{{ .Target }}#Arn'
                 Condition:
                   StringEquals:
-                    '{{ .Target }}#sub': system:serviceaccount:{{- if not (hasUpstream "kubernetes:namespace" .Source) }}default {{else}}{{ fieldValue "Object.Metadata.Name" (upstream "kubernetes:namespace" .Source) }}{{end}}:{{ fieldValue "Object.Metadata.Name" (upstream "kubernetes:service_account" .Source) }}
-                    '{{ .Target }}#aud': sts.amazonaws.com
+                    '{{ fieldRef "Sub" .Target }}': system:serviceaccount:{{- if not (hasUpstream "kubernetes:namespace" .Source) }}default {{else}}{{ fieldValue "Object.Metadata.Name" (upstream "kubernetes:namespace" .Source) }}{{end}}:{{ fieldValue "Object.Metadata.Name" (upstream "kubernetes:service_account" .Source) }}
+                    '{{ fieldRef "Aud" .Target }}': sts.amazonaws.com

@@ -40,7 +40,27 @@ properties:
             - aws:security_group
           unique: true
   KubeConfig:
-    type: model(kubernetes:KubeConfig)
+    type: resource(kubernetes:kube_config)
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - kubernetes:kube_config
+          unique: true
+
+  ClusterName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  ClusterEndpoint:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  CertificateAuthorityData:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
 
 classification:
   is:

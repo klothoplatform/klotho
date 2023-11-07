@@ -35,6 +35,8 @@ function create(args: Args): aws.eks.NodeGroup {
         },
         diskSize: args.DiskSize,
         instanceTypes: args.InstanceTypes,
+        //TMPL {{- if .Labels }}
         labels: args.Labels,
+        //TMPL {{- end }}
     })
 }

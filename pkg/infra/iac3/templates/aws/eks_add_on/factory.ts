@@ -11,7 +11,7 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.eks.Addon {
     return new aws.eks.Addon(args.Name, {
-        cluster: args.Cluster,
+        clusterName: args.Cluster.name,
         addonName: args.AddOnName,
         //TMPL {{- if .Role }}
         serviceAccountRoleArn: args.Role.arn,

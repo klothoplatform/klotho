@@ -51,7 +51,10 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	if err != nil {
 		return nil, err
 	}
-
+	err = addPulumiKubernetesProviders(ctx.DeploymentGraph())
+	if err != nil {
+		return nil, fmt.Errorf("error adding pulumi kubernetes providers: %w", err)
+	}
 	tc := &TemplatesCompiler{
 		graph:     ctx.DeploymentGraph(),
 		templates: &templateStore{fs: templatesFS},
@@ -150,6 +153,78 @@ func renderGlobals(w io.Writer) error {
 		}
 	}
 	_, err = fmt.Fprintln(w)
+	return err
+}
+
+func addPulumiKubernetesProviders(g construct.Graph) error {
+	providers := make(map[construct.ResourceId]*construct.Resource)
+	kubeconfigId := construct.ResourceId{Provider: "kubernetes", Type: "kube_config"}
+	err := construct.WalkGraph(g, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		if !kubeconfigId.Matches(id) {
+			return nerr
+		}
+		provider := &construct.Resource{
+			ID: construct.ResourceId{
+				Provider: "kubernetes",
+				Type:     "kubernetes_provider",
+				Name:     id.Name,
+			},
+			Properties: construct.Properties{
+				"KubeConfig": id,
+			},
+		}
+		err := g.AddVertex(provider)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		err = g.AddEdge(provider.ID, id)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		providers[id] = provider
+
+		return nerr
+	})
+	if err != nil {
+		return err
+	}
+
+	err = construct.WalkGraph(g, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		if id.Provider == "kubernetes" {
+			cluster, err := resource.GetProperty("Cluster")
+			if err != nil {
+				return errors.Join(nerr, err)
+			}
+			if cluster == nil {
+				return nerr
+			}
+			clusterId, ok := cluster.(construct.ResourceId)
+			if !ok {
+				return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have an id as cluster property", id))
+			}
+			clusterRes, err := g.Vertex(clusterId)
+			if err != nil {
+				return errors.Join(nerr, err)
+			}
+			kubeconfig, err := clusterRes.GetProperty("KubeConfig")
+			if err != nil {
+				return errors.Join(nerr, err)
+			}
+			provider, ok := providers[kubeconfig.(construct.ResourceId)]
+			if !ok {
+				return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have a provider resource for cluster %s", id, clusterId))
+			}
+			err = resource.SetProperty("Provider", provider.ID)
+			if err != nil {
+				return errors.Join(nerr, err)
+			}
+			err = g.AddEdge(id, provider.ID)
+			if err != nil {
+				return errors.Join(nerr, err)
+			}
+		}
+		return nerr
+	})
 	return err
 }
 
