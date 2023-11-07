@@ -203,8 +203,12 @@ func writeChartYaml(c *construct.Resource) (kio.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	directory, err := c.GetProperty("Directory")
+	if err != nil {
+		return nil, err
+	}
 	return &kio.RawFile{
-		FPath:   fmt.Sprintf("%s/%s/Chart.yaml", HELM_CHARTS_DIR, c.ID.Name),
+		FPath:   fmt.Sprintf("%s/Chart.yaml", directory),
 		Content: output,
 	}, nil
 }
