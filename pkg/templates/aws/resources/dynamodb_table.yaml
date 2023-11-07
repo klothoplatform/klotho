@@ -42,7 +42,7 @@ properties:
     required: true
   RangeKey:
     type: string
-  TableName:
+  Name:
     type: string
     configuration_disabled: true
     deploy_time: true

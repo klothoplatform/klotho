@@ -66,7 +66,11 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 		return nil, err
 	}
 	if path != nil {
-		return tc.convertArg(path.Get(), nil)
+		val := path.Get()
+		if val == nil {
+			return nil, fmt.Errorf("property ref %s is nil", ref)
+		}
+		return tc.convertArg(val, nil)
 	}
 	return nil, fmt.Errorf("unsupported property ref %s", ref)
 }

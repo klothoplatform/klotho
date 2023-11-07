@@ -52,7 +52,6 @@ func expandEdge(
 	if err != nil {
 		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", dep.Source.ID, dep.Target.ID, err))
 	}
-
 	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
 	// rename phantom nodes
 	result := make([]construct.ResourceId, len(path))

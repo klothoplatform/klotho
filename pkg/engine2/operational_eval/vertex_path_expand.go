@@ -323,11 +323,10 @@ func (v *pathExpandVertex) addDepsFromEdge(
 			var err error
 			data := knowledgebase.DynamicValueData{Edge: &edge}
 			data.Resource, err = knowledgebase.ExecuteDecodeAsResourceId(dyn, cfg.Resource, data)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not decode resource for rule %d cfg %d: %w", i, j, err))
-				continue
-			}
-			if data.Resource.IsZero() {
+
+			// We ignore the error because it just means that we cant resolve the resource yet
+			// therefore we cant add a dependency on this invocation
+			if err != nil || data.Resource.IsZero() {
 				continue
 			}
 

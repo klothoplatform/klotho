@@ -114,7 +114,7 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 	if len(pathSatisfications) == 0 {
 		errs = errors.Join(errs, generateAndAddVertex(edge, kb, knowledgebase.EdgePathSatisfaction{}))
 	}
-	return changes, nil
+	return changes, errs
 }
 
 func UpdateEdgeId(e construct.SimpleEdge, oldId, newId construct.ResourceId) construct.SimpleEdge {

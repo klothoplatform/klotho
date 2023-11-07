@@ -119,7 +119,10 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 				} else if templateArg != nil && templateArg.Wrapper == string(ModelCaseWrapper) {
 					keyResult = keyStr
 				}
-
+				if keyResult == "TEST_DYNAMODB_TABLE_NAME" {
+					a := 1
+					a++
+				}
 				output, err := tc.convertArg(val.MapIndex(key).Interface(), templateArg)
 				if err != nil {
 					return "", err
