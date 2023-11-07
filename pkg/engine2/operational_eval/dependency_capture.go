@@ -15,23 +15,27 @@ import (
 // fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
 // with one that just returns the zero value of the property type and records the property reference.
 type fauxConfigContext struct {
-	propRef       construct.PropertyRef
-	inner         knowledgebase.DynamicValueContext
-	addRef        func(ref construct.PropertyRef)
-	addGraphState func(*graphStateVertex)
+	propRef construct.PropertyRef
+	inner   knowledgebase.DynamicValueContext
+	changes graphChanges
+	src     Key
 }
 
 func newDepCapture(inner knowledgebase.DynamicValueContext, changes graphChanges, src Key) *fauxConfigContext {
 	return &fauxConfigContext{
-		inner: inner,
-		addRef: func(ref construct.PropertyRef) {
-			changes.addEdge(src, Key{Ref: ref})
-		},
-		addGraphState: func(v *graphStateVertex) {
-			changes.nodes[v.Key()] = v
-			changes.addEdge(src, v.Key())
-		},
+		inner:   inner,
+		changes: changes,
+		src:     src,
 	}
+}
+
+func (ctx *fauxConfigContext) addRef(ref construct.PropertyRef) {
+	ctx.changes.addEdge(ctx.src, Key{Ref: ref})
+}
+
+func (ctx *fauxConfigContext) addGraphState(v *graphStateVertex) {
+	ctx.changes.nodes[v.Key()] = v
+	ctx.changes.addEdge(ctx.src, v.Key())
 }
 
 func (ctx *fauxConfigContext) DAG() construct.Graph {
@@ -47,16 +51,18 @@ func (ctx *fauxConfigContext) ExecuteDecode(tmpl string, data knowledgebase.Dyna
 	if err != nil {
 		return fmt.Errorf("could not parse template: %w", err)
 	}
-	return ctx.inner.ExecuteTemplateDecode(t, data, value)
+	err = ctx.inner.ExecuteTemplateDecode(t, data, value)
+	if err != nil {
+		zap.S().Debugf("ignoring error from ExecuteTemplateDecode during deps calculation on %s: %s", ctx.propRef, err)
+	}
+	return nil
 }
 
-func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValueData) error {
+func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValueData) {
 	_, err := knowledgebase.TransformToPropertyValue(ctx.propRef.Resource, ctx.propRef.Property, v, ctx, data)
 	if err != nil {
 		zap.S().Debugf("ignoring error from TransformToPropertyValue during deps calculation on %s: %s", ctx.propRef, err)
 	}
-
-	return nil
 }
 
 func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData) error {
@@ -81,20 +87,59 @@ func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData
 	return nil
 }
 
+func (ctx *fauxConfigContext) DecodeConfigRef(
+	data knowledgebase.DynamicValueData,
+	rule knowledgebase.ConfigurationRule,
+) (construct.PropertyRef, error) {
+	var ref construct.PropertyRef
+	err := ctx.ExecuteDecode(rule.Config.Field, data, &ref.Property)
+	if err != nil {
+		return ref, fmt.Errorf("could not execute field template: %w", err)
+	}
+	err = ctx.ExecuteDecode(rule.Resource, data, &ref.Resource)
+	if err != nil {
+		return ref, fmt.Errorf("could not execute resource template: %w", err)
+	}
+	return ref, nil
+}
+
 func (ctx *fauxConfigContext) ExecuteOpRule(
 	data knowledgebase.DynamicValueData,
 	opRule knowledgebase.OperationalRule,
 ) error {
 	var errs error
-	errs = errors.Join(errs, ctx.Execute(opRule.If, data))
+	exec := func(v any) {
+		errs = errors.Join(errs, ctx.Execute(v, data))
+	}
+	originalSrc := ctx.src
 	for _, rule := range opRule.ConfigurationRules {
-		errs = errors.Join(errs, ctx.Execute(rule.Config.Value, data))
+		if rule.Resource != "" {
+			ref, err := ctx.DecodeConfigRef(data, rule)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			// set the source to the ref that is being configured, not necessarily the key that dependencies are being
+			// calculated for
+			ctx.src = Key{Ref: ref}
+		}
+		exec(opRule.If)
+		exec(rule.Config.Value)
+		if ctx.src != originalSrc {
+			// Make sure the configured property depends on the edge
+			ctx.changes.addEdge(ctx.src, originalSrc)
+			// reset inside the loop in case the next rule doesn't specify the ref
+			ctx.src = originalSrc
+		}
+	}
+	if len(opRule.Steps) > 0 {
+		exec(opRule.If)
 	}
 	for _, step := range opRule.Steps {
 		for _, stepRes := range step.Resources {
-			errs = errors.Join(errs, ctx.Execute(stepRes.Selector, data))
+			exec(stepRes.Selector)
 			for _, propValue := range stepRes.Properties {
-				errs = errors.Join(errs, ctx.Execute(propValue, data))
+				exec(propValue)
 			}
 		}
 	}

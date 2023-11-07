@@ -36,9 +36,7 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
-		if err := propCtx.ExecuteValue(prop.Template.DefaultValue, resData); err != nil {
-			return changes, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
-		}
+		propCtx.ExecuteValue(prop.Template.DefaultValue, resData)
 
 		if opRule := prop.Template.OperationalRule; opRule != nil {
 			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
@@ -303,7 +301,7 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		if len(v.EdgeRules) > 0 {
 			return ReadyNow, nil
 		}
-		return NotReadyHigh, nil
+		return NotReadyMid, nil
 	}
 	return ReadyNow, nil
 }

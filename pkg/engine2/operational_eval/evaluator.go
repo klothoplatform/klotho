@@ -151,6 +151,17 @@ func (eval *Evaluator) addEdge(source, target Key) error {
 		ep.Attributes[attribAddedIn] = fmt.Sprintf("%d", len(eval.evaluatedOrder))
 	})
 	if err != nil {
+		if errors.Is(err, graph.ErrEdgeCreatesCycle) {
+			path, _ := graph.ShortestPath(eval.graph, target, source)
+			pathS := make([]string, len(path))
+			for i, k := range path {
+				pathS[i] = `"` + k.String() + `"`
+			}
+			return fmt.Errorf(
+				"could not add edge %q -> %q: would create cycle exiting path: %s",
+				source, target, strings.Join(pathS, " -> "),
+			)
+		}
 		// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
 		// new vertex type of "overwrite me later". It would be an odd situation though, which is why it is
 		// an error for now.

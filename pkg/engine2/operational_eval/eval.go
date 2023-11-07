@@ -103,7 +103,7 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 	for i, prio := range readyPriorities {
 		if len(prio) > 0 && ready == nil {
 			ready = prio
-			log.Debugf("Dequeued %d", len(ready))
+			log.Debugf("Dequeued [%s]: %d", ReadyPriority(i), len(ready))
 			for _, v := range ready {
 				log.Debugf(" - %s", v.Key())
 			}

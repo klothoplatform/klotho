@@ -3,6 +3,7 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -33,23 +34,7 @@ func (ev *edgeVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 
 	var errs error
 	for _, rule := range ev.Rules {
-		err := errors.Join(errs, propCtx.ExecuteOpRule(data, rule))
-		if errs != nil {
-			errs = errors.Join(errs, err)
-		}
-
-		for _, config := range rule.ConfigurationRules {
-			var ref construct.PropertyRef
-			err = cfgCtx.ExecuteDecode(config.Config.Field, data, &ref.Property)
-			if err != nil {
-				continue
-			}
-			err := cfgCtx.ExecuteDecode(config.Resource, data, &ref.Resource)
-			if err != nil {
-				continue
-			}
-			changes.addEdge(Key{Ref: ref}, ev.Key())
-		}
+		errs = errors.Join(errs, propCtx.ExecuteOpRule(data, rule))
 	}
 	if errs != nil {
 		return changes, fmt.Errorf(
@@ -78,6 +63,22 @@ func (ev *edgeVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 			// won't impact anything. Remove the dependency, since we'll handle it in this vertex's
 			// Evaluate
 			delete(changes.edges, src)
+		}
+	}
+
+	if ev.Edge.Source.Type == "service" && ev.Edge.Target.Type == "pod" {
+		log := eval.Log()
+		log.Warnf("changes %s", ev.Edge)
+		log.Warn("nodes:")
+		for n := range changes.nodes {
+			log.Warnf(" - %q", n)
+		}
+		log.Warnf("edges:")
+		for src, targets := range changes.edges {
+			log.Warnf("%q", src)
+			for target := range targets {
+				log.Warnf(" -> %q", target)
+			}
 		}
 	}
 
@@ -120,13 +121,15 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		configRules := rule.ConfigurationRules
 		rule.ConfigurationRules = nil
 
-		err := opCtx.HandleOperationalRule(rule)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf(
-				"could not apply edge %s operational rule: %w",
-				ev.Edge, err,
-			))
-			continue
+		if len(rule.Steps) > 0 {
+			err := opCtx.HandleOperationalRule(rule)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"could not apply edge %s operational rule: %w",
+					ev.Edge, err,
+				))
+				continue
+			}
 		}
 
 		configuration := make(map[construct.ResourceId][]knowledgebase.ConfigurationRule)
@@ -151,11 +154,24 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 			}
 			_, unevalErr := eval.unevaluated.Vertex(key)
 			if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-				if len(pred[key]) == 0 {
+				var evalDeps []string
+				for dep := range pred[key] {
+					depEvaled, err := eval.isEvaluated(dep)
+					if err != nil {
+						return fmt.Errorf("could not check if %s is evaluated: %w", dep, err)
+					}
+					if depEvaled {
+						evalDeps = append(evalDeps, `"`+dep.String()+`"`)
+					}
+				}
+				if len(evalDeps) == 0 {
 					configuration[ref.Resource] = append(configuration[ref.Resource], config)
 					log.Debugf("Allowing config on %s to be evaluated due to no dependents", key)
 				} else {
-					errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluated node %s for %s", ref, ev.Edge))
+					errs = errors.Join(errs, fmt.Errorf(
+						"cannot add rules to evaluated node %s for %s: evaluated dependents: %s",
+						ref, ev.Edge, strings.Join(evalDeps, ", "),
+					))
 				}
 				continue
 			} else if err != nil {
