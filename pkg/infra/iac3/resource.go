@@ -153,7 +153,7 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 				errs = errors.Join(errs, fmt.Errorf("could not use nested template for arg %q: %w", name, err))
 				continue
 			}
-		} else if ref, ok := value.(construct.PropertyRef); ok && ref.Resource.Matches(r.ID) {
+		} else if ref, ok := value.(construct.PropertyRef); ok && ref.Resource == r.ID {
 			selfReferences[name] = ref
 		} else {
 			argValue, err = tc.convertArg(value, &templateArg)

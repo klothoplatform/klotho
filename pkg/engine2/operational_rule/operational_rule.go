@@ -121,10 +121,9 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			if err != nil {
 				return err
 			}
-			if isMatch {
-				continue
+			if !isMatch {
+				toRemove.Add(id)
 			}
-			toRemove.Add(id)
 		}
 
 		if len(matching) == len(prop) {
@@ -157,10 +156,9 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			if err != nil {
 				return err
 			}
-			if isMatch {
-				continue
+			if !isMatch {
+				toRemove.Add(id)
 			}
-			toRemove.Add(id)
 		}
 
 		if len(matching) == len(prop) {
@@ -175,27 +173,21 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			log.Infof("removing %s, does not match selectors", prop)
 			errs = errors.Join(errs, reconciler.RemoveResource(ctx.Solution, rem, false))
 		}
-	default:
-		remove := false
-		propRef, ok := prop.(construct.PropertyRef)
-		if !ok {
-			remove = true
+
+	case construct.PropertyRef:
+		isMatch, err := checkResForMatch(prop.Resource)
+		if err != nil {
+			return err
 		}
-		if !remove {
-			isMatch, err := checkResForMatch(propRef.Resource)
-			if err != nil {
-				return err
-			}
-			if !isMatch {
-				remove = true
-			}
+		if isMatch {
+			return nil
 		}
 		log.Infof("removing %s, does not match selectors", prop)
 		err = path.Remove(nil)
 		if err != nil {
 			return err
 		}
-		return reconciler.RemoveResource(ctx.Solution, propRef.Resource, false)
+		return reconciler.RemoveResource(ctx.Solution, prop.Resource, false)
 	}
 
 	return nil

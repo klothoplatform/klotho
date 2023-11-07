@@ -145,19 +145,20 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 		var errs error
 		var ids []construct.ResourceId
 		for _, elem := range val {
-			if id, ok := elem.(construct.ResourceId); ok {
-				ids = append(ids, id)
-				errs = errors.Join(errs, addDep(id))
-			} else if ref, ok := elem.(construct.PropertyRef); ok {
-				ids = append(ids, ref.Resource)
-				errs = errors.Join(errs, addDep(ref.Resource))
+			switch elem := elem.(type) {
+			case construct.ResourceId:
+				ids = append(ids, elem)
+				errs = errors.Join(errs, addDep(elem))
+
+			case construct.PropertyRef:
+				ids = append(ids, elem.Resource)
+				errs = errors.Join(errs, addDep(elem.Resource))
 			}
 		}
 		return ids, errs
-	default:
-		if ref, ok := val.(construct.PropertyRef); ok {
-			return []construct.ResourceId{ref.Resource}, addDep(ref.Resource)
-		}
+
+	case construct.PropertyRef:
+		return []construct.ResourceId{val.Resource}, addDep(val.Resource)
 	}
 	return nil, fmt.Errorf("cannot add dependencies from property %s on resource %s", propertyName, resource.ID)
 }
