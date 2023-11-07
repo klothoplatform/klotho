@@ -9,7 +9,6 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
-	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -18,17 +17,19 @@ import (
 
 type Graph graph.Graph[Key, Vertex]
 
-func newGraph() Graph {
+func newGraph(log *zap.Logger) Graph {
 	g := graph.NewWithStore(
 		Vertex.Key,
 		graph_addons.NewMemoryStore[Key, Vertex](),
 		graph.Directed(),
 		graph.PreventCycles(),
 	)
-	g = graph_addons.LoggingGraph[Key, Vertex]{
-		Graph: g,
-		Log:   zap.L().With(zap.String("graph", "evaluation")).Sugar(),
-		Hash:  Vertex.Key,
+	if log != nil {
+		g = graph_addons.LoggingGraph[Key, Vertex]{
+			Graph: g,
+			Log:   log.Sugar(),
+			Hash:  Vertex.Key,
+		}
 	}
 	return g
 }
@@ -68,7 +69,7 @@ func (eval *Evaluator) AddEdges(es ...construct.Edge) error {
 			evs, err = eval.edgeVertices(e, tmpl)
 		}
 		if err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", e.Source, e.Target, err))
 			continue
 		}
 		changes.Merge(evs)
@@ -95,7 +96,7 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 			}
 		}
 		vertex := pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
-		return changes.AddVertex(eval.Solution, &vertex)
+		return changes.AddVertexAndDeps(eval, &vertex)
 	}
 
 	kb := eval.Solution.KnowledgeBase()
@@ -135,56 +136,59 @@ func (eval *Evaluator) resourceVertices(
 
 	queue := []knowledgebase.Properties{tmpl.Properties}
 	var props knowledgebase.Properties
+
+	addProp := func(prop *knowledgebase.Property) {
+		vertex := &propertyVertex{
+			Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
+			Template:  prop,
+			EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
+		}
+
+		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
+	}
+
 	for len(queue) > 0 {
 		props, queue = queue[0], queue[1:]
 		for _, prop := range props {
-			vertex := &propertyVertex{
-				Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
-				Template:  prop,
-				EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
-			}
-
-			err := changes.AddVertex(eval.Solution, vertex)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
+			addProp(prop)
 
 			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
+				p, err := res.GetProperty(prop.Path)
+				if err != nil || p == nil {
+					continue
+				}
 				// Because lists/sets will start as empty, do not recurse into their sub-properties if its not set.
-				// To allow for defaults within list objects and operational rules to be run, we will look in the property to see if there are values
-				if p, err := res.GetProperty(prop.Path); err == nil && p != nil {
-					var len int
-					if strings.HasPrefix(prop.Type, "list") {
-						len = reflect.ValueOf(p).Len()
-					} else if strings.HasPrefix(prop.Type, "set") {
-						len = reflect.ValueOf(p).FieldByName("m").Len()
-					}
-					for i := 0; i < len; i++ {
-						for _, subProp := range prop.Properties {
-							if subProp.OperationalRule != nil {
-								propTemplate := subProp.Clone()
-								propTemplate.Path = fmt.Sprintf("%s[%d]%s",
-									prop.Path, i, strings.TrimPrefix(subProp.Path, prop.Path))
-								vertex := &propertyVertex{
-									Ref:       construct.PropertyRef{Resource: res.ID, Property: propTemplate.Path},
-									Template:  propTemplate,
-									EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
-								}
-
-								err := changes.AddVertex(eval.Solution, vertex)
-								if err != nil {
-									errs = errors.Join(errs, err)
-									continue
-								}
-							}
-
+				// To allow for defaults within list objects and operational rules to be run, we will look in the property
+				// to see if there are values.
+				if strings.HasPrefix(prop.Type, "list") {
+					length := reflect.ValueOf(p).Len()
+					for i := 0; i < length; i++ {
+						subProperties := make(knowledgebase.Properties)
+						for subK, subProp := range prop.Properties {
+							propTemplate := subProp.Clone()
+							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%d]", prop.Path, i))
+							subProperties[subK] = propTemplate
+						}
+						if len(subProperties) > 0 {
+							queue = append(queue, subProperties)
 						}
 					}
+				} else if strings.HasPrefix(prop.Type, "set") {
+					hs := p.(set.HashedSet[string, any])
+					for k := range hs.ToMap() {
+						subProperties := make(knowledgebase.Properties)
+						for subK, subProp := range prop.Properties {
+							propTemplate := subProp.Clone()
+							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%s]", prop.Path, k))
+							subProperties[subK] = propTemplate
+						}
+						if len(subProperties) > 0 {
+							queue = append(queue, subProperties)
+						}
+					}
+
 				}
-				continue
-			}
-			if prop.Properties != nil {
+			} else if prop.Properties != nil {
 				queue = append(queue, prop.Properties)
 			}
 		}
@@ -197,87 +201,13 @@ func (eval *Evaluator) edgeVertices(
 	tmpl *knowledgebase.EdgeTemplate,
 ) (graphChanges, error) {
 	changes := newChanges()
-	var errs error
 
-	cfgCtx := solution_context.DynamicCtx(eval.Solution)
-	data := knowledgebase.DynamicValueData{Edge: &edge}
-	resEdge := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
-
-	opVertex := &edgeVertex{Edge: resEdge}
-
-	vertices := make(map[construct.PropertyRef]*propertyVertex)
-	for i, rule := range tmpl.OperationalRules {
-		if len(rule.Steps) > 0 {
-			opVertex.Rules = append(opVertex.Rules, knowledgebase.OperationalRule{
-				// Split out only the steps, the configuration goes to the property it references
-				If: rule.If, Steps: rule.Steps,
-			})
-		}
-
-		for j, config := range rule.ConfigurationRules {
-			var ref construct.PropertyRef
-			err := cfgCtx.ExecuteDecode(config.Resource, data, &ref.Resource)
-			if err != nil {
-				errs = errors.Join(errs,
-					fmt.Errorf("could not execute resource template for edge rule [%d][%d]: %w", i, j, err),
-				)
-			}
-			err = cfgCtx.ExecuteDecode(config.Config.Field, data, &ref.Property)
-			if err != nil {
-				errs = errors.Join(errs,
-					fmt.Errorf("could not execute config.field template for edge rule [%d][%d]: %w", i, j, err),
-				)
-			}
-			vertex, ok := vertices[ref]
-			if !ok {
-				key := Key{Ref: ref}
-				existing, err := eval.graph.Vertex(key)
-				switch {
-				case errors.Is(err, graph.ErrVertexNotFound):
-					vertex = &propertyVertex{Ref: ref, EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule)}
-				case err != nil:
-					errs = errors.Join(errs, fmt.Errorf("could not attempt to get existing vertex for %s: %w", ref, err))
-					continue
-				default:
-					_, unevalErr := eval.unevaluated.Vertex(key)
-					if errors.Is(unevalErr, graph.ErrVertexNotFound) {
-						// errs = errors.Join(errs, fmt.Errorf("cannot add rules to evaluated node %s for %s", ref, resEdge))
-						continue
-					} else if err != nil {
-						errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))
-						continue
-					}
-					if v, ok := existing.(*propertyVertex); ok {
-						vertex = v
-					} else {
-						errs = errors.Join(errs, fmt.Errorf("existing vertex for %s is not a property vertex", ref))
-						continue
-					}
-				}
-				vertices[ref] = vertex
-			}
-
-			vertex.EdgeRules[resEdge] = append(vertex.EdgeRules[resEdge], knowledgebase.OperationalRule{
-				If:                 rule.If,
-				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
-			})
-		}
-	}
-	if errs != nil {
-		return changes, errs
+	opVertex := &edgeVertex{
+		Edge:  construct.SimpleEdge{Source: edge.Source, Target: edge.Target},
+		Rules: tmpl.OperationalRules,
 	}
 
-	if len(opVertex.Rules) > 0 {
-		errs = errors.Join(errs, changes.AddVertex(eval.Solution, opVertex))
-	}
-
-	// do this in a second pass so that edges config that reference the same property (rare, but possible)
-	// will get batched before calling [depsForProp].
-	for _, vertex := range vertices {
-		errs = errors.Join(errs, changes.AddVertex(eval.Solution, vertex))
-	}
-
-	return changes, errs
+	return changes, changes.AddVertexAndDeps(eval, opVertex)
 }
 
 func (eval *Evaluator) removeKey(k Key) error {

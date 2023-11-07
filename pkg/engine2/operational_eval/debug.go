@@ -15,6 +15,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	attribAddedIn = "added_in"
+	attribError   = "error"
+	attribReady   = "ready"
+)
+
 func PrintGraph(g Graph) {
 	topo, err := graph.TopologicalSort(g)
 	if err != nil {
@@ -51,6 +57,7 @@ func writeGraph(eval *Evaluator, filename string, toDot func(*Evaluator, io.Writ
 	f, err := os.Create(filename + ".gv")
 	if err != nil {
 		zap.S().Errorf("could not create file %s: %v", filename, err)
+		return
 	}
 	defer f.Close()
 
@@ -68,7 +75,7 @@ func writeGraph(eval *Evaluator, filename string, toDot func(*Evaluator, io.Writ
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		zap.S().Errorf("could not run 'dot': %v", err)
+		zap.S().Errorf("could not run 'dot' for %s: %v", filename, err)
 		return
 	}
 

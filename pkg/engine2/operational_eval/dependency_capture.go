@@ -15,9 +15,23 @@ import (
 // fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
 // with one that just returns the zero value of the property type and records the property reference.
 type fauxConfigContext struct {
-	propRef construct.PropertyRef
-	inner   knowledgebase.DynamicValueContext
-	deps    vertexDependencies
+	propRef       construct.PropertyRef
+	inner         knowledgebase.DynamicValueContext
+	addRef        func(ref construct.PropertyRef)
+	addGraphState func(*graphStateVertex)
+}
+
+func newDepCapture(inner knowledgebase.DynamicValueContext, changes graphChanges, src Key) *fauxConfigContext {
+	return &fauxConfigContext{
+		inner: inner,
+		addRef: func(ref construct.PropertyRef) {
+			changes.addEdge(src, Key{Ref: ref})
+		},
+		addGraphState: func(v *graphStateVertex) {
+			changes.nodes[v.Key()] = v
+			changes.addEdge(src, v.Key())
+		},
+	}
 }
 
 func (ctx *fauxConfigContext) DAG() construct.Graph {
@@ -46,10 +60,6 @@ func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValu
 }
 
 func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData) error {
-	if ref, ok := v.(construct.PropertyRef); ok {
-		ctx.deps.Outgoing.Add(Key{Ref: ref})
-		return nil
-	}
 	vStr, ok := v.(string)
 	if !ok {
 		return nil
@@ -121,7 +131,7 @@ func (ctx *fauxConfigContext) HasField(field string, resource any) (bool, error)
 		// Cannot depend on properties within lists, stop at the list itself
 		ref.Property = field[:bracketIdx]
 	}
-	ctx.deps.Outgoing.Add(Key{Ref: ref})
+	ctx.addRef(ref)
 
 	return ctx.inner.HasField(field, resId)
 }
@@ -139,16 +149,17 @@ func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error
 		Resource: resId,
 		Property: field,
 	}
-	if bracketIdx := strings.Index(field, "["); bracketIdx != -1 {
-		// Cannot depend on properties within lists, stop at the list itself
-		ref.Property = field[:bracketIdx]
-	}
-	ctx.deps.Outgoing.Add(Key{Ref: ref})
 
 	value, err := ctx.inner.FieldValue(field, resId)
 	if err != nil {
+		if bracketIdx := strings.Index(field, "["); bracketIdx != -1 {
+			// Cannot depend on properties within lists, stop at the list itself
+			ref.Property = field[:bracketIdx]
+		}
+		ctx.addRef(ref)
 		return nil, err
 	}
+	ctx.addRef(ref)
 	if value != nil {
 		return value, nil
 	}
@@ -187,19 +198,19 @@ func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.Resou
 		return false, err
 	}
 
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("hasUpstream(%s, %s)", selId, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			upstream, err := knowledgebase.Upstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
 			if err != nil {
-				return false, err
+				return NotReadyMax, err
 			}
 			for _, up := range upstream {
 				if selId.Matches(up) {
-					return true, nil
+					return ReadyNow, nil
 				}
 			}
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -217,19 +228,19 @@ func (ctx *fauxConfigContext) Upstream(selector any, resource construct.Resource
 		return construct.ResourceId{}, err
 	}
 
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("Upstream(%s, %s)", selId, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			upstream, err := knowledgebase.Upstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
 			if err != nil {
-				return false, err
+				return NotReadyMax, err
 			}
 			for _, up := range upstream {
 				if selId.Matches(up) {
-					return true, nil
+					return ReadyNow, nil
 				}
 			}
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -237,11 +248,11 @@ func (ctx *fauxConfigContext) Upstream(selector any, resource construct.Resource
 }
 
 func (ctx *fauxConfigContext) AllUpstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("AllUpstream(%s, %s)", selector, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			// Can never say that [AllUpstream] is ready until it must be evaluated due to being one of the final ones
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -259,19 +270,19 @@ func (ctx *fauxConfigContext) HasDownstream(selector any, resource construct.Res
 		return false, err
 	}
 
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("hasDownstream(%s, %s)", selId, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			downstream, err := knowledgebase.Downstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
 			if err != nil {
-				return false, err
+				return NotReadyMax, err
 			}
 			for _, down := range downstream {
 				if selId.Matches(down) {
-					return true, nil
+					return ReadyNow, nil
 				}
 			}
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -289,19 +300,19 @@ func (ctx *fauxConfigContext) Downstream(selector any, resource construct.Resour
 		return construct.ResourceId{}, err
 	}
 
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("downstream(%s, %s)", selId, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			downstream, err := knowledgebase.Downstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
 			if err != nil {
-				return false, err
+				return NotReadyMax, err
 			}
 			for _, down := range downstream {
 				if selId.Matches(down) {
-					return true, nil
+					return ReadyNow, nil
 				}
 			}
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -309,11 +320,11 @@ func (ctx *fauxConfigContext) Downstream(selector any, resource construct.Resour
 }
 
 func (ctx *fauxConfigContext) ClosestDownstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("closestDownstream(%s, %s)", selector, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			// Can never say that [ClosestDownstream] is ready because something closer could always be added
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 
@@ -321,11 +332,11 @@ func (ctx *fauxConfigContext) ClosestDownstream(selector any, resource construct
 }
 
 func (ctx *fauxConfigContext) AllDownstream(selector any, resource construct.ResourceId) (construct.ResourceList, error) {
-	ctx.deps.GraphStates = append(ctx.deps.GraphStates, &graphStateVertex{
+	ctx.addGraphState(&graphStateVertex{
 		repr: graphStateRepr(fmt.Sprintf("allDownstream(%s, %s)", selector, resource)),
-		Test: func(g construct.Graph) (bool, error) {
+		Test: func(g construct.Graph) (ReadyPriority, error) {
 			// Can never say that [AllDownstream] is ready until it must be evaluated due to being one of the final ones
-			return false, nil
+			return NotReadyMid, nil
 		},
 	})
 

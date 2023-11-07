@@ -32,33 +32,48 @@ type (
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
 		PathSatisfication *knowledgebase.EdgePathSatisfaction
+		Internal          string
 	}
 
 	Vertex interface {
 		Key() Key
 		Evaluate(eval *Evaluator) error
 		UpdateFrom(other Vertex)
-		Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error)
+		Dependencies(eval *Evaluator) (graphChanges, error)
 	}
 
-	vertexDependencies struct {
-		Outgoing    set.Set[Key]
-		Incoming    set.Set[Key]
-		GraphStates []*graphStateVertex
+	conditionalVertex interface {
+		Ready(*Evaluator) (ReadyPriority, error)
 	}
+
+	ReadyPriority int
 
 	graphChanges struct {
-		nodes set.Set[Vertex]
+		nodes map[Key]Vertex
 		// edges is map[source]targets
 		edges map[Key]set.Set[Key]
 	}
 )
 
+const (
+	// ReadyNow indicates the vertex is ready to be evaluated
+	ReadyNow ReadyPriority = iota
+	// NotReadyLow is used when it's relatively certain that the vertex will be ready, but cannot be 100% certain.
+	NotReadyLow
+	// NotReadyMid is for cases which don't clearly fit in [NotReadyLow] or [NotReadyHigh]
+	NotReadyMid
+	// NotReadyHigh is used for verticies which can almost never be 100% certain that they're correct based on the
+	// current state.
+	NotReadyHigh
+	// NotReadyMax it reserved for when running the vertex would likely cause an error, rather than incorrect behaviour
+	NotReadyMax
+)
+
 func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 	return &Evaluator{
 		Solution:    ctx,
-		graph:       newGraph(),
-		unevaluated: newGraph(),
+		graph:       newGraph(nil),
+		unevaluated: newGraph(nil),
 		errored:     make(set.Set[Key]),
 	}
 }
@@ -73,7 +88,9 @@ func (key Key) String() string {
 	if key.PathSatisfication != nil {
 		args := []string{
 			key.Edge.String(),
-			key.PathSatisfication.Classification,
+		}
+		if key.PathSatisfication.Classification != "" {
+			args = append(args, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
 		if key.PathSatisfication.AsTarget {
 			args = append(args, "target")
@@ -83,22 +100,118 @@ func (key Key) String() string {
 	if key.Edge != (construct.SimpleEdge{}) {
 		return key.Edge.String()
 	}
+	if key.Internal != "" {
+		return fmt.Sprintf("|%s|", key.Internal)
+	}
 	return "<empty>"
 }
 
+func (r ReadyPriority) String() string {
+	switch r {
+	case ReadyNow:
+		return "ReadyNow"
+	case NotReadyLow:
+		return "NotReadyLow"
+	case NotReadyMid:
+		return "NotReadyMid"
+	case NotReadyHigh:
+		return "NotReadyHigh"
+	case NotReadyMax:
+		return "NotReadyMax"
+	default:
+		return fmt.Sprintf("ReadyPriority(%d)", r)
+	}
+}
+
+func (eval *Evaluator) Log() *zap.SugaredLogger {
+	return zap.S().With("group", len(eval.evaluatedOrder))
+}
+
+func (eval *Evaluator) isEvaluated(k Key) (bool, error) {
+	_, err := eval.graph.Vertex(k)
+	if errors.Is(err, graph.ErrVertexNotFound) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	_, err = eval.unevaluated.Vertex(k)
+	if errors.Is(err, graph.ErrVertexNotFound) {
+		return true, nil
+	}
+	return false, err
+}
+
+func (eval *Evaluator) addEdge(source, target Key) error {
+	_, err := eval.graph.Edge(source, target)
+	if err == nil {
+		return nil
+	}
+
+	err = eval.graph.AddEdge(source, target, func(ep *graph.EdgeProperties) {
+		ep.Attributes[attribAddedIn] = fmt.Sprintf("%d", len(eval.evaluatedOrder))
+	})
+	if err != nil {
+		// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
+		// new vertex type of "overwrite me later". It would be an odd situation though, which is why it is
+		// an error for now.
+		return fmt.Errorf("could not add edge %q -> %q: %w", source, target, err)
+	}
+	markError := func() {
+		_ = eval.graph.UpdateEdge(source, target, func(ep *graph.EdgeProperties) {
+			ep.Attributes[attribError] = "true"
+		})
+	}
+
+	log := eval.Log().With("op", "deps")
+
+	_, err = eval.unevaluated.Vertex(target)
+	switch {
+	case errors.Is(err, graph.ErrVertexNotFound):
+		// the 'graph.AddEdge' succeeded, thus the target exists in the total graph
+		// which means that the target vertex is done, so ignore adding the edge to the unevaluated graph
+		log.Debugf("  -> %s (done)", target)
+
+	case err != nil:
+		markError()
+		return fmt.Errorf("could not get unevaluated vertex %s: %w", target, err)
+
+	default:
+		log.Debugf("  -> %s", target)
+		sourceEvaluated, err := eval.isEvaluated(source)
+		if err != nil {
+			markError()
+			return fmt.Errorf("could not check if source %s is evaluated: %w", source, err)
+		} else if sourceEvaluated {
+			markError()
+			return fmt.Errorf(
+				"could not add edge %q -> %q: source is already evaluated",
+				source, target)
+		}
+		err = eval.unevaluated.AddEdge(source, target)
+		if err != nil {
+			markError()
+			return fmt.Errorf("could not add unevaluated edge %q -> %q: %w", source, target, err)
+		}
+	}
+	return nil
+}
+
 func (eval *Evaluator) enqueue(changes graphChanges) error {
+	log := eval.Log().With("op", "enqueue")
+
 	var errs error
-	for v := range changes.nodes {
-		key := v.Key()
+	for key, v := range changes.nodes {
 		_, err := eval.graph.Vertex(key)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			err := eval.graph.AddVertex(v)
+			err := eval.graph.AddVertex(v, func(vp *graph.VertexProperties) {
+				vp.Attributes[attribAddedIn] = fmt.Sprintf("%d", len(eval.evaluatedOrder))
+			})
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
 			}
-			zap.S().With("op", "enqueue").Debugf("Enqueued %s", key)
+			log.Debugf("Enqueued %s", key)
 			if err := eval.unevaluated.AddVertex(v); err != nil {
 				errs = errors.Join(errs, err)
 			}
@@ -110,7 +223,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 				continue
 			}
 			if v != existing {
-				zap.S().With("op", "enqueue").Debugf("Updating %s", key)
+				log.Debugf("Updating %s", key)
 				existing.UpdateFrom(v)
 			}
 
@@ -121,34 +234,14 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 	if errs != nil {
 		return errs
 	}
+
+	log = eval.Log().With("op", "deps")
 	for source, targets := range changes.edges {
-		zap.S().With("op", "deps").Debug(source)
+		if len(targets) > 0 {
+			log.Debug(source)
+		}
 		for target := range targets {
-			err := eval.graph.AddEdge(source, target)
-			if err != nil {
-				// NOTE(gg): If this fails with target not in graph, then we might need to add the target in with a
-				// new vertex type of "overwrite me later". It would be an odd situation though, which is why it is
-				// an error for now.
-				errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", source, target, err))
-				continue
-			}
-			_, err = eval.unevaluated.Vertex(target)
-			switch {
-			case errors.Is(err, graph.ErrVertexNotFound):
-				// the 'graph.AddEdge' succeeded, thus the target exists in the total graph
-				// which means that the target vertex is done, so ignore adding the edge to the unevaluated graph
-				zap.S().With("op", "deps").Debugf("  -> %s (done)", target)
-
-			case err != nil:
-				errs = errors.Join(errs, fmt.Errorf("could not get unevaluated vertex %s: %w", target, err))
-
-			default:
-				zap.S().With("op", "deps").Debugf("  -> %s", target)
-				err := eval.unevaluated.AddEdge(source, target)
-				if err != nil {
-					errs = errors.Join(errs, fmt.Errorf("could not add unevaluated edge %s -> %s: %w", source, target, err))
-				}
-			}
+			errs = errors.Join(errs, eval.addEdge(source, target))
 		}
 	}
 	if errs != nil {
@@ -157,60 +250,54 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 	return nil
 }
 
-func newDeps() vertexDependencies {
-	return vertexDependencies{
-		Outgoing: make(set.Set[Key]),
-		Incoming: make(set.Set[Key]),
-	}
-}
-
 func newChanges() graphChanges {
 	return graphChanges{
-		nodes: make(set.Set[Vertex]),
+		nodes: make(map[Key]Vertex),
 		edges: make(map[Key]set.Set[Key]),
 	}
 }
 
-func (changes graphChanges) AddVertex(sol solution_context.SolutionContext, v Vertex) error {
-	changes.nodes.Add(v)
-	deps, err := v.Dependencies(sol)
+// addNode is a convenient lower-level add for [graphChanges.nodes]
+func (changes graphChanges) addNode(v Vertex) {
+	changes.nodes[v.Key()] = v
+}
+
+// addEdge is a convenient lower-level add for [graphChanges.edges]
+func (changes graphChanges) addEdge(source, target Key) {
+	out, ok := changes.edges[source]
+	if !ok {
+		out = make(set.Set[Key])
+		changes.edges[source] = out
+	}
+	out.Add(target)
+}
+
+// addEdges is a convenient lower-level add for [graphChanges.edges] for multiple targets
+func (changes graphChanges) addEdges(source Key, targets set.Set[Key]) {
+	out, ok := changes.edges[source]
+	if !ok {
+		out = make(set.Set[Key])
+		changes.edges[source] = out
+	}
+	out.AddFrom(targets)
+}
+
+func (changes graphChanges) AddVertexAndDeps(eval *Evaluator, v Vertex) error {
+	changes.nodes[v.Key()] = v
+	deps, err := v.Dependencies(eval)
 	if err != nil {
 		return err
 	}
-	vKey := v.Key()
-	out, ok := changes.edges[vKey]
-	if !ok {
-		out = make(set.Set[Key])
-		changes.edges[vKey] = out
-	}
-	out.AddFrom(deps.Outgoing)
-
-	for in := range deps.Incoming {
-		incoming, ok := changes.edges[in]
-		if !ok {
-			incoming = make(set.Set[Key])
-			changes.edges[in] = incoming
-		}
-		incoming.Add(vKey)
-	}
-
-	for _, state := range deps.GraphStates {
-		changes.nodes.Add(state)
-		out.Add(state.Key())
-	}
-
+	changes.Merge(deps)
 	return nil
 }
 
 func (changes graphChanges) Merge(other graphChanges) {
-	changes.nodes.AddFrom(other.nodes)
+	for k, v := range other.nodes {
+		changes.nodes[k] = v
+	}
 	for k, v := range other.edges {
-		out, ok := changes.edges[k]
-		if !ok {
-			out = make(set.Set[Key])
-			changes.edges[k] = out
-		}
-		out.AddFrom(v)
+		changes.addEdges(k, v)
 	}
 }
 
@@ -218,7 +305,7 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 	if oldId == newId {
 		return nil
 	}
-	zap.S().Infof("Updating id %s to %s", oldId, newId)
+	eval.Log().Infof("Updating id %s to %s", oldId, newId)
 
 	v, err := eval.Solution.RawView().Vertex(oldId)
 	if err != nil {

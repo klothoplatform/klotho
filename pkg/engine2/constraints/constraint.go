@@ -138,7 +138,7 @@ func (cs *ConstraintList) UnmarshalYAML(node *yaml.Node) error {
 			c = &constraint
 
 		default:
-			err = fmt.Errorf("invalid scope %s", base.Scope)
+			err = fmt.Errorf("invalid scope %q", base.Scope)
 		}
 		if err != nil {
 			errs = errors.Join(errs, err)

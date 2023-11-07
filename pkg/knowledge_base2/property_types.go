@@ -90,20 +90,20 @@ func (p Properties) Clone() Properties {
 }
 
 func (p *Property) Clone() *Property {
-	newProps := make(map[string]*Property, len(p.Properties))
+	cloned := *p
+	cloned.Properties = make(Properties, len(p.Properties))
 	for k, v := range p.Properties {
-		newProps[k] = v.Clone()
+		cloned.Properties[k] = v.Clone()
 	}
-	return &Property{
-		Name:                  p.Name,
-		Path:                  p.Path,
-		Type:                  p.Type,
-		DefaultValue:          p.DefaultValue,
-		Properties:            newProps,
-		Namespace:             p.Namespace,
-		Required:              p.Required,
-		ConfigurationDisabled: p.ConfigurationDisabled,
-		OperationalRule:       p.OperationalRule,
+	return &cloned
+}
+
+// ReplacePath runs a simple [strings.ReplaceAll] on the path of the property and all of its sub properties.
+// NOTE: this mutates the property, so make sure to [Property.Clone] it first if you don't want that.
+func (p *Property) ReplacePath(original, replacement string) {
+	p.Path = strings.ReplaceAll(p.Path, original, replacement)
+	for _, prop := range p.Properties {
+		prop.ReplacePath(original, replacement)
 	}
 }
 

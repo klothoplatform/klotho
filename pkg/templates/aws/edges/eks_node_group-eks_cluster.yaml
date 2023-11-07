@@ -23,7 +23,6 @@ operational_rules:
               Chart: metrics-server
               Internal: true
 
-
   - if: | # check if there is an aws-cloudwatch namespace so we can install fluent bit in there
       {{ $needsCreation := true}}
       {{ $namespaces := allUpstream "kubernetes:namespace" .Target }}
@@ -44,7 +43,6 @@ operational_rules:
               Object.Metadata.Name: amazon-cloudwatch
               Object.Metadata.Labels.name: amazon-cloudwatch
 
-
   - if: | # check if there is an fluent bit config map
       {{ $needsCreation := true}}
       {{ $cms := allUpstream "kubernetes:config_map" .Target }}
@@ -64,7 +62,7 @@ operational_rules:
               Cluster: '{{.Target}}'
               Object.Metadata.Name: fluent-bit-cluster-info
               Object.Metadata.Namespace: kubernetes:namespace:{{.Target.Name}}:amazon-cloudwatch
-              "Object.Metadata.Labels.k8s-app": fluent-bit
+              'Object.Metadata.Labels.k8s-app': fluent-bit
               Object.Data.cluster.name: '{{ .Target }}#ClusterName'
               Object.Data.logs.region: '{{ downstream "aws:region" .Target }}#Name'
               Object.Data.http.server: 'On'

@@ -34,7 +34,6 @@ properties:
             - selector: aws:subnet
               properties:
                 Type: public
-            - aws:subnet
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -64,7 +63,6 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-
 
 classification:
   is:

@@ -10,13 +10,17 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
-const rankSize = 20
+const (
+	rankSize          = 20
+	errorColour       = "#e87b7b"
+	unevaluatedColour = "#e3cf9d"
+)
 
 func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	attribs := make(map[string]string)
 	var style []string
 	if !key.Ref.Resource.IsZero() {
-		attribs["label"] = fmt.Sprintf(`%s\n%s`, key.Ref.Resource, key.Ref.Property)
+		attribs["label"] = fmt.Sprintf(`%s\n#%s`, key.Ref.Resource, key.Ref.Property)
 		attribs["shape"] = "box"
 	} else if key.GraphState != "" {
 		attribs["label"] = string(key.GraphState)
@@ -40,13 +44,16 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	} else if key.Edge != (construct.SimpleEdge{}) {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		attribs["shape"] = "parallelogram"
+	} else if key.Internal != "" {
+		attribs["label"] = fmt.Sprintf(`|%s|`, key.Internal)
+		attribs["shape"] = "polygon"
 	} else {
 		attribs["label"] = fmt.Sprintf(`%s\n(UNKOWN)`, key)
 		attribs["color"] = "#fc8803"
 	}
 	if eval.errored.Contains(key) {
 		style = append(style, "filled")
-		attribs["fillcolor"] = "#e87b7b"
+		attribs["fillcolor"] = errorColour
 	}
 	attribs["style"] = strings.Join(style, ",")
 	return attribs
@@ -176,8 +183,9 @@ func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
 		printf("  subgraph cluster_%d {\n", rank)
 		if evalRank.Unevaluated {
 			printf(`    label = "Unevaluated"
-			style=filled
-			color="#e3cf9d"`)
+    style=filled
+    color="%s"
+`, unevaluatedColour)
 		} else {
 			printf("    label = \"Evaluation Order %d\"\n", rank)
 		}
@@ -228,7 +236,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 	}
 
 	printf(`strict digraph {
-  rankdir = "BT"
+  rankdir = BT
 	ranksep = 1
 `)
 	adj, err := eval.graph.AdjacencyMap()
@@ -248,10 +256,42 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 		order, hasOrder := evalOrder[src]
 		if hasOrder {
 			attribs["label"] = fmt.Sprintf("[%d] %s", order, attribs["label"])
+		} else {
+			attribs["label"] = fmt.Sprintf("[?] %s", attribs["label"])
+			if s, ok := attribs["style"]; ok {
+				attribs["style"] = s + ",filled"
+			} else {
+				attribs["style"] = "filled"
+			}
+			attribs["fillcolor"] = "#e3cf9d"
+		}
+		_, props, _ := eval.graph.VertexWithProperties(src)
+		if props.Attributes != nil {
+			if group := props.Attributes[attribAddedIn]; group != "" {
+				attribs["label"] = fmt.Sprintf(`%s\n+%s`, attribs["label"], group)
+			}
+			if ready := props.Attributes[attribReady]; ready != "" && ready != ReadyNow.String() {
+				attribs["label"] = fmt.Sprintf(`%s\n%s`, attribs["label"], ready)
+			}
 		}
 		printf("  %q [%s]\n", src, attributesToString(attribs))
-		for tgt := range a {
-			printf("  %q -> %q\n", src, tgt)
+
+		for tgt, e := range a {
+			edgeAttribs := make(map[string]string)
+
+			if group := e.Properties.Attributes[attribAddedIn]; group != "" {
+				edgeAttribs["label"] = fmt.Sprintf("+%s", group)
+			}
+			if errored := e.Properties.Attributes[attribError]; errored != "" {
+				edgeAttribs["color"] = errorColour
+				edgeAttribs["penwidth"] = "2"
+			}
+
+			printf("  %q -> %q", src, tgt)
+			if len(edgeAttribs) > 0 {
+				printf(" [%s]", attributesToString(edgeAttribs))
+			}
+			printf("\n")
 		}
 	}
 	printf("}\n")

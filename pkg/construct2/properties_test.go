@@ -34,9 +34,24 @@ func Test_splitPath(t *testing.T) {
 			want: []string{"foo", "[bar]"},
 		},
 		{
+			name: "bracketed multiple",
+			path: "foo[bar][baz]",
+			want: []string{"foo", "[bar]", "[baz]"},
+		},
+		{
 			name: "long mixed",
 			path: "foo.bar[baz].qux",
 			want: []string{"foo", ".bar", "[baz]", ".qux"},
+		},
+		{
+			name: "key with dots",
+			path: "foo[bar.baz]",
+			want: []string{"foo", "[bar.baz]"},
+		},
+		{
+			name: "key with brackets",
+			path: "foo[bar[baz]]",
+			want: []string{"foo", "[bar[baz]]"},
 		},
 	}
 	for _, tt := range tests {
@@ -110,6 +125,12 @@ func TestResource_PropertyPath(t *testing.T) {
 			props:   Properties{"A": []any{"foo", "bar"}},
 			path:    "A[blah]",
 			wantErr: true,
+		},
+		{
+			name:  "map key with dots",
+			props: Properties{"A": map[string]any{"foo.bar": "baz"}},
+			path:  "A[foo.bar]",
+			want:  "baz",
 		},
 	}
 	for _, tt := range tests {

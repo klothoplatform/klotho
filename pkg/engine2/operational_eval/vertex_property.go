@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"go.uber.org/zap"
 )
 
 type (
@@ -26,37 +25,36 @@ func (prop propertyVertex) Key() Key {
 	return Key{Ref: prop.Ref}
 }
 
-func (prop *propertyVertex) Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error) {
-	cfgCtx := solution_context.DynamicCtx(ctx)
-	propCtx := &fauxConfigContext{
-		propRef: prop.Ref,
-		inner:   cfgCtx,
-		deps:    newDeps(),
-	}
+func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
+	changes := newChanges()
 
+	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), changes, prop.Key())
+	propCtx.propRef = prop.Ref
+
+	kb := eval.Solution.KnowledgeBase()
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
 		if err := propCtx.ExecuteValue(prop.Template.DefaultValue, resData); err != nil {
-			return propCtx.deps, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
+			return changes, fmt.Errorf("could not execute default value template for %s: %w", prop.Ref, err)
 		}
 
 		if opRule := prop.Template.OperationalRule; opRule != nil {
 			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
-				return propCtx.deps, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
+				return changes, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 
 		if !prop.Template.Namespace {
-			tmpl, err := cfgCtx.KB().GetResourceTemplate(prop.Ref.Resource)
+			tmpl, err := kb.GetResourceTemplate(prop.Ref.Resource)
 			if err != nil {
-				return propCtx.deps, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
+				return changes, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
 			}
 			for propKey, propTmpl := range tmpl.Properties {
 				if propTmpl.Namespace {
 					nsRef := construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey}
-					propCtx.deps.Outgoing.Add(Key{Ref: nsRef})
+					propCtx.addRef(nsRef)
 				}
 			}
 		}
@@ -72,14 +70,17 @@ func (prop *propertyVertex) Dependencies(ctx solution_context.SolutionContext) (
 			errs = errors.Join(errs, propCtx.ExecuteOpRule(edgeData, rule))
 		}
 		if errs != nil {
-			return propCtx.deps, fmt.Errorf(
-				"could not execute %s for edge %s: %w",
-				prop.Ref, edge.Source, errs,
-			)
+			return changes, fmt.Errorf("could not execute %s for edge %s: %w", prop.Ref, edge, errs)
+		}
+
+		edgeKey := Key{Edge: edge}
+		_, err := eval.graph.Vertex(edgeKey)
+		if err == nil {
+			changes.addEdge(prop.Key(), edgeKey)
 		}
 	}
 
-	return propCtx.deps, nil
+	return changes, nil
 }
 
 func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
@@ -111,8 +112,6 @@ func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 }
 
 func (v *propertyVertex) Evaluate(eval *Evaluator) error {
-	zap.S().With("op", "eval").Debugf("Evaluating %s", v.Ref)
-
 	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
@@ -136,7 +135,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	}
 
 	if strings.HasPrefix(v.Template.Type, "list") || strings.HasPrefix(v.Template.Type, "set") {
-		// If we have modified a list or set we want to re add the resource to be evaluated so the nested fields are ensured to be set if required
+		// If we have modified a list or set we want to re add the resource to be evaluated
+		// so the nested fields are ensured to be set if required
 		return eval.AddResources(res)
 	}
 
@@ -278,4 +278,32 @@ func (v *propertyVertex) evaluateEdgeOperational(sol solution_context.SolutionCo
 		}
 	}
 	return errs
+}
+
+func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
+	if v.Template == nil {
+		// wait until we have a template
+		return NotReadyMax, nil
+	}
+	if v.Template.OperationalRule == nil {
+		if strings.Contains(v.Template.Type, "list") || strings.Contains(v.Template.Type, "set") {
+			// never sure when a list/set is ready - it'll just be appended to by edges through
+			// `v.EdgeRules`
+			return NotReadyHigh, nil
+		}
+		if strings.Contains(v.Template.Type, "map") && len(v.Template.Properties) == 0 {
+			// maps without sub-properties (ie, not objects) are also appended to by edges
+			return NotReadyHigh, nil
+		}
+		// properties that have values set via edge rules dont' have default values
+		if v.Template.DefaultValue != nil {
+			return ReadyNow, nil
+		}
+		// for non-list/set types, once an edge is here to set the value, it can be run
+		if len(v.EdgeRules) > 0 {
+			return ReadyNow, nil
+		}
+		return NotReadyHigh, nil
+	}
+	return ReadyNow, nil
 }

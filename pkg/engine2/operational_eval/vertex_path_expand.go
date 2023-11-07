@@ -12,7 +12,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
 type pathExpandVertex struct {
@@ -40,7 +39,13 @@ func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
 	}
 
 	for _, expansion := range expansions {
-		errs = errors.Join(errs, v.runExpansion(eval, expansion))
+		err := v.runExpansion(eval, expansion)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"could not run expansion %s -> %s <%s>: %w",
+				expansion.Dep.Source.ID, expansion.Dep.Target.ID, expansion.Classification, err,
+			))
+		}
 	}
 	return errs
 }
@@ -145,9 +150,9 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 		return errs
 	}
 	if v.Satisfication.Classification != "" {
-		zap.S().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.Edge, resultStr)
+		eval.Log().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.Edge, resultStr)
 	} else {
-		zap.S().Infof("Satisfied %s -> %s through %s", v.Edge.Source, v.Edge.Target, resultStr)
+		eval.Log().Infof("Satisfied %s -> %s through %s", v.Edge.Source, v.Edge.Target, resultStr)
 	}
 
 	if err := eval.AddResources(resources...); err != nil {
@@ -210,12 +215,12 @@ func (v *pathExpandVertex) UpdateFrom(other Vertex) {
 // depending on the path chosen. This is a conservative dependency, since we don't know which path
 // will be chosen.
 func (v *pathExpandVertex) addDepsFromProps(
-	ctx solution_context.SolutionContext,
-	deps vertexDependencies,
+	eval *Evaluator,
+	changes graphChanges,
 	res construct.ResourceId,
 	dependencies []construct.ResourceId,
 ) error {
-	tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(res)
+	tmpl, err := eval.Solution.KnowledgeBase().GetResourceTemplate(res)
 	if err != nil {
 		return err
 	}
@@ -255,7 +260,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 				continue
 			}
 			if resType.Value.Matches(dep) {
-				deps.Outgoing.Add(Key{Ref: ref})
+				changes.addEdge(v.Key(), Key{Ref: ref})
 			}
 		}
 	}
@@ -266,27 +271,32 @@ func (v *pathExpandVertex) addDepsFromProps(
 // If it does, go through all the existing resources and add an incoming dependency to any that match
 // the resource and property from that configuration rule.
 func (v *pathExpandVertex) addDepsFromEdge(
-	ctx solution_context.SolutionContext,
-	deps vertexDependencies,
+	eval *Evaluator,
+	changes graphChanges,
 	edge construct.Edge,
 ) error {
-	dyn := solution_context.DynamicCtx(ctx)
-	tmpl := ctx.KnowledgeBase().GetEdgeTemplate(edge.Source, edge.Target)
+	kb := eval.Solution.KnowledgeBase()
+	tmpl := kb.GetEdgeTemplate(edge.Source, edge.Target)
 	if tmpl == nil {
 		return nil
 	}
 
-	allRes, err := graph.TopologicalSort(ctx.RawView())
+	allRes, err := construct.ToplogicalSort(eval.Solution.RawView())
 	if err != nil {
 		return err
 	}
 
+	se := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
+	se.Source.Name = ""
+	se.Target.Name = ""
+
 	addDepsMatching := func(ref construct.PropertyRef) error {
+		eval.Log().Debugf("Checking speculative deps for %s in %s", ref, se)
 		for _, res := range allRes {
 			if !ref.Resource.Matches(res) {
 				continue
 			}
-			tmpl, err := ctx.KnowledgeBase().GetResourceTemplate(res)
+			tmpl, err := kb.GetResourceTemplate(res)
 			if err != nil {
 				return err
 			}
@@ -295,12 +305,9 @@ func (v *pathExpandVertex) addDepsFromEdge(
 					Resource: res,
 					Property: ref.Property,
 				}
-				deps.Incoming.Add(Key{Ref: actualRef})
+				changes.addEdge(Key{Ref: actualRef}, v.Key())
 
-				se := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
-				se.Source.Name = ""
-				se.Target.Name = ""
-				zap.S().Debugf(
+				eval.Log().Debugf(
 					"Adding speculative dependency %s -> %s (matches %s from %s)",
 					actualRef, v.Key(), ref, se,
 				)
@@ -308,6 +315,8 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		}
 		return nil
 	}
+
+	dyn := solution_context.DynamicCtx(eval.Solution)
 
 	var errs error
 	for i, rule := range tmpl.OperationalRules {
@@ -341,14 +350,15 @@ func (v *pathExpandVertex) addDepsFromEdge(
 	return errs
 }
 
-func (v *pathExpandVertex) Dependencies(ctx solution_context.SolutionContext) (vertexDependencies, error) {
-	deps := newDeps()
-	cfgCtx := solution_context.DynamicCtx(ctx)
+func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
+	changes := newChanges()
+	cfgCtx := solution_context.DynamicCtx(eval.Solution)
+	srcKey := v.Key()
 
 	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
 	// if we dont, we should return what we currently have
 	if v.TempGraph == nil {
-		return deps, nil
+		return changes, nil
 	}
 
 	var errs error
@@ -366,7 +376,8 @@ func (v *pathExpandVertex) Dependencies(ctx solution_context.SolutionContext) (v
 			for _, currResource := range currResources {
 				val, err := cfgCtx.FieldValue(part, currResource)
 				if err != nil {
-					deps.Outgoing.Add(Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}})
+					targetKey := Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}}
+					changes.addEdge(srcKey, targetKey)
 					continue
 				}
 				if id, ok := val.(construct.ResourceId); ok {
@@ -381,28 +392,28 @@ func (v *pathExpandVertex) Dependencies(ctx solution_context.SolutionContext) (v
 
 	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
 	if err != nil {
-		return deps, err
+		return changes, err
 	}
-	errs = errors.Join(errs, v.addDepsFromProps(ctx, deps, v.Edge.Source, srcDeps))
+	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Source, srcDeps))
 
 	targetDeps, err := construct.AllUpstreamDependencies(v.TempGraph, v.Edge.Target)
 	if err != nil {
-		return deps, err
+		return changes, err
 	}
-	errs = errors.Join(errs, v.addDepsFromProps(ctx, deps, v.Edge.Target, targetDeps))
+	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Target, targetDeps))
 	if errs != nil {
-		return deps, errs
+		return changes, errs
 	}
 
 	edges, err := v.TempGraph.Edges()
 	if err != nil {
-		return deps, err
+		return changes, err
 	}
 	for _, edge := range edges {
-		errs = errors.Join(errs, v.addDepsFromEdge(ctx, deps, edge))
+		errs = errors.Join(errs, v.addDepsFromEdge(eval, changes, edge))
 	}
 
-	return deps, errs
+	return changes, errs
 }
 
 func DeterminePathSatisfactionInputs(

@@ -9,7 +9,6 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
 func (eval *Evaluator) Evaluate() error {
@@ -33,8 +32,11 @@ func (eval *Evaluator) Evaluate() error {
 		evaluated := make(set.Set[Key])
 		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
 
+		log := eval.Log().With("op", "eval")
+
 		var errs error
 		for _, v := range ready {
+			log.Debugf("Evaluating %s", v.Key())
 			evaluated.Add(v.Key())
 			err := v.Evaluate(eval)
 			if err != nil {
@@ -43,7 +45,7 @@ func (eval *Evaluator) Evaluate() error {
 			}
 		}
 		if errs != nil {
-			return errs
+			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder)-1, errs)
 		}
 
 		if err := eval.RecalculateUnevaluated(); err != nil {
@@ -53,7 +55,7 @@ func (eval *Evaluator) Evaluate() error {
 }
 
 func (eval *Evaluator) popReady() ([]Vertex, error) {
-	log := zap.S().With("op", "dequeue")
+	log := eval.Log().With("op", "dequeue")
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
 		return nil, err
@@ -67,9 +69,7 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 		}
 	}
 
-	ready := make([]Vertex, 0, len(readyKeys))
-	graphOps := make([]Vertex, 0, len(readyKeys))
-	defaults := make([]Vertex, 0, len(readyKeys))
+	readyPriorities := make([][]Vertex, NotReadyMax)
 	var errs error
 	for _, key := range readyKeys {
 		v, err := eval.unevaluated.Vertex(key)
@@ -77,41 +77,36 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		if state, ok := v.(*graphStateVertex); ok {
-			stateReady, err := state.Test(eval.Solution.DataflowGraph())
+		if cond, ok := v.(conditionalVertex); ok {
+			vReady, err := cond.Ready(eval)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			if stateReady {
-				ready = append(ready, state)
-			} else {
-				graphOps = append(graphOps, state)
+			_, props, _ := eval.graph.VertexWithProperties(key)
+			if props.Attributes != nil {
+				props.Attributes[attribReady] = vReady.String()
 			}
-		} else if propertyVertex, ok := v.(*propertyVertex); ok {
-			if propertyVertex.Template != nil && propertyVertex.Template.OperationalRule == nil {
-				defaults = append(defaults, propertyVertex)
-			} else {
-				ready = append(ready, propertyVertex)
-			}
+			readyPriorities[vReady] = append(readyPriorities[vReady], v)
 		} else {
-			ready = append(ready, v)
+			readyPriorities[ReadyNow] = append(readyPriorities[ReadyNow], v)
 		}
 	}
 	if errs != nil {
 		return nil, errs
 	}
 
-	if len(ready) == 0 {
-		ready = graphOps
-		if len(ready) == 0 {
-			ready = defaults
-			log.Debugf("Only defaults left, dequeued %d", len(ready))
-		} else {
-			log.Debugf("Only graph ops left, dequeued %d", len(ready))
+	var ready []Vertex
+	for i, prio := range readyPriorities {
+		if len(prio) > 0 && ready == nil {
+			ready = prio
+			log.Debugf("Dequeued %d", len(ready))
+			for _, v := range ready {
+				log.Debugf(" - %s", v.Key())
+			}
+		} else if len(prio) > 0 {
+			log.Debugf("Remaining unready [%s]: %d", ReadyPriority(i), len(prio))
 		}
-	} else {
-		log.Debugf("Dequeued %d, graph ops left: %d", len(ready), len(graphOps))
 	}
 
 	sort.SliceStable(ready, func(i, j int) bool {
@@ -129,9 +124,6 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 	})
 
 	for _, v := range ready {
-		log.Debugf(" - %s", v.Key())
-	}
-	for _, v := range ready {
 		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
 	}
 
@@ -145,7 +137,6 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 // There is likely a way to determine which vertices need to be recalculated, but the runtime impact of just
 // recalculating them all isn't large at the size of graphs we're currently running with.
 func (eval *Evaluator) RecalculateUnevaluated() error {
-	zap.S().Debug("Recalculating unevaluated graph for updated dependencies")
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
 		return err
@@ -159,7 +150,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, changes.AddVertex(eval.Solution, vertex))
+		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
 	}
 	if errs != nil {
 		return errs

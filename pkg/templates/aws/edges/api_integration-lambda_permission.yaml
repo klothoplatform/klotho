@@ -5,7 +5,7 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Target
-          value: '{{ fieldValue "LambdaFunction" .Target }}'
+          value: '{{ fieldValue "Function" .Target }}'
       - resource: '{{ .Source }}'
         configuration:
           field: Uri

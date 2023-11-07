@@ -86,19 +86,37 @@ type (
 
 func splitPath(path string) []string {
 	var parts []string
-	var delim string
-	for path != "" {
-		partIdx := strings.IndexAny(path, ".[")
-		var part string
-		if partIdx == -1 {
-			part = delim + path
-			path = ""
-		} else {
-			part = delim + path[:partIdx]
-			delim = path[partIdx : partIdx+1]
-			path = path[partIdx+1:]
+	bracket := 0
+	lastPartIdx := 0
+	for i := 0; i < len(path); i++ {
+		switch path[i] {
+		case '.':
+			if bracket == 0 {
+				if i > lastPartIdx {
+					parts = append(parts, path[lastPartIdx:i])
+				}
+				lastPartIdx = i
+			}
+
+		case '[':
+			if bracket == 0 {
+				if i > lastPartIdx {
+					parts = append(parts, path[lastPartIdx:i])
+				}
+				lastPartIdx = i
+			}
+			bracket++
+
+		case ']':
+			bracket--
+			if bracket == 0 {
+				parts = append(parts, path[lastPartIdx:i+1])
+				lastPartIdx = i + 1
+			}
 		}
-		parts = append(parts, part)
+		if i == len(path)-1 && lastPartIdx <= i {
+			parts = append(parts, path[lastPartIdx:])
+		}
 	}
 	return parts
 }
@@ -115,42 +133,62 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 	}
 	path := make(PropertyPath, len(pathParts))
 	value := reflect.ValueOf(r.Properties)
-	for i, part := range pathParts {
-		switch part[0] {
-		case '.':
-			part = part[1:]
-			fallthrough
-		default:
-			for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
-				value = value.Elem()
-			}
-			if value.IsValid() && value.Kind() != reflect.Map {
-				return nil, &PropertyPathError{
+
+	setMap := func(i int, key string) error {
+		for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
+			value = value.Elem()
+		}
+		if value.IsValid() {
+			if value.Kind() == reflect.Struct {
+				_, ok := value.Interface().(set.HashedSet[string, any])
+				if !ok {
+					return &PropertyPathError{
+						Path:  pathParts[:i],
+						Cause: fmt.Errorf("expected HashedSet as struct, got %T", value.Interface()),
+					}
+				}
+				// NOTE: this depends on the internals of set.HashedSet
+				value = value.FieldByName("M")
+			} else if value.Kind() != reflect.Map {
+				return &PropertyPathError{
 					Path:  pathParts[:i-1],
 					Cause: fmt.Errorf("expected map, got %s", value.Type()),
 				}
 			}
-			item := &mapValuePathItem{
-				m:   value,
-				key: reflect.ValueOf(part),
+		}
+		item := &mapValuePathItem{
+			m:   value,
+			key: reflect.ValueOf(key),
+		}
+		if i > 0 {
+			item._parent = path[i-1]
+		}
+		path[i] = item
+		if value.IsValid() {
+			value = value.MapIndex(item.key)
+		}
+		return nil
+	}
+
+	for i, part := range pathParts {
+		switch part[0] {
+		case '.':
+			err := setMap(i, part[1:])
+			if err != nil {
+				return nil, err
 			}
+		default:
 			if i > 0 {
-				item._parent = path[i-1]
-			}
-			path[i] = item
-			if value.IsValid() {
-				value = value.MapIndex(item.key)
-			}
-		case '[':
-			for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
-				value = value.Elem()
-			}
-			if value.IsValid() && value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
 				return nil, &PropertyPathError{
-					Path:  pathParts[:i-1],
-					Cause: fmt.Errorf("expected array, got %s", value.Type()),
+					Path:  pathParts[:i],
+					Cause: fmt.Errorf("expected '.' or '[' to start path part, got %q", part),
 				}
 			}
+			err := setMap(i, part)
+			if err != nil {
+				return nil, err
+			}
+		case '[':
 			if len(part) < 2 || part[len(part)-1] != ']' {
 				return nil, &PropertyPathError{
 					Path:  pathParts[:i],
@@ -160,7 +198,22 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 			idxStr := part[1 : len(part)-1]
 			idx, err := strconv.Atoi(idxStr)
 			if err != nil {
-				return nil, &PropertyPathError{Path: pathParts[:i], Cause: err}
+				// for `MyMap[key.with.periods]` form
+				err := setMap(i, idxStr)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+
+			for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
+				value = value.Elem()
+			}
+			if value.IsValid() && value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
+				return nil, &PropertyPathError{
+					Path:  pathParts[:i-1],
+					Cause: fmt.Errorf("expected array, got %s", value.Type()),
+				}
 			}
 			if !value.IsValid() || value.IsZero() {
 				value = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf((*any)(nil)).Elem()), 0, idx+1)
@@ -525,7 +578,9 @@ func (i PropertyPath) Parts() []string {
 		switch item := item.(type) {
 		case *mapValuePathItem:
 			key := item.key.String()
-			if idx > 0 {
+			if strings.ContainsAny(key, ".[") {
+				key = "[" + key + "]"
+			} else if idx > 0 {
 				key = "." + key
 			}
 			parts[idx] = key
