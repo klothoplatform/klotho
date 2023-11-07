@@ -2,7 +2,6 @@ package knowledgebase2
 
 import (
 	"fmt"
-	"reflect"
 )
 
 type (
@@ -33,7 +32,9 @@ func updateModels(property *Property, properties Properties, models map[string]*
 					properties[name] = newProp
 				}
 				if property != nil {
-					updateModelPaths(property)
+					if err := updateModelPaths(property); err != nil {
+						return err
+					}
 				}
 			} else {
 				p.Properties = models[*modelType].Properties.Clone()
@@ -43,34 +44,14 @@ func updateModels(property *Property, properties Properties, models map[string]*
 				} else if p.Type == fmt.Sprintf("list(%s)", modelString) {
 					p.Type = "list"
 				}
-				updateModelPaths(p)
+				if err := updateModelPaths(p); err != nil {
+					return err
+				}
 			}
 		}
 		err := updateModels(p, p.Properties, models)
 		if err != nil {
 			return err
-		}
-		// Substitute default values
-		if p.DefaultValue != nil {
-			if prop, found := properties[name]; found {
-				prop.DefaultValue = p.DefaultValue
-			} else {
-				// If we are spreading a model into the resource template we need to inspect
-				// the keys of the default values for field names
-				rval := reflect.ValueOf(p.DefaultValue)
-				for _, key := range rval.MapKeys() {
-					if !rval.MapIndex(key).IsValid() || rval.MapIndex(key).IsNil() {
-						continue
-					}
-					keyStr, found := key.Interface().(string)
-					if !found {
-						return fmt.Errorf("map key is not a string")
-					}
-					if prop, found := properties[keyStr]; found {
-						prop.DefaultValue = rval.MapIndex(key).Interface()
-					}
-				}
-			}
 		}
 	}
 	return nil

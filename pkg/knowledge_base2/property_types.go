@@ -362,7 +362,6 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 }
 
 func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
-
 	result := map[string]any{}
 
 	mapVal, ok := value.(map[string]any)
@@ -384,18 +383,11 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 		}
 
 		var errs error
-		for key, prop := range m.Property.Properties {
-
-			if _, found := mapVal[key]; !found && prop.DefaultValue != nil {
-				result[key] = prop.DefaultValue
-				continue
-			} else if _, found := mapVal[key]; found {
-
+		for key := range m.Property.Properties {
+			if _, found := mapVal[key]; found {
 				propertyType, err := m.Property.Properties[key].PropertyType()
 				if err != nil {
 					return nil, fmt.Errorf("unable to get property type for sub property %s: %w", key, err)
-				} else if propertyType == nil {
-					return nil, fmt.Errorf("%s is not a valid sub property", key)
 				}
 				propertyType.SetProperty(m.Property.Properties[key])
 				val, err := propertyType.Parse(mapVal[key], ctx, data)
