@@ -359,12 +359,6 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 	cfgCtx := solution_context.DynamicCtx(eval.Solution)
 	srcKey := v.Key()
 
-	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
-	// if we dont, we should return what we currently have
-	if v.TempGraph == nil {
-		return changes, nil
-	}
-
 	var errs error
 	parts := strings.Split(v.Satisfication.Classification, "#")
 	if len(parts) >= 2 {
@@ -392,6 +386,14 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 			}
 			currResources = nextResources
 		}
+	}
+
+	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
+	// if we dont, we should return what we currently have
+	// This has to be run after we analyze the refs used in path expansion to make sure the operational rules
+	// dont create other resources that need to be operated on in the path expand vertex
+	if v.TempGraph == nil {
+		return changes, nil
 	}
 
 	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
