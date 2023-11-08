@@ -14,6 +14,7 @@ const (
 	rankSize          = 20
 	errorColour       = "#e87b7b"
 	unevaluatedColour = "#e3cf9d"
+	addedByColour     = "#3f822b"
 )
 
 func keyAttributes(eval *Evaluator, key Key) map[string]string {
@@ -202,7 +203,10 @@ func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
 				attribs["group"] = fmt.Sprintf("group%d.%d", rank, i)
 				printf("    %q [%s]\n", key, attributesToString(attribs))
 
-				for tgt := range adj[key] {
+				for tgt, e := range adj[key] {
+					if addedBy := e.Properties.Attributes[attribAddedBy]; addedBy == tgt.String() {
+						continue
+					}
 					printf("  %q -> %q\n", key, tgt)
 				}
 			}
@@ -281,6 +285,10 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 
 			if group := e.Properties.Attributes[attribAddedIn]; group != "" {
 				edgeAttribs["label"] = fmt.Sprintf("+%s", group)
+			}
+			if addedBy := e.Properties.Attributes[attribAddedBy]; addedBy == tgt.String() {
+				edgeAttribs["color"] = addedByColour
+				edgeAttribs["style"] = "dashed"
 			}
 			if errored := e.Properties.Attributes[attribError]; errored != "" {
 				edgeAttribs["color"] = errorColour

@@ -39,16 +39,18 @@ func (eval *Evaluator) Evaluate() error {
 
 		var errs error
 		for _, v := range ready {
-			log.Debugf("Evaluating %s", v.Key())
-			evaluated.Add(v.Key())
+			k := v.Key()
+			log.Debugf("Evaluating %s", k)
+			evaluated.Add(k)
+			eval.currentKey = &k
 			err := v.Evaluate(eval)
 			if err != nil {
-				eval.errored.Add(v.Key())
-				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", v.Key(), err))
+				eval.errored.Add(k)
+				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", k, err))
 			}
 		}
 		if errs != nil {
-			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder)-1, errs)
+			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder), errs)
 		}
 
 		if err := eval.RecalculateUnevaluated(); err != nil {

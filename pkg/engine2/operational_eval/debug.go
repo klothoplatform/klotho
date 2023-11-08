@@ -19,6 +19,7 @@ const (
 	attribAddedIn = "added_in"
 	attribError   = "error"
 	attribReady   = "ready"
+	attribAddedBy = "added_by"
 )
 
 func PrintGraph(g Graph) {

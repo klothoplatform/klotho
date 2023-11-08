@@ -25,6 +25,8 @@ type (
 
 		evaluatedOrder []set.Set[Key]
 		errored        set.Set[Key]
+
+		currentKey *Key
 	}
 
 	Key struct {
@@ -149,6 +151,9 @@ func (eval *Evaluator) addEdge(source, target Key) error {
 
 	err = eval.graph.AddEdge(source, target, func(ep *graph.EdgeProperties) {
 		ep.Attributes[attribAddedIn] = fmt.Sprintf("%d", len(eval.evaluatedOrder))
+		if eval.currentKey != nil {
+			ep.Attributes[attribAddedBy] = eval.currentKey.String()
+		}
 	})
 	if err != nil {
 		if errors.Is(err, graph.ErrEdgeCreatesCycle) {
@@ -217,10 +222,16 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 		case errors.Is(err, graph.ErrVertexNotFound):
 			err := eval.graph.AddVertex(v, func(vp *graph.VertexProperties) {
 				vp.Attributes[attribAddedIn] = fmt.Sprintf("%d", len(eval.evaluatedOrder))
+				if eval.currentKey != nil {
+					vp.Attributes[attribAddedBy] = eval.currentKey.String()
+				}
 			})
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
+			}
+			if eval.currentKey != nil {
+				changes.addEdge(key, *eval.currentKey)
 			}
 			log.Debugf("Enqueued %s", key)
 			if err := eval.unevaluated.AddVertex(v); err != nil {
@@ -390,6 +401,18 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 				eval.evaluatedOrder[i].Remove(oldKey)
 				eval.evaluatedOrder[i].Add(key)
 			}
+		}
+	}
+
+	for key := range eval.errored {
+		oldKey := key
+		if key.Ref.Resource == oldId {
+			key.Ref.Resource = newId
+		}
+		key.Edge = UpdateEdgeId(key.Edge, oldId, newId)
+		if key != oldKey {
+			eval.errored.Remove(oldKey)
+			eval.errored.Add(key)
 		}
 	}
 
