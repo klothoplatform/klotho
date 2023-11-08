@@ -60,6 +60,53 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 	if err != nil {
 		return err
 	}
+	// Lets check to see if the unique resource was created by some other process
+	// it must be directly up/downstream and have no other dependencies in that direction
+	var ids []construct.ResourceId
+	if action.Step.Direction == knowledgebase.DirectionDownstream {
+		ids, err = solution_context.Downstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
+		if err != nil {
+			return err
+		}
+	} else {
+		ids, err = solution_context.Upstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
+		if err != nil {
+			return err
+		}
+	}
+	for _, id := range ids {
+		if priorityType.Matches(id) {
+			var uids []construct.ResourceId
+			if action.Step.Direction == knowledgebase.DirectionUpstream {
+				uids, err = solution_context.Downstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
+				if err != nil {
+					return err
+				}
+			} else {
+				uids, err = solution_context.Upstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
+				if err != nil {
+					return err
+				}
+			}
+			if len(uids) == 1 {
+				res, err := action.ruleCtx.Solution.RawView().Vertex(id)
+				if err != nil {
+					return err
+				}
+				if action.numNeeded > 0 {
+					err := action.ruleCtx.addDependencyForDirection(action.Step, resource, res)
+					if err != nil {
+						return err
+					}
+					action.numNeeded--
+					if action.numNeeded == 0 {
+						break
+					}
+				}
+			}
+		}
+	}
+
 	for action.numNeeded > 0 {
 		err := action.createResource(priorityType, selector, resource)
 		if err != nil {

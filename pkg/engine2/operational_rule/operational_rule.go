@@ -123,6 +123,8 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			}
 			if !isMatch {
 				toRemove.Add(id)
+			} else {
+				matching = append(matching, id)
 			}
 		}
 
@@ -158,6 +160,8 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 			}
 			if !isMatch {
 				toRemove.Add(id)
+			} else {
+				matching = append(matching, id)
 			}
 		}
 
