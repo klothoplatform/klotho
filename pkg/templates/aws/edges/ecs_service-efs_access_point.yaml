@@ -11,13 +11,6 @@ operational_rules:
               AccessPoint: '{{ .Target}}'
               Iam: ENABLED
             TransitEncryption: ENABLED
-
-      - resource: '{{ .Source }}'
-        configuration:
-          field: EnvironmentVariables
-          value: |
-            {{ (fieldValue "FileSystem" .Target).Name }}_MOUNT_PATH: {{ .Target }}#EfsMountPath
-
   - if: |
       {{- if (hasDownstream "aws:vpc" .Source) }}
         {{ $ecsVpc := (downstream "aws:vpc" .Source) }}

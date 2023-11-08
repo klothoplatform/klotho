@@ -33,7 +33,7 @@ properties:
             default_value: 1000
           Permissions:
             type: string
-            default_value: 777
+            default_value: '777'
       Path:
         type: string
         default_value: /mnt/efs

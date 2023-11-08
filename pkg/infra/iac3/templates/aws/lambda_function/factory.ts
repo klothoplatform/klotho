@@ -34,7 +34,7 @@ function create(args: Args): aws.lambda.Function {
             //TMPL {{- if .EfsAccessPoint }}
             fileSystemConfig: {
                 arn: args.EfsAccessPoint.arn,
-                localMountPath: `/mnt/${args.EfsAccessPoint.rootDirectory.path}`,
+                localMountPath: args.EfsAccessPoint.rootDirectory.path,
             },
             //TMPL {{- end }}
             //TMPL {{- if and .SecurityGroups .Subnets }}

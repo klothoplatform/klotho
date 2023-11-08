@@ -5,13 +5,7 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: EfsAccessPoint
-          value: '{{ fieldValue "FileSystem" .Target }}'
-      - resource: '{{ .Source }}'
-        configuration:
-          field: EnvironmentVariables
-          value: |
-            {{ (fieldValue "FileSystem" .Target).Name }}_MOUNT_PATH: {{ .Target }}#EfsMountPath
-
+          value: '{{ .Target }}'
   - if: |
       {{- if (hasDownstream "aws:vpc" .Source) }}
         {{ $lambdaVpc := (downstream "aws:vpc" .Source) }}
