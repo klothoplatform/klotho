@@ -52,7 +52,7 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-  HostName:
+  Endpoint:
     type: string
     configuration_disabled: true
     deploy_time: true

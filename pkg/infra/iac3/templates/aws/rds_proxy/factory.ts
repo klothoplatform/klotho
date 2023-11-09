@@ -25,3 +25,9 @@ function create(args: Args): aws.rds.Proxy {
         auths: args.Auths,
     })
 }
+
+function properties(object: aws.rds.Proxy, args: Args) {
+    return {
+        Endpoint: object.endpoint,
+    }
+}

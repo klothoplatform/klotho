@@ -44,10 +44,10 @@ function properties(object: aws.rds.Instance, args: Args) {
         Password: kloConfig.requireSecret(`${args.Name}-password`),
         Username: kloConfig.requireSecret(`${args.Name}-username`),
         CredentialsSecretValue: pulumi.jsonStringify({
-            usename: object.username,
+            username: object.username,
             password: object.password,
         }),
         RdsConnectionArn: pulumi.interpolate`arn:aws:rds-db:${region.name}:${accountId.accountId}:dbuser:${object.resourceId}/${object.username}`,
-        HostName: object.endpoint,
+        Endpoint: object.endpoint,
     }
 }

@@ -49,6 +49,10 @@ properties:
         type: string
       Secret:
         type: resource(aws:secret)
+  Endpoint:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 path_satisfaction:
   as_source:
