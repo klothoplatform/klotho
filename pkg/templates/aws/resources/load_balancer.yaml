@@ -1,5 +1,19 @@
 qualified_type_name: aws:load_balancer
 display_name: Load Balancer
+sanitize_name:
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_CreateLoadBalancer.html
+  # This name must be unique per region per account,
+  # can have a maximum of 32 characters,
+  # must contain only alphanumeric characters or hyphens,
+  # must not begin or end with a hyphen,
+  # and must not begin with "internal-".
+  |
+  {{ . 
+    | replace `^internal-` ""
+    | replace `(^-)|(-$)` ""
+    | replace `[^[:alnum:]-]+` "-"
+    | length 1 32
+  }}
 
 properties:
   IpAddressType:

@@ -323,8 +323,12 @@ func (action *operationalResourceAction) createResource(
 	selector knowledgebase.ResourceSelector,
 	stepResource *construct.Resource,
 ) error {
-	newRes := construct.CreateResource(resourceType)
-	if err := action.generateResourceName(&newRes.ID, stepResource.ID); err != nil {
+	resId := resourceType
+	if err := action.generateResourceName(&resId, stepResource.ID); err != nil {
+		return err
+	}
+	newRes, err := knowledgebase.CreateResource(action.ruleCtx.Solution.KnowledgeBase(), resId)
+	if err != nil {
 		return err
 	}
 	if err := action.createAndAddDependency(newRes, stepResource); err != nil {

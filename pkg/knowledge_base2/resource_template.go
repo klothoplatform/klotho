@@ -1,7 +1,12 @@
 package knowledgebase2
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -29,6 +34,8 @@ type (
 		Views map[string]string `json:"views" yaml:"views"`
 
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
+
+		SanitizeNameTmpl string `yaml:"sanitize_name"`
 	}
 
 	Properties map[string]*Property
@@ -155,6 +162,87 @@ func (template ResourceTemplate) Id() construct.ResourceId {
 		Provider: args[0],
 		Type:     args[1],
 	}
+}
+
+// CreateResource creates an empty resource for the given ID, running any sanitization rules on the ID.
+// NOTE: Because of sanitization, once created callers must use the resulting ID for all future operations
+// and not the input ID.
+func CreateResource(kb TemplateKB, id construct.ResourceId) (*construct.Resource, error) {
+	rt, err := kb.GetResourceTemplate(id)
+	if err != nil {
+		return nil, fmt.Errorf("could not create resource: get template err: %w", err)
+	}
+	id.Name, err = rt.SanitizeName(id.Name)
+	if err != nil {
+		return nil, fmt.Errorf("could not create resource: %w", err)
+	}
+	return &construct.Resource{
+		ID:         id,
+		Properties: make(construct.Properties),
+	}, nil
+}
+
+func SanitizeEdge(kb TemplateKB, e construct.SimpleEdge) (construct.SimpleEdge, error) {
+	sRT, err := kb.GetResourceTemplate(e.Source)
+	if err != nil {
+		return e, fmt.Errorf("could not get source resource template: %w", err)
+	}
+	tRT, err := kb.GetResourceTemplate(e.Target)
+	if err != nil {
+		return e, fmt.Errorf("could not get target resource template: %w", err)
+	}
+	e.Source.Name, err = sRT.SanitizeName(e.Source.Name)
+	if err != nil {
+		return e, fmt.Errorf("could not sanitize source name: %w", err)
+	}
+	e.Target.Name, err = tRT.SanitizeName(e.Target.Name)
+	if err != nil {
+		return e, fmt.Errorf("could not sanitize target name: %w", err)
+	}
+	return e, nil
+}
+
+func (rt ResourceTemplate) SanitizeName(name string) (string, error) {
+	if rt.SanitizeNameTmpl == "" {
+		return name, nil
+	}
+	nt, err := template.New(rt.QualifiedTypeName + "/sanitize_name").
+		Funcs(template.FuncMap{
+			"replace": func(pattern, replace, name string) (string, error) {
+				re, err := regexp.Compile(pattern)
+				if err != nil {
+					return name, err
+				}
+				return re.ReplaceAllString(name, replace), nil
+			},
+
+			"length": func(min, max int, name string) string {
+				if len(name) < min {
+					return name + strings.Repeat("0", min-len(name))
+				}
+				if len(name) > max {
+					base := name[:max-8]
+					h := sha256.New()
+					fmt.Fprint(h, name)
+					x := fmt.Sprintf("%x", h.Sum(nil))
+					return base + x[:8]
+				}
+				return name
+			},
+
+			"lower": strings.ToLower,
+			"upper": strings.ToUpper,
+		}).
+		Parse(rt.SanitizeNameTmpl)
+	if err != nil {
+		return name, fmt.Errorf("could not parse sanitize name template %q: %w", rt.SanitizeNameTmpl, err)
+	}
+	buf := new(bytes.Buffer)
+	err = nt.Execute(buf, name)
+	if err != nil {
+		return name, fmt.Errorf("could not execute sanitize name template on %q: %w", name, err)
+	}
+	return strings.TrimSpace(buf.String()), nil
 }
 
 func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string, functionality Functionality) bool {

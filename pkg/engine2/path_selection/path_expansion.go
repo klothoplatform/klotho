@@ -371,7 +371,10 @@ func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Gr
 			continue
 		}
 		if r == nil {
-			r = construct.CreateResource(resource)
+			r, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), resource)
+			if err != nil {
+				return err
+			}
 		}
 		_ = g.AddVertex(r)
 		if i == 0 {

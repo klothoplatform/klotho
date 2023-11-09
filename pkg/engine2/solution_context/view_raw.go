@@ -2,6 +2,7 @@ package solution_context
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -20,11 +21,11 @@ func (view RawAccessView) Traits() *graph.Traits {
 }
 
 func (view RawAccessView) AddVertex(value *construct.Resource, options ...func(*graph.VertexProperties)) error {
-	dfErr := view.inner.DataflowGraph().AddVertex(value, options...)
 	rt, err := view.inner.KnowledgeBase().GetResourceTemplate(value.ID)
 	if err != nil {
 		return err
 	}
+	dfErr := view.inner.DataflowGraph().AddVertex(value, options...)
 	if !rt.NoIac {
 		deplErr := view.inner.DeploymentGraph().AddVertex(value, options...)
 		if errors.Is(dfErr, graph.ErrVertexAlreadyExists) && errors.Is(deplErr, graph.ErrVertexAlreadyExists) {
@@ -72,7 +73,9 @@ func (view RawAccessView) Vertex(hash construct.ResourceId) (*construct.Resource
 	return view.inner.DataflowGraph().Vertex(hash)
 }
 
-func (view RawAccessView) VertexWithProperties(hash construct.ResourceId) (*construct.Resource, graph.VertexProperties, error) {
+func (view RawAccessView) VertexWithProperties(
+	hash construct.ResourceId,
+) (*construct.Resource, graph.VertexProperties, error) {
 	return view.inner.DataflowGraph().VertexWithProperties(hash)
 }
 
@@ -157,7 +160,25 @@ func (view RawAccessView) Edges() ([]construct.Edge, error) {
 	return view.inner.DataflowGraph().Edges()
 }
 
-func (view RawAccessView) UpdateEdge(source, target construct.ResourceId, options ...func(properties *graph.EdgeProperties)) error {
+func (view RawAccessView) UpdateEdge(
+	source, target construct.ResourceId,
+	options ...func(properties *graph.EdgeProperties),
+) error {
+	for _, id := range []*construct.ResourceId{&source, &target} {
+		rt, err := view.inner.KnowledgeBase().GetResourceTemplate(*id)
+		if err != nil {
+			res := "source"
+			if *id == target {
+				res = "target"
+			}
+			return fmt.Errorf("could not get template for %s: %w", res, err)
+		}
+		id.Name, err = rt.SanitizeName(id.Name)
+		if err != nil {
+			return fmt.Errorf("failed to sanitize name in %s: %w", *id, err)
+		}
+	}
+
 	dfErr := view.inner.DataflowGraph().UpdateEdge(source, target, options...)
 
 	var deplErr error

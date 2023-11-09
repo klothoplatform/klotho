@@ -11,10 +11,3 @@ type Resource struct {
 func (r *Resource) Id() ResourceId {
 	return r.ID
 }
-
-func CreateResource(id ResourceId) *Resource {
-	return &Resource{
-		ID:         id,
-		Properties: make(Properties),
-	}
-}

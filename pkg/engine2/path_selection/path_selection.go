@@ -28,11 +28,11 @@ func BuildPathSelectionGraph(
 			dep, err,
 		)
 	}
-	err = tempGraph.AddVertex(construct.CreateResource(dep.Source))
+	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Source})
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
 	}
-	err = tempGraph.AddVertex(construct.CreateResource(dep.Target))
+	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Target})
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
@@ -54,7 +54,7 @@ func BuildPathSelectionGraph(
 			} else if i == len(path)-1 {
 				id = dep.Target
 			}
-			resource := construct.CreateResource(id)
+			resource := &construct.Resource{ID: id}
 			err = tempGraph.AddVertex(resource)
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, err

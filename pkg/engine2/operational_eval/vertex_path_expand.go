@@ -120,7 +120,11 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 		res, err := eval.Solution.OperationalView().Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			res = construct.CreateResource(pathId)
+			res, err = knowledgebase.CreateResource(eval.Solution.KnowledgeBase(), pathId)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
 			errs = errors.Join(errs, eval.Solution.OperationalView().AddVertex(res))
 

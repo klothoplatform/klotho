@@ -59,7 +59,7 @@ func stringTo(g Graph, w io.Writer) error {
 	}
 
 	for _, id := range topo {
-		_, err := fmt.Fprintf(w, "%s\n", id)
+		_, err := fmt.Fprintf(w, "%q\n", id)
 		if err != nil {
 			return err
 		}
@@ -77,7 +77,7 @@ func stringTo(g Graph, w io.Writer) error {
 				weight = fmt.Sprintf(" (weight=%d)", e.Properties.Weight)
 			}
 			// Adjacent edges always have `id` as the source, so just write the target.
-			_, err := fmt.Fprintf(w, "-> %s%s\n", t, weight)
+			_, err := fmt.Fprintf(w, "-> %q%s\n", t, weight)
 			if err != nil {
 				return err
 			}

@@ -1,5 +1,15 @@
 qualified_type_name: aws:rds_proxy_target_group
 display_name: RDS Proxy Target Group
+sanitize_name:
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-dbproxytargetgroup.html
+  # Pattern: [A-z][0-z]*
+  # Maximum: 64
+  |
+  {{ . 
+    | replace `^[^A-z]+` "" 
+    | replace `[^0-z]+` "_"
+    | length 1 64
+  }}
 
 properties:
   RdsInstance:

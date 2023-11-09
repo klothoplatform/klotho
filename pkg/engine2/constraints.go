@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 func ApplyConstraints(ctx solution_context.SolutionContext) error {
@@ -27,6 +28,11 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 		return errs
 	}
 
+	resourceConstraints := ctx.Constraints().Resources
+	for i := range resourceConstraints {
+		errs = errors.Join(errs, applySanitization(ctx, &resourceConstraints[i]))
+	}
+
 	return nil
 }
 
@@ -34,25 +40,39 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint constraints.ApplicationConstraint) error {
 	ctx = ctx.With("constraint", constraint)
 
+	res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Node)
+	if err != nil {
+		return err
+	}
+
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
-		res := construct.CreateResource(constraint.Node)
 		return ctx.OperationalView().AddVertex(res)
 
 	case constraints.RemoveConstraintOperator:
-		return reconciler.RemoveResource(ctx, constraint.Node, true)
+		return reconciler.RemoveResource(ctx, res.ID, true)
 
 	case constraints.ReplaceConstraintOperator:
-		node, err := ctx.RawView().Vertex(constraint.Node)
+		node, err := ctx.RawView().Vertex(res.ID)
 		if err != nil {
-			return fmt.Errorf("could not find resource for %s: %w", constraint.Node, err)
+			return fmt.Errorf("could not find resource for %s: %w", res.ID, err)
 		}
 		if node.ID.QualifiedTypeName() == constraint.ReplacementNode.QualifiedTypeName() {
-			node.ID = constraint.ReplacementNode
-			return construct.PropagateUpdatedId(ctx.OperationalView(), constraint.Node)
+			rt, err := ctx.KnowledgeBase().GetResourceTemplate(constraint.ReplacementNode)
+			if err != nil {
+				return err
+			}
+			constraint.ReplacementNode.Name, err = rt.SanitizeName(constraint.ReplacementNode.Name)
+			if err != nil {
+				return err
+			}
+			return ctx.OperationalView().UpdateResourceID(res.ID, constraint.ReplacementNode)
 		} else {
-			replacement := construct.CreateResource(constraint.ReplacementNode)
-			return construct.ReplaceResource(ctx.OperationalView(), constraint.Node, replacement)
+			replacement, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.ReplacementNode)
+			if err != nil {
+				return err
+			}
+			return construct.ReplaceResource(ctx.OperationalView(), res.ID, replacement)
 		}
 
 	default:
@@ -72,10 +92,33 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constraints.EdgeConstraint) error {
 	ctx = ctx.With("constraint", constraint)
 
+	for _, id := range []*construct.ResourceId{&constraint.Target.Source, &constraint.Target.Target} {
+		rt, err := ctx.KnowledgeBase().GetResourceTemplate(*id)
+		if err != nil {
+			res := "source"
+			if *id == constraint.Target.Target {
+				res = "target"
+			}
+			return fmt.Errorf("could not get template for %s: %w", res, err)
+		}
+		(*id).Name, err = rt.SanitizeName((*id).Name)
+		if err != nil {
+			res := "source"
+			if *id == constraint.Target.Target {
+				res = "target"
+			}
+			return fmt.Errorf("could not sanitize %s name: %w", res, err)
+		}
+	}
+
 	addPath := func() error {
 		switch _, err := ctx.RawView().Vertex(constraint.Target.Source); {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			err := ctx.OperationalView().AddVertex(construct.CreateResource(constraint.Target.Source))
+			res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Target.Source)
+			if err != nil {
+				return fmt.Errorf("could not create source resource: %w", err)
+			}
+			err = ctx.OperationalView().AddVertex(res)
 			if err != nil {
 				return fmt.Errorf("could not add source resource %s: %w", constraint.Target.Source, err)
 			}
@@ -86,7 +129,11 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 
 		switch _, err := ctx.RawView().Vertex(constraint.Target.Target); {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			err := ctx.OperationalView().AddVertex(construct.CreateResource(constraint.Target.Target))
+			res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Target.Target)
+			if err != nil {
+				return fmt.Errorf("could not create target resource: %w", err)
+			}
+			err = ctx.OperationalView().AddVertex(res)
 			if err != nil {
 				return fmt.Errorf("could not add target resource %s: %w", constraint.Target.Target, err)
 			}
@@ -140,4 +187,16 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		return removePath()
 	}
 	return nil
+}
+
+// applySanitization applies sanitization to the resource name in ResourceConstraints. This is not needed on
+// Application or Edge constraints due to them applying within the graph (to make sure that even generated resources
+// are sanitized).
+func applySanitization(ctx solution_context.SolutionContext, constraint *constraints.ResourceConstraint) error {
+	rt, err := ctx.KnowledgeBase().GetResourceTemplate(constraint.Target)
+	if err != nil {
+		return err
+	}
+	constraint.Target.Name, err = rt.SanitizeName(constraint.Target.Name)
+	return err
 }

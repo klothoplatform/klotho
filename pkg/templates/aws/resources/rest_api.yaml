@@ -1,5 +1,7 @@
 qualified_type_name: aws:rest_api
 display_name: REST API
+sanitize_name: |
+  {{ . | replace `[^a-zA-Z0-9_-]+` "-" | length 3 64 }}
 
 properties:
   BinaryMediaTypes:
@@ -18,7 +20,6 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-
 
 path_satisfaction:
   as_source:
