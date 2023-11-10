@@ -10,5 +10,6 @@ targets:
   - aws:log_group
   - aws:s3_bucket
   - aws:sqs_queue
+  - aws:secret
 
 edge_weight_multiplier: 2
