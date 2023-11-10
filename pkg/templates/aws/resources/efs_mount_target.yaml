@@ -31,11 +31,15 @@ properties:
   IpAddress:
     type: string
 
+path_satisfaction:
+  as_target:
+    - classification: network
+      property_reference: Subnet#AvailabilityZone
+      validity: downstream
+
 classification:
   is:
     - efs_access
-    - network
-    - network#Subnet
 
 views:
   dataflow: small

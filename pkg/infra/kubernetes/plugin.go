@@ -51,12 +51,15 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 			if prop, err := resource.GetProperty("Internal"); err == nil && prop == true {
 				internalChart, ok := internalCharts[clusterId.Name]
 				if !ok {
-					internalChart = construct.CreateResource(construct.ResourceId{
+					internalChart, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
 						Provider:  "kubernetes",
 						Type:      "helm_chart",
 						Namespace: clusterId.Name,
 						Name:      "klotho-internals-chart",
 					})
+					if err != nil {
+						return err
+					}
 					chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, internalChart.ID.Namespace, internalChart.ID.Name)
 					err := internalChart.SetProperty("Directory", chartDir)
 					if err != nil {
@@ -85,12 +88,15 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 			} else {
 				appChart, ok := customerCharts[clusterId.Name]
 				if !ok {
-					appChart = construct.CreateResource(construct.ResourceId{
+					appChart, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
 						Provider:  "kubernetes",
 						Type:      "helm_chart",
 						Namespace: clusterId.Name,
 						Name:      "application-chart",
 					})
+					if err != nil {
+						return err
+					}
 					chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, appChart.ID.Namespace, appChart.ID.Name)
 					err := appChart.SetProperty("Directory", chartDir)
 					if err != nil {

@@ -9,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -32,7 +33,7 @@ type (
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
-		PathSatisfication pathSatisfication
+		PathSatisfication knowledgebase.EdgePathSatisfaction
 		Internal          string
 	}
 
@@ -86,15 +87,18 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return string(key.GraphState)
 	}
-	if key.PathSatisfication.valid {
+	if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
 		args := []string{
 			key.Edge.String(),
 		}
 		if key.PathSatisfication.Classification != "" {
 			args = append(args, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if key.PathSatisfication.AsTarget {
-			args = append(args, "target")
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Target) {
+			args = append(args, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
+		}
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Source) {
+			args = append(args, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
 	}
@@ -123,15 +127,15 @@ func (key Key) Less(other Key) bool {
 		}
 		return key.GraphState < other.GraphState
 	}
-	if key.PathSatisfication.valid {
-		if !other.PathSatisfication.valid {
-			return true
-		}
-		if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
-			return key.PathSatisfication.Classification < other.PathSatisfication.Classification
-		}
-		return key.Edge.Less(other.Edge)
-	}
+	// if key.PathSatisfication.valid {
+	// 	if !other.PathSatisfication.valid {
+	// 		return true
+	// 	}
+	// 	if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
+	// 		return key.PathSatisfication.Classification < other.PathSatisfication.Classification
+	// 	}
+	// 	return key.Edge.Less(other.Edge)
+	// }
 	if key.Edge != (construct.SimpleEdge{}) {
 		if other.Edge == (construct.SimpleEdge{}) {
 			return true

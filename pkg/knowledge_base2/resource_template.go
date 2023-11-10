@@ -83,9 +83,17 @@ type (
 	}
 
 	PathSatisfaction struct {
-		AsTarget []string `json:"as_target" yaml:"as_target"`
-		AsSource []string `json:"as_source" yaml:"as_source"`
+		AsTarget []PathSatisfactionRoute `json:"as_target" yaml:"as_target"`
+		AsSource []PathSatisfactionRoute `json:"as_source" yaml:"as_source"`
 	}
+
+	PathSatisfactionRoute struct {
+		Classification    string                            `json:"classification" yaml:"classification"`
+		PropertyReference string                            `json:"property_reference" yaml:"property_reference"`
+		Validity          PathSatisfactionValidityOperation `json:"validity" yaml:"validity"`
+	}
+
+	PathSatisfactionValidityOperation string
 
 	Functionality string
 )
@@ -97,7 +105,28 @@ const (
 	Api       Functionality = "api"
 	Messaging Functionality = "messaging"
 	Unknown   Functionality = "Unknown"
+
+	DownstreamOperation PathSatisfactionValidityOperation = "downstream"
 )
+
+func (p *PathSatisfactionRoute) UnmarshalYAML(n *yaml.Node) error {
+	type h PathSatisfactionRoute
+	var p2 h
+	err := n.Decode(&p2)
+	if err != nil {
+		routeString := n.Value
+		routeParts := strings.Split(routeString, "#")
+		p2.Classification = routeParts[0]
+		if len(routeParts) > 1 {
+			p2.PropertyReference = strings.Join(routeParts[1:], "#")
+		}
+		*p = PathSatisfactionRoute(p2)
+		return nil
+	}
+	p2.Validity = PathSatisfactionValidityOperation(strings.ToLower(string(p2.Validity)))
+	*p = PathSatisfactionRoute(p2)
+	return nil
+}
 
 func (p *Properties) UnmarshalYAML(n *yaml.Node) error {
 	type h Properties

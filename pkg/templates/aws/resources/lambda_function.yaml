@@ -77,6 +77,7 @@ path_satisfaction:
     - permissions
   as_source:
     - network#Subnets
+    - network    # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 steps
 
 classification:
   is:

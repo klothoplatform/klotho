@@ -1,7 +1,10 @@
 package solution_context
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
@@ -72,4 +75,61 @@ func ConstraintOperatorToAction(op constraints.ConstraintOperator) (string, erro
 	default:
 		return "", fmt.Errorf("invalid operator %s", op)
 	}
+}
+
+// getResourcesFromPropertyReference takes a property reference and returns all the resources that are
+// referenced by it. It does this by walking the property reference (split by #)
+// and finding all the resources that are in the property.
+func GetResourcesFromPropertyReference(
+	ctx SolutionContext,
+	resource construct.ResourceId,
+	propertyRef string,
+) (
+	resources []construct.ResourceId,
+	errs error,
+) {
+	parts := strings.Split(propertyRef, "#")
+	resources = []construct.ResourceId{resource}
+	if propertyRef == "" {
+		return
+	}
+	for _, part := range parts {
+		fieldValueResources := []construct.ResourceId{}
+		for _, resId := range resources {
+			r, err := ctx.RawView().Vertex(resId)
+			if r == nil || err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"failed to determine path satisfaction inputs. could not find resource %s: %w",
+					resId, err,
+				))
+				continue
+			}
+			val, err := r.GetProperty(part)
+			if err != nil || val == nil {
+				continue
+			}
+			if id, ok := val.(construct.ResourceId); ok {
+				fieldValueResources = append(fieldValueResources, id)
+			} else if rval := reflect.ValueOf(val); rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array {
+				for i := 0; i < rval.Len(); i++ {
+					idVal := rval.Index(i).Interface()
+					if id, ok := idVal.(construct.ResourceId); ok {
+						fieldValueResources = append(fieldValueResources, id)
+					} else {
+						errs = errors.Join(errs, fmt.Errorf(
+							"failed to determine path satisfaction inputs. array property %s on resource %s is not a resource id",
+							part, resId,
+						))
+					}
+				}
+			} else {
+				errs = errors.Join(errs, fmt.Errorf(
+					"failed to determine path satisfaction inputs. property %s on resource %s is not a resource id",
+					part, resId,
+				))
+			}
+		}
+		resources = fieldValueResources
+	}
+	return
 }

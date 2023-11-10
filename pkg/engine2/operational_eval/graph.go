@@ -87,23 +87,25 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 		edge construct.SimpleEdge,
 		kb knowledgebase.TemplateKB,
 		satisfication knowledgebase.EdgePathSatisfaction) error {
+
+		buildTempGraph := true
+		// We are checking to see if either of the source or target nodes will change due to property references,
+		// if there are property references we want to ensure the correct dependency ordering is in place so
+		// we cannot yet split the expansion vertex up or build the temp graph
+		if propertyReferenceInfluencesEdge(satisfication.Source) || propertyReferenceInfluencesEdge(satisfication.Target) {
+			buildTempGraph = false
+		}
+
 		var tempGraph construct.Graph
-		if !strings.Contains(satisfication.Classification, "#") {
+		if buildTempGraph {
 			var err error
 			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification)
 			if err != nil {
-				return fmt.Errorf("could not build path selection graph: %w", err)
+				return fmt.Errorf("could not build temp graph for %s: %w", edge, err)
 			}
 		}
-		vertex := pathExpandVertex{
-			Edge: edge,
-			Satisfication: pathSatisfication{
-				EdgePathSatisfaction: satisfication,
-				valid:                true,
-			},
-			TempGraph: tempGraph,
-		}
-		return changes.AddVertexAndDeps(eval, &vertex)
+		vertex := &pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
+		return changes.AddVertexAndDeps(eval, vertex)
 	}
 
 	kb := eval.Solution.KnowledgeBase()
@@ -119,7 +121,7 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 		errs = errors.Join(errs, generateAndAddVertex(edge, kb, satisfication))
 	}
 	if len(pathSatisfications) == 0 {
-		errs = errors.Join(errs, generateAndAddVertex(edge, kb, knowledgebase.EdgePathSatisfaction{}))
+		errs = errors.Join(errs, fmt.Errorf("could not find any path satisfications for %s", edge))
 	}
 	return changes, errs
 }

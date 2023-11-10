@@ -37,45 +37,48 @@ func ExpandEdge(
 		errs = errors.Join(errs, err)
 	}
 	if !connected {
-		errs = errors.Join(errs, expandEdge(ctx, dep, tempGraph, result))
+		errs = errors.Join(errs, expandEdge(ctx, input, result))
 	}
 	return result, errs
 }
 
 func expandEdge(
 	ctx solution_context.SolutionContext,
-	dep construct.ResourceEdge,
-	tempGraph construct.Graph,
+	input ExpansionInput,
 	g construct.Graph,
 ) error {
-	paths, err := graph.AllPathsBetween(tempGraph, dep.Source.ID, dep.Target.ID)
+	paths, err := graph.AllPathsBetween(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
 	if err != nil {
 		return err
 	}
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
 	for _, path := range paths {
-		errs = errors.Join(errs, ExpandPath(ctx, dep, path, tempGraph, g))
+		errs = errors.Join(errs, ExpandPath(ctx, input, path, g))
 	}
 	if errs != nil {
 		return errs
 	}
 
-	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
+	path, err := graph.ShortestPath(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
 	if err != nil {
-		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", dep.Source.ID, dep.Target.ID, err))
+		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
 	}
 
-	name := fmt.Sprintf("%s_%s", dep.Source.ID.Name, dep.Target.ID.Name)
+	name := fmt.Sprintf("%s_%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
 	// rename phantom nodes
 	result := make([]construct.ResourceId, len(path))
 	for i, id := range path {
 		if strings.HasPrefix(id.Name, PHANTOM_PREFIX) {
-			_, props, err := tempGraph.VertexWithProperties(id)
+			id.Name = name
+			if node, err := ctx.RawView().Vertex(id); err == nil && node != nil {
+				name = fmt.Sprintf("%s_%s-2", name, id.Name)
+				id.Name = name
+			}
+			_, props, err := ctx.RawView().VertexWithProperties(id)
 			if err == nil && props.Attributes != nil {
 				props.Attributes["new_name"] = name
 			}
-			id.Name = name
 		}
 		result[i] = id
 	}
@@ -86,9 +89,8 @@ func expandEdge(
 // for creating resources, or existing resources.
 func ExpandPath(
 	ctx solution_context.SolutionContext,
-	dep construct.ResourceEdge,
+	input ExpansionInput,
 	path []construct.ResourceId,
-	g construct.Graph,
 	resultGraph construct.Graph,
 ) error {
 	if len(path) == 2 {
@@ -119,37 +121,52 @@ func ExpandPath(
 		return errs
 	}
 
-	// NOTE(gg): if for some reason the path could contain a duplicated selector
-	// this would just add the resource to the first match. I don't
-	// think this should happen for a call into [ExpandEdge], but noting it just in case.
-	matchesNonBoundary := func(id construct.ResourceId) int {
-		for i, node := range nonBoundaryResources {
-			typedNodeId := construct.ResourceId{Provider: node.Provider, Type: node.Type, Namespace: node.Namespace}
-			if typedNodeId.Matches(id) {
-				return i
-			}
-		}
-		return -1
-	}
-
 	addCandidates := func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
-		matchIdx := matchesNonBoundary(id)
+		matchIdx := matchesNonBoundary(id, nonBoundaryResources)
 		if matchIdx < 0 {
 			return nil
 		}
-		err := g.AddVertex(resource)
+
+		// Check if its a valid namespaced resource
+		ids, err := ctx.KnowledgeBase().GetAllowedNamespacedResourceIds(solution_context.DynamicCtx(ctx), id)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		for _, i := range ids {
+			if i.Matches(input.Dep.Target.ID) {
+				ns, err := ctx.KnowledgeBase().GetResourcesNamespaceResource(resource)
+				if err != nil {
+					return errors.Join(nerr, err)
+				}
+				if !ns.Matches(input.Dep.Target.ID) {
+					return nerr
+				}
+			}
+		}
+
+		// Check validity for path satisfaction routes
+		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if !valid {
+			return nerr
+		}
+
+		// Calculate edge weight for candidate
+		err = input.TempGraph.AddVertex(resource)
 		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 			return errors.Join(nerr, err)
 		}
 		if _, ok := candidates[matchIdx][id]; !ok {
 			candidates[matchIdx][id] = 0
 		}
-		downstreams, err := solution_context.Downstream(ctx, dep.Source.ID, knowledgebase.ResourceGlueLayer)
+		downstreams, err := solution_context.Downstream(ctx, input.Dep.Source.ID, knowledgebase.ResourceGlueLayer)
 		nerr = errors.Join(nerr, err)
 		if collectionutil.Contains(downstreams, id) {
 			candidates[matchIdx][id] += 10
 		}
-		upstreams, err := solution_context.Upstream(ctx, dep.Target.ID, knowledgebase.ResourceGlueLayer)
+		upstreams, err := solution_context.Upstream(ctx, input.Dep.Target.ID, knowledgebase.ResourceGlueLayer)
 		nerr = errors.Join(nerr, err)
 		if collectionutil.Contains(upstreams, id) {
 			candidates[matchIdx][id] += 10
@@ -172,7 +189,7 @@ func ExpandPath(
 
 		// We start at 8 so its weighted less than actually being upstream of the target or downstream of the src
 		availableWeight := 10
-		shortestPath, err := pather.ShortestPath(dep.Source.ID)
+		shortestPath, err := pather.ShortestPath(input.Dep.Source.ID)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
@@ -185,7 +202,7 @@ func ExpandPath(
 
 		}
 
-		shortestPath, err = pather.ShortestPath(dep.Target.ID)
+		shortestPath, err = pather.ShortestPath(input.Dep.Target.ID)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
@@ -230,7 +247,7 @@ func ExpandPath(
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
 		weight := calculateEdgeWeight(
-			construct.SimpleEdge{Source: dep.Source.ID, Target: dep.Target.ID},
+			construct.SimpleEdge{Source: input.Dep.Source.ID, Target: input.Dep.Target.ID},
 			source.id, target.id,
 			source.divideWeightBy, target.divideWeightBy,
 			ctx.KnowledgeBase())
@@ -257,7 +274,7 @@ func ExpandPath(
 			}
 		}
 
-		err := g.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
+		err := input.TempGraph.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
 		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) && !errors.Is(err, graph.ErrEdgeCreatesCycle) {
 			errs = errors.Join(errs, err)
 		}
@@ -266,7 +283,7 @@ func ExpandPath(
 	for i, resCandidates := range candidates {
 		for id, weight := range resCandidates {
 			if i == 0 {
-				addEdge(candidate{id: dep.Source.ID}, candidate{id: id, divideWeightBy: weight})
+				addEdge(candidate{id: input.Dep.Source.ID}, candidate{id: id, divideWeightBy: weight})
 				continue
 			}
 
@@ -280,7 +297,7 @@ func ExpandPath(
 	}
 	if len(candidates) > 0 {
 		for c, weight := range candidates[len(candidates)-1] {
-			addEdge(candidate{id: c, divideWeightBy: weight}, candidate{id: dep.Target.ID})
+			addEdge(candidate{id: c, divideWeightBy: weight}, candidate{id: input.Dep.Target.ID})
 		}
 	}
 	if errs != nil {
@@ -324,7 +341,13 @@ func runOnNamespaces(src, target *construct.Resource, ctx solution_context.Solut
 		if err != nil {
 			return fmt.Errorf("could not build path selection graph: %w", err)
 		}
-		err = expandEdge(ctx, construct.ResourceEdge{Source: srcNamespaceResource, Target: targetNamespaceResource}, tg, g)
+		// TODO: We should get all of the as source and as targets here to ensure we have all paths required
+		input := ExpansionInput{
+			Dep:            construct.ResourceEdge{Source: srcNamespaceResource, Target: targetNamespaceResource},
+			Classification: "",
+			TempGraph:      tg,
+		}
+		err = expandEdge(ctx, input, g)
 		if err != nil {
 			return err
 		}
@@ -370,7 +393,12 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 		if err != nil {
 			continue
 		}
-		err = expandEdge(ctx, construct.ResourceEdge{Source: down, Target: target}, tg, g)
+		input := ExpansionInput{
+			Dep:            construct.ResourceEdge{Source: down, Target: target},
+			Classification: "",
+			TempGraph:      tg,
+		}
+		err = expandEdge(ctx, input, g)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -382,22 +410,46 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 }
 
 func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Graph, resources []construct.ResourceId) error {
+	var errs error
+	var prevRes construct.ResourceId
 	for i, resource := range resources {
 		r, err := ctx.RawView().Vertex(resource)
 		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-			continue
+			errs = errors.Join(errs, err)
 		}
 		if r == nil {
 			r, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), resource)
 			if err != nil {
-				return err
+				errs = errors.Join(errs, err)
+				continue
 			}
 		}
-		_ = g.AddVertex(r)
+		err = g.AddVertex(r)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			errs = errors.Join(errs, err)
+		}
 		if i == 0 {
+			prevRes = r.ID
 			continue
 		}
-		_ = g.AddEdge(resources[i-1], resource)
+		err = g.AddEdge(prevRes, r.ID)
+		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			errs = errors.Join(errs, err)
+		}
+		prevRes = r.ID
 	}
-	return nil
+	return errs
+}
+
+// NOTE(gg): if for some reason the path could contain a duplicated selector
+// this would just add the resource to the first match. I don't
+// think this should happen for a call into [ExpandEdge], but noting it just in case.
+func matchesNonBoundary(id construct.ResourceId, nonBoundaryResources []construct.ResourceId) int {
+	for i, node := range nonBoundaryResources {
+		typedNodeId := construct.ResourceId{Provider: node.Provider, Type: node.Type, Namespace: node.Namespace}
+		if typedNodeId.Matches(id) {
+			return i
+		}
+	}
+	return -1
 }

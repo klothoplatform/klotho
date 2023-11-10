@@ -8,6 +8,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/dot"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 const (
@@ -27,14 +28,17 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = string(key.GraphState)
 		attribs["shape"] = "box"
 		style = append(style, "dashed")
-	} else if key.PathSatisfication.valid {
+	} else if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		var extra []string
 		if key.PathSatisfication.Classification != "" {
 			extra = append(extra, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if key.PathSatisfication.AsTarget {
-			extra = append(extra, "(target)")
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Target) {
+			extra = append(extra, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
+		}
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Source) {
+			extra = append(extra, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		if len(extra) > 0 {
 			attribs["label"] += `\n` + strings.Join(extra, " ")

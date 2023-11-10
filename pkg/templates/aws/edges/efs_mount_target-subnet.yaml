@@ -1,2 +1,5 @@
 source: aws:efs_mount_target
 target: aws:subnet
+
+unique:
+  target: true

@@ -70,6 +70,8 @@ path_satisfaction:
     - network
     - network#SecurityGroups
     - network#Subnets
+  as_source:
+    - network#Subnets
 
 classification:
   is:
