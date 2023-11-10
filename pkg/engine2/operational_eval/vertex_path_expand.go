@@ -15,20 +15,24 @@ import (
 	"github.com/klothoplatform/klotho/pkg/set"
 )
 
-type pathExpandVertex struct {
-	Edge          construct.SimpleEdge
-	TempGraph     construct.Graph
-	Satisfication knowledgebase.EdgePathSatisfaction
-}
+type (
+	pathExpandVertex struct {
+		Edge          construct.SimpleEdge
+		TempGraph     construct.Graph
+		Satisfication pathSatisfication
+	}
 
-type ExpansionInput struct {
-	Dep            construct.ResourceEdge
-	Classification string
-	TempGraph      construct.Graph
-}
+	// pathSatisfication is a wrapper around [EdgePathSatisfaction] that makes unset distinguishable
+	// from expanding on an empty classification. Once all expansions have classification, this can
+	// be removed and use [EdgePathSatisfaction] directly (`.valid` becomes `.Classification != ""`)
+	pathSatisfication struct {
+		knowledgebase.EdgePathSatisfaction
+		valid bool
+	}
+)
 
 func (v *pathExpandVertex) Key() Key {
-	return Key{PathSatisfication: &v.Satisfication, Edge: v.Edge}
+	return Key{PathSatisfication: v.Satisfication, Edge: v.Edge}
 }
 
 func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
@@ -84,9 +88,9 @@ func expansionResultString(result construct.Graph, dep construct.ResourceEdge) (
 	return sb.String(), nil
 }
 
-func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInput) error {
+func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selection.ExpansionInput) error {
 	var errs error
-	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion.Dep, expansion.TempGraph)
+	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate path expand vertex. could not expand edge %s: %w", v.Edge, err)
 	}
@@ -167,8 +171,8 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 	return eval.AddEdges(edges...)
 }
 
-func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput, error) {
-	var result []ExpansionInput
+func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection.ExpansionInput, error) {
+	var result []path_selection.ExpansionInput
 	var errs error
 	sourceRes, err := eval.Solution.RawView().Vertex(v.Edge.Source)
 	if err != nil {
@@ -179,12 +183,12 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput
 		return nil, fmt.Errorf("could not find target resource %s: %w", v.Edge.Target, err)
 	}
 	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
-	expansions, err := DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication, edge)
+	expansions, err := DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication.EdgePathSatisfaction, edge)
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
 	for _, expansion := range expansions {
-		input := ExpansionInput{
+		input := path_selection.ExpansionInput{
 			Dep:            expansion.Dep,
 			Classification: expansion.Classification,
 			TempGraph:      v.TempGraph,
@@ -430,9 +434,9 @@ func DeterminePathSatisfactionInputs(
 	sol solution_context.SolutionContext,
 	satisfaction knowledgebase.EdgePathSatisfaction,
 	edge construct.ResourceEdge,
-) (expansions []ExpansionInput, errs error) {
+) (expansions []path_selection.ExpansionInput, errs error) {
 	if !strings.Contains(satisfaction.Classification, "#") {
-		expansions = append(expansions, ExpansionInput{Dep: edge, Classification: satisfaction.Classification})
+		expansions = append(expansions, path_selection.ExpansionInput{Dep: edge, Classification: satisfaction.Classification})
 		return
 	}
 
@@ -497,7 +501,7 @@ func DeterminePathSatisfactionInputs(
 		if satisfaction.AsTarget {
 			e = construct.ResourceEdge{Source: edge.Source, Target: res}
 		}
-		exp := ExpansionInput{
+		exp := path_selection.ExpansionInput{
 			Dep:            e,
 			Classification: strings.SplitN(satisfaction.Classification, "#", 2)[0],
 		}

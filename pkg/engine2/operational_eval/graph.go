@@ -95,7 +95,14 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 				return fmt.Errorf("could not build path selection graph: %w", err)
 			}
 		}
-		vertex := pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
+		vertex := pathExpandVertex{
+			Edge: edge,
+			Satisfication: pathSatisfication{
+				EdgePathSatisfaction: satisfication,
+				valid:                true,
+			},
+			TempGraph: tempGraph,
+		}
 		return changes.AddVertexAndDeps(eval, &vertex)
 	}
 

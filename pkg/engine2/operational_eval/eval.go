@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
 )
@@ -116,16 +115,7 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 
 	sort.SliceStable(ready, func(i, j int) bool {
 		a, b := ready[i].Key(), ready[j].Key()
-		if a.Ref.Resource.IsZero() != b.Ref.Resource.IsZero() {
-			return a.Ref.Resource.IsZero()
-		}
-		if a.GraphState != b.GraphState {
-			return a.GraphState < b.GraphState
-		}
-		if a.Edge.Source != b.Edge.Source {
-			return construct.ResourceIdLess(a.Edge.Source, b.Edge.Source)
-		}
-		return construct.ResourceIdLess(a.Edge.Target, b.Edge.Target)
+		return a.Less(b)
 	})
 
 	for _, v := range ready {

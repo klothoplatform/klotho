@@ -9,7 +9,6 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -33,7 +32,7 @@ type (
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
-		PathSatisfication *knowledgebase.EdgePathSatisfaction
+		PathSatisfication pathSatisfication
 		Internal          string
 	}
 
@@ -87,7 +86,7 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return string(key.GraphState)
 	}
-	if key.PathSatisfication != nil {
+	if key.PathSatisfication.valid {
 		args := []string{
 			key.Edge.String(),
 		}
@@ -106,6 +105,47 @@ func (key Key) String() string {
 		return fmt.Sprintf("|%s|", key.Internal)
 	}
 	return "<empty>"
+}
+
+func (key Key) Less(other Key) bool {
+	if !key.Ref.Resource.IsZero() {
+		if other.Ref.Resource.IsZero() {
+			return true
+		}
+		if key.Ref.Resource != other.Ref.Resource {
+			return construct.ResourceIdLess(key.Ref.Resource, other.Ref.Resource)
+		}
+		return key.Ref.Property < other.Ref.Property
+	}
+	if key.GraphState != "" {
+		if other.GraphState == "" {
+			return true
+		}
+		return key.GraphState < other.GraphState
+	}
+	if key.PathSatisfication.valid {
+		if !other.PathSatisfication.valid {
+			return true
+		}
+		if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
+			return key.PathSatisfication.Classification < other.PathSatisfication.Classification
+		}
+		return key.Edge.Less(other.Edge)
+	}
+	if key.Edge != (construct.SimpleEdge{}) {
+		if other.Edge == (construct.SimpleEdge{}) {
+			return true
+		}
+		return key.Edge.Less(other.Edge)
+	}
+	if key.Internal != "" {
+		if other.Internal == "" {
+			return true
+		}
+		return key.Internal < other.Internal
+	}
+	// Empty key, put that last, though it should never happen
+	return false
 }
 
 func (r ReadyPriority) String() string {

@@ -17,3 +17,7 @@ iac: $(GO_FILES) $(IAC_TEMPLATES)
 	CC="zig cc -target x86_64-linux-musl" \
 	CXX="zig c++ -target x86_64-linux-musl" \
 	go build --tags extended -o iac -ldflags="-s -w" ./cmd/iac
+
+.PHONY: clean_debug
+clean_debug:
+	find . \( -name '*.gv' -or -name '*.gv.svg' \) -delete

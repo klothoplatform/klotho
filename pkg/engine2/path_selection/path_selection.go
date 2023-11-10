@@ -11,7 +11,9 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-const PHANTOM_PREFIX = "phantom-"
+// PHANTOM_PREFIX deliberately uses an invalid character so if it leaks into an actualy input/output, it will
+// fail to parse.
+const PHANTOM_PREFIX = "phantom$"
 const GLUE_WEIGHT = 100
 const FUNCTIONAL_WEIGHT = 10000
 
@@ -37,38 +39,81 @@ func BuildPathSelectionGraph(
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
 
+	phantoms := make(map[string][]construct.ResourceId)
+
+	addEdge := func(source, target construct.ResourceId) error {
+		return tempGraph.AddEdge(
+			source,
+			target,
+			graph.EdgeWeight(calculateEdgeWeight(dep, source, target, 0, 0, kb)),
+		)
+	}
+
 	for _, path := range paths {
-		resourcePath := []construct.ResourceId{}
-		for _, res := range path {
-			resourcePath = append(resourcePath, res.Id())
+		resourcePath := make([]construct.ResourceId, len(path))
+		for i, rt := range path {
+			if i == 0 {
+				resourcePath[i] = dep.Source
+			} else if i == len(path)-1 {
+				resourcePath[i] = dep.Target
+			} else {
+				resourcePath[i] = rt.Id()
+			}
 		}
 		if !PathSatisfiesClassification(kb, resourcePath, classification) {
 			continue
 		}
-		var prevRes construct.ResourceId
-		for i, res := range path {
-			id := res.Id()
-			id.Name = fmt.Sprintf("%s%s", PHANTOM_PREFIX, generateStringSuffix(5))
+		pathResources := make([][]construct.ResourceId, len(path))
+		for i, id := range resourcePath {
 			if i == 0 {
-				id = dep.Source
-			} else if i == len(path)-1 {
-				id = dep.Target
+				pathResources[i] = []construct.ResourceId{dep.Source}
+				continue
 			}
-			resource := &construct.Resource{ID: id}
-			err = tempGraph.AddVertex(resource)
-			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-				return nil, err
-			}
-			if !prevRes.IsZero() {
-				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
-				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
-					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, kb)))
+			if i == len(path)-1 {
+				pathResources[i] = []construct.ResourceId{dep.Target}
+				for _, prev := range pathResources[i-1] {
+					err := addEdge(prev, dep.Target)
 					if err != nil {
 						return nil, err
 					}
 				}
+			} else {
+				needsPhantom := len(phantoms[id.QualifiedTypeName()]) == 0
+				for _, p := range phantoms[id.QualifiedTypeName()] {
+					usedPhantom := false
+					for _, prev := range pathResources[i-1] {
+						err := addEdge(prev, p)
+						if errors.Is(err, graph.ErrEdgeCreatesCycle) {
+							needsPhantom = true
+							continue
+						} else if err != nil {
+							return nil, err
+						}
+						usedPhantom = true
+					}
+					if usedPhantom {
+						pathResources[i] = append(pathResources[i], p)
+					}
+				}
+
+				if needsPhantom {
+					id.Name = fmt.Sprintf("%s%s", PHANTOM_PREFIX, generateStringSuffix(5))
+					phantoms[id.QualifiedTypeName()] = append(phantoms[id.QualifiedTypeName()], id)
+					pathResources[i] = append(pathResources[i], id)
+
+					err = tempGraph.AddVertex(&construct.Resource{ID: id})
+					if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+						return nil, err
+					}
+
+					for _, prev := range pathResources[i-1] {
+						err = addEdge(prev, id)
+						if err != nil {
+							return nil, err
+						}
+					}
+				}
 			}
-			prevRes = id
 		}
 	}
 

@@ -146,6 +146,13 @@ func (e SimpleEdge) MarshalText() (string, error) {
 	return e.String(), nil
 }
 
+func (e SimpleEdge) Less(other SimpleEdge) bool {
+	if e.Source != other.Source {
+		return ResourceIdLess(e.Source, other.Source)
+	}
+	return ResourceIdLess(e.Target, other.Target)
+}
+
 func (e *SimpleEdge) UnmarshalText(data []byte) error {
 	s := string(data)
 

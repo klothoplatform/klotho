@@ -14,12 +14,22 @@ import (
 	"github.com/klothoplatform/klotho/pkg/set"
 )
 
+type ExpansionInput struct {
+	Dep            construct.ResourceEdge
+	Classification string
+	TempGraph      construct.Graph
+}
+
 func ExpandEdge(
 	ctx solution_context.SolutionContext,
-	dep construct.ResourceEdge,
-	tempGraph construct.Graph,
+	input ExpansionInput,
 ) (construct.Graph, error) {
+	tempGraph := input.TempGraph
+	dep := input.Dep
+
 	result := construct.NewGraph()
+
+	defer writeGraph(input, tempGraph, result)
 	var errs error
 	errs = errors.Join(errs, runOnNamespaces(dep.Source, dep.Target, ctx, result))
 	connected, err := connectThroughNamespace(dep.Source, dep.Target, ctx, result)
@@ -47,6 +57,9 @@ func expandEdge(
 	for _, path := range paths {
 		errs = errors.Join(errs, ExpandPath(ctx, dep, path, tempGraph, g))
 	}
+	if errs != nil {
+		return errs
+	}
 
 	path, err := graph.ShortestPath(tempGraph, dep.Source.ID, dep.Target.ID)
 	if err != nil {
@@ -58,6 +71,10 @@ func expandEdge(
 	result := make([]construct.ResourceId, len(path))
 	for i, id := range path {
 		if strings.HasPrefix(id.Name, PHANTOM_PREFIX) {
+			_, props, err := tempGraph.VertexWithProperties(id)
+			if err == nil && props.Attributes != nil {
+				props.Attributes["new_name"] = name
+			}
 			id.Name = name
 		}
 		result[i] = id
