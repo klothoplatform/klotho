@@ -33,3 +33,10 @@ function create(args: Args): aws.elasticache.Cluster {
         securityGroupIds: args.SecurityGroups.map((sg) => sg.id),
     })
 }
+
+function properties(object: aws.elasticache.Cluster, args: Args) {
+    return {
+        Port: object.port,
+        ClusterAddress: object.clusterAddress,
+    }
+}
