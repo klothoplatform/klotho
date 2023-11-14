@@ -1,0 +1,8 @@
+name: kubernetes:TypeMeta
+properties:
+  Kind:
+    type: string
+    configuration_disabled: true
+  ApiVersion:
+    type: string
+    configuration_disabled: true

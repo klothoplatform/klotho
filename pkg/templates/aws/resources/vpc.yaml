@@ -1,0 +1,26 @@
+qualified_type_name: aws:vpc
+display_name: VPC
+
+properties:
+  CidrBlock:
+    type: string
+    required: true
+    default_value: '10.0.0.0/16'
+  EnableDnsSupport:
+    type: bool
+    default_value: true
+  EnableDnsHostnames:
+    type: bool
+    default_value: true
+
+classification:
+  is:
+    - network
+    - virtual_network
+path_satisfaction:
+  as_target:
+    - network
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: parent

@@ -13,7 +13,9 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/gojek/heimdall/v7 v7.0.2
 	github.com/golang-jwt/jwt/v4 v4.4.3
+	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
 	github.com/google/uuid v1.3.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/kopoli/go-terminal-size v0.0.0-20170219200355-5c97524c8b54
 	github.com/lithammer/dedent v1.1.0
@@ -29,6 +31,7 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/tools v0.7.0
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
 	k8s.io/api v0.26.0
@@ -46,11 +49,13 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/client-go v0.26.0 // indirect
 )
 
 replace (
+	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.5
+
+	// github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.3
 	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1
 
 	// yaml fork is the same (as of 2023/07/28) except with the PR merged:
@@ -167,7 +172,7 @@ require (
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230109183929-3758b55a6596 // indirect
 	k8s.io/kubectl v0.26.0 // indirect
-	k8s.io/utils v0.0.0-20230115233650-391b47cb4029
+	k8s.io/utils v0.0.0-20230115233650-391b47cb4029 // indirect
 	oras.land/oras-go v1.2.2 // indirect
 	sigs.k8s.io/controller-runtime v0.12.3 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

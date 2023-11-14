@@ -1,0 +1,24 @@
+source: aws:iam_role
+target: aws:log_group
+
+operational_rules:
+  - if: |
+      {{- if (hasField "ManagedPolicies" .Source)}}
+        {{ not ((fieldValue "ManagedPolicies" .Source).Contains "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole") }}
+      {{- else }}
+        true
+      {{- end }}    
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Target.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - logs:PutLogEvents
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Target  }}#Arn'

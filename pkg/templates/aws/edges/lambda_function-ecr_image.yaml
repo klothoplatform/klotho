@@ -1,0 +1,2 @@
+source: aws:lambda_function
+target: aws:ecr_image

@@ -1,0 +1,26 @@
+qualified_type_name: aws:lambda_permission
+display_name: Lambda Permission
+
+properties:
+  Function:
+    type: resource(aws:lambda_function)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:lambda_function
+  Principal:
+    type: string
+  Action:
+    type: string
+  Source:
+    type: string
+
+classification:
+  is:
+    - permissions
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

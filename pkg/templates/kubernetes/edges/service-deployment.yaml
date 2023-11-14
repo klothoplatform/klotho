@@ -1,0 +1,38 @@
+source: kubernetes:service
+target: kubernetes:deployment
+operational_rules:
+  - if : |
+      {{ ne (len (fieldValue "Object.Spec.Template.Labels" .Target))  0 }}
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.Selector
+          value: |
+            {{ range $index, $label := (fieldValue "Object.Spec.Template.Labels" .Target) }}
+              {{ $label.Name }}: {{ $label.Value }}
+            {{ end }}
+
+  - if : |
+      {{ ne (len (fieldValue "Object.Spec.Template.Spec.Containers" .Target))  0 }}
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.Ports
+          value: |
+            {{ range $index, $container := (fieldValue "Object.Spec.Template.Spec.Containers" .Target) }}
+              {{ range $index, $port := $container.Ports }}
+            - Name: '{{ .Target.Name }}-{{ $container.Name }}-{{ $port.ContainerPort}}'
+              Protocol:   {{ $port.Protocol }}
+              Port:       {{ $port.HostPort }}
+              TargetPort: {{ $port.ContainerPort }}
+              {{ end }}
+            {{ end }}
+
+  - if: |
+      {{hasUpstream "kubernetes:target_group_binding" .Source }}
+    configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Object.Spec.Template.Labels
+          value:
+            elbv2.k8s.aws/pod-readiness-gate-inject: enabled

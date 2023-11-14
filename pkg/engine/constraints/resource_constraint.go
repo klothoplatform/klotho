@@ -35,7 +35,7 @@ type (
 )
 
 func (constraint *ResourceConstraint) Scope() ConstraintScope {
-	return EdgeConstraintScope
+	return ResourceConstraintScope
 }
 
 func (constraint *ResourceConstraint) IsSatisfied(dag *construct.ResourceGraph, kb knowledgebase.EdgeKB, mappedConstructResources map[construct.ResourceId][]construct.Resource, classifier classification.Classifier) bool {

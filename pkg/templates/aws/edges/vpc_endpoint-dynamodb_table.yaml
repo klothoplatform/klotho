@@ -1,0 +1,16 @@
+source: aws:vpc_endpoint
+target: aws:dynamodb_table
+
+unique:
+  source: true
+
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: ServiceName
+          value: dynamodb
+      - resource: '{{ .Source }}'
+        configuration:
+          field: VpcEndpointType
+          value: Gateway

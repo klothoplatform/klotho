@@ -1,6 +1,8 @@
-GO_FILES := $(wildcard pkg/**/*.go) go.sum go.mod
+GO_FILES := $(shell find . -type f -name '*.go') go.mod go.sum
+ENGINE_TEMPLATES := $(shell find . -type f -path pkg/templates)
+IAC_TEMPLATES := $(shell find . -type f -path pkg/infra/iac3/templates -and -not -path */node_modules/*)
 
-engine: $(GO_FILES)
+engine: $(GO_FILES) $(ENGINE_TEMPLATES)
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \
@@ -8,7 +10,7 @@ engine: $(GO_FILES)
 	CXX="zig c++ -target x86_64-linux-musl" \
 	go build --tags extended -o engine -ldflags="-s -w" ./cmd/engine
 
-iac: $(GO_FILES)
+iac: $(GO_FILES) $(IAC_TEMPLATES)
 	CGO_ENABLED=1 \
 	GOOS=linux \
 	GOARCH=amd64 \

@@ -1,0 +1,39 @@
+qualified_type_name: aws:lambda_event_source_mapping
+display_name: Lambda Event Source Mapping
+
+properties:
+  Function:
+    type: resource(aws:lambda_function)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:lambda_function
+  #          fail_if_missing: true
+  EventSource:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:sqs_queue
+  #          fail_if_missing: true
+
+  FilterCriteria:
+    type: list
+    properties:
+      pattern:
+        type: string
+  BatchSize:
+    type: int
+  Enabled:
+    type: bool
+  FunctionResponseTypes:
+    type: list(string)
+  MaximumBatchingWindowInSeconds:
+    type: int
+  ScalingConfig:
+    type: map
+    properties:
+      MaximumConcurrency:
+        type: int

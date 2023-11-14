@@ -1,0 +1,20 @@
+qualified_type_name: kubernetes:kustomize_directory
+display_name: Kustomize Directory
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Directory:
+    type: string
+
+delete_context:
+  require_no_upstream: true
+views:
+  dataflow: small

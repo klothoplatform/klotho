@@ -1,6 +1,6 @@
 source: aws:load_balancer_listener
 destination: aws:target_group
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

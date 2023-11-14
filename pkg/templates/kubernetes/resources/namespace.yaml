@@ -1,0 +1,28 @@
+qualified_type_name: kubernetes:namespace
+display_name: Namespace
+properties:
+  Cluster:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          ApiVersion: v1
+          Kind: Namespace
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+
+delete_context:
+  requires_no_downstream: true
+views:
+  dataflow: small

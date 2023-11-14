@@ -1,0 +1,6 @@
+name: kubernetes:PodTemplateSpec
+properties:
+  kubernetes:ObjectMeta:
+    type: model
+  Spec:
+    type: model(kubernetes:PodSpec)

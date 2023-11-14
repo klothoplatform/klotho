@@ -1,0 +1,35 @@
+name: kubernetes:Container
+properties:
+  Name:
+    type: string
+    required: true
+  Image:
+    type: string
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - image
+          unique: true
+          use_property_ref: ImageName
+    required: true
+  Command:
+    type: list(string)
+  Args:
+    type: list(string)
+  WorkingDir:
+    type: string
+  Ports:
+    type: list(model(kubernetes:ContainerPort))
+    default_value:
+      - Name: default-tcp
+        ContainerPort: 80
+        HostPort: 80
+        Protocol: TCP
+  Env:
+    type: list(model(kubernetes:EnvVar))
+  Resources:
+    type: model(kubernetes:ResourceRequirements)
+  VolumeMounts:
+    type: list(model(kubernetes:VolumeMount))

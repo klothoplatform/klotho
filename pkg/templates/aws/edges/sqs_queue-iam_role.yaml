@@ -1,0 +1,19 @@
+source: aws:sqs_queue
+target: aws:iam_role
+deployment_order_reversed: true
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Source.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - sqs:ReceiveMessage
+                      - sqs:DeleteMessage
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Source  }}#Arn'

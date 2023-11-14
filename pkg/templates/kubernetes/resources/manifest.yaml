@@ -1,0 +1,23 @@
+qualified_type_name: kubernetes:manifest
+display_name: Kubernetes Manifest
+
+properties:
+  FilePath:
+    type: string
+    Transformations:
+      type: map(string,string)
+  Cluster:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+
+delete_context:
+  require_no_upstream: true
+views:
+  dataflow: small

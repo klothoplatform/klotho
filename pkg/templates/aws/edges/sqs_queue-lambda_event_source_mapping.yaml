@@ -1,0 +1,14 @@
+source: aws:sqs_queue
+target: aws:lambda_event_source_mapping
+
+unique:
+  Source: true
+
+deployment_order_reversed: true
+
+operational_rules:
+  - steps:
+      - resource: '{{ fieldValue "ExecutionRole" (downstream "aws:lambda_function" .Target) }}'
+        direction: upstream
+        resources:
+          - '{{ .Source }}'

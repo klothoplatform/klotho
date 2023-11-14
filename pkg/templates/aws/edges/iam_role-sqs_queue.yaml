@@ -1,0 +1,17 @@
+source: aws:iam_role
+target: aws:sqs_queue
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Target.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - sqs:SendMessage
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Target  }}#Arn'

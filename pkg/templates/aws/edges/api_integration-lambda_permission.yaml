@@ -1,0 +1,40 @@
+source: aws:api_integration
+target: aws:lambda_permission
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Target
+          value: '{{ fieldValue "Function" .Target }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Uri
+          value: |
+            {{ downstream "aws:lambda_function" .Target }}#LambdaIntegrationUri
+      - resource: '{{ .Source }}'
+        configuration:
+          field: IntegrationHttpMethod
+          value: POST #lambda integration only invokes with POST
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Type
+          value: AWS_PROXY
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Source
+          value: |
+            {{ fieldValue "RestApi" .Source }}#ChildResources
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Principal
+          value: apigateway.amazonaws.com
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Action
+          value: lambda:InvokeFunction
+unique:
+  source: true
+
+classification:
+  - network
+  - target

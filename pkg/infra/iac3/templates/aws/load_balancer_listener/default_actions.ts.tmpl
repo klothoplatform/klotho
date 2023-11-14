@@ -1,0 +1,9 @@
+[
+{{- range $index, $action := . }}
+    {
+        targetGroupArn: {{ getVar $action.TargetGroup}}.arn,
+        type: "{{ $action.Type}}",
+    },
+{{- end}}
+]
+

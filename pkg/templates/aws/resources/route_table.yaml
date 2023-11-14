@@ -1,0 +1,25 @@
+qualified_type_name: aws:route_table
+display_name: Route Table
+
+properties:
+  Vpc:
+    type: resource(aws:vpc)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:vpc
+  Routes:
+    type: list
+    properties:
+      CidrBlock:
+        type: string
+      NatGateway:
+        type: resource(aws:nat_gateway)
+      Gateway:
+        type: resource(aws:internet_gateway)
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

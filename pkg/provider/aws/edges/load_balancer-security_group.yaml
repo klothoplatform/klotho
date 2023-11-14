@@ -1,6 +1,6 @@
 source: aws:load_balancer
 destination: aws:security_group
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

@@ -1,0 +1,6 @@
+{
+    "name": "nat_gateway",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

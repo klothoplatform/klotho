@@ -1,0 +1,47 @@
+source: kubernetes:service
+target: kubernetes:pod
+operational_rules:
+  - if: |
+      {{ ne (len (fieldValue "Object.Metadata.Labels" .Target))  0 }}
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.Selector
+          value: |
+            {
+            {{- $first := true}}
+            {{- range $key, $val := (fieldValue "Object.Metadata.Labels" .Target) }}
+            {{- if not $first}},
+            {{- end}}
+            {{- $first = false}}
+            "{{ $key }}": "{{ $val }}"
+            {{- end }}
+            }
+  - if: |
+      {{ ne (len (fieldValue "Object.Spec.Containers" .Target))  0 }}
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.Ports
+          value: |
+            [
+              {{ range $cindex, $container := (fieldValue "Object.Spec.Containers" .Target)  }}
+                {{ range $pindex, $port := $container.Ports }}
+              {
+                "Name": "{{ .Target.Name }}-{{ $container.Name }}-{{ $port.ContainerPort}}",
+                "Protocol":   "{{ $port.Protocol }}",
+                "Port":       "{{ $port.HostPort }}",
+                "TargetPort": "{{ $port.ContainerPort }}"
+              }{{if $cindex}},{{end}}
+                {{ end }}
+              {{ end }}
+            ]
+
+  - if: |
+      {{hasUpstream "kubernetes:target_group_binding" .Source }}
+    configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Object.Metadata.Labels
+          value:
+            elbv2.k8s.aws/pod-readiness-gate-inject: enabled

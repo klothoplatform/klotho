@@ -1,0 +1,28 @@
+qualified_type_name: kubernetes:service_export
+display_name: Service Export
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          ApiVersion: multicluster.x-k8s.io/v1alpha1
+          Kind: ServiceExport
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

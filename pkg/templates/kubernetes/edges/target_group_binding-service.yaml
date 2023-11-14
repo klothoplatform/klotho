@@ -1,0 +1,2 @@
+source: kubernetes:target_group_binding
+target: kubernetes:service

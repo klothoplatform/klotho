@@ -1,0 +1,41 @@
+qualified_type_name: aws:rest_api
+display_name: REST API
+
+properties:
+  BinaryMediaTypes:
+    type: list(string)
+    default_value:
+      - application/octet-stream
+      - image/*
+  Stages:
+    type: list(resource(aws:api_stage))
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:api_stage
+  ChildResources:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+
+path_satisfaction:
+  as_source:
+    - api_route
+
+classification:
+  is:
+    - serverless
+    - api
+    - highly_available
+    - scalable
+    - reliable
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+  requires_explicit_delete: true
+
+views:
+  dataflow: parent

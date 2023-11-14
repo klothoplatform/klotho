@@ -1,0 +1,10 @@
+qualified_type_name: aws:route_table_association
+display_name: Route Table Association
+
+properties:
+  RouteTable:
+    type: resource(aws:route_table)
+    default_value: '{{ downstream "aws:route_table" .Self }}'
+  Subnet:
+    type: resource(aws:subnet)
+    default_value: '{{ upstream "aws:subnet" .Self }}'

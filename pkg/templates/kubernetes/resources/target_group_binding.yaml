@@ -1,0 +1,42 @@
+qualified_type_name: kubernetes:target_group_binding
+display_name: Target Group Binding
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          apiVersion: v1
+          kind: ObjectMeta
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: map
+        properties:
+          TargetGroupARN:
+            type: string
+          TargetType:
+            type: string
+          ServiceRef:
+            type: map
+            properties:
+              Name:
+                type: string
+              Port:
+                type: int
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

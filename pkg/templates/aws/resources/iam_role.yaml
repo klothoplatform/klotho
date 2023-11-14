@@ -1,0 +1,89 @@
+qualified_type_name: aws:iam_role
+display_name: IAM Role
+
+properties:
+  AssumeRolePolicyDoc:
+    type: map
+    properties:
+      Version:
+        type: string
+        default_value: '2012-10-17'
+      Statement:
+        type: list
+        properties:
+          Effect:
+            type: string
+          Action:
+            type: list(string)
+          Resource:
+            type: list(string)
+          Principal:
+            type: map
+            properties:
+              Service:
+                type: list(string)
+              Federated:
+                type: list(string)
+              AWS:
+                type: list(string)
+          Condition:
+            type: map
+            properties:
+              StringEquals:
+                type: map(string,string)
+              StringLike:
+                type: map(string,string)
+              Null:
+                type: map(string,string)
+  ManagedPolicies:
+    type: set(string)
+  InlinePolicies:
+    type: list
+    properties:
+      Name:
+        type: string
+      Policy:
+        type: map
+        properties:
+          Version:
+            type: string
+          Statement:
+            type: list
+            properties:
+              Effect:
+                type: string
+                default_value: Allow
+              Action:
+                type: list(string)
+              Resource:
+                type: list(string)
+              Principal:
+                type: map
+                properties:
+                  Service:
+                    type: list(string)
+                  Federated:
+                    type: list(string)
+                  AWS:
+                    type: list(string)
+              Condition:
+                type: map
+                properties:
+                  StringEquals:
+                    type: map(string,string)
+                  StringLike:
+                    type: map(string,string)
+                  Null:
+                    type: map(string,string)
+classification:
+  is:
+    - role
+    - permissions
+  gives:
+    - permissions
+    - security
+    
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

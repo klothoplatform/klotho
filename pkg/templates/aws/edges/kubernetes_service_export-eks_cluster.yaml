@@ -1,0 +1,48 @@
+source: kubernetes:service_export
+target: aws:eks_cluster
+
+operational_rules:
+  - if: |
+      {{ $needsCreation := true}}
+      {{ $charts := allUpstream "kubernetes:kustomize_directory" .Target }}
+      {{ range $index, $chart := $charts }}
+        {{- if (hasField "Directory" $chart)}}
+          {{- if eq (fieldValue "Directory" $chart) "https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release" }}
+           {{ $needsCreation = false }}
+            {{break}}
+          {{- end }}
+        {{- end }}
+      {{ end }}
+      {{ $needsCreation }}
+
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - selector: kubernetes:cluster_set:cluster-set
+            properties:
+              Object:
+                Metadata:
+                  Name: my-clusterset
+                Spec:
+                  Value: '{{ .Target }}#ClusterName'
+
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - selector: kubernetes:kustomize_directory:aws-cloud-map-mcs-controller
+            properties:
+              Directory: 'https://github.com/aws/aws-cloud-map-mcs-controller-for-k8s/config/controller_install_release'
+              
+
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - selector: kubernetes:cluster_set:{{ .Target.Name }}
+            properties:
+              Object:
+                Metadata:
+                  Name: cluster.clusterset.k8s.io
+
+                Spec:
+                  Value: '{{ .Target }}#ClusterName'

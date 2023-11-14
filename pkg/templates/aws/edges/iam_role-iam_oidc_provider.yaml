@@ -1,0 +1,16 @@
+source: aws:iam_role
+target: aws:iam_oidc_provider
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: AssumeRolePolicyDoc
+          value:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sts:AssumeRoleWithWebIdentity
+                Effect: Allow
+                Principal:
+                  Federated:
+                    - '{{ .Target }}#Arn'

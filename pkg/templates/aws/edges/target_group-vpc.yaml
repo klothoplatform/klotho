@@ -1,0 +1,2 @@
+source: aws:target_group
+target: aws:vpc

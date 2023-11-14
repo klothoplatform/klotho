@@ -1,6 +1,8 @@
 package io
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,15 +35,14 @@ func (r *FileRef) WriteTo(w io.Writer) (int64, error) {
 }
 
 func OutputTo(files []File, dest string) error {
-
-	errs := make(chan error)
+	errChan := make(chan error)
 	for idx := range files {
 		go func(f File) {
 			path := filepath.Join(dest, f.Path())
 			dir := filepath.Dir(path)
 			err := os.MkdirAll(dir, 0777)
 			if err != nil {
-				errs <- err
+				errChan <- fmt.Errorf("could not create directory for %s: %w", path, err)
 				return
 			}
 			file, err := os.OpenFile(path, os.O_RDWR, 0777)
@@ -50,26 +51,28 @@ func OutputTo(files []File, dest string) error {
 			} else if err == nil {
 				ovr, ok := f.(NonOverwritable)
 				if ok && !ovr.Overwrite(file) {
-					errs <- nil
+					errChan <- nil
 					return
 				}
 				err = file.Truncate(0)
 			}
 			if err != nil {
-				errs <- err
+				errChan <- fmt.Errorf("could not open file for writing %s: %w", path, err)
 				return
 			}
 			_, err = f.WriteTo(file)
 			file.Close()
-			errs <- err
+			if err != nil {
+				errChan <- fmt.Errorf("could not write file %s: %w", path, err)
+				return
+			}
+			errChan <- nil
 		}(files[idx])
 	}
 
+	var errs error
 	for i := 0; i < len(files); i++ {
-		err := <-errs
-		if err != nil {
-			return err
-		}
+		errs = errors.Join(errs, <-errChan)
 	}
-	return nil
+	return errs
 }

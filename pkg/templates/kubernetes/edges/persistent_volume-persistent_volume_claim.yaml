@@ -1,0 +1,8 @@
+source: kubernetes:persistent_volume
+target: kubernetes:persistent_volume_claim
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Object.Spec.VolumeName
+          value: '{{ .Source.Object.Metadata.Name }}'

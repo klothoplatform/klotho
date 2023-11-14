@@ -1,0 +1,26 @@
+qualified_type_name: aws:ses_email_identity
+display_name: SES Email Identity
+
+properties:
+  EmailIdentity:
+    type: string
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - messaging
+    - email
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
+delete_context:
+  require_no_upstream: true
+views:
+  dataflow: big

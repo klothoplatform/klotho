@@ -1,0 +1,33 @@
+qualified_type_name: kubernetes:helm_chart
+display_name: Helm Chart
+
+properties:
+  Chart:
+    type: string
+  Cluster:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Repo:
+    type: string
+  Directory:
+    type: string
+  Version:
+    type: string
+  Namespace:
+    type: string
+  Values:
+    type: map(string,any)
+  Internal:
+    type: bool
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: big

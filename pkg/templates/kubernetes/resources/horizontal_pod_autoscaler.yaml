@@ -1,0 +1,72 @@
+qualified_type_name: kubernetes:horizontal_pod_autoscaler
+display_name: Horizontal Pod Autoscaler
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          ApiVersion: autoscaling/v1
+          Kind: HorizontalPodAutoscaler
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: map
+        properties:
+          ScaleTargetRef:
+            type: map
+            properties:
+              Kind:
+                type: string
+              Name:
+                type: string
+              ApiVersion:
+                type: string
+          MinReplicas:
+            type: int
+          MaxReplicas:
+            type: int
+          Metrics:
+            type: list
+            properties:
+              Type:
+                type: string
+              Resource:
+                type: map
+                properties:
+                  Name:
+                    type: string
+                  Target:
+                    type: map
+                    properties:
+                      Type:
+                        type: string
+                      AverageUtilization:
+                        type: int
+                      AverageValue:
+                        type: string
+                      Value:
+                        type: string
+
+classification:
+  is:
+    - kubernetes
+  gives:
+    - scalability:compute
+    - highly_available:compute
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

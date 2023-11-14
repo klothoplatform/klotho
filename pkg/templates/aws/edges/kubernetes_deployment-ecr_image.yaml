@@ -1,0 +1,8 @@
+source: kubernetes:deployment
+target: aws:ecr_image
+operational_rules:
+  - configuration_rules:
+      - resource: '{{.Source}}'
+        configuration:
+          field: Object.Spec.Template.Spec.Containers[0].Image
+          value: '{{ fieldRef "ImageName" .Target }}'

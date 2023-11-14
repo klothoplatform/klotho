@@ -1,0 +1,18 @@
+source: kubernetes:deployment
+target: aws:eks_cluster
+operational_rules:
+  - if: |
+      {{- if (hasDownstream "aws:eks_fargate_profile" .Source)}}
+        false
+      {{- else }}
+        {{- if (hasUpstream "aws:eks_node_group" .Target)}}
+          false
+        {{- else }}
+          true
+        {{- end }}
+      {{- end }}
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - aws:eks_node_group

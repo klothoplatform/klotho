@@ -11,7 +11,7 @@ import (
 func TestStableTopologicalOrder(t *testing.T) {
 	assert := assert.New(t)
 
-	g := NewDirected(DummyVertex.Id)
+	g := NewDirected(DummyVertex.Id, false)
 	g.AddVerticesAndEdge("a", "c")
 	g.AddVerticesAndEdge("b", "c")
 
@@ -32,7 +32,7 @@ func TestStableTopologicalOrder(t *testing.T) {
 func TestKvIteratorStable(t *testing.T) {
 	assert := assert.New(t)
 
-	g := NewDirected(DummyVertex.Id)
+	g := NewDirected(DummyVertex.Id, false)
 	g.AddVerticesAndEdge("a", "c")
 	g.AddVerticesAndEdge("b", "c")
 	predecessorsMap, err := g.underlying.PredecessorMap()

@@ -1,0 +1,3 @@
+source: aws:security_group
+target: aws:rds_proxy
+deployment_order_reversed: true

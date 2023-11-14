@@ -1,0 +1,2 @@
+source: aws:ecs_task_definition
+target: aws:region

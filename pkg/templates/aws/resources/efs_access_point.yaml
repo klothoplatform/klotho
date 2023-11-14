@@ -1,0 +1,48 @@
+qualified_type_name: aws:efs_access_point
+display_name: EFS Access Point
+
+properties:
+  FileSystem:
+    type: resource(aws:efs_file_system)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:efs_file_system
+  PosixUser:
+    type: map
+    properties:
+      Gid:
+        type: int
+        default_value: 1000
+      Uid:
+        type: int
+        default_value: 1000
+  RootDirectory:
+    type: map
+    properties:
+      CreationInfo:
+        type: map
+        properties:
+          OwnerGid:
+            type: int
+            default_value: 1000
+          OwnerUid:
+            type: int
+            default_value: 1000
+          Permissions:
+            type: string
+            default_value: '777'
+      Path:
+        type: string
+        default_value: /mnt/efs
+
+classification:
+  is:
+    - efs_access
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

@@ -11,13 +11,13 @@ import (
 )
 
 type PackageFile struct {
-	path    string
+	FPath   string
 	Content *NodePackageJson
 }
 
 func NewPackageFile(path string, content io.Reader) (*PackageFile, error) {
 	f := &PackageFile{
-		path: path,
+		FPath: path,
 	}
 
 	err := json.NewDecoder(content).Decode(&f.Content)
@@ -29,14 +29,14 @@ func NewPackageFile(path string, content io.Reader) (*PackageFile, error) {
 
 func (f *PackageFile) Clone() klotho_io.File {
 	nf := &PackageFile{
-		path:    f.path,
+		FPath:   f.FPath,
 		Content: f.Content.Clone(),
 	}
 	return nf
 }
 
 func (f *PackageFile) Path() string {
-	return f.path
+	return f.FPath
 }
 
 func (f *PackageFile) MergeDeps(other *PackageFile) {
@@ -47,7 +47,7 @@ func (f *PackageFile) MergeDeps(other *PackageFile) {
 				zap.S().Warnf(`Found conflicting dependencies in package.json.
 Found version of package, %s = %s, at path %s.
 Found version of package, %s = %s, at path %s.
-Using version %s`, dep, currentVersion, f.path, dep, version, other.path, currentVersion)
+Using version %s`, dep, currentVersion, f.FPath, dep, version, other.FPath, currentVersion)
 			}
 		} else {
 			f.Content.Dependencies[dep] = version

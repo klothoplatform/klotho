@@ -1,0 +1,14 @@
+resource: aws:SERVICE_API
+
+sources:
+  - aws:lambda_function
+  - aws:app_runner_service
+  - aws:subnet
+targets:
+  - aws:lambda_function
+  - aws:dynamodb_table
+  - aws:log_group
+  - aws:s3_bucket
+  - aws:sqs_queue
+
+edge_weight_multiplier: 2

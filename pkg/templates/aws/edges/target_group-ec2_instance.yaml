@@ -1,0 +1,13 @@
+source: aws:target_group
+target: aws:ec2_instance
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: TargetType
+          value: instance
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Targets
+          value:
+            - Id: '{{ .Target }}#Id'

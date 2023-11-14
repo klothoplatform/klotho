@@ -1,0 +1,6 @@
+{
+    "name": "sqs_queue",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

@@ -1,0 +1,25 @@
+source: aws:cloudfront_distribution
+target: aws:api_stage
+operational_rules:
+  - steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - aws:cloudfront_origin_access_identity
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Origins
+          value:
+            - CustomOriginConfig:
+                HttpPort: 80
+                HttpsPort: 443
+                OriginProtocolPolicy: https-only
+                OriginSslProtocols:
+                  - TLSv1.2
+                  - TLSv1
+                  - SSLv3
+                  - TLSv1.1
+              DomainName: '{{ .Target }}#StageInvokeUrl'
+              OriginId: '{{ .Target.Name }}'
+              OriginPath: '{{ fieldValue "StageName" .Target }}'

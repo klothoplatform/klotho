@@ -1,0 +1,34 @@
+qualified_type_name: aws:ecr_image
+display_name: ECR Image
+
+properties:
+  BaseImage:
+    type: string
+  Tag:
+    type: string
+  Repo:
+    type: resource(aws:ecr_repo)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecr_repo
+  Context:
+    type: string
+    default_value: '.'
+  Dockerfile:
+    type: string
+    default_value: '{{ .Self.Name }}.Dockerfile'
+  ImageName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  
+classification:
+  is:
+    - image
+    - container
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

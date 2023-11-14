@@ -1,0 +1,20 @@
+source: aws:route_table_association
+target: aws:route_table
+
+unique:
+  target: true
+  
+operational_rules:
+  - if: '{{ eq (fieldValue "Type" (upstream "aws:subnet" .Source)) "private" }}'
+    steps:
+      - resource: '{{ .Target }}'
+        direction: downstream
+        resources:
+          - aws:nat_gateway
+        unique: true
+  - if: '{{ eq (fieldValue "Type" (upstream "aws:subnet" .Source)) "public" }}'
+    steps:
+      - resource: '{{ .Target }}'
+        direction: downstream
+        resources:
+          - aws:internet_gateway

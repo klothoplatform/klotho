@@ -1,0 +1,40 @@
+qualified_type_name: kubernetes:storage_class
+display_name: Storage Class
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Provisioner:
+        type: string
+      Parameters:
+        type: map(string,string)
+      MountOptions:
+        type: list(string)
+      AllowVolumeExpansion:
+        type: boolean
+      ReclaimPolicy:
+        type: string
+      VolumeBindingMode:
+        type: string
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

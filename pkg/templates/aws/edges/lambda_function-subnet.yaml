@@ -1,0 +1,9 @@
+source: aws:lambda_function
+target: aws:subnet
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ fieldValue "ExecutionRole" .Source }}'
+        configuration:
+          field: ManagedPolicies
+          value:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole

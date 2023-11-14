@@ -1,6 +1,6 @@
 source: aws:s3_bucket_policy
 destination: aws:cloudfront_origin_access_identity
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

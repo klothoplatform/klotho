@@ -1,0 +1,31 @@
+qualified_type_name: aws:app_runner_service
+display_name: App Runner
+
+properties:
+  Image:
+    type: resource(aws:ecr_image)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecr_image:{{ .Self.Name }}-image
+          unique: true
+  InstanceRole:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role:{{ .Self.Name }}-instance-role
+          unique: true
+  EnvironmentVariables:
+    type: map(string,string)
+
+classification:
+  is:
+    - compute
+    - container
+    - serverless
+
+views:
+  dataflow: big

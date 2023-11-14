@@ -1,0 +1,11 @@
+qualified_type_name: aws:elastic_ip
+display_name: Elastic IP
+
+classification:
+  is:
+    - static_ip_address
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

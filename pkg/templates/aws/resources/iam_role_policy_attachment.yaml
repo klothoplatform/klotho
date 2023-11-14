@@ -1,0 +1,13 @@
+qualified_type_name: aws:iam_role_policy_attachment
+display_name: IAM Role Policy Attachment
+
+properties:
+  Policy:
+    type: string
+    required: true
+  Role:
+    type: string
+    required: true
+
+delete_context:
+  requires_no_upstream_or_downstream: true

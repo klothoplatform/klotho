@@ -1,0 +1,18 @@
+qualified_type_name: aws:availability_zone
+display_name: Availability Zone
+
+properties:
+  Index:
+    type: int
+    default_value: '{{ replace `.*(\d)$` `$1` .Self.Name }}' # This relies on how we name resources due to operational rules to be correct
+  Region:
+    type: resource(aws:region)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:region
+
+delete_context:
+  requires_no_upstream: true

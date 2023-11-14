@@ -1,0 +1,48 @@
+qualified_type_name: aws:api_resource
+display_name: API Resource
+
+properties:
+  RestApi:
+    type: resource(aws:rest_api)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:rest_api          
+  ParentResource:
+    type: resource(aws:api_resource)
+    configuration_disabled: true
+    operational_rule:
+      if: | # Only need a parent resource if this one isn't the root
+        {{ $parts := slice (split (fieldValue "FullPath" .Self) "/") 1 }}
+        {{ gt (len $parts) 1 }}
+      steps:
+        - direction: upstream
+          resources:
+            - selector: |
+                {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
+                {{ $parts := slice $parts 1 (sub (len $parts) 1) -}}
+                aws:api_resource:{{ join $parts "-" | sanitizeName }}
+              properties:
+                FullPath: |
+                  {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
+                  {{ $parts := slice $parts 0 (sub (len $parts) 1) -}}
+                  {{ join $parts "/" }}
+                RestApi: '{{ fieldValue "RestApi" .Self }}'
+  FullPath:
+    type: string
+    configuration_disabled: true
+  PathPart:
+    type: string
+    configuration_disabled: true
+    default_value: |
+      {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
+      {{ last $parts }}
+
+classification:
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

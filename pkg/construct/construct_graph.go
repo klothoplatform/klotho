@@ -46,7 +46,7 @@ func NewConstructGraph() *ConstructGraph {
 	return &ConstructGraph{
 		underlying: graph.NewDirected(func(v BaseConstruct) string {
 			return v.Id().String()
-		}),
+		}, false),
 	}
 }
 

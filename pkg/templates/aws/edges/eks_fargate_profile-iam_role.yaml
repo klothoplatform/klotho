@@ -1,0 +1,39 @@
+source: aws:eks_fargate_profile
+target: aws:iam_role
+
+operational_rules:
+  - configuration_rules:
+      - resource: |
+          {{ .Target }}
+        configuration:
+          field: AssumeRolePolicyDoc
+          value:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sts:AssumeRole
+                Effect: Allow
+                Principal:
+                  Service:
+                    - eks-fargate-pods.amazonaws.com
+      - resource: |
+          {{ .Target }}
+        configuration:
+          field: ManagedPolicies
+          value:
+            - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+            - arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy
+      - resource: '{{ .Target }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: fargate-pod-execution-policy
+              Statement:
+                Policy:
+                  Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - logs:CreateLogGroup
+                    - logs:PutLogEvents
+                  Resource: '*'

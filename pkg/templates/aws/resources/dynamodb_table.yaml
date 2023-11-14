@@ -1,0 +1,73 @@
+qualified_type_name: aws:dynamodb_table
+display_name: DynamoDB Table
+
+properties:
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Attributes:
+    type: list
+    required: true
+    default_value:
+      - Name: id
+        Type: S
+    properties:
+      Name:
+        type: string
+      Type:
+        type: string
+  BillingMode:
+    type: string
+    default_value: PAY_PER_REQUEST
+  DynamoTableStreamArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableBackupArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableExportArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DynamoTableIndexArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  HashKey:
+    type: string
+    default_value: id
+    required: true
+  RangeKey:
+    type: string
+  Name:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
+classification:
+  is:
+    - storage
+    - nosql
+    - dynamodb
+    - serverless
+    - kv
+    - high-availability
+    - scalable
+
+
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+
+views:
+  dataflow: big

@@ -1,0 +1,17 @@
+qualified_type_name: aws:cloudfront_origin_access_identity
+display_name: CloudFront Origin Access Identity
+
+properties:
+  Comment:
+    type: string
+  CloudfrontAccessIdentityPath:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  IamArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+delete_context:
+  requires_no_upstream_or_downstream: true

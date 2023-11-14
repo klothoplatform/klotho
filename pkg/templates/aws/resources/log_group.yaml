@@ -1,0 +1,31 @@
+qualified_type_name: aws:log_group
+display_name: CloudWatch Log Group
+
+properties:
+  LogGroupName:
+    type: string
+  RetentionInDays:
+    type: int
+    default_value: 5
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - logs
+    - monitoring
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+
+views:
+  dataflow: small

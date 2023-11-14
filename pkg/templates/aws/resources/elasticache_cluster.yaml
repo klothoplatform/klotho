@@ -1,0 +1,53 @@
+qualified_type_name: aws:elasticache_cluster
+display_name: ElastiCache Cluster
+
+properties:
+  Engine:
+    type: string
+    default_value: redis
+  CloudwatchGroup:
+    type: resource(aws:log_group)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:log_group
+          unique: true
+  SubnetGroup:
+    type: resource(aws:elasticache_subnet_group)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:elasticache_subnet_group
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:security_group
+          unique: true
+  NodeType:
+    type: string
+    default_value: cache.t2.micro
+  NumCacheNodes:
+    type: int
+    default_value: 1
+
+path_satisfaction:
+  as_target:
+    - network
+
+classification:
+  is:
+    - storage
+    - redis
+    - cache
+    - memcached
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+views:
+  dataflow: big

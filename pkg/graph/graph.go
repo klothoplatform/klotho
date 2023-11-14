@@ -29,7 +29,14 @@ type (
 	EdgeProperties   = graph.EdgeProperties
 )
 
-func NewDirected[V any](hasher func(V) string) *Directed[V] {
+func NewDirected[V any](hasher func(V) string, acyclic bool) *Directed[V] {
+
+	if acyclic {
+		return &Directed[V]{
+			underlying: graph.New(hasher, graph.Directed(), graph.Acyclic()),
+			hasher:     hasher,
+		}
+	}
 
 	return &Directed[V]{
 		underlying: graph.New(hasher, graph.Directed(), graph.Rooted()),

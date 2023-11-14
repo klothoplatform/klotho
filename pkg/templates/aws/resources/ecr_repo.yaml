@@ -1,0 +1,14 @@
+qualified_type_name: aws:ecr_repo
+display_name: ECR Repository
+
+properties:
+  ForceDelete:
+    type: bool
+    default_value: true
+classification:
+  is:
+    - repository
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

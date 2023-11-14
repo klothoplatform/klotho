@@ -1,0 +1,50 @@
+qualified_type_name: aws:security_group
+
+properties:
+  Vpc:
+    type: resource(aws:vpc)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:vpc
+  IngressRules:
+    type: set
+    properties:
+      Description:
+        type: string
+      CidrBlocks:
+        type: list(string)
+      FromPort:
+        type: int
+      ToPort:
+        type: int
+      Protocol:
+        type: string
+      Self:
+        type: bool
+  EgressRules:
+    type: set
+    properties:
+      Description:
+        type: string
+      CidrBlocks:
+        type: list(string)
+      FromPort:
+        type: int
+      ToPort:
+        type: int
+      Protocol:
+        type: string
+      Self:
+        type: bool
+
+classification:
+  is:
+    - network
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

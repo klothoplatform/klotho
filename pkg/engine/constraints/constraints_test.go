@@ -82,9 +82,10 @@ func Test_ParseConstraintsFromFile(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			assert.ElementsMatch(tt.want[ApplicationConstraintScope], result[ApplicationConstraintScope])
-			assert.ElementsMatch(tt.want[ConstructConstraintScope], result[ConstructConstraintScope])
-			assert.ElementsMatch(tt.want[EdgeConstraintScope], result[EdgeConstraintScope])
+			assert.ElementsMatch(tt.want[ApplicationConstraintScope], result[ApplicationConstraintScope], "application scope")
+			assert.ElementsMatch(tt.want[ConstructConstraintScope], result[ConstructConstraintScope], "construct scope")
+			assert.ElementsMatch(tt.want[EdgeConstraintScope], result[EdgeConstraintScope], "edge scope")
+			assert.ElementsMatch(tt.want[ResourceConstraintScope], result[ResourceConstraintScope], "resource scope")
 		})
 	}
 }

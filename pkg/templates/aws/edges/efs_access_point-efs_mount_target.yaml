@@ -1,0 +1,2 @@
+source: aws:efs_access_point
+target: aws:efs_mount_target

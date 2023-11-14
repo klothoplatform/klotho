@@ -1,0 +1,91 @@
+qualified_type_name: aws:lambda_function
+display_name: Lambda Function
+
+properties:
+  ExecutionRole:
+    type: resource(aws:iam_role)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:iam_role:{{ .Self.Name }}-ExecutionRole
+          unique: true
+  Image:
+    type: resource(aws:ecr_image)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecr_image:{{ .Self.Name }}-image
+          unique: true
+  EnvironmentVariables:
+    type: map(string,string)
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      if: |
+        {{ hasDownstream "aws:vpc" .Self }}
+      steps:
+        - direction: upstream
+          resources:
+            - aws:security_group
+          unique: true
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      if: |
+        {{ hasDownstream "aws:vpc" .Self }}
+      steps:
+        - direction: downstream
+          num_needed: 2
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+  Timeout:
+    type: int
+    default_value: 180
+  MemorySize:
+    type: int
+    default_value: 512
+  EfsAccessPoint:
+    type: resource(aws:efs_access_point)
+  LogGroup:
+    type: resource(aws:log_group)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - selector: aws:log_group:{{ .Self.Name }}-log-group
+              properties:
+                LogGroupName: /aws/lambda/{{ .Self.Name }}
+          unique: true
+  LambdaIntegrationUri:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+has_service_api: true
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+  as_source:
+    - network#Subnets
+
+classification:
+  is:
+    - serverless
+    - compute
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+
+views:
+  dataflow: big

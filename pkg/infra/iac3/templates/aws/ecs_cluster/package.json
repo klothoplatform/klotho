@@ -1,0 +1,6 @@
+{
+    "name": "ecs_cluster",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

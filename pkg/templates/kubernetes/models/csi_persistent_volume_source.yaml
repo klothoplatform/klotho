@@ -1,0 +1,10 @@
+name: kubernetes:CSIPersistentVolumeSource
+properties:
+  Driver:
+    type: string
+  FsType:
+    type: string
+  VolumeHandle:
+    type: string
+  VolumeAttributes:
+    type: map(string,string)

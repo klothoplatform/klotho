@@ -1,0 +1,9 @@
+source: aws:iam_oidc_provider
+target: aws:eks_cluster
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: ClientIdLists
+          value:
+            - sts.amazonaws.com

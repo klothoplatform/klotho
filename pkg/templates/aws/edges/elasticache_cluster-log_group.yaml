@@ -1,0 +1,9 @@
+source: aws:elasticache_cluster
+target: aws:log_group
+operational_rules:
+  - if: '{{ eq (fieldValue "CloudwatchGroup" .Source) .Target }}'
+    configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: LogGroupName
+          value: '/aws/elasticache/{{ .Source.Name }}'

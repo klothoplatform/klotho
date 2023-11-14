@@ -1,0 +1,22 @@
+source: aws:s3_bucket_policy
+target: aws:cloudfront_origin_access_identity
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Comment
+          value: this is needed to set up S3 polices so that the S3 bucket is not public
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Policy
+          value:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Principal:
+                  AWS:
+                    - '{{ .Target }}#IamArn'
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - '{{ downstream "aws:s3_bucket" .Source }}#AllBucketDirectory'

@@ -1,6 +1,6 @@
 source: aws:api_integration
 destination: aws:load_balancer
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

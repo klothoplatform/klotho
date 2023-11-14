@@ -1,0 +1,34 @@
+qualified_type_name: aws:api_stage
+display_name: API Stage
+
+properties:
+  StageName:
+    type: string
+    default_value: stage
+  RestApi:
+    type: resource(aws:rest_api)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:rest_api
+  Deployment:
+    type: resource(aws:api_deployment)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:api_deployment
+  StageInvokeUrl:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+
+delete_context:
+  requires_no_upstream: true
+
+views:
+  dataflow: small

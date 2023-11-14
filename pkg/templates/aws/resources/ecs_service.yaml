@@ -1,0 +1,84 @@
+qualified_type_name: aws:ecs_service
+display_name: ECS Service
+
+properties:
+  AssignPublicIp:
+    type: bool
+    default_value: false
+  Cluster:
+    type: resource(aws:ecs_cluster)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecs_cluster
+  DeploymentCircuitBreaker:
+    type: map
+    properties:
+      Enable:
+        type: bool
+      Rollback:
+        type: bool
+  DesiredCount:
+    type: int
+    default_value: 1
+  ForceNewDeployment:
+    type: bool
+    default_value: true
+  LaunchType:
+    type: string
+    default_value: FARGATE
+  LoadBalancers:
+    type: list(map)
+    properties:
+      TargetGroup:
+        type: resource(aws:target_group)
+      ContainerName:
+        type: string
+      ContainerPort:
+        type: int
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:security_group
+          unique: true
+  Subnets:
+    type: list(resource(aws:subnet))
+    operational_rule:
+      steps:
+        - direction: downstream
+          num_needed: 2
+          resources:
+            - selector: aws:subnet
+              properties:
+                Type: private
+            - aws:subnet
+  TaskDefinition:
+    type: resource(aws:ecs_task_definition)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:ecs_task_definition:{{ .Self.Name }}
+          unique: true
+
+path_satisfaction:
+  as_target:
+    - network
+    - network#SecurityGroups
+    - network#Subnets
+
+classification:
+  is:
+    - compute
+    - container
+    - long_running
+
+delete_context:
+  requires_no_upstream: true
+  requires_no_downstream: true
+views:
+  dataflow: big

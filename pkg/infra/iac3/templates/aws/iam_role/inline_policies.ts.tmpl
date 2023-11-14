@@ -1,0 +1,8 @@
+[
+{{- range $index, $pol := . }}
+    {
+        name: "{{ $pol.Name }}",
+        policy: pulumi.jsonStringify({{ modelCase $pol.Policy }})
+    },
+{{- end}}
+]

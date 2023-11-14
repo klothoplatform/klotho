@@ -30,8 +30,17 @@ keyvalue.js.tmpl
 
 node_modules/
 /*.yaml
+/_samples/
 
-# binaries
+go.work
+go.work.sum
+
+
 /engine
 /iac
 /klotho
+
+*.gv
+*.gv.svg
+
+*.log

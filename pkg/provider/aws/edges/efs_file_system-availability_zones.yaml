@@ -1,6 +1,6 @@
 source: aws:efs_file_system
 destination: aws:availability_zones
-direct_edge_only: false
+
 deployment_order_reversed: false
 deletion_dependent: false
 reuse:

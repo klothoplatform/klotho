@@ -1,0 +1,69 @@
+source: kubernetes:persistent_volume
+target: aws:efs_file_system
+
+operational_rules:
+  - steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        num_needed: 2
+        resources:
+          - |
+            {{ $subnets := (allDownstream "aws:subnet" .Source) }}
+            {{ range $index, $subnet := $subnets }}
+            - selector: aws:efs_mount_target:{{ .Target }}
+              properties:
+                Subnet: {{ $subnet}}
+            {{ end}}
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - kubernets:persistent_volume_claim
+      
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.Capacity
+          value:
+            storage: 5Gi
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.VolumeMode
+          value: Filesystem
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.AccessModes
+          value:
+            - ReadWriteMany
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.PersistentVolumeReclaimPolicy
+          value: Retain
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.Spec.CSI
+          value:
+            Driver: efs.csi.aws.com
+            VolumeHandle: '{{ .Target }}#Id'
+            VolumeAttributes:
+              encryptInTransit: "true"
+
+      - resource: '{{upstream "kubernetes:storage_class" .Source}}'
+        configuration:
+          field: Object.Provisioner
+          value: efs.csi.aws.com
+      - resource: '{{upstream "kubernetes:storage_class" .Source}}'
+        configuration:
+          field: Object.MountOptions
+          value:
+            - tls
+
+      - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
+        configuration:
+          field: Object.Spec.AccessModes
+          value: 
+            - ReadWriteMany
+      - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
+        configuration:
+          field: Object.Spec.Resources.Requests
+          value:
+            storage: 5Gi

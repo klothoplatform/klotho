@@ -1,0 +1,31 @@
+qualified_type_name: kubernetes:cluster_set
+display_name: ClusterSet
+
+properties:
+  Cluster:
+    type: resource
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          ApiVersion: about.k8s.io/v1alpha1
+          Kind: ClusterProperty
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: string
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small

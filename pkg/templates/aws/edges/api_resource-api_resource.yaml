@@ -1,0 +1,3 @@
+source: aws:api_resource
+target: aws:api_resource
+deployment_order_reversed: true

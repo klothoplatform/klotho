@@ -1,0 +1,40 @@
+qualified_type_name: aws:api_method
+display_name: API Method
+
+deletion_dependent: true # Because both integration and method depend on resource we need to not use these edges to reflect deletion
+
+properties:
+  RestApi:
+    type: resource(aws:rest_api)
+    namespace: true
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - aws:rest_api
+  Resource:
+    type: resource(aws:api_resource)
+    operational_rule:
+      steps:
+        - direction: upstream
+          resources:
+            - selector: aws:api_resource
+              properties:
+                FullPath: '{{ fieldValue "Route" (downstream "aws:api_integration" .Self) }}'
+  HttpMethod:
+    type: string
+    default_value: ANY
+  RequestParameters:
+    type: map(string,string)
+  Authorization:
+    type: string
+    default_value: NONE
+
+classification:
+  is:
+    - api_route
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

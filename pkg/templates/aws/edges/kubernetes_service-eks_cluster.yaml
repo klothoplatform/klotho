@@ -1,0 +1,2 @@
+source: kubernetes:service
+target: aws:eks_cluster

@@ -1,0 +1,58 @@
+qualified_type_name: kubernetes:deployment
+display_name: Deployment
+
+properties:
+  Cluster:
+    type: resource
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - classifications:
+                - cluster
+                - kubernetes
+  Object:
+    type: map
+    properties:
+      kubernetes:TypeMeta:
+        type: model
+        default_value:
+          apiVersion: apps/v1
+          kind: Deployment
+      Metadata:
+        type: model(kubernetes:ObjectMeta)
+      Spec:
+        type: map
+        properties:
+          Replicas:
+            type: int
+            default_value: 2
+          Selector:
+            type: model(kubernetes:LabelSelector)
+          Template:
+            type: model(kubernetes:PodTemplateSpec)
+          Strategy:
+            type: map
+            properties:
+              Type:
+                type: string
+                default_value: RollingUpdate
+              RollingUpdate:
+                type: map
+                properties:
+                  MaxUnavailable:
+                    type: any
+                    default_value: 1
+                  MaxSurge:
+                    type: any
+                    default_value: 1
+classification:
+  is:
+    - compute
+    - container
+    - replicas
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: big

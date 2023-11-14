@@ -1,0 +1,4 @@
+source: aws:rds_proxy_target_group
+target: aws:rds_instance
+unique:
+  source: true
