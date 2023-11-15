@@ -34,6 +34,10 @@ properties:
         type: int
         default_value: 80
 
+classification:
+  is:
+    - target_group
+
 delete_context:
   requires_no_upstream_or_downstream: true
 views:

@@ -88,12 +88,12 @@ func expansionResultString(result construct.Graph, dep construct.ResourceEdge) (
 
 func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selection.ExpansionInput) error {
 	var errs error
-	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion)
+	result, err := path_selection.ExpandEdge(eval.Solution, expansion)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate path expand vertex. could not expand edge %s: %w", v.Edge, err)
 	}
 
-	adj, err := resultGraph.AdjacencyMap()
+	adj, err := result.Graph.AdjacencyMap()
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 		res, err := eval.Solution.OperationalView().Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			res, err = knowledgebase.CreateResource(eval.Solution.KnowledgeBase(), pathId)
+			res, err = result.Graph.Vertex(pathId)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
@@ -139,7 +139,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 		return errs
 	}
 
-	resultStr, err := expansionResultString(resultGraph, expansion.Dep)
+	resultStr, err := expansionResultString(result.Graph, expansion.Dep)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,9 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 	if err := eval.AddResources(resources...); err != nil {
 		return err
 	}
-
+	if err := eval.AddEdges(result.Edges...); err != nil {
+		return err
+	}
 	return eval.AddEdges(edges...)
 }
 
@@ -439,6 +441,9 @@ func DeterminePathSatisfactionInputs(
 
 	for _, srcId := range srcIds {
 		for _, targetId := range targetIds {
+			if srcId == targetId {
+				continue
+			}
 			src, err := sol.RawView().Vertex(srcId)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
@@ -498,10 +503,7 @@ func getDepsForPropertyRef(
 	return keys
 }
 
-func propertyReferenceInfluencesEdge(v *knowledgebase.PathSatisfactionRoute) bool {
-	if v == nil {
-		return false
-	}
+func propertyReferenceInfluencesEdge(v knowledgebase.PathSatisfactionRoute) bool {
 	if v.Validity != "" {
 		return false
 	}

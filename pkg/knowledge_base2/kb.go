@@ -38,8 +38,8 @@ type (
 		// Signals if the classification is derived from the target or not
 		// we need this to know how to construct the edge we are going to run expansion on if we have resource values in the classification
 		Classification string
-		Source         *PathSatisfactionRoute
-		Target         *PathSatisfactionRoute
+		Source         PathSatisfactionRoute
+		Target         PathSatisfactionRoute
 	}
 )
 
@@ -282,8 +282,8 @@ func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.R
 				useTrgt := trgt
 				pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
 					Classification: src.Classification,
-					Source:         &useSrc,
-					Target:         &useTrgt,
+					Source:         useSrc,
+					Target:         useTrgt,
 				})
 				srcClassificationHandled = true
 				trgtsAdded[trgt] = struct{}{}
@@ -293,8 +293,7 @@ func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.R
 			useSrc := src
 			pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
 				Classification: src.Classification,
-				Source:         &useSrc,
-				Target:         nil,
+				Source:         useSrc,
 			})
 		}
 	}
@@ -303,16 +302,12 @@ func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.R
 			useTrgt := trgt
 			pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
 				Classification: trgt.Classification,
-				Source:         nil,
-				Target:         &useTrgt,
+				Target:         useTrgt,
 			})
 		}
 	}
 	if len(pathSatisfications) == 0 {
-		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
-			Source: nil,
-			Target: nil,
-		})
+		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{})
 	}
 	return pathSatisfications, nil
 }

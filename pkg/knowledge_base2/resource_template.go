@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"gopkg.in/yaml.v3"
 )
 
@@ -377,4 +379,55 @@ func (template ResourceTemplate) GetProperty(name string) *Property {
 		}
 	}
 	return nil
+}
+
+func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp func(*Property)) {
+	queue := []Properties{tmpl.Properties}
+	var props Properties
+	for len(queue) > 0 {
+		props, queue = queue[0], queue[1:]
+		for _, prop := range props {
+			addProp(prop)
+
+			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
+				p, err := res.GetProperty(prop.Path)
+				if err != nil || p == nil {
+					continue
+				}
+				// Because lists/sets will start as empty, do not recurse into their sub-properties if its not set.
+				// To allow for defaults within list objects and operational rules to be run, we will look in the property
+				// to see if there are values.
+				if strings.HasPrefix(prop.Type, "list") {
+					length := reflect.ValueOf(p).Len()
+					for i := 0; i < length; i++ {
+						subProperties := make(Properties)
+						for subK, subProp := range prop.Properties {
+							propTemplate := subProp.Clone()
+							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%d]", prop.Path, i))
+							subProperties[subK] = propTemplate
+						}
+						if len(subProperties) > 0 {
+							queue = append(queue, subProperties)
+						}
+					}
+				} else if strings.HasPrefix(prop.Type, "set") {
+					hs := p.(set.HashedSet[string, any])
+					for k := range hs.ToMap() {
+						subProperties := make(Properties)
+						for subK, subProp := range prop.Properties {
+							propTemplate := subProp.Clone()
+							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%s]", prop.Path, k))
+							subProperties[subK] = propTemplate
+						}
+						if len(subProperties) > 0 {
+							queue = append(queue, subProperties)
+						}
+					}
+
+				}
+			} else if prop.Properties != nil {
+				queue = append(queue, prop.Properties)
+			}
+		}
+	}
 }

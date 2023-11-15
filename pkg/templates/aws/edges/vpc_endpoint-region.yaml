@@ -1,2 +1,2 @@
 source: aws:vpc_endpoint
-target: aws:subnet
+target: aws:region

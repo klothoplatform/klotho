@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -20,16 +19,23 @@ type ExpansionInput struct {
 	TempGraph      construct.Graph
 }
 
+type ExpansionResult struct {
+	Edges []graph.Edge[construct.ResourceId]
+	Graph construct.Graph
+}
+
 func ExpandEdge(
 	ctx solution_context.SolutionContext,
 	input ExpansionInput,
-) (construct.Graph, error) {
+) (ExpansionResult, error) {
 	tempGraph := input.TempGraph
 	dep := input.Dep
 
-	result := construct.NewGraph()
+	result := ExpansionResult{
+		Graph: construct.NewGraph(),
+	}
 
-	defer writeGraph(input, tempGraph, result)
+	defer writeGraph(input, tempGraph, result.Graph)
 	var errs error
 	errs = errors.Join(errs, runOnNamespaces(dep.Source, dep.Target, ctx, result))
 	connected, err := connectThroughNamespace(dep.Source, dep.Target, ctx, result)
@@ -37,7 +43,9 @@ func ExpandEdge(
 		errs = errors.Join(errs, err)
 	}
 	if !connected {
-		errs = errors.Join(errs, expandEdge(ctx, input, result))
+		edges, err := expandEdge(ctx, input, result.Graph)
+		errs = errors.Join(errs, err)
+		result.Edges = append(result.Edges, edges...)
 	}
 	return result, errs
 }
@@ -46,10 +54,10 @@ func expandEdge(
 	ctx solution_context.SolutionContext,
 	input ExpansionInput,
 	g construct.Graph,
-) error {
+) ([]graph.Edge[construct.ResourceId], error) {
 	paths, err := graph.AllPathsBetween(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
@@ -57,12 +65,12 @@ func expandEdge(
 		errs = errors.Join(errs, ExpandPath(ctx, input, path, g))
 	}
 	if errs != nil {
-		return errs
+		return nil, errs
 	}
 
 	path, err := graph.ShortestPath(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
 	if err != nil {
-		return errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
+		return nil, errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
 	}
 
 	name := fmt.Sprintf("%s_%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
@@ -75,14 +83,144 @@ func expandEdge(
 				name = fmt.Sprintf("%s_%s-2", name, id.Name)
 				id.Name = name
 			}
-			_, props, err := ctx.RawView().VertexWithProperties(id)
+			_, props, err := input.TempGraph.VertexWithProperties(id)
 			if err == nil && props.Attributes != nil {
 				props.Attributes["new_name"] = name
 			}
 		}
 		result[i] = id
 	}
-	return errors.Join(errs, addResourceListToGraph(ctx, g, result))
+	resultResources, errs := addResourceListToGraph(ctx, g, result)
+	if errs != nil {
+		return nil, errors.Join(errs, err)
+	}
+	errs = errors.Join(errs, handleProperties(ctx, resultResources, g))
+	edges, err := findSubExpansionsToRun(resultResources, ctx)
+	return edges, errors.Join(errs, err)
+}
+
+func findSubExpansionsToRun(
+	result []*construct.Resource,
+	ctx solution_context.SolutionContext,
+) (edges []graph.Edge[construct.ResourceId], errs error) {
+	resourceTemplates := make(map[construct.ResourceId]*knowledgebase.ResourceTemplate)
+	added := make(map[construct.ResourceId]map[construct.ResourceId]bool)
+	getResourceTemplate := func(id construct.ResourceId) *knowledgebase.ResourceTemplate {
+		rt, found := resourceTemplates[id]
+		if !found {
+			var err error
+			rt, err = ctx.KnowledgeBase().GetResourceTemplate(id)
+			if err != nil || rt == nil {
+				errs = errors.Join(errs, fmt.Errorf("could not find resource template for %s: %w", id, err))
+				return nil
+			}
+		}
+		return rt
+	}
+
+	for i, res := range result {
+		if i == 0 || i == len(result)-1 {
+			continue
+		}
+		rt := getResourceTemplate(res.ID)
+		if rt == nil {
+			continue
+		}
+		if len(rt.PathSatisfaction.AsSource) != 0 {
+			for j := i + 2; j < len(result); j++ {
+				target := result[j]
+				rt := getResourceTemplate(target.ID)
+				if rt == nil {
+					continue
+				}
+				if len(rt.PathSatisfaction.AsTarget) != 0 || j == len(result)-1 {
+					if _, ok := added[res.ID]; !ok {
+						added[res.ID] = make(map[construct.ResourceId]bool)
+					}
+					if added, ok := added[res.ID][target.ID]; !ok || !added {
+						edges = append(edges, graph.Edge[construct.ResourceId]{Source: res.ID, Target: target.ID})
+					}
+					added[res.ID][target.ID] = true
+				}
+			}
+		}
+		// do the same logic for asTarget
+		if len(rt.PathSatisfaction.AsTarget) != 0 {
+			for j := i - 2; j >= 0; j-- {
+				source := result[j]
+				rt := getResourceTemplate(source.ID)
+				if rt == nil {
+					continue
+				}
+				if len(rt.PathSatisfaction.AsSource) != 0 || j == 0 {
+					if _, ok := added[source.ID]; !ok {
+						added[source.ID] = make(map[construct.ResourceId]bool)
+					}
+					if added, ok := added[source.ID][res.ID]; !ok || !added {
+						edges = append(edges, graph.Edge[construct.ResourceId]{Source: source.ID, Target: res.ID})
+					}
+					added[source.ID][res.ID] = true
+				}
+			}
+		}
+	}
+	return
+}
+
+func handleProperties(
+	ctx solution_context.SolutionContext,
+	resultResources []*construct.Resource,
+	g construct.Graph,
+) error {
+	var errs error
+	for i, res := range resultResources {
+		rt, err := ctx.KnowledgeBase().GetResourceTemplate(res.ID)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+
+		handleProp := func(prop *knowledgebase.Property) {
+			oldId := res.ID
+			opRuleCtx := operational_rule.OperationalRuleContext{
+				Solution: ctx,
+				Property: prop,
+				Data:     knowledgebase.DynamicValueData{Resource: res.ID},
+			}
+			if prop.OperationalRule == nil {
+				return
+			}
+			for _, step := range prop.OperationalRule.Steps {
+				for _, selector := range step.Resources {
+					if step.Direction == knowledgebase.DirectionDownstream && i < len(resultResources)-1 {
+						downstreamRes := resultResources[i+1]
+						if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
+							knowledgebase.DynamicValueData{Resource: res.ID}, downstreamRes); canUse && err == nil {
+							err = opRuleCtx.SetField(res, downstreamRes, step)
+							if err != nil {
+								errs = errors.Join(errs, err)
+							}
+						}
+					} else if i > 0 {
+						upstreamRes := resultResources[i-1]
+						if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
+							knowledgebase.DynamicValueData{Resource: res.ID}, upstreamRes); canUse && err == nil {
+							err = opRuleCtx.SetField(res, upstreamRes, step)
+							if err != nil {
+								errs = errors.Join(errs, err)
+							}
+						}
+
+					}
+				}
+			}
+			if prop.Namespace && oldId.Namespace != res.ID.Namespace {
+				errs = errors.Join(errs, construct.ReplaceResource(g, oldId, res))
+			}
+		}
+		rt.LoopProperties(res, handleProp)
+	}
+	return errs
 }
 
 // ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
@@ -127,23 +265,6 @@ func ExpandPath(
 			return nil
 		}
 
-		// Check if its a valid namespaced resource
-		ids, err := ctx.KnowledgeBase().GetAllowedNamespacedResourceIds(solution_context.DynamicCtx(ctx), id)
-		if err != nil {
-			return errors.Join(nerr, err)
-		}
-		for _, i := range ids {
-			if i.Matches(input.Dep.Target.ID) {
-				ns, err := ctx.KnowledgeBase().GetResourcesNamespaceResource(resource)
-				if err != nil {
-					return errors.Join(nerr, err)
-				}
-				if !ns.Matches(input.Dep.Target.ID) {
-					return nerr
-				}
-			}
-		}
-
 		// Check validity for path satisfaction routes
 		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
 		if err != nil {
@@ -161,84 +282,38 @@ func ExpandPath(
 		if _, ok := candidates[matchIdx][id]; !ok {
 			candidates[matchIdx][id] = 0
 		}
-		downstreams, err := solution_context.Downstream(ctx, input.Dep.Source.ID, knowledgebase.ResourceGlueLayer)
-		nerr = errors.Join(nerr, err)
-		if collectionutil.Contains(downstreams, id) {
-			candidates[matchIdx][id] += 10
-		}
-		upstreams, err := solution_context.Upstream(ctx, input.Dep.Target.ID, knowledgebase.ResourceGlueLayer)
-		nerr = errors.Join(nerr, err)
-		if collectionutil.Contains(upstreams, id) {
-			candidates[matchIdx][id] += 10
-		}
-
-		// See if its currently in the result graph and if so add weight to increase chances of being reused
-		_, err = resultGraph.Vertex(id)
-		if err == nil {
-			candidates[matchIdx][id] += 9
-		}
-
-		undirected, err := operational_rule.BuildUndirectedGraph(ctx)
+		weight, err := determineCandidateWeight(ctx, input.Dep.Source.ID, input.Dep.Target.ID, id, resultGraph)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-		pather, err := construct.ShortestPaths(undirected, id, construct.DontSkipEdges)
-		if err != nil {
-			return err
-		}
-
-		// We start at 8 so its weighted less than actually being upstream of the target or downstream of the src
-		availableWeight := 10
-		shortestPath, err := pather.ShortestPath(input.Dep.Source.ID)
-		if err != nil {
-			return errors.Join(nerr, err)
-		}
-		for _, res := range shortestPath {
-			if ctx.KnowledgeBase().GetFunctionality(res) != knowledgebase.Unknown {
-				availableWeight -= 2
-			} else {
-				availableWeight -= 1
-			}
-
-		}
-
-		shortestPath, err = pather.ShortestPath(input.Dep.Target.ID)
-		if err != nil {
-			return errors.Join(nerr, err)
-		}
-		for _, res := range shortestPath {
-			if ctx.KnowledgeBase().GetFunctionality(res) != knowledgebase.Unknown {
-				availableWeight -= 1
-			}
-		}
-
-		// We make sure the divideWeightBy is at least 2 so that reusing resources is always valued higher than creating new ones if possible
-		if availableWeight < 0 {
-			availableWeight = 2
-		}
-
-		candidates[matchIdx][id] += availableWeight
+		candidates[matchIdx][id] += weight
 		return nerr
 	}
 	// We need to add candidates which exist in our current result graph so we can reuse them. We do this in case
 	// we have already performed expansions to ensure the namespaces are connected, etc
-	construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err := construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return addCandidates(id, resource, nerr)
 	})
+	if err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error during result graph walk graph: %w", err))
+	}
 
 	// Add all other candidates which exist within the graph
-	construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err = construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return addCandidates(id, resource, nerr)
 	})
+	if err != nil {
+		errs = errors.Join(errs, fmt.Errorf("error during raw view walk graph: %w", err))
+	}
 
 	predecessors, err := ctx.DataflowGraph().PredecessorMap()
 	if err != nil {
-		return err
+		errs = errors.Join(errs, err)
 	}
 
 	adjacent, err := ctx.DataflowGraph().AdjacencyMap()
 	if err != nil {
-		return err
+		errs = errors.Join(errs, err)
 	}
 
 	// addEdge checks whether the edge should be added according to the following rules:
@@ -306,7 +381,7 @@ func ExpandPath(
 	return nil
 }
 
-func runOnNamespaces(src, target *construct.Resource, ctx solution_context.SolutionContext, g construct.Graph) error {
+func runOnNamespaces(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) error {
 	if src.ID.Namespace != "" && target.ID.Namespace != "" {
 		kb := ctx.KnowledgeBase()
 		targetNamespaceResourceId, err := kb.GetResourcesNamespaceResource(target)
@@ -347,15 +422,16 @@ func runOnNamespaces(src, target *construct.Resource, ctx solution_context.Solut
 			Classification: "",
 			TempGraph:      tg,
 		}
-		err = expandEdge(ctx, input, g)
+		edges, err := expandEdge(ctx, input, result.Graph)
 		if err != nil {
 			return err
 		}
+		result.Edges = append(result.Edges, edges...)
 	}
 	return nil
 }
 
-func connectThroughNamespace(src, target *construct.Resource, ctx solution_context.SolutionContext, g construct.Graph) (
+func connectThroughNamespace(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) (
 	connected bool,
 	errs error,
 ) {
@@ -398,24 +474,30 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			Classification: "",
 			TempGraph:      tg,
 		}
-		err = expandEdge(ctx, input, g)
+		edges, err := expandEdge(ctx, input, result.Graph)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
+		result.Edges = append(result.Edges, edges...)
 		connected = true
 	}
 
 	return
 }
 
-func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Graph, resources []construct.ResourceId) error {
+func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Graph, resources []construct.ResourceId) (
+	[]*construct.Resource,
+	error,
+) {
+	var result []*construct.Resource
 	var errs error
 	var prevRes construct.ResourceId
 	for i, resource := range resources {
 		r, err := ctx.RawView().Vertex(resource)
 		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 			errs = errors.Join(errs, err)
+			continue
 		}
 		if r == nil {
 			r, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), resource)
@@ -428,6 +510,7 @@ func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Gr
 		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 			errs = errors.Join(errs, err)
 		}
+		result = append(result, r)
 		if i == 0 {
 			prevRes = r.ID
 			continue
@@ -438,7 +521,7 @@ func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Gr
 		}
 		prevRes = r.ID
 	}
-	return errs
+	return result, errs
 }
 
 // NOTE(gg): if for some reason the path could contain a duplicated selector

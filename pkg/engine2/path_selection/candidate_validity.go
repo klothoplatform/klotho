@@ -9,25 +9,36 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
+	// validityChecker defines methods for checking validity of a candidate based on the operation specified in the
+	// path satisfaction route. The validityChecker has the ability to both check if a candidate is valid
+	// and mutate a candidate to be valid
 	validityChecker interface {
 		isValid(resourceToCheck, targetResource construct.ResourceId) (bool, error)
 		makeValid(resource, operationResource construct.ResourceId) error
 	}
 
+	// downstreamChecker is a validityChecker that checks if a candidate is valid based on what is downstream of the specified
+	// resources
 	downstreamChecker struct {
 		ctx solution_context.SolutionContext
 	}
 )
 
+// checkCandidatesValidity checks if the candidate is valid based on the validity of its own path satisfaction rules and namespace
 func checkCandidatesValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
 	path []construct.ResourceId,
 	classification string,
 ) (bool, error) {
+	if v, err := checkNamespaceValidity(ctx, resource, path[len(path)-1]); !v || err != nil {
+		zap.S().Debugf("candidate %s is not valid based on namespace", resource.ID)
+		return v, err
+	}
 	// We only care if the validity is true if its not a direct edge since we know direct edges are valid
 	if len(path) <= 3 {
 		return true, nil
@@ -38,34 +49,68 @@ func checkCandidatesValidity(
 		return false, nil
 	}
 	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
-	if err != nil {
+	if err != nil || rt == nil {
 		return false, err
 	}
-	if rt == nil {
-		return true, nil
-	}
+
 	var errs error
+	// check validity of candidate being a target if not direct edge to source
 	if matchIdx >= 1 {
 		valid, err := checkAsTargetValidity(ctx, resource, path[:matchIdx+1], classification)
 		if err != nil {
 			errs = errors.Join(errs, err)
 		}
 		if !valid {
+			zap.S().Debugf("candidate %s is not valid as target", resource.ID)
 			return false, errs
 		}
 	}
+
+	// check validity of candidate being a source if not direct edge to target
 	if matchIdx <= len(path)-3 {
 		valid, err := checkAsSourceValidity(ctx, resource, path[matchIdx:], classification)
 		if err != nil {
 			errs = errors.Join(errs, err)
 		}
 		if !valid {
+			zap.S().Debugf("candidate %s is not valid as source", resource.ID)
 			return false, errs
 		}
 	}
 	return true, errs
 }
 
+// checkNamespaceValidity checks if the candidate is valid based on the namespace it is a part of.
+// If the candidate is namespaced and the target is not in the same namespace,
+//
+//	then the candidate is not valid if those namespace resources are the same type
+func checkNamespaceValidity(
+	ctx solution_context.SolutionContext,
+	resource *construct.Resource,
+	target construct.ResourceId,
+) (bool, error) {
+	// Check if its a valid namespaced resource
+	ids, err := ctx.KnowledgeBase().GetAllowedNamespacedResourceIds(solution_context.DynamicCtx(ctx), resource.ID)
+	if err != nil {
+		return false, err
+	}
+	for _, i := range ids {
+		if i.Matches(target) {
+			ns, err := ctx.KnowledgeBase().GetResourcesNamespaceResource(resource)
+			if err != nil {
+				return false, err
+			}
+			if !ns.Matches(target) {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+// checkAsTargetValidity checks if the candidate is valid based on the validity of its own path satisfaction rules
+// for the specified classification. If the candidate uses property references to check validity then the candidate
+// can be considered valid if those properties are not set
 func checkAsTargetValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
@@ -105,6 +150,9 @@ func checkAsTargetValidity(
 	return true, errs
 }
 
+// checkAsSourceValidity checks if the candidate is valid based on the validity of its own path satisfaction rules
+// for the specified classification. If the candidate uses property references to check validity then the candidate
+// can be considered valid if those properties are not set
 func checkAsSourceValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
@@ -148,6 +196,7 @@ func checkAsSourceValidity(
 	return true, errs
 }
 
+// checkValidityOperation checks if the candidate is valid based on the operation the validity check specifies
 func checkValidityOperation(
 	ctx solution_context.SolutionContext,
 	src, target construct.ResourceId,
@@ -168,6 +217,8 @@ func checkValidityOperation(
 	return true, errs
 }
 
+// assignForValidity assigns the candidate to be valid based on the operation the validity check specified
+// This is allowed to be run if the property reference used in the validity check is not set on the candidate
 func assignForValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
@@ -189,6 +240,8 @@ func assignForValidity(
 	return errs
 }
 
+// makeValid makes the candidate valid based on the operation the validity check specified
+// It will find a resource to assign to the propertyRef specified based on what is downstream of the operationResource.
 func (d downstreamChecker) makeValid(resource, operationResource *construct.Resource, propertyRef string) error {
 	downstreams, err := solution_context.Downstream(d.ctx, operationResource.ID, knowledgebase.FirstFunctionalLayer)
 	if err != nil {
@@ -250,6 +303,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 	return nil
 }
 
+// isValid checks if the candidate is valid based on what is downstream of the resourceToCheck
 func (d downstreamChecker) isValid(resourceToCheck, targetResource construct.ResourceId) (bool, error) {
 	downstreams, err := solution_context.Downstream(d.ctx, resourceToCheck, knowledgebase.FirstFunctionalLayer)
 	if err != nil {

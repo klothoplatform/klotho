@@ -280,7 +280,7 @@ func HasPath(topo Topology, sol solution_context.SolutionContext, source, target
 			PATHS:
 				for _, path := range paths {
 					for i, res := range path {
-						if i != 0 && i < len(path)-1 && topo.Nodes[res.String()] != nil {
+						if i != 0 && i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
 							continue PATHS
 						}
 					}
