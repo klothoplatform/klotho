@@ -4,10 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/dot"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 const (
@@ -27,14 +28,17 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = string(key.GraphState)
 		attribs["shape"] = "box"
 		style = append(style, "dashed")
-	} else if key.PathSatisfication != nil {
+	} else if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		var extra []string
 		if key.PathSatisfication.Classification != "" {
 			extra = append(extra, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if key.PathSatisfication.AsTarget {
-			extra = append(extra, "(target)")
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Target) {
+			extra = append(extra, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
+		}
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Source) {
+			extra = append(extra, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		if len(extra) > 0 {
 			attribs["label"] += `\n` + strings.Join(extra, " ")
@@ -58,19 +62,6 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	}
 	attribs["style"] = strings.Join(style, ",")
 	return attribs
-}
-
-func attributesToString(attribs map[string]string) string {
-	var keys []string
-	for k := range attribs {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var list []string
-	for _, k := range keys {
-		list = append(list, fmt.Sprintf(`%s="%s"`, k, attribs[k]))
-	}
-	return strings.Join(list, ", ")
 }
 
 type evalRank struct {
@@ -201,7 +192,7 @@ func graphToClusterDOT(eval *Evaluator, out io.Writer) error {
 			for _, key := range subrank {
 				attribs := keyAttributes(eval, key)
 				attribs["group"] = fmt.Sprintf("group%d.%d", rank, i)
-				printf("    %q [%s]\n", key, attributesToString(attribs))
+				printf("    %q%s\n", key, dot.AttributesToString(attribs))
 
 				for tgt, e := range adj[key] {
 					if addedBy := e.Properties.Attributes[attribAddedBy]; addedBy == tgt.String() {
@@ -278,7 +269,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 				attribs["label"] = fmt.Sprintf(`%s\n%s`, attribs["label"], ready)
 			}
 		}
-		printf("  %q [%s]\n", src, attributesToString(attribs))
+		printf("  %q%s\n", src, dot.AttributesToString(attribs))
 
 		for tgt, e := range a {
 			edgeAttribs := make(map[string]string)
@@ -295,11 +286,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 				edgeAttribs["penwidth"] = "2"
 			}
 
-			printf("  %q -> %q", src, tgt)
-			if len(edgeAttribs) > 0 {
-				printf(" [%s]", attributesToString(edgeAttribs))
-			}
-			printf("\n")
+			printf("  %q -> %q%s\n", src, tgt, dot.AttributesToString(edgeAttribs))
 		}
 	}
 	printf("}\n")

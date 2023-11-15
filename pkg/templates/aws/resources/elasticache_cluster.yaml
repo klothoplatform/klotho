@@ -34,7 +34,14 @@ properties:
   NumCacheNodes:
     type: int
     default_value: 1
-
+  Port:
+    type: int
+    configuration_disabled: true
+    deploy_time: true
+  ClusterAddress:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 path_satisfaction:
   as_target:
     - network

@@ -9,18 +9,59 @@ import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
-const PHANTOM_PREFIX = "phantom-"
+// PHANTOM_PREFIX deliberately uses an invalid character so if it leaks into an actualy input/output, it will
+// fail to parse.
+const PHANTOM_PREFIX = "phantom$"
 const GLUE_WEIGHT = 100
-const FUNCTIONAL_WEIGHT = 10000
+const FUNCTIONAL_WEIGHT = 100000
 
 func BuildPathSelectionGraph(
 	dep construct.SimpleEdge,
 	kb knowledgebase.TemplateKB,
 	classification string) (construct.Graph, error) {
-
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
+
+	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph
+	if et := kb.GetEdgeTemplate(dep.Source, dep.Target); et != nil && dep.Source.Namespace == dep.Target.Namespace {
+		directEdgeSatisfies := false
+		if collectionutil.Contains(et.Classification, classification) {
+			directEdgeSatisfies = true
+		}
+
+		if !directEdgeSatisfies {
+			srcRt, err := kb.GetResourceTemplate(dep.Source)
+			if err != nil {
+				return nil, err
+			}
+			dst, err := kb.GetResourceTemplate(dep.Source)
+			if err != nil {
+				return nil, err
+			}
+			if collectionutil.Contains(srcRt.Classification.Is, classification) || collectionutil.Contains(dst.Classification.Is, classification) {
+				directEdgeSatisfies = true
+			}
+		}
+
+		if directEdgeSatisfies {
+			err := tempGraph.AddVertex(&construct.Resource{ID: dep.Source})
+			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+				return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
+			}
+			err = tempGraph.AddVertex(&construct.Resource{ID: dep.Target})
+			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+				return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
+			}
+			err = tempGraph.AddEdge(dep.Source, dep.Target, graph.EdgeWeight(calculateEdgeWeight(dep, dep.Source, dep.Target, 0, 0, kb)))
+			if err != nil {
+				return nil, err
+			}
+			return tempGraph, nil
+		}
+	}
+
 	paths, err := kb.AllPaths(dep.Source, dep.Target)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -28,15 +69,15 @@ func BuildPathSelectionGraph(
 			dep, err,
 		)
 	}
-	err = tempGraph.AddVertex(construct.CreateResource(dep.Source))
+	zap.S().Debugf("Found %d paths %s", len(paths), dep)
+	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Source})
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
 	}
-	err = tempGraph.AddVertex(construct.CreateResource(dep.Target))
+	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Target})
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
-
 	for _, path := range paths {
 		resourcePath := []construct.ResourceId{}
 		for _, res := range path {
@@ -54,7 +95,7 @@ func BuildPathSelectionGraph(
 			} else if i == len(path)-1 {
 				id = dep.Target
 			}
-			resource := construct.CreateResource(id)
+			resource := &construct.Resource{ID: id}
 			err = tempGraph.AddVertex(resource)
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, err
@@ -145,7 +186,7 @@ func calculateEdgeWeight(
 	}
 	et := kb.GetEdgeTemplate(source, target)
 	if et != nil && et.EdgeWeightMultiplier != 0 {
-		return weight * et.EdgeWeightMultiplier
+		return int(float32(weight) * et.EdgeWeightMultiplier)
 	}
 	return weight
 }

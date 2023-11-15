@@ -1,5 +1,4 @@
 import * as aws from '@pulumi/aws'
-import * as fs from 'fs'
 import { accountId, region, kloConfig } from '../../globals'
 
 interface Args {

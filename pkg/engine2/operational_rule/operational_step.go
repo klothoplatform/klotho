@@ -232,7 +232,7 @@ func (ctx OperationalRuleContext) addDependencyForDirection(
 	if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
 		return err
 	}
-	return ctx.setField(resource, dependentResource, step)
+	return ctx.SetField(resource, dependentResource, step)
 }
 
 func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowledgebase.Direction, resource, dependentResource construct.ResourceId) error {
@@ -254,7 +254,7 @@ func (ctx OperationalRuleContext) addResourceName(partialId construct.ResourceId
 	return partialId
 }
 
-func (ctx OperationalRuleContext) setField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {
+func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {
 	if ctx.Property == nil {
 		return nil
 	}

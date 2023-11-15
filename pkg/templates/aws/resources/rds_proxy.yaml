@@ -40,6 +40,7 @@ properties:
               properties:
                 Type: private
             - aws:subnet
+          num_needed: 2
   Auths:
     type: set(map)
     properties:
@@ -59,7 +60,6 @@ path_satisfaction:
     - rds_proxy_target_group
   as_target:
     - network
-    - permissions
 
 classification:
   is:

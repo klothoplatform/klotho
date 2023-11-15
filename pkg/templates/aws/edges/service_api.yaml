@@ -3,12 +3,16 @@ resource: aws:SERVICE_API
 sources:
   - aws:lambda_function
   - aws:app_runner_service
-  - aws:subnet
+  - aws:ecs_service
+  - kubernetes:deployment
+  - kubernetes:pod
+  - aws:ec2_instance
 targets:
   - aws:lambda_function
   - aws:dynamodb_table
   - aws:log_group
   - aws:s3_bucket
   - aws:sqs_queue
+  - aws:secret
 
-edge_weight_multiplier: 2
+edge_weight_multiplier: 1.5

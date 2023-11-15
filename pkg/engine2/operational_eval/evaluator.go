@@ -33,7 +33,7 @@ type (
 		Ref               construct.PropertyRef
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
-		PathSatisfication *knowledgebase.EdgePathSatisfaction
+		PathSatisfication knowledgebase.EdgePathSatisfaction
 		Internal          string
 	}
 
@@ -87,15 +87,18 @@ func (key Key) String() string {
 	if key.GraphState != "" {
 		return string(key.GraphState)
 	}
-	if key.PathSatisfication != nil {
+	if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
 		args := []string{
 			key.Edge.String(),
 		}
 		if key.PathSatisfication.Classification != "" {
 			args = append(args, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if key.PathSatisfication.AsTarget {
-			args = append(args, "target")
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Target) {
+			args = append(args, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
+		}
+		if propertyReferenceInfluencesEdge(key.PathSatisfication.Source) {
+			args = append(args, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
 	}
@@ -106,6 +109,47 @@ func (key Key) String() string {
 		return fmt.Sprintf("|%s|", key.Internal)
 	}
 	return "<empty>"
+}
+
+func (key Key) Less(other Key) bool {
+	if !key.Ref.Resource.IsZero() {
+		if other.Ref.Resource.IsZero() {
+			return true
+		}
+		if key.Ref.Resource != other.Ref.Resource {
+			return construct.ResourceIdLess(key.Ref.Resource, other.Ref.Resource)
+		}
+		return key.Ref.Property < other.Ref.Property
+	}
+	if key.GraphState != "" {
+		if other.GraphState == "" {
+			return true
+		}
+		return key.GraphState < other.GraphState
+	}
+	// if key.PathSatisfication.valid {
+	// 	if !other.PathSatisfication.valid {
+	// 		return true
+	// 	}
+	// 	if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
+	// 		return key.PathSatisfication.Classification < other.PathSatisfication.Classification
+	// 	}
+	// 	return key.Edge.Less(other.Edge)
+	// }
+	if key.Edge != (construct.SimpleEdge{}) {
+		if other.Edge == (construct.SimpleEdge{}) {
+			return true
+		}
+		return key.Edge.Less(other.Edge)
+	}
+	if key.Internal != "" {
+		if other.Internal == "" {
+			return true
+		}
+		return key.Internal < other.Internal
+	}
+	// Empty key, put that last, though it should never happen
+	return false
 }
 
 func (r ReadyPriority) String() string {
@@ -383,6 +427,15 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 			if key.Edge.Source == oldId || key.Edge.Target == oldId {
 				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
 				replaceVertex(key, vertex)
+			}
+		case *pathExpandVertex:
+			if key.Edge.Source == oldId || key.Edge.Target == oldId {
+				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
+				replaceVertex(key, vertex)
+				// because the temp graph contains the src and target as nodes, we need to update it if it exists
+				if vertex.TempGraph != nil {
+					construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId})
+				}
 			}
 		}
 	}

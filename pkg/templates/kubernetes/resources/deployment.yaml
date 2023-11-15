@@ -1,5 +1,5 @@
 qualified_type_name: kubernetes:deployment
-display_name: Deployment
+display_name: Kubernetes Deployment
 
 properties:
   Cluster:

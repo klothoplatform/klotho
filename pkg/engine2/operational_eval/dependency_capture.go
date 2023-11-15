@@ -132,7 +132,7 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 			ctx.src = Key{Ref: ref}
 		}
 		exec(opRule.If)
-		exec(rule.Config.Value)
+		ctx.ExecuteValue(rule.Config.Value, data)
 		if ctx.src != originalSrc {
 			// Make sure the configured property depends on the edge
 			ctx.changes.addEdge(ctx.src, originalSrc)

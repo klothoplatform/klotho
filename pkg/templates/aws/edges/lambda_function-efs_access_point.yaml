@@ -7,7 +7,7 @@ operational_rules:
           field: EfsAccessPoint
           value: '{{ .Target }}'
   - if: |
-      {{- if (hasDownstream "aws:vpc" .Source) }}
+      {{- if and (hasDownstream "aws:vpc" .Source) (hasDownstream "aws:vpc" .Target) }}
         {{ $lambdaVpc := (downstream "aws:vpc" .Source) }}
         {{ $efsVpc := (downstream "aws:vpc" .Target) }}
         {{- if (ne $lambdaVpc $efsVpc) }}
@@ -15,6 +15,8 @@ operational_rules:
         {{ else }}
           false
         {{- end }}
+      {{ else }}
+        false
       {{ end }}
     steps:
       - resource: '{{ downstream "aws:vpc" .Source }}'
@@ -22,7 +24,7 @@ operational_rules:
         resources:
           - '{{downstream "aws:vpc" .Target}}'
   - if: |
-      {{- if not (hasDownstream "aws:vpc" .Source) }}
+      {{- if and (not (hasDownstream "aws:vpc" .Source)) (not (hasDownstream "aws:vpc" .Target)) }}
         true
       {{ else }} 
         false 

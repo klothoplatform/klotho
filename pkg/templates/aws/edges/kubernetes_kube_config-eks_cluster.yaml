@@ -1,5 +1,8 @@
 source: kubernetes:kube_config
 target: aws:eks_cluster
+
+direct_edge_only: true
+
 operational_rules:
   - configuration_rules:
     - resource: '{{ .Source }}'

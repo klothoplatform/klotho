@@ -3,7 +3,6 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -15,25 +14,28 @@ import (
 	"github.com/klothoplatform/klotho/pkg/set"
 )
 
-type pathExpandVertex struct {
-	Edge          construct.SimpleEdge
-	TempGraph     construct.Graph
-	Satisfication knowledgebase.EdgePathSatisfaction
-}
+type (
+	pathExpandVertex struct {
+		Edge          construct.SimpleEdge
+		TempGraph     construct.Graph
+		Satisfication knowledgebase.EdgePathSatisfaction
+	}
 
-type ExpansionInput struct {
-	Dep            construct.ResourceEdge
-	Classification string
-	TempGraph      construct.Graph
-}
+	// pathSatisfication is a wrapper around [EdgePathSatisfaction] that makes unset distinguishable
+	// from expanding on an empty classification. Once all expansions have classification, this can
+	// be removed and use [EdgePathSatisfaction] directly (`.valid` becomes `.Classification != ""`)
+	pathSatisfication struct {
+		knowledgebase.EdgePathSatisfaction
+		valid bool
+	}
+)
 
 func (v *pathExpandVertex) Key() Key {
-	return Key{PathSatisfication: &v.Satisfication, Edge: v.Edge}
+	return Key{PathSatisfication: v.Satisfication, Edge: v.Edge}
 }
 
 func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
 	var errs error
-
 	expansions, err := v.getExpansionsToRun(eval)
 	if err != nil {
 		errs = errors.Join(errs, fmt.Errorf("could not get expansions to run: %w", err))
@@ -84,14 +86,14 @@ func expansionResultString(result construct.Graph, dep construct.ResourceEdge) (
 	return sb.String(), nil
 }
 
-func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInput) error {
+func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selection.ExpansionInput) error {
 	var errs error
-	resultGraph, err := path_selection.ExpandEdge(eval.Solution, expansion.Dep, expansion.TempGraph)
+	result, err := path_selection.ExpandEdge(eval.Solution, expansion)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate path expand vertex. could not expand edge %s: %w", v.Edge, err)
 	}
 
-	adj, err := resultGraph.AdjacencyMap()
+	adj, err := result.Graph.AdjacencyMap()
 	if err != nil {
 		return err
 	}
@@ -120,7 +122,11 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 		res, err := eval.Solution.OperationalView().Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			res = construct.CreateResource(pathId)
+			res, err = result.Graph.Vertex(pathId)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
 			errs = errors.Join(errs, eval.Solution.OperationalView().AddVertex(res))
 
@@ -133,7 +139,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 		return errs
 	}
 
-	resultStr, err := expansionResultString(resultGraph, expansion.Dep)
+	resultStr, err := expansionResultString(result.Graph, expansion.Dep)
 	if err != nil {
 		return err
 	}
@@ -159,12 +165,14 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion ExpansionInpu
 	if err := eval.AddResources(resources...); err != nil {
 		return err
 	}
-
+	if err := eval.AddEdges(result.Edges...); err != nil {
+		return err
+	}
 	return eval.AddEdges(edges...)
 }
 
-func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput, error) {
-	var result []ExpansionInput
+func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection.ExpansionInput, error) {
+	var result []path_selection.ExpansionInput
 	var errs error
 	sourceRes, err := eval.Solution.RawView().Vertex(v.Edge.Source)
 	if err != nil {
@@ -179,8 +187,9 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]ExpansionInput
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
+
 	for _, expansion := range expansions {
-		input := ExpansionInput{
+		input := path_selection.ExpansionInput{
 			Dep:            expansion.Dep,
 			Classification: expansion.Classification,
 			TempGraph:      v.TempGraph,
@@ -356,36 +365,16 @@ func (v *pathExpandVertex) addDepsFromEdge(
 
 func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 	changes := newChanges()
-	cfgCtx := solution_context.DynamicCtx(eval.Solution)
 	srcKey := v.Key()
 
 	var errs error
-	parts := strings.Split(v.Satisfication.Classification, "#")
-	if len(parts) >= 2 {
-		currResources := []construct.ResourceId{v.Edge.Source}
-		if v.Satisfication.AsTarget {
-			currResources = []construct.ResourceId{v.Edge.Target}
-		}
-		for i, part := range parts {
-			if i == 0 || part == "" {
-				continue
-			}
-			var nextResources []construct.ResourceId
-			for _, currResource := range currResources {
-				val, err := cfgCtx.FieldValue(part, currResource)
-				if err != nil {
-					targetKey := Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}}
-					changes.addEdge(srcKey, targetKey)
-					continue
-				}
-				if id, ok := val.(construct.ResourceId); ok {
-					nextResources = append(nextResources, id)
-				} else if ids, ok := val.([]construct.ResourceId); ok {
-					nextResources = append(nextResources, ids...)
-				}
-			}
-			currResources = nextResources
-		}
+	if propertyReferenceInfluencesEdge(v.Satisfication.Source) {
+		keys := getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference)
+		changes.addEdges(srcKey, keys)
+	}
+	if propertyReferenceInfluencesEdge(v.Satisfication.Target) {
+		keys := getDepsForPropertyRef(eval.Solution, v.Edge.Target, v.Satisfication.Target.PropertyReference)
+		changes.addEdges(srcKey, keys)
 	}
 
 	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
@@ -426,78 +415,97 @@ func DeterminePathSatisfactionInputs(
 	sol solution_context.SolutionContext,
 	satisfaction knowledgebase.EdgePathSatisfaction,
 	edge construct.ResourceEdge,
-) (expansions []ExpansionInput, errs error) {
-	if !strings.Contains(satisfaction.Classification, "#") {
-		expansions = append(expansions, ExpansionInput{Dep: edge, Classification: satisfaction.Classification})
-		return
-	}
-
-	parts := strings.Split(satisfaction.Classification, "#")
-
-	resources := []construct.ResourceId{edge.Source.ID}
-	if satisfaction.AsTarget {
-		resources = []construct.ResourceId{edge.Target.ID}
-	}
-
-	for i, part := range parts {
-		fieldValueResources := []construct.ResourceId{}
-		if i == 0 {
-			continue
-		}
-		for _, resId := range resources {
-			r, err := sol.RawView().Vertex(resId)
-			if r == nil || err != nil {
-				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. could not find resource %s: %w",
-					resId, err,
-				))
-				continue
-			}
-			val, err := r.GetProperty(part)
-			if err != nil || val == nil {
-				continue
-			}
-			if id, ok := val.(construct.ResourceId); ok {
-				fieldValueResources = append(fieldValueResources, id)
-			} else if rval := reflect.ValueOf(val); rval.Kind() == reflect.Slice || rval.Kind() == reflect.Array {
-				for i := 0; i < rval.Len(); i++ {
-					idVal := rval.Index(i).Interface()
-					if id, ok := idVal.(construct.ResourceId); ok {
-						fieldValueResources = append(fieldValueResources, id)
-					} else {
-						errs = errors.Join(errs, fmt.Errorf(
-							"failed to determine path satisfaction inputs. array property %s on resource %s is not a resource id",
-							part, resId,
-						))
-					}
-				}
-			} else {
-				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. property %s on resource %s is not a resource id",
-					part, resId,
-				))
-			}
-		}
-		resources = fieldValueResources
-	}
-	for _, resId := range resources {
-		res, err := sol.RawView().Vertex(resId)
+) (expansions []path_selection.ExpansionInput, errs error) {
+	srcIds := []construct.ResourceId{edge.Source.ID}
+	targetIds := []construct.ResourceId{edge.Target.ID}
+	var err error
+	if propertyReferenceInfluencesEdge(satisfaction.Source) {
+		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"failed to determine path satisfaction inputs. could not find resource %s: %w",
-				resId, err,
+				edge.Source.ID, err,
 			))
-			continue
 		}
-		e := construct.ResourceEdge{Source: res, Target: edge.Target}
-		if satisfaction.AsTarget {
-			e = construct.ResourceEdge{Source: edge.Source, Target: res}
+	}
+	if propertyReferenceInfluencesEdge(satisfaction.Target) {
+		targetIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"failed to determine path satisfaction inputs. could not find resource %s: %w",
+				edge.Target.ID, err,
+			))
+
 		}
-		exp := ExpansionInput{
-			Dep:            e,
-			Classification: strings.SplitN(satisfaction.Classification, "#", 2)[0],
+	}
+
+	for _, srcId := range srcIds {
+		for _, targetId := range targetIds {
+			if srcId == targetId {
+				continue
+			}
+			src, err := sol.RawView().Vertex(srcId)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"failed to determine path satisfaction inputs. could not find resource %s: %w",
+					srcId, err,
+				))
+				continue
+			}
+
+			target, err := sol.RawView().Vertex(targetId)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"failed to determine path satisfaction inputs. could not find resource %s: %w",
+					targetId, err,
+				))
+				continue
+			}
+
+			e := construct.ResourceEdge{Source: src, Target: target}
+			exp := path_selection.ExpansionInput{
+				Dep:            e,
+				Classification: satisfaction.Classification,
+			}
+			expansions = append(expansions, exp)
 		}
-		expansions = append(expansions, exp)
 	}
 	return
+}
+
+// getDepsForPropertyRef takes a property reference and recurses down until the property is not filled in on the resource
+// When we reach resources with missing property references, we know they are the property vertex keys we must depend on
+func getDepsForPropertyRef(
+	sol solution_context.SolutionContext,
+	res construct.ResourceId,
+	propertyRef string,
+) set.Set[Key] {
+	keys := make(set.Set[Key])
+	cfgCtx := solution_context.DynamicCtx(sol)
+	currResources := []construct.ResourceId{res}
+	parts := strings.Split(propertyRef, "#")
+	for _, part := range parts {
+		var nextResources []construct.ResourceId
+		for _, currResource := range currResources {
+			val, err := cfgCtx.FieldValue(part, currResource)
+			if err != nil {
+				keys.Add(Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}})
+				continue
+			}
+			if id, ok := val.(construct.ResourceId); ok {
+				nextResources = append(nextResources, id)
+			} else if ids, ok := val.([]construct.ResourceId); ok {
+				nextResources = append(nextResources, ids...)
+			}
+		}
+		currResources = nextResources
+	}
+	return keys
+}
+
+func propertyReferenceInfluencesEdge(v knowledgebase.PathSatisfactionRoute) bool {
+	if v.Validity != "" {
+		return false
+	}
+	return v.PropertyReference != ""
 }

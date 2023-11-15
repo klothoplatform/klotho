@@ -1,5 +1,5 @@
 source: aws:vpc_endpoint
-target: aws:s3_bucket
+target: aws:log_group
 
 unique:
   source: true
@@ -9,8 +9,8 @@ operational_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: ServiceName
-          value: s3
+          value: logs
       - resource: '{{ .Source }}'
         configuration:
           field: VpcEndpointType
-          value: Gateway
+          value: Interface

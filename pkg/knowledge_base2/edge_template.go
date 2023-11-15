@@ -29,9 +29,11 @@ type (
 
 		OperationalRules []OperationalRule `yaml:"operational_rules"`
 
-		EdgeWeightMultiplier int `yaml:"edge_weight_multiplier"`
+		EdgeWeightMultiplier float32 `yaml:"edge_weight_multiplier"`
 
 		Classification []string `yaml:"classification"`
+
+		NoIac bool `json:"no_iac" yaml:"no_iac"`
 	}
 
 	MultiEdgeTemplate struct {
@@ -56,9 +58,11 @@ type (
 
 		OperationalRules []OperationalRule `yaml:"operational_rules"`
 
-		EdgeWeightMultiplier int `yaml:"edge_weight_multiplier"`
+		EdgeWeightMultiplier float32 `yaml:"edge_weight_multiplier"`
 
 		Classification []string `yaml:"classification"`
+
+		NoIac bool `json:"no_iac" yaml:"no_iac"`
 	}
 
 	// Unique is used to specify whether the source or target of an edge must only have a single edge of this type

@@ -165,7 +165,7 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 	case AllDepsLayer:
 		f = allDeps(&result)
 	default:
-		return nil, fmt.Errorf("unknown layer %d", layer)
+		return nil, fmt.Errorf("unknown layer %s", layer)
 	}
 	err := graph_addons.WalkDown(dag, rid, f)
 	return result, err
@@ -198,7 +198,7 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 	case AllDepsLayer:
 		f = allDeps(&result)
 	default:
-		return nil, fmt.Errorf("unknown layer %d", layer)
+		return nil, fmt.Errorf("unknown layer %s", layer)
 	}
 	err := graph_addons.WalkUp(dag, rid, f)
 	return result, err
@@ -223,7 +223,7 @@ func layerWalkFunc(
 	case AllDepsLayer:
 		return allDeps(&result), nil
 	default:
-		return nil, fmt.Errorf("unknown layer %d", layer)
+		return nil, fmt.Errorf("unknown layer %s", layer)
 	}
 }
 

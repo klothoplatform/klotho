@@ -1,5 +1,15 @@
 qualified_type_name: aws:rds_subnet_group
 display_name: RDS Subnet Group
+sanitize_name:
+  # https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.Constraints
+  # These names have these constraints:
+  # - Must contain 1–255 alphanumeric characters.
+  # - Alphanumeric characters, spaces, hyphens, underscores, and periods are allowed
+  |
+  {{ . 
+    | replace `[^[:alnum:] _.-]+` "-"
+    | length 1 255
+  }}
 
 properties:
   Subnets:

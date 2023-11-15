@@ -1,5 +1,17 @@
 qualified_type_name: aws:target_group
 display_name: Target Group
+sanitize_name:
+  # https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_CreateTargetGroup.html
+  # This name must be unique per region per account,
+  # can have a maximum of 32 characters,
+  # must contain only alphanumeric characters or hyphens,
+  # and must not begin or end with a hyphen.
+  |
+  {{ . 
+    | replace `[^[:alnum:]-]+` "-"
+    | replace `(^-)|(-$)` ""
+    | length 1 32
+  }}
 
 properties:
   Port:
@@ -21,6 +33,10 @@ properties:
       Port:
         type: int
         default_value: 80
+
+classification:
+  is:
+    - target_group
 
 delete_context:
   requires_no_upstream_or_downstream: true
