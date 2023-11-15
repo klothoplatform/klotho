@@ -8,7 +8,7 @@ operational_rules:
           field: LoadBalancers
           value:
             - TargetGroup: '{{ .Source }}'
-              ContainerName: '{{ .Target.Name }}'
+              ContainerName: '{{ (downstream "aws:ecs_task_definition" .Target).Name }}'
               ContainerPort: '{{ fieldValue "PortMappings[0].ContainerPort" (fieldValue "TaskDefinition" .Target)}}'
       - resource: '{{ .Source }}'
         configuration:

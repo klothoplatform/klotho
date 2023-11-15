@@ -3,14 +3,14 @@ display_name: Target Group
 sanitize_name:
   # https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/API_CreateTargetGroup.html
   # This name must be unique per region per account,
-  # can have a maximum of 32 characters,
+  # can have a maximum of 32 characters (24 since we reserve 8 for an IaC-appended suffix),
   # must contain only alphanumeric characters or hyphens,
   # and must not begin or end with a hyphen.
   |
   {{ . 
     | replace `[^[:alnum:]-]+` "-"
     | replace `(^-)|(-$)` ""
-    | length 1 32
+    | length 1 24
   }}
 
 properties:
