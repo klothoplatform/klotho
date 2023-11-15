@@ -1,5 +1,5 @@
 qualified_type_name: kubernetes:pod
-display_name: Pod
+display_name: Kubernetes Pod
 
 properties:
   Cluster:

@@ -37,7 +37,9 @@ func ExpandEdge(
 
 	defer writeGraph(input, tempGraph, result.Graph)
 	var errs error
-	errs = errors.Join(errs, runOnNamespaces(dep.Source, dep.Target, ctx, result))
+	// TODO: Revisit if we want to run on namespaces (this causes issue depending on what the namespace is)
+	// A file system can be a namespace and that doesnt really fit the reason we are running this at the moment
+	// errs = errors.Join(errs, runOnNamespaces(dep.Source, dep.Target, ctx, result))
 	connected, err := connectThroughNamespace(dep.Source, dep.Target, ctx, result)
 	if err != nil {
 		errs = errors.Join(errs, err)
@@ -264,9 +266,7 @@ func ExpandPath(
 		if matchIdx < 0 {
 			return nil
 		}
-
-		// Check validity for path satisfaction routes
-		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
+		valid, err := checkNamespaceValidity(ctx, resource, input.Dep.Target.ID)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
@@ -285,6 +285,15 @@ func ExpandPath(
 		weight, err := determineCandidateWeight(ctx, input.Dep.Source.ID, input.Dep.Target.ID, id, resultGraph)
 		if err != nil {
 			return errors.Join(nerr, err)
+		}
+
+		// right now we dont want validity checks to be blocking, just preference so we use them to modify the weight
+		valid, err = checkCandidatesValidity(ctx, resource, path, input.Classification)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if !valid {
+			weight = 0
 		}
 		candidates[matchIdx][id] += weight
 		return nerr

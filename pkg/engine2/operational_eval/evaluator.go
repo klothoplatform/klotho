@@ -432,6 +432,10 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 			if key.Edge.Source == oldId || key.Edge.Target == oldId {
 				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
 				replaceVertex(key, vertex)
+				// because the temp graph contains the src and target as nodes, we need to update it if it exists
+				if vertex.TempGraph != nil {
+					construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId})
+				}
 			}
 		}
 	}
