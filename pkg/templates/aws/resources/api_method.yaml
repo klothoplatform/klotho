@@ -25,7 +25,7 @@ properties:
     type: string
     default_value: ANY
   RequestParameters:
-    type: map(string,string)
+    type: map(string,bool)
   Authorization:
     type: string
     default_value: NONE

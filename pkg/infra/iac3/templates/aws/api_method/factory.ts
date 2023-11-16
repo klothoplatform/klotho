@@ -1,11 +1,12 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     RestApi: aws.apigateway.RestApi
     Resource: aws.apigateway.Resource
     HttpMethod: string
-    RequestParameters: Record<string, boolean>
+    RequestParameters: ModelCaseWrapper<Record<string, boolean>>
     Authorization: string
 }
 

@@ -9,8 +9,8 @@ operational_rules:
           value: |
             {{
                 split (fieldValue "Route" .Target) "/" |
-                filterMatch "^:\\w+$" |
-                mapString ":(.*)" "method.request.path.$1" |
+                filterMatch "^{\\w+\\+?}$" |
+                mapString "{([^+}]*)\\+?}" "method.request.path.$1" |
                 keysToMapWithDefault true |
                 toJson
             }}

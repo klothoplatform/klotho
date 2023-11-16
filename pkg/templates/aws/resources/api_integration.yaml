@@ -37,10 +37,10 @@ properties:
           configuration:
             field: RequestParameters
             value: |
-              {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^:\\w+$" }}
+              {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^{\\w+\\+?}$" }}
               {{ zipToMap
-                  ($params | mapString ":(.*)" "integration.request.path.$1")
-                  ($params | mapString ":(.*)" "method.request.path.$1")
+                  ($params | mapString "{([^+}]*)\\+?}" "integration.request.path.$1")
+                  ($params | mapString "{([^+}]*)\\+?}" "method.request.path.$1")
                 | toJson
               }}
   IntegrationHttpMethod:
