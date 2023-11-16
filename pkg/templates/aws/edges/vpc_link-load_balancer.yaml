@@ -10,7 +10,7 @@ operational_rules:
         configuration:
           field: IngressRules
           value:
-            - Description: Allow ingress traffic from ip addresses within the '{{ (downstream "aws:vpc" .Source).Name }}' vpc
+            - Description: Allow ingress traffic from ip addresses within the {{ (downstream "aws:vpc" .Source).Name }} vpc
               CidrBlocks:
                 - '{{ fieldValue "CidrBlock" (downstream "aws:vpc" .Source) }}'
               FromPort: 0
