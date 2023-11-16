@@ -25,8 +25,8 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          apiVersion: apps/v1
-          kind: Deployment
+          ApiVersion: apps/v1
+          Kind: Deployment
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Spec:

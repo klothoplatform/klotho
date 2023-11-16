@@ -109,7 +109,7 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 		case reflect.Map:
 			TsMap := &TsMap{m: make(map[string]any)}
 			for _, key := range val.MapKeys() {
-				if !val.MapIndex(key).IsValid() || val.MapIndex(key).IsNil() {
+				if !val.MapIndex(key).IsValid() || val.MapIndex(key).IsZero() {
 					continue
 				}
 				keyStr, found := key.Interface().(string)
@@ -125,10 +125,6 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 					} else {
 						keyResult = fmt.Sprintf(`"%s"`, keyStr)
 					}
-				}
-				if keyResult == "TEST_DYNAMODB_TABLE_NAME" {
-					a := 1
-					a++
 				}
 				output, err := tc.convertArg(val.MapIndex(key).Interface(), templateArg)
 				if err != nil {

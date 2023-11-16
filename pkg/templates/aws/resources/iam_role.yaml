@@ -75,6 +75,11 @@ properties:
                     type: map(string,string)
                   Null:
                     type: map(string,string)
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    
 classification:
   is:
     - role

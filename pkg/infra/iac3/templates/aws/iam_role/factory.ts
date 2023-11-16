@@ -30,3 +30,9 @@ function create(args: Args): aws.iam.Role {
         //TMPL {{- end }}
     })
 }
+
+function properties(object: aws.iam.Role, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}

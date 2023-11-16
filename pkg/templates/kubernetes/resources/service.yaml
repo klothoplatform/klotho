@@ -27,8 +27,8 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          apiVersion: v1
-          kind: Service
+          ApiVersion: v1
+          Kind: Service
       Metadata:
         type: model(kubernetes:ObjectMeta)
       Spec:

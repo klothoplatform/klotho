@@ -143,14 +143,7 @@ func (p *Plugin) placeResourceInChart(ctx solution_context.SolutionContext, reso
 
 	err = ctx.DeploymentGraph().RemoveVertex(resource.ID)
 	if err != nil {
-		edges, _ := ctx.DeploymentGraph().Edges()
-		errString := ""
-		for _, e := range edges {
-			if e.Source == resource.ID || e.Target == resource.ID {
-				errString += fmt.Sprintf("%s -> %s\n", e.Source, e.Target)
-			}
-		}
-		return false, fmt.Errorf("could not remove vertex %s from graph: %s", resource.ID, errString)
+		return false, fmt.Errorf("could not remove vertex %s from graph: %s", resource.ID, err)
 	}
 	chartDir, err := chart.GetProperty("Directory")
 	if err != nil {
@@ -163,12 +156,15 @@ func (p *Plugin) placeResourceInChart(ctx solution_context.SolutionContext, reso
 	if output == nil {
 		return false, err
 	}
-
 	p.resourcesInChart[chart.ID] = append(p.resourcesInChart[chart.ID], resource.ID)
 	p.files = append(p.files, &kio.RawFile{
 		FPath:   fmt.Sprintf("%s/templates/%s_%s.yaml", chartDir, resource.ID.Type, resource.ID.Name),
 		Content: output.Content,
 	})
+	err = chart.AppendProperty("Values", output.Values)
+	if err != nil {
+		return true, err
+	}
 	return true, nil
 }
 

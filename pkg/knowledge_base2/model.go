@@ -29,6 +29,15 @@ func updateModels(property *Property, properties Properties, models map[string]*
 					// since properties are pointers and models can be reused, we need to clone the property from the model itself
 					newProp := prop.Clone()
 					newProp.Path = fmt.Sprintf("%s.%s", name, prop.Path)
+
+					// we also need to check if the current property has a default and propagate it lower
+					if p.DefaultValue != nil {
+						defaultMap, ok := p.DefaultValue.(map[string]any)
+						if !ok {
+							return fmt.Errorf("default value for %s is not a map", p.Path)
+						}
+						newProp.DefaultValue = defaultMap[name]
+					}
 					properties[name] = newProp
 				}
 				if property != nil {
