@@ -34,6 +34,9 @@ properties:
           resources:
             - aws:iam_role:{{ .Self.Name }}-execution-role
           unique: true
+  TaskRole:
+    type: resource(aws:iam_role)
+    default_value: '{{ fieldValue "ExecutionRole" .Self }}'
   Region:
     type: resource(aws:region)
     operational_rule:

@@ -11,7 +11,7 @@ properties:
           resources:
             - aws:vpc
   Region:
-    type: string
+    type: resource(aws:region)
     operational_rule:
       steps:
         - direction: downstream

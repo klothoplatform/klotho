@@ -23,7 +23,7 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         subnetIds: args.Subnets.map((x) => x.id),
         securityGroupIds: args.SecurityGroupIds,
         //TMPL {{- end }}
-        //TMPL {{- if eq .VpcEndpointType "Gateway"}}
+        //TMPL {{- if and .RouteTables (eq .VpcEndpointType "Gateway")}}
         routeTableIds: args.RouteTables.map((rt) => rt.id),
         //TMPL {{- end}}
     })

@@ -12,6 +12,7 @@ interface Args {
     Memory?: string
     NetworkMode?: string
     ExecutionRole: aws.iam.Role
+    TaskRole: aws.iam.Role
     EnvironmentVariables: TemplateWrapper<Record<string, pulumi.Output<string>>>
     Image: docker.Image
     PortMappings?: Record<string, object>
@@ -36,6 +37,9 @@ function create(args: Args): aws.ecs.TaskDefinition {
         requiresCompatibilities: args.RequiresCompatibilities,
         //TMPL {{- end }}
         executionRoleArn: args.ExecutionRole.arn,
+        //TMPL {{- if .TaskRole }}
+        taskRoleArn: args.TaskRole.arn,
+        //TMPL {{- end }}
         containerDefinitions: pulumi.jsonStringify([
             {
                 name: args.Name,
