@@ -27,7 +27,7 @@ operational_rules:
       {{ $needsCreation := true}}
       {{ $namespaces := allUpstream "kubernetes:namespace" .Target }}
       {{ range $index, $ns := $namespaces }}
-        {{- if eq (fieldValue "Object.Metadata.Name" $ns) "amazon-cloudwatch" }}
+        {{- if eq (fieldValue "Object.metadata.name" $ns) "amazon-cloudwatch" }}
           {{ $needsCreation = false}}
           {{break}}
         {{- end }}
@@ -40,14 +40,14 @@ operational_rules:
           - selector: kubernetes:namespace:amazon-cloudwatch
             properties:
               Cluster: '{{ .Target }}'
-              Object.Metadata.Name: amazon-cloudwatch
-              Object.Metadata.Labels.name: amazon-cloudwatch
+              Object.metadata.name: amazon-cloudwatch
+              Object.metadata.labels.name: amazon-cloudwatch
 
   - if: | # check if there is an fluent bit config map
       {{ $needsCreation := true}}
       {{ $cms := allUpstream "kubernetes:config_map" .Target }}
       {{ range $index, $cm := $cms }}
-        {{- if eq  (fieldValue "Object.Metadata.Name" $cm) "fluent-bit-cluster-info" }}
+        {{- if eq  (fieldValue "Object.metadata.name" $cm) "fluent-bit-cluster-info" }}
           {{ $needsCreation = false }}
           {{break}}
         {{- end }}
@@ -60,22 +60,22 @@ operational_rules:
           - selector: kubernetes:config_map:fluent-bit-cluster-info
             properties:
               Cluster: '{{.Target}}'
-              Object.Metadata.Name: fluent-bit-cluster-info
-              Object.Metadata.Namespace: kubernetes:namespace:{{.Target.Name}}:amazon-cloudwatch
-              'Object.Metadata.Labels.k8s-app': fluent-bit
-              Object.Data.cluster.name: '{{ .Target }}#Name'
-              Object.Data.logs.region: '{{ downstream "aws:region" .Target }}#Name'
-              Object.Data.http.server: 'On'
-              Object.Data.http.port: '2020'
-              Object.Data.read.head: 'Off'
-              Object.Data.read.tail: 'On'
+              Object.metadata.name: fluent-bit-cluster-info
+              Object.metadata.namespace: kubernetes:namespace:{{.Target.Name}}:amazon-cloudwatch
+              'Object.metadata.labels.k8s-app': fluent-bit
+              Object.data.cluster.name: '{{ .Target }}#Name'
+              Object.data.logs.region: '{{ downstream "aws:region" .Target }}#Name'
+              Object.data.http.server: 'On'
+              Object.data.http.port: '2020'
+              Object.data.read.head: 'Off'
+              Object.data.read.tail: 'On'
 
       - resource: kubernetes:config_map:fluent-bit-cluster-info
         direction: downstream
         resources:
           - selector: kubernetes:namespace
             properties:
-              Object.Metadata.Name: amazon-cloudwatch
+              Object.metadata.name: amazon-cloudwatch
 
   - if: | # check if there is an aws-cloudwatch namespace so we can install fluent bit in there
       {{ $needsCreation := true}}
@@ -101,7 +101,7 @@ operational_rules:
         resources:
           - selector: kubernetes:config_map
             properties:
-              Object.Metadata.Name: fluent-bit-cluster-info
+              Object.metadata.name: fluent-bit-cluster-info
 
   - if: | #Check if the ami type is gpu and if so install nvidia plugin
       {{ $needsCreation := true}}

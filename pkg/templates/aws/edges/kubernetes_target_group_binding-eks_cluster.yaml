@@ -19,7 +19,7 @@ operational_rules:
         resources:
           - selector: kubernetes:service_account:aws-load-balancer-controller
             properties:
-              Object.Metadata.Name: aws-load-balancer-controller
+              Object.metadata.name: aws-load-balancer-controller
                  
       - resource: '{{ .Target }}'
         direction: upstream
@@ -34,7 +34,7 @@ operational_rules:
                 clusterName: '{{ .Target }}#Name'
                 serviceAccount:
                   create: false
-                  name: '{{ fieldValue "Object.Metadata.Name" "kubernetes:service_account:aws-load-balancer-controller" }}'
+                  name: '{{ fieldValue "Object.metadata.name" "kubernetes:service_account:aws-load-balancer-controller" }}'
                 region: '{{ downstream "aws:region" .Target }}#Name'
                 vpcId: '{{ downstream "aws:vpc" .Target }}#Id'
                 objectSelector:
@@ -57,7 +57,7 @@ operational_rules:
         resources:
           - selector: kubernetes:service_account
             properties:
-              Object.Metadata.Name: aws-load-balancer-controller
+              Object.metadata.name: aws-load-balancer-controller
           
       - resource: |
           {{ $charts := allUpstream "kubernetes:helm_chart" .Target }}

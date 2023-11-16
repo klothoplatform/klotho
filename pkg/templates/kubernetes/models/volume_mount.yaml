@@ -1,14 +1,14 @@
 name: kubernetes:VolumeMount
 properties:
-  Name:
+  name:
     type: string
-  ReadOnly:
+  readOnly:
     type: bool
-  MountPath:
+  mountPath:
     type: string
-  SubPath:
+  subPath:
     type: string
-  MountPropagation:
+  mountPropagation:
     type: string
-  SubPathExpr:
+  subPathExpr:
     type: string

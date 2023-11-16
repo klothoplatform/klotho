@@ -22,10 +22,10 @@ operational_rules:
           - selector: kubernetes:cluster_set:cluster-set
             properties:
               Object:
-                Metadata:
-                  Name: my-clusterset
-                Spec:
-                  Value: '{{ .Target }}#Name'
+                metadata:
+                  name: my-clusterset
+                spec:
+                  value: '{{ .Target }}#Name'
 
       - resource: '{{ .Target }}'
         direction: upstream
@@ -41,8 +41,7 @@ operational_rules:
           - selector: kubernetes:cluster_set:{{ .Target.Name }}
             properties:
               Object:
-                Metadata:
-                  Name: cluster.clusterset.k8s.io
-
-                Spec:
-                  Value: '{{ .Target }}#Name'
+                metadata:
+                  name: cluster.clusterset.k8s.io
+                spec:
+                  value: '{{ .Target }}#Name'

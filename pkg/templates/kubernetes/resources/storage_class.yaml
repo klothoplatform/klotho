@@ -27,21 +27,21 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: storage.k8s.io/v1
-          Kind: StorageClass
-      Metadata:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Provisioner:
+      provisioner:
         type: string
-      Parameters:
+      parameters:
         type: map(string,string)
-      MountOptions:
+      mountOptions:
         type: list(string)
-      AllowVolumeExpansion:
+      allowVolumeExpansion:
         type: boolean
-      ReclaimPolicy:
+      reclaimPolicy:
         type: string
-      VolumeBindingMode:
+      volumeBindingMode:
         type: string
 
 delete_context:

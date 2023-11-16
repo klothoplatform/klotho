@@ -24,11 +24,11 @@ operational_rules:
         configuration:
           field: Object
           value:
-            ApiVersion: v1
-            Kind: Namespace
-            Metadata:
-              Name: aws-observability
-              Labels:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: aws-observability
+              labels:
                 name: aws-observability
                 aws-observability: enabled
 
@@ -52,7 +52,7 @@ operational_rules:
           - selector: kubernetes:namespace
             properties:
               Object:
-                Name: aws-observability
+                name: aws-observability
     configuration_rules:
       - resource: kubernetes:config_map:aws-logging
         configuration:
@@ -62,12 +62,12 @@ operational_rules:
         configuration:
           field: Object
           value:
-            Kind: ConfigMap
-            ApiVersion: v1
-            Metadata:
-              Name: aws-logging
-              Namespace: aws-observability
-            Data:
+            kind: ConfigMap
+            apiVersion: v1
+            metadata:
+              name: aws-logging
+              namespace: aws-observability
+            data:
               flb_log_cw: 'false' # Set to true to ship Fluent Bit process logs to CloudWatch.
               filters.conf: |
                 [FILTER]

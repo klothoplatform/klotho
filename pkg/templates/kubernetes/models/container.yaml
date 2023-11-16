@@ -1,9 +1,9 @@
 name: kubernetes:Container
 properties:
-  Name:
+  name:
     type: string
     required: true
-  Image:
+  image:
     type: string
     operational_rule:
       steps:
@@ -14,22 +14,22 @@ properties:
           unique: true
           use_property_ref: ImageName
     required: true
-  Command:
+  command:
     type: list(string)
-  Args:
+  args:
     type: list(string)
-  WorkingDir:
+  workingDir:
     type: string
-  Ports:
+  ports:
     type: list(model(kubernetes:ContainerPort))
     default_value:
-      - Name: default-tcp
-        ContainerPort: 80
-        HostPort: 80
-        Protocol: TCP
-  Env:
+      - name: default-tcp
+        containerPort: 80
+        hostPort: 80
+        protocol: TCP
+  env:
     type: list(model(kubernetes:EnvVar))
-  Resources:
+  resources:
     type: model(kubernetes:ResourceRequirements)
-  VolumeMounts:
+  volumeMounts:
     type: list(model(kubernetes:VolumeMount))

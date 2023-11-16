@@ -2,15 +2,15 @@ source: kubernetes:service
 target: kubernetes:pod
 operational_rules:
   - if: |
-      {{ ne (len (fieldValue "Object.Metadata.Labels" .Target))  0 }}
+      {{ ne (len (fieldValue "Object.metadata.labels" .Target))  0 }}
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.Selector
+          field: Object.spec.selector
           value: |
             {
             {{- $first := true}}
-            {{- range $key, $val := (fieldValue "Object.Metadata.Labels" .Target) }}
+            {{- range $key, $val := (fieldValue "Object.metadata.labels" .Target) }}
             {{- if not $first}},
             {{- end}}
             {{- $first = false}}
@@ -18,20 +18,20 @@ operational_rules:
             {{- end }}
             }
   - if: |
-      {{ ne (len (fieldValue "Object.Spec.Containers" .Target))  0 }}
+      {{ ne (len (fieldValue "Object.spec.containers" .Target))  0 }}
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.Ports
+          field: Object.spec.ports
           value: |
             [
-              {{ range $cindex, $container := (fieldValue "Object.Spec.Containers" .Target)  }}
-                {{ range $pindex, $port := $container.Ports }}
+              {{ range $cindex, $container := (fieldValue "Object.spec.containers" .Target)  }}
+                {{ range $pindex, $port := $container.ports }}
               {
-                "Name": "{{ $.Target.Name }}-{{ $container.Name }}-{{ $port.ContainerPort}}",
-                "Protocol":   "{{ $port.Protocol }}",
-                "Port":       "{{ $port.HostPort }}",
-                "TargetPort": "{{ $port.ContainerPort }}"
+                "name": "{{ $.Target.Name }}-{{ $container.name }}-{{ $port.containerPort}}",
+                "protocol":   "{{ $port.protocol }}",
+                "port":       "{{ $port.hostPort }}",
+                "targetPort": "{{ $port.containerPort }}"
               }{{if $cindex}},{{end}}
                 {{ end }}
               {{ end }}
@@ -42,6 +42,6 @@ operational_rules:
     configuration_rules:
       - resource: '{{ .Target }}'
         configuration:
-          field: Object.Metadata.Labels
+          field: Object.metadata.labels
           value:
             elbv2.k8s.aws/pod-readiness-gate-inject: enabled

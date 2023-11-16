@@ -1,12 +1,13 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as pulumi_k8s from '@pulumi/kubernetes'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Directory?: string
     Chart?: string
     Repo?: string
-    Values?: Record<string, pulumi.Output<any>>
+    Values?: ModelCaseWrapper<Record<string, pulumi.Output<any>>>
     Version?: string
     Namespace?: string
     Provider: pulumi_k8s.Provider

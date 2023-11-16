@@ -26,11 +26,11 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: about.k8s.io/v1alpha1
-          Kind: ClusterProperty
-      Metadata:
+          apiVersion: about.k8s.io/v1alpha1
+          kind: ClusterProperty
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: string
 
 delete_context:

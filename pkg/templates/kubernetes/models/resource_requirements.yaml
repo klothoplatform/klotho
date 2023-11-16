@@ -1,6 +1,6 @@
 name: kubernetes:ResourceRequirements
 properties:
-  Limits:
+  limits:
     type: map(string,string)
-  Requests:
+  requests:
     type: map(string,string)

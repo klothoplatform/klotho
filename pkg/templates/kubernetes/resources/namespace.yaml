@@ -28,9 +28,9 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: Namespace
-      Metadata:
+          apiVersion: v1
+          kind: Namespace
+      metadata:
         type: model(kubernetes:ObjectMeta)
 
 delete_context:

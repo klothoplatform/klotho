@@ -1,13 +1,13 @@
 name: kubernetes:ObjectMeta
 properties:
-  Name:
+  name:
     type: string
     default_value: '{{ .Self.Name | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` "" }}'
-  Namespace:
+  namespace:
     type: resource(kubernetes:namespace)
-  Labels:
+  labels:
     type: map(string,string)
     default_value:
       KLOTHO_ID_LABEL: '{{ .Self.String | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` "" }}'
-  Annotations:
+  annotations:
     type: map(string,string)

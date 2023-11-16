@@ -1,13 +1,13 @@
 name: kubernetes:LabelSelector
 properties:
-  MatchLabels:
+  matchLabels:
     type: map(string,string)
-  MatchExpressions:
+  matchExpressions:
     type: list
     properties:
-      Key:
+      key:
         type: string
-      Operator:
+      operator:
         type: string
-      Values:
+      values:
         type: list(string)

@@ -12,13 +12,13 @@ operational_rules:
         false
       {{end}}
       {{ $service := (downstream "kubernetes:service" .Target) }}
-      {{ gt (len (fieldValue "Object.Spec.Ports" $service)) 0 }}
+      {{ gt (len (fieldValue "Object.spec.ports" $service)) 0 }}
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: Port
-          value: '{{ fieldValue "Object.Spec.Ports[0].Port" (downstream "kubernetes:service" .Target)}}'
+          value: '{{ fieldValue "Object.spec.ports[0].port" (downstream "kubernetes:service" .Target)}}'
       - resource: '{{ .Source }}'
         configuration:
           field: Protocol
-          value: '{{ fieldValue "Object.Spec.Ports[0].Protocol" (downstream "kubernetes:service" .Target)}}'
+          value: '{{ fieldValue "Object.spec.ports[0].protocol" (downstream "kubernetes:service" .Target)}}'

@@ -1,12 +1,12 @@
 name: kubernetes:ContainerPort
 properties:
-  Name:
+  name:
     type: string
-  HostPort:
+  hostPort:
     type: int
-  ContainerPort:
+  containerPort:
     type: int
-  Protocol:
+  protocol:
     type: string
-  HostIP:
+  hostIP:
     type: string

@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"gopkg.in/yaml.v3"
@@ -110,8 +109,7 @@ func (h ObjectOutput) convertObject(arg any) (any, error) {
 				if err != nil {
 					return "", err
 				}
-				keyResult := strcase.ToLowerCamel(keyStr)
-				yamlMap[keyResult] = output
+				yamlMap[keyStr] = output
 			}
 			return yamlMap, nil
 		case reflect.Struct:

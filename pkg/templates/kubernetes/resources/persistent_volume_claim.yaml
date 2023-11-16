@@ -27,34 +27,34 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: PersistentVolumeClaim
-      Metadata:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: map
         properties:
-          AccessModes:
+          accessModes:
             type: list(string)
-          Selector:
+          selector:
             type: model(kubernetes:LabelSelector)
-          Resources:
+          resources:
             type: model(kubernetes:ResourceRequirements)
-          VolumeName:
+          volumeName:
             type: resource(kubernetes:persistent_volume)
             operational_rule:
               steps:
                 - direction: upstream
                   resources:
                     - kubernetes:persistent_volume
-          StorageClassName:
+          storageClassName:
             type: resource(kubernetes:storage_class)
             operational_rule:
               steps:
                 - direction: upstream
                   resources:
                     - kubernetes:storage_class
-          VolumeMode:
+          volumeMode:
             type: string
 
 delete_context:

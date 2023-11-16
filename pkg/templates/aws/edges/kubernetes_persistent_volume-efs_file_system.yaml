@@ -22,48 +22,48 @@ operational_rules:
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.Capacity
+          field: Object.spec.capacity
           value:
             storage: 5Gi
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.VolumeMode
+          field: Object.spec.volumeMode
           value: Filesystem
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.AccessModes
+          field: Object.spec.accessModes
           value:
             - ReadWriteMany
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.PersistentVolumeReclaimPolicy
+          field: Object.spec.persistentVolumeReclaimPolicy
           value: Retain
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.CSI
+          field: Object.spec.csi
           value:
-            Driver: efs.csi.aws.com
-            VolumeHandle: '{{ .Target }}#Id'
-            VolumeAttributes:
+            driver: efs.csi.aws.com
+            volumeHandle: '{{ .Target }}#Id'
+            volumeAttributes:
               encryptInTransit: "true"
 
       - resource: '{{upstream "kubernetes:storage_class" .Source}}'
         configuration:
-          field: Object.Provisioner
+          field: Object.provisioner
           value: efs.csi.aws.com
       - resource: '{{upstream "kubernetes:storage_class" .Source}}'
         configuration:
-          field: Object.MountOptions
+          field: Object.mountOptions
           value:
             - tls
 
       - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
         configuration:
-          field: Object.Spec.AccessModes
+          field: Object.spec.accessModes
           value: 
             - ReadWriteMany
       - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
         configuration:
-          field: Object.Spec.Resources.Requests
+          field: Object.spec.resources.requests
           value:
             storage: 5Gi

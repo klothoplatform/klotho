@@ -27,23 +27,23 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: ObjectMeta
-      Metadata:
+          apiVersion: v1
+          kind: ObjectMeta
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: map
         properties:
-          TargetGroupARN:
+          targetGroupARN:
             type: string
-          TargetType:
+          targetType:
             type: string
-          ServiceRef:
+          serviceRef:
             type: map
             properties:
-              Name:
+              name:
                 type: string
-              Port:
+              port:
                 type: int
 
 delete_context:

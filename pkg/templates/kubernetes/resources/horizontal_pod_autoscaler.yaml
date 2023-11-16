@@ -25,46 +25,46 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: autoscaling/v1
-          Kind: HorizontalPodAutoscaler
-      Metadata:
+          apiVersion: autoscaling/v1
+          kind: HorizontalPodAutoscaler
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: map
         properties:
-          ScaleTargetRef:
+          scaleTargetRef:
             type: map
             properties:
-              Kind:
+              kind:
                 type: string
-              Name:
+              name:
                 type: string
-              ApiVersion:
+              apiVersion:
                 type: string
-          MinReplicas:
+          minReplicas:
             type: int
-          MaxReplicas:
+          maxReplicas:
             type: int
-          Metrics:
+          metrics:
             type: list
             properties:
-              Type:
+              type:
                 type: string
-              Resource:
+              resource:
                 type: map
                 properties:
-                  Name:
+                  name:
                     type: string
-                  Target:
+                  target:
                     type: map
                     properties:
-                      Type:
+                      type:
                         type: string
-                      AverageUtilization:
+                      averageUtilization:
                         type: int
-                      AverageValue:
+                      averageValue:
                         type: string
-                      Value:
+                      value:
                         type: string
 
 classification:

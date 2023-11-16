@@ -229,10 +229,6 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 }
 
 func (v *propertyVertex) evaluateResourceOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
-	if v.Ref.Property == "RequestParameters" {
-		fmt.Println("s")
-	}
-
 	if v.Template == nil || v.Template.OperationalRule == nil {
 		return nil
 	}

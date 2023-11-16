@@ -2,5 +2,5 @@ name: kubernetes:PodTemplateSpec
 properties:
   kubernetes:ObjectMeta:
     type: model
-  Spec:
+  spec:
     type: model(kubernetes:PodSpec)

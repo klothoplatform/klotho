@@ -4,5 +4,5 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: Object.Spec.StorageClassName
-          value: '{{ .Source.Object.Metadata.Name }}'
+          field: Object.spec.storageClassName
+          value: '{{ .Source.Object.metadata.name }}'

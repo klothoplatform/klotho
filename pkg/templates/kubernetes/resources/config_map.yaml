@@ -26,13 +26,13 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: ConfigMap
-      Metadata:
+          apiVersion: v1
+          kind: ConfigMap
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Immutable:
+      immutable:
         type: bool
-      Data:
+      data:
         type: map(string,string)
 
 delete_context:

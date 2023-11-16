@@ -7,42 +7,42 @@ operational_rules:
   - configuration_rules:
     - resource: '{{ .Source }}'
       configuration:
-        field: ApiVersion
+        field: apiVersion
         value: v1
     - resource: '{{ .Source }}'
       configuration:
-        field: Kind
+        field: kind
         value: Config
     - resource: '{{ .Source }}'
       configuration:
-        field: CurrentContext
+        field: currentContext
         value: '{{ fieldRef "Name" .Target }}'
     - resource: '{{ .Source }}'
       configuration:
-        field: Clusters
+        field: clusters
         value: 
-          - Name: '{{ fieldRef "Name" .Target }}'
-            Cluster:
-              Server: '{{ fieldRef "ClusterEndpoint" .Target }}'
-              CertificateAuthorityData: '{{ fieldRef "CertificateAuthorityData" .Target }}'
+          - name: '{{ fieldRef "Name" .Target }}'
+            cluster:
+              server: '{{ fieldRef "ClusterEndpoint" .Target }}'
+              certificateAuthorityData: '{{ fieldRef "CertificateAuthorityData" .Target }}'
     - resource: '{{ .Source }}'
       configuration:
-        field: Contexts
+        field: contexts
         value: 
-          - Name: '{{ fieldRef "Name" .Target }}'
-            Context:
-              Cluster: '{{ fieldRef "Name" .Target }}'
-              User: '{{ fieldRef "Name" .Target }}'
+          - name: '{{ fieldRef "Name" .Target }}'
+            context:
+              cluster: '{{ fieldRef "Name" .Target }}'
+              user: '{{ fieldRef "Name" .Target }}'
     - resource: '{{ .Source }}'
       configuration:
-        field: Users
+        field: users
         value: 
-          - Name: '{{ fieldRef "Name" .Target }}'
-            User:
-              Exec:
-                ApiVersion: client.authentication.k8s.io/v1beta1
-                Command: aws
-                Args:
+          - name: '{{ fieldRef "Name" .Target }}'
+            user:
+              exec:
+                apiVersion: client.authentication.k8s.io/v1beta1
+                command: aws
+                args:
                   - "eks"
                   - "get-token"
                   - "--cluster-name"

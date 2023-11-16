@@ -27,11 +27,11 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: Pod
-      Metadata:
+          apiVersion: v1
+          kind: Pod
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: model(kubernetes:PodSpec)
 
 classification:

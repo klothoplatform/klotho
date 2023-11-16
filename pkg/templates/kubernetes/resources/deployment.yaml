@@ -25,33 +25,33 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: apps/v1
-          Kind: Deployment
-      Metadata:
+          apiVersion: apps/v1
+          kind: Deployment
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: map
         properties:
-          Replicas:
+          replicas:
             type: int
             default_value: 2
-          Selector:
+          selector:
             type: model(kubernetes:LabelSelector)
-          Template:
+          template:
             type: model(kubernetes:PodTemplateSpec)
-          Strategy:
+          strategy:
             type: map
             properties:
-              Type:
+              type:
                 type: string
                 default_value: RollingUpdate
-              RollingUpdate:
+              rollingUpdate:
                 type: map
                 properties:
-                  MaxUnavailable:
+                  maxUnavailable:
                     type: any
                     default_value: 1
-                  MaxSurge:
+                  maxSurge:
                     type: any
                     default_value: 1
 classification:

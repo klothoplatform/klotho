@@ -1,6 +1,6 @@
 name: kubernetes:EnvVar
 properties:
-  Name:
+  name:
     type: string
-  Value:
+  value:
     type: string

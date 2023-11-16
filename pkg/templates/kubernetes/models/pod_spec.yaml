@@ -1,27 +1,27 @@
 name: kubernetes:PodSpec
 properties:
-  Volumes:
+  volumes:
     type: list
     properties:
-      Name:
+      name:
         type: string
-      VolumeSource:
+      volumeSource:
         type: map
         properties:
-          PersistentVolumeClaim:
+          persistentVolumeClaim:
             type: map
             properties:
-              ClaimName:
+              claimName:
                 type: string
-              ReadOnly:
+              readOnly:
                 type: bool
-  Containers:
+  containers:
     type: list(model(kubernetes:Container))
     default_value:
-      - Name: '{{ .Self.Name }}'
-  NodeSelector:
+      - name: '{{ .Self.Name }}'
+  nodeSelector:
     type: map(string,string)
-  ServiceAccountName:
+  serviceAccountName:
     type: resource(kubernetes:service_account)
     operational_rule:
       steps:
@@ -29,6 +29,6 @@ properties:
           resources:
             - kubernetes:service_account:{{ .Self.Name }}
           unique: true
-  AutomountServiceAccountToken:
+  automountServiceAccountToken:
     type: bool
     default_value: true

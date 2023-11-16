@@ -4,5 +4,5 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Target }}'
         configuration:
-          field: Object.Spec.VolumeName
-          value: '{{ .Source.Object.Metadata.Name }}'
+          field: Object.spec.volumeName
+          value: '{{ .Source.object.metadata.name }}'

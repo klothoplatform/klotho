@@ -5,17 +5,17 @@ operational_rules:
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: deployment.Object.Spec.Template.Spec.Containers
+          field: deployment.Object.spec.template.spec.containers
   - if: '{{ hasDownstream "kubernetes:persistent_volume_claim" .Target }}'
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           fields:
             - |
-              {{ range $index, $container := (fieldValue "Object.Spec.Template.Spec.Containers" .Source) }}
-                Object.Spec.Template.Spec.Containers[{{ $index }}].Volumes
+              {{ range $index, $container := (fieldValue "Object.spec.template.spec.containers" .Source) }}
+                Object.spec.template.spec.containers[{{ $index }}].volumes
               {{ end }}
           value:
-            Name: '{{ fieldValue "object.Metadata.Name" .Target }}'
+            Name: '{{ fieldValue "object.metadata.name" .Target }}'
             PersistentVolumeClaim:
-              ClaimName: '{{ fieldValue "Object.Metadata.Name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'
+              ClaimName: '{{ fieldValue "Object.metadata.name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'

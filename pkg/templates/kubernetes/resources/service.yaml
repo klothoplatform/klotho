@@ -27,33 +27,35 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          ApiVersion: v1
-          Kind: Service
-      Metadata:
+          apiVersion: v1
+          kind: Service
+      metadata:
         type: model(kubernetes:ObjectMeta)
-      Spec:
+      spec:
         type: map
         properties:
-          Ports:
+          ports:
             type: list
             properties:
-              Name:
+              name:
                 type: string
-              Protocol:
+              protocol:
                 type: string
                 default_value: TCP
-              Port:
+              port:
                 type: int
-              TargetPort:
+                default_value: 80
+              targetPort:
                 type: int
-              NodePort:
+                default_value: 80
+              nodePort:
                 type: int
-          Selector:
+          selector:
             type: map(string,string)
-          ServiceType:
+          serviceType:
             type: string
             default_value: ClusterIP
-          SessionAffinity:
+          sessionAffinity:
             type: string
 
 delete_context:
