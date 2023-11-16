@@ -50,8 +50,7 @@ properties:
           resources:
             - kubernetes:kube_config
           unique: true
-
-  ClusterName:
+  Name:
     type: string
     configuration_disabled: true
     deploy_time: true

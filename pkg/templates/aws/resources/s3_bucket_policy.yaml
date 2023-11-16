@@ -42,7 +42,7 @@ properties:
 
 classification:
   is:
-    - blob
+    - permissions
 
 delete_context:
   requires_no_upstream: true

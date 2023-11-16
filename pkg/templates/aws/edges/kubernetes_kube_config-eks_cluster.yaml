@@ -21,7 +21,7 @@ operational_rules:
       configuration:
         field: Clusters
         value: 
-          - Name: '{{ .Target.Name }}'
+          - Name: '{{ fieldRef "Name" .Target }}'
             Cluster:
               Server: '{{ fieldRef "ClusterEndpoint" .Target }}'
               CertificateAuthorityData: '{{ fieldRef "CertificateAuthorityData" .Target }}'
@@ -40,7 +40,7 @@ operational_rules:
           - Name: '{{ fieldRef "Name" .Target }}'
             User:
               Exec:
-                ApiVersion: client.authentication.k8s.io/v1alpha1
+                ApiVersion: client.authentication.k8s.io/v1beta1
                 Command: aws
                 Args:
                   - "eks"

@@ -31,10 +31,10 @@ operational_rules:
               Version: 1.5.5
               Internal: true
               Values:
-                clusterName: '{{ .Target }}#ClusterName'
+                clusterName: '{{ .Target }}#Name'
                 serviceAccount:
                   create: false
-                  name: kubernetes:service_account:aws-load-balancer-controller#Object.Metadata.Name
+                  name: '{{ fieldValue "Object.Metadata.Name" "kubernetes:service_account:aws-load-balancer-controller" }}'
                 region: '{{ downstream "aws:region" .Target }}#Name'
                 vpcId: '{{ downstream "aws:vpc" .Target }}#Id'
                 objectSelector:
@@ -42,7 +42,7 @@ operational_rules:
                     elbv2.k8s.aws/pod-readiness-gate-inject: 'enabled'
                 webhookNamespaceSelectors:
                 podLabels:
-                  KLOTHO_ID_LABEL: kubernetes:helm_chart:aws-load-balancer-controller
+                  KLOTHO_ID_LABEL: kubernetes-helm-chart-aws-load-balancer-controller
                   app: aws-lb-controller
 
       - resource: |
@@ -58,6 +58,18 @@ operational_rules:
           - selector: kubernetes:service_account
             properties:
               Object.Metadata.Name: aws-load-balancer-controller
+          
+      - resource: |
+          {{ $charts := allUpstream "kubernetes:helm_chart" .Target }}
+          {{ range $index, $chart := $charts }}
+            {{- if and (eq (fieldValue "Repo" $chart) "https://aws.github.io/eks-charts") (eq (fieldValue "Chart" $chart) "aws-load-balancer-controller") }}
+              {{ $chart }}
+              {{break}}
+            {{- end }}
+          {{ end }}
+        direction: upstream
+        resources:
+          - '{{ .Source }}'
 
       - resource: | 
           {{ $charts := allUpstream "kubernetes:helm_chart" .Target }}

@@ -12,6 +12,10 @@ properties:
   EnableDnsHostnames:
     type: bool
     default_value: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
   is:

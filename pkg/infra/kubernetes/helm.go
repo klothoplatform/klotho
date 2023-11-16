@@ -26,17 +26,16 @@ var excludedObjects = []construct.ResourceId{
 	{Provider: "kubernetes", Type: "kube_config"},
 }
 
-func AddObject(res *construct.Resource) (*ObjectOutput, error) {
-	shouldInclude := true
+func includeObjectInChart(res construct.ResourceId) bool {
 	for _, id := range excludedObjects {
-		if id.Matches(res.ID) {
-			shouldInclude = false
-			break
+		if id.Matches(res) {
+			return false
 		}
 	}
-	if !shouldInclude {
-		return nil, nil
-	}
+	return true
+}
+
+func AddObject(res *construct.Resource) (*ObjectOutput, error) {
 	object, err := res.GetProperty("Object")
 	if err != nil {
 		return nil, fmt.Errorf("unable to find object property on resource %s: %w", res.ID, err)

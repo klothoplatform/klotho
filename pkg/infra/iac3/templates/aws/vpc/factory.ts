@@ -18,3 +18,9 @@ function create(args: Args): aws.ec2.Vpc {
         },
     })
 }
+
+function properties(object: aws.ec2.Vpc, args: Args) {
+    return {
+        Id: object.id,
+    }
+}

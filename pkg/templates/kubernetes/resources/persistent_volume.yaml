@@ -1,6 +1,16 @@
 qualified_type_name: kubernetes:persistent_volume
 display_name: Persistent Volume
 
+sanitize_name:
+  # a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
+  # and must start and end with an alphanumeric character
+  # (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')]
+  |
+  {{ . 
+    | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` ""
+  }}
+
+
 properties:
   Cluster:
     type: resource

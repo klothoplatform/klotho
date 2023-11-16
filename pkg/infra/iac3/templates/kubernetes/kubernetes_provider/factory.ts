@@ -11,8 +11,8 @@ interface Args {
 function create(args: Args): pulumi_k8s.Provider {
     return new pulumi_k8s.Provider(args.Name, {
         kubeconfig: args.KubeConfig,
-        // TMPL {{- if .EnableServerSideApply }}
+        //TMPL {{- if .EnableServerSideApply }}
         enableServerSideApply: args.EnableServerSideApply,
-        // TMPL {{- end }}
+        //TMPL {{- end }}
     })
 }

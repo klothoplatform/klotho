@@ -1,12 +1,13 @@
-source: aws:s3_bucket_policy
-target: aws:cloudfront_origin_access_identity
+source: aws:cloudfront_origin_access_identity
+target: aws:s3_bucket_policy
+deployment_order_reversed: true
 operational_rules:
   - configuration_rules:
-      - resource: '{{ .Target }}'
+      - resource: '{{ .Source }}'
         configuration:
           field: Comment
           value: this is needed to set up S3 polices so that the S3 bucket is not public
-      - resource: '{{ .Source }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Policy
           value:
@@ -15,8 +16,8 @@ operational_rules:
               - Effect: Allow
                 Principal:
                   AWS:
-                    - '{{ .Target }}#IamArn'
+                    - '{{ .Source }}#IamArn'
                 Action:
                   - s3:GetObject
                 Resource:
-                  - '{{ downstream "aws:s3_bucket" .Source }}#AllBucketDirectory'
+                  - '{{ downstream "aws:s3_bucket" .Target }}#AllBucketDirectory'

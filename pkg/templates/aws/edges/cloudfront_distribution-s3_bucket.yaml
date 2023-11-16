@@ -30,7 +30,7 @@ operational_rules:
   - if: '{{ hasUpstream "aws:s3_bucket_policy" .Target}}'
     steps:
       - resource: '{{ upstream "aws:s3_bucket_policy" .Target}}'
-        direction: downstream
+        direction: upstream
         resources:
           - '{{ downstream "aws:cloudfront_origin_access_identity" .Source }}'
   - if: '{{ not (hasUpstream "aws:s3_bucket_policy" .Target) }}'
@@ -40,6 +40,9 @@ operational_rules:
         resources:
           - aws:s3_bucket_policy
       - resource: '{{ upstream "aws:s3_bucket_policy" .Target}}'
-        direction: downstream
+        direction: upstream
         resources:
           - '{{ downstream "aws:cloudfront_origin_access_identity" .Source }}'
+
+classification:
+  - network

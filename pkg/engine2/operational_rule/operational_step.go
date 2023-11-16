@@ -160,7 +160,7 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 	case construct.PropertyRef:
 		return []construct.ResourceId{val.Resource}, addDep(val.Resource)
 	}
-	return nil, fmt.Errorf("cannot add dependencies from property %s on resource %s", propertyName, resource.ID)
+	return nil, fmt.Errorf("cannot add dependencies from property %s on resource %s, due to it being type %s", propertyName, resource.ID, reflect.TypeOf(val))
 }
 
 func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {

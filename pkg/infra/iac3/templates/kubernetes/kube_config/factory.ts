@@ -1,10 +1,11 @@
 import * as pulumi from '@pulumi/pulumi'
+import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
     ApiVersion: string
     Kind: string
     Name: string
-    Clusters: any[]
+    Clusters: TemplateWrapper<any[]>
     Contexts: any[]
     Users: any[]
     CurrentContext: string

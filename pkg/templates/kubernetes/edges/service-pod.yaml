@@ -28,7 +28,7 @@ operational_rules:
               {{ range $cindex, $container := (fieldValue "Object.Spec.Containers" .Target)  }}
                 {{ range $pindex, $port := $container.Ports }}
               {
-                "Name": "{{ .Target.Name }}-{{ $container.Name }}-{{ $port.ContainerPort}}",
+                "Name": "{{ $.Target.Name }}-{{ $container.Name }}-{{ $port.ContainerPort}}",
                 "Protocol":   "{{ $port.Protocol }}",
                 "Port":       "{{ $port.HostPort }}",
                 "TargetPort": "{{ $port.ContainerPort }}"

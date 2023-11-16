@@ -25,7 +25,7 @@ operational_rules:
                 Metadata:
                   Name: my-clusterset
                 Spec:
-                  Value: '{{ .Target }}#ClusterName'
+                  Value: '{{ .Target }}#Name'
 
       - resource: '{{ .Target }}'
         direction: upstream
@@ -45,4 +45,4 @@ operational_rules:
                   Name: cluster.clusterset.k8s.io
 
                 Spec:
-                  Value: '{{ .Target }}#ClusterName'
+                  Value: '{{ .Target }}#Name'

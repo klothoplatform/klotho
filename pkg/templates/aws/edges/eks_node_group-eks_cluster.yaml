@@ -63,7 +63,7 @@ operational_rules:
               Object.Metadata.Name: fluent-bit-cluster-info
               Object.Metadata.Namespace: kubernetes:namespace:{{.Target.Name}}:amazon-cloudwatch
               'Object.Metadata.Labels.k8s-app': fluent-bit
-              Object.Data.cluster.name: '{{ .Target }}#ClusterName'
+              Object.Data.cluster.name: '{{ .Target }}#Name'
               Object.Data.logs.region: '{{ downstream "aws:region" .Target }}#Name'
               Object.Data.http.server: 'On'
               Object.Data.http.port: '2020'

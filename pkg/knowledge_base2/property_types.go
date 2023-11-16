@@ -438,6 +438,39 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 }
 
 func (a *AnyPropertyType) Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error) {
+	if val, ok := value.(string); ok {
+		// first check if its a resource id
+		rType := ResourcePropertyType{}
+		id, err := rType.Parse(val, ctx, data)
+		if err == nil {
+			return id, nil
+		}
+
+		// check if its a property ref
+		pType := PropertyRefPropertyType{}
+		ref, err := pType.Parse(val, ctx, data)
+		if err == nil {
+			return ref, nil
+		}
+
+		// check if its any other template string
+		var result any
+		err = ctx.ExecuteDecode(val, data, &result)
+		if err == nil {
+			return result, nil
+		}
+	}
+
+	if mapVal, ok := value.(map[string]any); ok {
+		m := MapPropertyType{Property: &Property{}, Key: "string", Value: "any"}
+		return m.Parse(mapVal, ctx, data)
+	}
+
+	if listVal, ok := value.([]any); ok {
+		l := ListPropertyType{Property: &Property{}}
+		return l.Parse(listVal, ctx, data)
+	}
+
 	return value, nil
 }
 func (s *AnyPropertyType) SetProperty(property *Property) {

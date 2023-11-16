@@ -15,8 +15,10 @@ import (
 )
 
 type Plugin struct {
-	Config *config.Application
-	KB     *knowledgebase.KnowledgeBase
+	Config           *config.Application
+	KB               *knowledgebase.KnowledgeBase
+	files            []kio.File
+	resourcesInChart map[construct.ResourceId][]construct.ResourceId
 }
 
 func (p Plugin) Name() string {
@@ -28,16 +30,11 @@ const HELM_CHARTS_DIR = "helm_charts"
 func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
 	internalCharts := make(map[string]*construct.Resource)
 	customerCharts := make(map[string]*construct.Resource)
-	resourcesInChart := make(map[construct.ResourceId][]construct.ResourceId)
-	var files []kio.File
+	p.resourcesInChart = make(map[construct.ResourceId][]construct.ResourceId)
 
-	err := construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err := construct.WalkGraphReverse(ctx.DeploymentGraph(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		if id.Provider == "kubernetes" {
-			output, err := AddObject(resource)
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
-			if output == nil {
+			if !includeObjectInChart(id) {
 				return nerr
 			}
 			cluster, err := resource.GetProperty("Cluster")
@@ -48,150 +45,131 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 			if !ok {
 				return errors.Join(nerr, fmt.Errorf("cluster property is not a resource id"))
 			}
-			if prop, err := resource.GetProperty("Internal"); err == nil && prop == true {
-				internalChart, ok := internalCharts[clusterId.Name]
-				if !ok {
-					internalChart, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
-						Provider:  "kubernetes",
-						Type:      "helm_chart",
-						Namespace: clusterId.Name,
-						Name:      "klotho-internals-chart",
-					})
-					if err != nil {
-						return err
-					}
-					chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, internalChart.ID.Namespace, internalChart.ID.Name)
-					err := internalChart.SetProperty("Directory", chartDir)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
-					err = internalChart.SetProperty("Cluster", clusterId)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
-					internalCharts[clusterId.Name] = internalChart
-					err = ctx.RawView().AddVertex(internalChart)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
-					err = ctx.RawView().AddEdge(internalChart.ID, clusterId)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
+
+			// attempt to add to internal chart
+			internalChart, ok := internalCharts[clusterId.Name]
+			if !ok {
+				internalChart, err = p.createChart("internal-chart", clusterId, ctx)
+				if err != nil {
+					return errors.Join(nerr, err)
 				}
-				chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, internalChart.ID.Namespace, internalChart.ID.Name)
-				files = append(files, &kio.RawFile{
-					FPath:   fmt.Sprintf("%s/templates/%s_%s.yaml", chartDir, internalChart.ID.Namespace, internalChart.ID.Name),
-					Content: output.Content,
-				})
-				resourcesInChart[internalChart.ID] = append(resourcesInChart[internalChart.ID], resource.ID)
-			} else {
+				internalCharts[clusterId.Name] = internalChart
+			}
+			placed, err := p.placeResourceInChart(ctx, resource, internalChart)
+			if err != nil {
+				return err
+			}
+
+			if !placed {
+				// attempt to add to app chart for cluster if it cannot be in the internal chart
 				appChart, ok := customerCharts[clusterId.Name]
 				if !ok {
-					appChart, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
-						Provider:  "kubernetes",
-						Type:      "helm_chart",
-						Namespace: clusterId.Name,
-						Name:      "application-chart",
-					})
+
+					appChart, err = p.createChart("application-chart", clusterId, ctx)
 					if err != nil {
-						return err
+						return errors.Join(nerr, err)
 					}
-					chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, appChart.ID.Namespace, appChart.ID.Name)
-					err := appChart.SetProperty("Directory", chartDir)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
-					err = appChart.SetProperty("Cluster", clusterId)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
+
 					customerCharts[clusterId.Name] = appChart
-					err = ctx.RawView().AddVertex(appChart)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
-					err = ctx.RawView().AddEdge(appChart.ID, clusterId)
-					if err != nil {
-						nerr = errors.Join(nerr, err)
-					}
+
 				}
-				chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, appChart.ID.Namespace, appChart.ID.Name)
-				files = append(files, &kio.RawFile{
-					FPath:   fmt.Sprintf("%s/templates/%s_%s.yaml", chartDir, id.Type, id.Name),
-					Content: output.Content,
-				})
-				resourcesInChart[appChart.ID] = append(resourcesInChart[appChart.ID], resource.ID)
+				placed, err = p.placeResourceInChart(ctx, resource, appChart)
+				if err != nil {
+					return errors.Join(nerr, err)
+				}
+				if !placed {
+					return errors.Join(nerr, fmt.Errorf("could not place resource %s in chart", resource.ID))
+				}
 			}
+
 		}
 		return nerr
 	})
-	var errs error
-	if err != nil {
-		errs = errors.Join(errs, err)
-	}
-	for _, res := range customerCharts {
-		errs = errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInChart[res.ID], res))
-		file, err := writeChartYaml(res)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		} else {
-			files = append(files, file)
-		}
-	}
-	for _, res := range internalCharts {
-		err = res.SetProperty("Internal", true)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		}
-		errs = errors.Join(errs, ReplaceResourcesInChart(ctx, resourcesInChart[res.ID], res))
-		file, err := writeChartYaml(res)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		} else {
-			files = append(files, file)
-		}
-	}
-
-	return files, errs
+	return p.files, err
 }
 
-func ReplaceResourcesInChart(ctx solution_context.SolutionContext, resources []construct.ResourceId, chart *construct.Resource) error {
-	var errs error
-	for _, res := range resources {
-		edges, err := ctx.RawView().Edges()
-		if err != nil {
-			return err
-		}
-
-		for _, e := range edges {
-			if e.Source != res && e.Target != res {
-				continue
-			}
-			// If the dependency is with the chart, remove it so that we dont end up depending on ourselves
-			if e.Source == chart.ID || e.Target == chart.ID {
-				errs = errors.Join(errs, ctx.RawView().RemoveEdge(e.Source, e.Target))
-				continue
-			}
-
-			newEdge := e
-			if e.Source == res {
-				newEdge.Source = chart.ID
-			}
-			if e.Target == res {
-				newEdge.Target = chart.ID
-			}
-			errs = errors.Join(errs,
-				ctx.RawView().RemoveEdge(e.Source, e.Target),
-				ctx.RawView().AddEdge(newEdge.Source, newEdge.Target, func(ep *graph.EdgeProperties) { *ep = e.Properties }),
-			)
-		}
-		if errs != nil {
-			return errs
-		}
-		errs = errors.Join(errs, ctx.RawView().RemoveVertex(res))
+func (p *Plugin) placeResourceInChart(ctx solution_context.SolutionContext, resource *construct.Resource, chart *construct.Resource) (
+	bool,
+	error,
+) {
+	edges, err := ctx.DeploymentGraph().Edges()
+	if err != nil {
+		return false, err
 	}
-	return errs
+	edgesToRemove := make([]graph.Edge[construct.ResourceId], 0)
+	edgesToAdd := make([]graph.Edge[construct.ResourceId], 0)
+	tmpGraph, err := ctx.DeploymentGraph().Clone()
+	if err != nil {
+		return false, err
+	}
+	for _, e := range edges {
+		if e.Source != resource.ID && e.Target != resource.ID {
+			continue
+		}
+		newEdge := e
+		if e.Source == resource.ID {
+			newEdge.Source = chart.ID
+		}
+		if e.Target == resource.ID {
+			newEdge.Target = chart.ID
+		}
+		err = tmpGraph.RemoveEdge(e.Source, e.Target)
+		if err != nil {
+			return false, err
+		}
+		edgesToRemove = append(edgesToRemove, e)
+		if newEdge.Source == newEdge.Target {
+			continue
+		}
+		err = tmpGraph.AddEdge(newEdge.Source, newEdge.Target)
+		switch {
+		case errors.Is(err, graph.ErrEdgeCreatesCycle):
+			return false, nil
+		}
+		edgesToAdd = append(edgesToAdd, newEdge)
+	}
+	for _, e := range edgesToRemove {
+		err = ctx.DeploymentGraph().RemoveEdge(e.Source, e.Target)
+		if err != nil {
+			return false, err
+		}
+	}
+	for _, e := range edgesToAdd {
+		err = ctx.DeploymentGraph().AddEdge(e.Source, e.Target)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	err = ctx.DeploymentGraph().RemoveVertex(resource.ID)
+	if err != nil {
+		edges, _ := ctx.DeploymentGraph().Edges()
+		errString := ""
+		for _, e := range edges {
+			if e.Source == resource.ID || e.Target == resource.ID {
+				errString += fmt.Sprintf("%s -> %s\n", e.Source, e.Target)
+			}
+		}
+		return false, fmt.Errorf("could not remove vertex %s from graph: %s", resource.ID, errString)
+	}
+	chartDir, err := chart.GetProperty("Directory")
+	if err != nil {
+		return false, err
+	}
+	output, err := AddObject(resource)
+	if err != nil {
+		return false, err
+	}
+	if output == nil {
+		return false, err
+	}
+
+	p.resourcesInChart[chart.ID] = append(p.resourcesInChart[chart.ID], resource.ID)
+	p.files = append(p.files, &kio.RawFile{
+		FPath:   fmt.Sprintf("%s/templates/%s_%s.yaml", chartDir, resource.ID.Type, resource.ID.Name),
+		Content: output.Content,
+	})
+	return true, nil
 }
 
 func writeChartYaml(c *construct.Resource) (kio.File, error) {
@@ -217,4 +195,40 @@ func writeChartYaml(c *construct.Resource) (kio.File, error) {
 		FPath:   fmt.Sprintf("%s/Chart.yaml", directory),
 		Content: output,
 	}, nil
+}
+
+func (p *Plugin) createChart(name string, clusterId construct.ResourceId, ctx solution_context.SolutionContext) (*construct.Resource, error) {
+	chart, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
+		Provider:  "kubernetes",
+		Type:      "helm_chart",
+		Namespace: clusterId.Name,
+		Name:      name,
+	})
+	if err != nil {
+		return chart, err
+	}
+	chartDir := fmt.Sprintf("%s/%s/%s", HELM_CHARTS_DIR, chart.ID.Namespace, chart.ID.Name)
+	err = chart.SetProperty("Directory", chartDir)
+	if err != nil {
+		return chart, err
+	}
+	err = chart.SetProperty("Cluster", clusterId)
+	if err != nil {
+		return chart, err
+	}
+	err = ctx.RawView().AddVertex(chart)
+	if err != nil {
+		return chart, err
+	}
+	err = ctx.RawView().AddEdge(chart.ID, clusterId)
+	if err != nil {
+		return chart, err
+	}
+	file, err := writeChartYaml(chart)
+	if err != nil {
+		return chart, err
+	} else {
+		p.files = append(p.files, file)
+	}
+	return chart, nil
 }

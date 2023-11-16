@@ -3,10 +3,12 @@ display_name: IAM Role Policy Attachment
 
 properties:
   Policy:
-    type: string
+    type: resource(aws:iam_policy)
+    default_value: '{{ downstream "aws:iam_policy" .Self }}'
     required: true
   Role:
-    type: string
+    type: resource(aws:iam_role)
+    default_value: '{{ upstream "aws:iam_role" .Self }}'
     required: true
 
 delete_context:

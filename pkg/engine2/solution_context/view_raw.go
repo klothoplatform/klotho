@@ -111,7 +111,7 @@ func (view RawAccessView) AddEdge(source, target construct.ResourceId, options .
 	if terr != nil {
 		return terr
 	}
-	if !srcRt.NoIac && !dstRt.NoIac && !et.NoIac {
+	if !srcRt.NoIac && !dstRt.NoIac && (et != nil && !et.NoIac) {
 		if et != nil && et.DeploymentOrderReversed {
 			deplErr = view.inner.DeploymentGraph().AddEdge(target, source)
 		} else {
