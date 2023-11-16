@@ -6,6 +6,7 @@ import (
 	"io"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
@@ -16,6 +17,8 @@ import (
 )
 
 type templateInputArgs map[string]any
+
+var validIdentifierPattern = regexp.MustCompile(`^[a-zA-Z_$][a-zA-Z_$0-9]*$`)
 
 func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.ResourceId) error {
 	resTmpl, err := tc.ResourceTemplate(rid)
@@ -117,7 +120,11 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 				if templateArg != nil && templateArg.Wrapper == string(CamelCaseWrapper) {
 					keyResult = strcase.ToCamel(keyStr)
 				} else if templateArg != nil && templateArg.Wrapper == string(ModelCaseWrapper) {
-					keyResult = keyStr
+					if validIdentifierPattern.MatchString(keyStr) {
+						keyResult = keyStr
+					} else {
+						keyResult = fmt.Sprintf(`"%s"`, keyStr)
+					}
 				}
 				if keyResult == "TEST_DYNAMODB_TABLE_NAME" {
 					a := 1
