@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -10,7 +11,7 @@ interface Args {
     Type: string
     ConnectionType: string
     VpcLink: aws.apigateway.VpcLink
-    RequestParameters: Record<string, string>
+    RequestParameters: ModelCaseWrapper<Record<string, string>>
     Uri: pulumi.Output<string>
     Route: string
 }
@@ -46,6 +47,8 @@ function create(args: Args): aws.apigateway.Integration {
 
 function properties(object: aws.apigateway.Integration, args: Args) {
     return {
-        LbUri: pulumi.interpolate`http://${(args.Target as aws.lb.LoadBalancer).dnsName}${args.Route.replace("+", "")}`,
+        LbUri: pulumi.interpolate`http://${
+            (args.Target as aws.lb.LoadBalancer).dnsName
+        }${args.Route.replace('+', '')}`,
     }
 }
