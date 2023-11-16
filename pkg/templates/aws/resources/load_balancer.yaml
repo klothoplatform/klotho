@@ -24,13 +24,11 @@ properties:
     type: string
     default_value: internal
   SecurityGroups:
+    # We should require an upstream security group if the LB is in a VPC
+    # once we have the ability to disable inbound rule processing for PrivateLink traffic,
+    # which is required for secure connectivity from an API Gateway VPC Link.
+    # See: https://github.com/hashicorp/terraform-provider-aws/pull/33767
     type: list(resource(aws:security_group))
-    operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:

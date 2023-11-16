@@ -6,16 +6,6 @@ operational_rules:
         configuration:
           field: Target
           value: '{{ .Target }}'
-      - resource: '{{ upstream "aws:security_group" .Target }}'
-        configuration:
-          field: IngressRules
-          value:
-            - Description: Allow ingress traffic from ip addresses within the {{ (downstream "aws:vpc" .Source).Name }} vpc
-              CidrBlocks:
-                - '{{ fieldValue "CidrBlock" (downstream "aws:vpc" .Source) }}'
-              FromPort: 0
-              Protocol: '-1'
-              ToPort: 0
 
 classification:
   - network
