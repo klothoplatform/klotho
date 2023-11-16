@@ -7,6 +7,7 @@ sources:
   - kubernetes:deployment
   - kubernetes:pod
   - aws:ec2_instance
+  - aws:subnet
 targets:
   - aws:lambda_function
   - aws:dynamodb_table
