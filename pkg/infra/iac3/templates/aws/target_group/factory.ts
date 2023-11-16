@@ -35,3 +35,9 @@ function create(args: Args): aws.lb.TargetGroup {
         return tg
     })()
 }
+
+function properties(object: aws.lb.TargetGroup, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}

@@ -15,20 +15,20 @@ interface Args {
 }
 
 // noinspection JSUnusedLocalSymbols
-function create(args: Args): pulumi_k8s.helm.v3.Chart {
-    return new pulumi_k8s.helm.v3.Chart(
+function create(args: Args): pulumi_k8s.helm.v3.Release {
+    return new pulumi_k8s.helm.v3.Release(
         args.Name,
         {
             //TMPL {{- if .Chart }}
             chart: args.Chart,
             //TMPL {{- end }}
             //TMPL {{- if .Repo }}
-            fetchOpts: {
+            repositoryOpts: {
                 repo: args.Repo,
             },
             //TMPL {{- end }}
             //TMPL {{- if and (not .Chart) .Directory }}
-            path: args.Directory,
+            chart: args.Directory,
             //TMPL {{- end }}
             //TMPL {{- if .Namespace }}
             namespace: args.Namespace,

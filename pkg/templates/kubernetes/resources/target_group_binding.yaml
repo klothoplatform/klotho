@@ -27,8 +27,8 @@ properties:
       kubernetes:TypeMeta:
         type: model
         default_value:
-          apiVersion: v1
-          kind: ObjectMeta
+          apiVersion: elbv2.k8s.aws/v1beta1
+          kind: TargetGroupBinding
       metadata:
         type: model(kubernetes:ObjectMeta)
       spec:

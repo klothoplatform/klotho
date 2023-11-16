@@ -33,6 +33,10 @@ properties:
       Port:
         type: int
         default_value: 80
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
   is:

@@ -1,12 +1,12 @@
 [
  {{- range $key, $value := . }}
  {
-    name: {{ modelCase $value.Name }},
+    name: {{ modelCase $value.name }},
     cluster: {
-        {{- range $key, $value := $value.Cluster }}
-        {{- if eq $key "Server" }}
+        {{- range $key, $value := $value.cluster }}
+        {{- if eq $key "server" }}
         "server": {{ modelCase $value }},
-        {{- else if eq $key "CertificateAuthorityData" }}
+        {{- else if eq $key "certificateAuthorityData" }}
         "certificate-authority-data": {{ modelCase $value }},
         {{- end }}
         {{- end }}

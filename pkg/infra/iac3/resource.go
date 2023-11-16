@@ -207,15 +207,6 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 		case "aws:region", "aws:availability_zone", "aws:account_id":
 			continue
 
-		case "kubernetes:helm_chart":
-			ao := tc.NewAppliedOutput(construct.PropertyRef{
-				Resource: dep,
-				// ready: pulumi.Output<pulumi.CustomResource[]>
-				Property: "ready",
-			}, "")
-			applied = append(applied, ao)
-			dependsOn = append(dependsOn, "..."+ao.Name)
-
 		case "kubernetes:manifest", "kubernetes:kustomize_directory":
 			ao := tc.NewAppliedOutput(construct.PropertyRef{
 				Resource: dep,

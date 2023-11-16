@@ -1,2 +1,12 @@
 source: kubernetes:target_group_binding
 target: kubernetes:service
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.spec.serviceRef.name
+          value: '{{ fieldValue "Object.metadata.name" .Target }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.spec.serviceRef.port
+          value: '{{ fieldValue "Object.spec.ports[0].port" .Target }}'
