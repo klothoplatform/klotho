@@ -6,7 +6,7 @@ operational_rules:
         configuration:
           field: Target
           value: '{{ .Target }}'
-      - resource: '{{ downstream "aws:security_group" .Target }}'
+      - resource: '{{ upstream "aws:security_group" .Target }}'
         configuration:
           field: IngressRules
           value:
