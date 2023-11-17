@@ -34,6 +34,10 @@ properties:
       spec:
         type: model(kubernetes:PodSpec)
 
+path_satisfaction:
+  as_target:
+    - network#Cluster#Subnets
+
 classification:
   is:
     - compute

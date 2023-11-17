@@ -141,7 +141,7 @@ func (eval *Evaluator) resourceVertices(
 	changes := newChanges()
 	var errs error
 
-	addProp := func(prop *knowledgebase.Property) {
+	addProp := func(prop *knowledgebase.Property) error {
 		vertex := &propertyVertex{
 			Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
 			Template:  prop,
@@ -149,8 +149,9 @@ func (eval *Evaluator) resourceVertices(
 		}
 
 		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
+		return nil
 	}
-	tmpl.LoopProperties(res, addProp)
+	errs = errors.Join(errs, tmpl.LoopProperties(res, addProp))
 	return changes, errs
 }
 

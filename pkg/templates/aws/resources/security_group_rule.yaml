@@ -1,0 +1,19 @@
+qualified_type_name: aws:security_group_rule
+description: Security Group Rule
+
+properties:
+  Description:
+    type: string
+  CidrBlocks:
+    type: list(string)
+  FromPort:
+    type: int
+  ToPort:
+    type: int
+  Protocol:
+    type: string
+  SecurityGroupId:
+    type: string # Not resource type because we need deploy time properties to be able to exist here
+    default_value: '{{ upstream "aws:security_group" .Self }}#Id'
+  Type:
+    type: string

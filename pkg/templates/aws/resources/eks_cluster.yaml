@@ -62,6 +62,10 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  ClusterSecurityGroup:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 classification:
   is:

@@ -18,3 +18,11 @@ operational_rules:
           - selector: aws:eks_add_on:vpc-cni
             properties:
               AddOnName: vpc-cni
+  - steps:
+      - resource: '{{ .Target }}'
+        direction: upstream
+        resources:
+          - selector: aws:security_group_rule
+            properties:
+              SecurityGroupId: '{{ fieldRef "ClusterSecurityGroup" .Source }}'
+              Type: ingress

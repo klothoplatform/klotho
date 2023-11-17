@@ -1,0 +1,25 @@
+source: aws:security_group_rule
+target: aws:vpc
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Description
+          value: Allow ingress traffic from within the vpc
+      - resource: '{{ .Source }}'
+        configuration:
+          field: FromPort
+          value: 0
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Protocol
+          value: '-1'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: ToPort
+          value: 0
+      - resource: '{{ .Source }}'
+        configuration:
+          field: CidrBlocks
+          value: 
+            - '{{ fieldValue "CidrBlock" .Target }}'

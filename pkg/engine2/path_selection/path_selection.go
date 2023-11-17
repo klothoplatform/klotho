@@ -54,7 +54,7 @@ func BuildPathSelectionGraph(
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 			}
-			err = tempGraph.AddEdge(dep.Source, dep.Target, graph.EdgeWeight(calculateEdgeWeight(dep, dep.Source, dep.Target, 0, 0, kb)))
+			err = tempGraph.AddEdge(dep.Source, dep.Target, graph.EdgeWeight(calculateEdgeWeight(dep, dep.Source, dep.Target, 0, 0, classification, kb)))
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +103,7 @@ func BuildPathSelectionGraph(
 			if !prevRes.IsZero() {
 				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
 				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
-					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, kb)))
+					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, classification, kb)))
 					if err != nil {
 						return nil, err
 					}
@@ -162,6 +162,7 @@ func calculateEdgeWeight(
 	dep construct.SimpleEdge,
 	source, target construct.ResourceId,
 	divideSourceBy, divideTargetBy int,
+	classification string,
 	kb knowledgebase.TemplateKB,
 ) int {
 	if divideSourceBy == 0 {
@@ -170,6 +171,21 @@ func calculateEdgeWeight(
 	if divideTargetBy == 0 {
 		divideTargetBy = 1
 	}
+
+	// check to see if the resources match the classification being solved and account for their weights accordingly
+	sourceTemplate, err := kb.GetResourceTemplate(source)
+	if err == nil || sourceTemplate != nil {
+		if collectionutil.Contains(sourceTemplate.Classification.Is, classification) {
+			divideSourceBy += 10
+		}
+	}
+	targetTemplate, err := kb.GetResourceTemplate(target)
+	if err == nil || targetTemplate != nil {
+		if collectionutil.Contains(targetTemplate.Classification.Is, classification) {
+			divideTargetBy += 10
+		}
+	}
+
 	// We start with a weight of 10 for glue and 10000 for functionality for newly created edges of "phantom" resources
 	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
 	// This will achieve priority for existing resources over newly created ones

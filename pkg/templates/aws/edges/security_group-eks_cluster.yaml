@@ -9,7 +9,7 @@ operational_rules:
           value:
             - Description: Allows ingress traffic from the EKS control plane
               CidrBlocks:
-                - Property: 0.0.0.0/0
+                - 0.0.0.0/0
               FromPort: 9443
               Protocol: TCP
               ToPort: 9443

@@ -54,6 +54,11 @@ properties:
                   maxSurge:
                     type: any
                     default_value: 1
+
+path_satisfaction:
+  as_target:
+    - network#Cluster#Subnets
+
 classification:
   is:
     - compute

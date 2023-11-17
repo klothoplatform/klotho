@@ -35,7 +35,7 @@ operational_rules:
   - if: | # check if the config map is in place
       {{ $configMaps := allUpstream "kubernetes:config_map" .Target }}
       {{ range $index, $cm := $configMaps }}
-        {{- if eq  (fieldValue "ObjectMeta.Name" $cm) "aws-logging" }}
+        {{- if eq  (fieldValue "Object.metadata.name" $cm) "aws-logging" }}
           false
           {{break}}
         {{- end }}
@@ -52,7 +52,8 @@ operational_rules:
           - selector: kubernetes:namespace
             properties:
               Object:
-                name: aws-observability
+                metadata:
+                  name: aws-observability
     configuration_rules:
       - resource: kubernetes:config_map:aws-logging
         configuration:

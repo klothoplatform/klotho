@@ -25,5 +25,6 @@ function properties(object: aws.eks.Cluster, args: Args) {
         Name: object.name,
         ClusterEndpoint: object.endpoint,
         CertificateAuthorityData: object.certificateAuthorities[0].data,
+        ClusterSecurityGroup: object.vpcConfig.clusterSecurityGroupId,
     }
 }

@@ -3,6 +3,7 @@ package knowledgebase2
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -381,13 +382,23 @@ func (template ResourceTemplate) GetProperty(name string) *Property {
 	return nil
 }
 
-func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp func(*Property)) {
+var ErrStopWalk = errors.New("stop walk")
+
+func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp func(*Property) error) error {
 	queue := []Properties{tmpl.Properties}
 	var props Properties
+	var errs error
 	for len(queue) > 0 {
 		props, queue = queue[0], queue[1:]
 		for _, prop := range props {
-			addProp(prop)
+			err := addProp(prop)
+			if err != nil {
+				if errors.Is(err, ErrStopWalk) {
+					return nil
+				}
+				errs = errors.Join(errs, err)
+				continue
+			}
 
 			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
 				p, err := res.GetProperty(prop.Path)
@@ -430,4 +441,5 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 			}
 		}
 	}
+	return errs
 }

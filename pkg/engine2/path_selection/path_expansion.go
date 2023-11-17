@@ -182,7 +182,7 @@ func handleProperties(
 			continue
 		}
 
-		handleProp := func(prop *knowledgebase.Property) {
+		handleProp := func(prop *knowledgebase.Property) error {
 			oldId := res.ID
 			opRuleCtx := operational_rule.OperationalRuleContext{
 				Solution: ctx,
@@ -190,7 +190,7 @@ func handleProperties(
 				Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 			}
 			if prop.OperationalRule == nil {
-				return
+				return nil
 			}
 			for _, step := range prop.OperationalRule.Steps {
 				for _, selector := range step.Resources {
@@ -219,8 +219,9 @@ func handleProperties(
 			if prop.Namespace && oldId.Namespace != res.ID.Namespace {
 				errs = errors.Join(errs, construct.ReplaceResource(g, oldId, res))
 			}
+			return nil
 		}
-		rt.LoopProperties(res, handleProp)
+		errs = errors.Join(errs, rt.LoopProperties(res, handleProp))
 	}
 	return errs
 }
@@ -334,6 +335,7 @@ func ExpandPath(
 			construct.SimpleEdge{Source: input.Dep.Source.ID, Target: input.Dep.Target.ID},
 			source.id, target.id,
 			source.divideWeightBy, target.divideWeightBy,
+			input.Classification,
 			ctx.KnowledgeBase())
 
 		tmpl := ctx.KnowledgeBase().GetEdgeTemplate(source.id, target.id)
@@ -358,7 +360,15 @@ func ExpandPath(
 			}
 		}
 
-		err := input.TempGraph.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
+		valid, err := checkUniquenessValidity(ctx, source.id, target.id)
+		if err != nil {
+			errs = errors.Join(errs, err)
+		}
+		if !valid {
+			return
+		}
+
+		err = input.TempGraph.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
 		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) && !errors.Is(err, graph.ErrEdgeCreatesCycle) {
 			errs = errors.Join(errs, err)
 		}
