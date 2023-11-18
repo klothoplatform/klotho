@@ -4,6 +4,7 @@ display_name: Kustomize Directory
 properties:
   Cluster:
     type: resource
+    namespace: true
     operational_rule:
       steps:
         - direction: downstream

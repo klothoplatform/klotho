@@ -135,8 +135,12 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 func checkIfPropertyContainsResource(property interface{}, resource construct.ResourceId) bool {
 	switch reflect.ValueOf(property).Kind() {
 	case reflect.Slice, reflect.Array:
-		for _, p := range property.([]construct.ResourceId) {
-			if p.Matches(resource) {
+		for i := 0; i < reflect.ValueOf(property).Len(); i++ {
+			val := reflect.ValueOf(property).Index(i).Interface()
+			if id, ok := val.(construct.ResourceId); ok && id.Matches(resource) {
+				return true
+			}
+			if pref, ok := val.(construct.PropertyRef); ok && pref.Resource.Matches(resource) {
 				return true
 			}
 		}

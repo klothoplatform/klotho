@@ -8,6 +8,6 @@ properties:
   labels:
     type: map(string,string)
     default_value:
-      KLOTHO_ID_LABEL: '{{ .Self.String | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` "" }}'
+      KLOTHO_ID_LABEL: '{{ .Self.String | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` ""   }}'
   annotations:
     type: map(string,string)

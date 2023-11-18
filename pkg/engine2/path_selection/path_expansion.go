@@ -181,7 +181,11 @@ func handleProperties(
 			errs = errors.Join(errs, err)
 			continue
 		}
-
+		id := res.ID
+		exists, err := ctx.RawView().Vertex(id)
+		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+			return err
+		}
 		handleProp := func(prop *knowledgebase.Property) error {
 			oldId := res.ID
 			opRuleCtx := operational_rule.OperationalRuleContext{
@@ -202,6 +206,12 @@ func handleProperties(
 							if err != nil {
 								errs = errors.Join(errs, err)
 							}
+							if prop.Namespace && exists != nil {
+								err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
+								if err != nil {
+									errs = errors.Join(errs, err)
+								}
+							}
 						}
 					} else if i > 0 {
 						upstreamRes := resultResources[i-1]
@@ -210,6 +220,12 @@ func handleProperties(
 							err = opRuleCtx.SetField(res, upstreamRes, step)
 							if err != nil {
 								errs = errors.Join(errs, err)
+							}
+							if prop.Namespace && exists != nil {
+								err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
+								if err != nil {
+									errs = errors.Join(errs, err)
+								}
 							}
 						}
 

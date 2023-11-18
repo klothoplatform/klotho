@@ -65,6 +65,12 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+path_satisfaction:
+  as_target:
+    - api_route
+  as_source:
+    - api_route
+
 classification:
   is:
     - api_route

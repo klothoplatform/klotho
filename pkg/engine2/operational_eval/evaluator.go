@@ -469,5 +469,11 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 		}
 	}
 
+	if eval.currentKey != nil {
+		if eval.currentKey.Ref.Resource == oldId {
+			eval.currentKey.Ref.Resource = newId
+		}
+		eval.currentKey.Edge = UpdateEdgeId(eval.currentKey.Edge, oldId, newId)
+	}
 	return nil
 }

@@ -51,9 +51,9 @@ properties:
     deploy_time: true
 
 path_satisfaction:
+# See comment above for why we are not solving the network path 
   as_target:
     - network
-    - network#Subnets
   as_source:
     - network#Subnets
     - target_group

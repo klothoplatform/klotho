@@ -137,7 +137,6 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 		return err
 	}
 
-	changes := newChanges()
 	var errs error
 	for _, key := range topo {
 		vertex, err := eval.unevaluated.Vertex(key)
@@ -145,10 +144,12 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
+		changes := newChanges()
+		err = changes.AddVertexAndDeps(eval, vertex)
+		if err == nil {
+			err = eval.enqueue(changes)
+		}
+		errs = errors.Join(errs, err)
 	}
-	if errs != nil {
-		return errs
-	}
-	return eval.enqueue(changes)
+	return errs
 }

@@ -1,0 +1,4 @@
+source: aws:subnet
+target: aws:SERVICE_API
+
+edge_weight_multiplier: 10 # We want to prefer staying public if a resource does not need to be placed in a vpc

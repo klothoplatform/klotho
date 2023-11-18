@@ -119,49 +119,52 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		})
 		seenSmall := make(set.Set[construct.ResourceId])
 		for _, path := range deps.Paths {
-			for _, dst := range path[1:] {
-				dstTag := e.GetResourceVizTag(string(DataflowView), dst)
-				switch dstTag {
-				case ParentIconTag:
-					hasPath, err := HasPath(topo, ctx, src, dst)
-					if err != nil {
-						errs = errors.Join(errs, err)
-					}
-					if node.Parent.IsZero() && hasPath {
-						node.Parent = dst
-					}
-				case BigIconTag:
-					hasPath, err := HasPath(topo, ctx, src, dst)
-					if err != nil {
-						errs = errors.Join(errs, err)
-					}
-					if hasPath {
-						edge := construct.SimpleEdge{
-							Source: src,
-							Target: dst,
-						}
-						topo.Edges[edge] = path[1 : len(path)-1]
-					}
-				case SmallIconTag:
-					if seenSmall.Contains(dst) {
-						continue
-					}
-					seenSmall.Add(dst)
-					isSideEffect, err := knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst)
-					if err != nil {
-						errs = errors.Join(errs, err)
-						continue
-					}
-					if isSideEffect {
-						node.Children.Add(dst)
-					}
-				case NoRenderTag:
-					continue
-				default:
-					errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
+			dst := path[len(path)-1]
+			if dst == src {
+				continue
+			}
+			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
+			switch dstTag {
+			case ParentIconTag:
+				hasPath, err := HasParent(topo, ctx, src, dst)
+				if err != nil {
+					errs = errors.Join(errs, err)
 				}
+				if node.Parent.IsZero() && hasPath {
+					node.Parent = dst
+				}
+			case BigIconTag:
+				hasPath, err := HasPath(topo, ctx, src, dst)
+				if err != nil {
+					errs = errors.Join(errs, err)
+				}
+				if hasPath {
+					edge := construct.SimpleEdge{
+						Source: src,
+						Target: dst,
+					}
+					topo.Edges[edge] = path[1 : len(path)-1]
+				}
+			case SmallIconTag:
+				if seenSmall.Contains(dst) {
+					continue
+				}
+				seenSmall.Add(dst)
+				isSideEffect, err := knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+				if isSideEffect {
+					node.Children.Add(dst)
+				}
+			case NoRenderTag:
+				continue
+			default:
+				errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
 			}
 		}
+
 	}
 	if errs != nil {
 		return nil, errs
@@ -231,7 +234,7 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources []construct.ResourceId) construct.ResourceId {
 	if resource.Namespace != "" {
 		for _, potentialParent := range resources {
-			if potentialParent.Provider == resource.Provider && potentialParent.Name == resource.Namespace && e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
+			if potentialParent.Name == resource.Namespace && e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
 				return potentialParent
 			}
 		}
@@ -239,7 +242,27 @@ func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources
 	return construct.ResourceId{}
 }
 
+func HasParent(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
+	return checkPaths(topo, sol, source, target)
+}
+
 func HasPath(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
+	srcTemplate, err := sol.KnowledgeBase().GetResourceTemplate(source)
+	if err != nil || srcTemplate == nil {
+		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+	}
+	targetTemplate, err := sol.KnowledgeBase().GetResourceTemplate(target)
+	if err != nil || targetTemplate == nil {
+		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+	}
+	if len(targetTemplate.PathSatisfaction.AsTarget) == 0 || len(srcTemplate.PathSatisfaction.AsSource) == 0 {
+		return false, nil
+	}
+	return checkPaths(topo, sol, source, target)
+
+}
+
+func checkPaths(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
 	var errs error
 	pathsCache := map[construct.SimpleEdge][][]construct.ResourceId{}
 	pathSatisfactions, err := sol.KnowledgeBase().GetPathSatisfactionsFromEdge(source, target)
@@ -280,7 +303,13 @@ func HasPath(topo Topology, sol solution_context.SolutionContext, source, target
 			PATHS:
 				for _, path := range paths {
 					for i, res := range path {
-						if i != 0 && i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
+						if i == 0 {
+							continue
+						}
+						if et := sol.KnowledgeBase().GetEdgeTemplate(path[i-1], res); et != nil && et.DirectEdgeOnly {
+							continue PATHS
+						}
+						if i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
 							continue PATHS
 						}
 					}

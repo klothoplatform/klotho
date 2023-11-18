@@ -6,7 +6,7 @@ sanitize_name:
   # (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')]
   |
   {{ . 
-    | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` ""
+    | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` "" | length 1 50 
   }}
 
 properties:

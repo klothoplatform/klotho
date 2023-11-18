@@ -1,17 +1,18 @@
 qualified_type_name: kubernetes:deployment
-display_name: Kubernetes Deployment
+display_name: K8s Deployment
 sanitize_name:
   # a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.',
   # and must start and end with an alphanumeric character
   # (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')]
   |
   {{ . 
-    | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` ""
+    | replace `[^a-zA-Z0-9-]+` "" | replace `^[-]+` "" | replace `[-]+$` "" | length 1 50 
   }}
 
 properties:
   Cluster:
     type: resource
+    namespace: true
     operational_rule:
       steps:
         - direction: downstream
@@ -57,6 +58,9 @@ properties:
 
 path_satisfaction:
   as_target:
+    - service
+    - network#Cluster
+  as_source:
     - network#Cluster#Subnets
 
 classification:

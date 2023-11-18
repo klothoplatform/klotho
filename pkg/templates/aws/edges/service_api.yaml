@@ -3,7 +3,6 @@ resource: aws:SERVICE_API
 sources:
   - aws:lambda_function
   - aws:app_runner_service
-  - aws:subnet
 targets:
   - aws:lambda_function
   - aws:dynamodb_table

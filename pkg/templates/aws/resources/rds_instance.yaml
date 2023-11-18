@@ -81,7 +81,6 @@ classification:
 
 path_satisfaction:
   as_target:
-    - network#SubnetGroup#Subnets
     - network
     - permissions
 
