@@ -21,6 +21,12 @@ operational_rules:
         configuration:
           field: DefaultCacheBehavior.TargetOriginId
           value: '{{ .Target.Name }}'
+      - resource: '{{ .Target }}'
+        configuration:
+          # Don't use KMS due to requiring a Lambda@Edge to sign the requests
+          # https://aws.amazon.com/blogs/networking-and-content-delivery/serving-sse-kms-encrypted-content-from-s3-using-cloudfront/
+          field: SSEAlgorithm
+          value: AES256
   - if: '{{ hasField "IndexDocument" .Target}}'
     configuration_rules:
       - resource: '{{ .Source }}'

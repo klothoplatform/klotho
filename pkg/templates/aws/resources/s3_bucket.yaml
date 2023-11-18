@@ -23,13 +23,16 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  SSEAlgorithm:
+    type: string
+    default_value: aws:kms
 
 has_service_api: true
 path_satisfaction:
   as_target:
     - network
     - permissions
-  
+
 classification:
   is:
     - storage

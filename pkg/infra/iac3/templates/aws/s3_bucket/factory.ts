@@ -4,6 +4,7 @@ interface Args {
     Name: string
     ForceDestroy: boolean
     IndexDocument: string
+    SSEAlgorithm: string
     protect: boolean
 }
 
@@ -13,19 +14,21 @@ function create(args: Args): aws.s3.Bucket {
         args.Name,
         {
             forceDestroy: args.ForceDestroy,
+            //TMPL {{- if .SSEAlgorithm }}
             serverSideEncryptionConfiguration: {
                 rule: {
                     applyServerSideEncryptionByDefault: {
-                        sseAlgorithm: 'aws:kms',
+                        sseAlgorithm: args.SSEAlgorithm,
                     },
                     bucketKeyEnabled: true,
                 },
             },
-            //TMPL {{ if .IndexDocument }}
+            //TMPL {{- end }}
+            //TMPL {{- if .IndexDocument }}
             website: {
                 indexDocument: args.IndexDocument,
             },
-            //TMPL {{ end }}
+            //TMPL {{- end }}
         },
         { protect: args.protect }
     )

@@ -5,6 +5,7 @@ properties:
   Bucket:
     type: resource(aws:s3_bucket)
     default_value: '{{ downstream "aws:s3_bucket" .Self }}'
+    namespace: true
   Key:
     type: string
   FilePath:

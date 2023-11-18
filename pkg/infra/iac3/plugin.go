@@ -33,7 +33,8 @@ var (
 	//go:embed Pulumi.yaml.tmpl Pulumi.dev.yaml.tmpl templates/globals.ts
 	files embed.FS
 
-	//go:embed templates/*/*/factory.ts templates/*/*/package.json templates/*/*/*.ts.tmpl
+	//go:embed templates/aws/*/factory.ts templates/aws/*/package.json templates/aws/*/*.ts.tmpl
+	//go:embed templates/kubernetes/*/factory.ts templates/kubernetes/*/package.json templates/kubernetes/*/*.ts.tmpl
 	standardTemplates embed.FS
 
 	pulumiBase  = templateutils.MustTemplate(files, "Pulumi.yaml.tmpl")
