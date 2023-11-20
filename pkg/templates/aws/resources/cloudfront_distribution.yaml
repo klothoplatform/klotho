@@ -89,6 +89,10 @@ properties:
   DefaultRootObject:
     type: string
 
+path_satisfaction:
+  as_source:
+    - cloudfront_origin
+
 classification:
   is:
     - cdn

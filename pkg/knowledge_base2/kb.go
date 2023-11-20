@@ -13,6 +13,7 @@ import (
 type (
 	TemplateKB interface {
 		ListResources() []*ResourceTemplate
+		GetModel(model string) *Model
 		Edges() ([]graph.Edge[*ResourceTemplate], error)
 		AddResourceTemplate(template *ResourceTemplate) error
 		AddEdgeTemplate(template *EdgeTemplate) error
@@ -32,6 +33,7 @@ type (
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
 	KnowledgeBase struct {
 		underlying graph.Graph[string, *ResourceTemplate]
+		models     map[string]*Model
 	}
 
 	EdgePathSatisfaction struct {
@@ -55,6 +57,10 @@ func NewKB() *KnowledgeBase {
 			return t.Id().QualifiedTypeName()
 		}, graph.Directed()),
 	}
+}
+
+func (kb *KnowledgeBase) GetModel(model string) *Model {
+	return kb.models[model]
 }
 
 // ListResources returns a list of all resources in the knowledge base
@@ -260,56 +266,6 @@ func (kb *KnowledgeBase) GetClassification(id construct.ResourceId) Classificati
 		return Classification{}
 	}
 	return template.Classification
-}
-
-func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.ResourceId) ([]EdgePathSatisfaction, error) {
-	srcTempalte, err := kb.GetResourceTemplate(source)
-	if err != nil {
-		return nil, err
-	}
-	targetTemplate, err := kb.GetResourceTemplate(target)
-	if err != nil {
-		return nil, err
-	}
-	pathSatisfications := []EdgePathSatisfaction{}
-	trgtsAdded := map[PathSatisfactionRoute]struct{}{}
-
-	for _, src := range srcTempalte.PathSatisfaction.AsSource {
-		srcClassificationHandled := false
-		for _, trgt := range targetTemplate.PathSatisfaction.AsTarget {
-			if trgt.Classification == src.Classification {
-				useSrc := src
-				useTrgt := trgt
-				pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
-					Classification: src.Classification,
-					Source:         useSrc,
-					Target:         useTrgt,
-				})
-				srcClassificationHandled = true
-				trgtsAdded[trgt] = struct{}{}
-			}
-		}
-		if !srcClassificationHandled {
-			useSrc := src
-			pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
-				Classification: src.Classification,
-				Source:         useSrc,
-			})
-		}
-	}
-	for _, trgt := range targetTemplate.PathSatisfaction.AsTarget {
-		if _, ok := trgtsAdded[trgt]; !ok {
-			useTrgt := trgt
-			pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{
-				Classification: trgt.Classification,
-				Target:         useTrgt,
-			})
-		}
-	}
-	if len(pathSatisfications) == 0 {
-		pathSatisfications = append(pathSatisfications, EdgePathSatisfaction{})
-	}
-	return pathSatisfications, nil
 }
 
 func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error) {

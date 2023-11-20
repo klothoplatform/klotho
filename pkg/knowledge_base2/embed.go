@@ -12,7 +12,12 @@ import (
 
 func NewKBFromFs(resources, edges, models fs.FS) (*KnowledgeBase, error) {
 	kb := NewKB()
-	templates, err := TemplatesFromFs(resources, models)
+	kbModels, err := ModelsFromFS(models)
+	if err != nil {
+		return nil, err
+	}
+	kb.models = kbModels
+	templates, err := TemplatesFromFs(resources, kbModels)
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +77,9 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 	return models, err
 }
 
-func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTemplate, error) {
+func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.ResourceId]*ResourceTemplate, error) {
 	templates := map[construct.ResourceId]*ResourceTemplate{}
-	models, err := ModelsFromFS(modelDir)
-	if err != nil {
-		return nil, err
-	}
-	terr := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
+	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
 		zap.S().Debug("Loading resource template: ", path)
 		if d.IsDir() {
 			return nil
@@ -107,7 +108,6 @@ func TemplatesFromFs(dir, modelDir fs.FS) (map[construct.ResourceId]*ResourceTem
 		templates[id] = resTemplate
 		return nil
 	})
-	err = errors.Join(err, terr)
 	return templates, err
 }
 

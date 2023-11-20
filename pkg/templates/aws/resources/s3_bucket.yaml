@@ -1,5 +1,22 @@
 qualified_type_name: aws:s3_bucket
 display_name: S3 Bucket
+sanitize_name:
+  # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
+  # Identifiers have these naming constraints:
+  # - Must contain 1–63 alphanumeric characters or hyphens (55 since we reserve 8 for an IaC-appended suffix).
+  # - First character must be a letter.
+  # - Can't end with a hyphen or contain two consecutive hyphens.
+  # - Names can consist only of lowercase letters, numbers, dots (.), and hyphens (-).
+  |
+  {{ . 
+    | replace `^[^[:alpha:]]+` "" 
+    | replace `--+` "-" 
+    | replace `-$` ""
+    | replace `_` "-"
+    | replace `[^[:alnum:]-]+` "-"
+    | length 1 55
+  }}
+
 
 properties:
   ForceDestroy:
@@ -37,6 +54,7 @@ classification:
   is:
     - storage
     - blob
+    - cloudfront_origin
 
 delete_context:
   requires_no_upstream: true

@@ -19,7 +19,7 @@ type (
 		decisions       solution_context.DecisionRecords
 		stack           []solution_context.KV
 		mappedResources map[construct.ResourceId]construct.ResourceId
-		constraints     constraints.Constraints
+		constraints     *constraints.Constraints
 		propertyEval    *property_eval.Evaluator
 	}
 )
@@ -70,7 +70,7 @@ func (ctx solutionContext) KnowledgeBase() knowledgebase.TemplateKB {
 }
 
 func (ctx solutionContext) Constraints() *constraints.Constraints {
-	return &ctx.constraints
+	return ctx.constraints
 }
 
 func (ctx solutionContext) LoadGraph(graph construct.Graph) error {

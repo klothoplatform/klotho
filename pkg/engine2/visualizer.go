@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
@@ -126,25 +127,27 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
 			switch dstTag {
 			case ParentIconTag:
-				hasPath, err := HasParent(topo, ctx, src, dst)
-				if err != nil {
-					errs = errors.Join(errs, err)
-				}
-				if node.Parent.IsZero() && hasPath {
-					node.Parent = dst
+				if node.Parent.IsZero() {
+					template, err := e.Kb.GetResourceTemplate(dst)
+					if err != nil {
+						errs = errors.Join(errs, err)
+						continue
+					}
+					if collectionutil.Contains(template.Classification.Is, "cluster") ||
+						collectionutil.Contains(template.Classification.Is, "network") {
+						hasPath, err := HasParent(topo, ctx, src, dst)
+						if err != nil {
+							errs = errors.Join(errs, err)
+						}
+						if node.Parent.IsZero() && hasPath {
+							node.Parent = dst
+						}
+					} else {
+						errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
+					}
 				}
 			case BigIconTag:
-				hasPath, err := HasPath(topo, ctx, src, dst)
-				if err != nil {
-					errs = errors.Join(errs, err)
-				}
-				if hasPath {
-					edge := construct.SimpleEdge{
-						Source: src,
-						Target: dst,
-					}
-					topo.Edges[edge] = path[1 : len(path)-1]
-				}
+				errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
 			case SmallIconTag:
 				if seenSmall.Contains(dst) {
 					continue
@@ -229,6 +232,25 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 	}
 
 	return viewDag, nil
+}
+
+func createEdgeIfPath(topo Topology,
+	ctx solution_context.SolutionContext,
+	src, dst construct.ResourceId,
+	path construct.Path,
+) error {
+	hasPath, err := HasPath(topo, ctx, src, dst)
+	if err != nil {
+		return err
+	}
+	if hasPath {
+		edge := construct.SimpleEdge{
+			Source: src,
+			Target: dst,
+		}
+		topo.Edges[edge] = path[1 : len(path)-1]
+	}
+	return nil
 }
 
 func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources []construct.ResourceId) construct.ResourceId {

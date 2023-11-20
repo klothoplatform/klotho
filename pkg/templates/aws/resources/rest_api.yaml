@@ -24,6 +24,8 @@ properties:
 path_satisfaction:
   as_source:
     - api_route
+  as_target:
+    - api_stage
 
 classification:
   is:

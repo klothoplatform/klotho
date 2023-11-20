@@ -35,6 +35,22 @@ properties:
       spec:
         type: model(kubernetes:PodSpec)
 
+
+consumption:
+  consumed:
+    - model: EnvironmentVariables
+      property_path: Object.spec.containers[0].env
+      converter: |
+        [
+        {{ $i := 0}}
+        {{ range $key, $value := . }}
+          {
+            "name": "{{ $key }}",
+            "value": "{{ $value }}"
+          }{{if ne $i (sub (len $) 1)}},{{end}}
+        {{ end }}
+        ]
+
 path_satisfaction:
   as_target:
     - service

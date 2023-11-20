@@ -83,6 +83,11 @@ properties:
           Iam:
             type: string
 
+consumption:
+  consumed:
+    - model: EnvironmentVariables
+      property_path: EnvironmentVariables
+      
 delete_context:
   require_no_upstream: true
 views:

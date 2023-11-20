@@ -26,3 +26,13 @@ function create(args: Args): aws.cloudfront.Distribution {
         //TMPL {{- end }}
     })
 }
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        Domain: object.domainName,
+    }
+}

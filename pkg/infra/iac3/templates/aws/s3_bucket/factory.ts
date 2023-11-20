@@ -41,3 +41,13 @@ function properties(object: aws.s3.Bucket, args: Args) {
         BucketName: object.bucket,
     }
 }
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        BucketName: object.bucket,
+    }
+}

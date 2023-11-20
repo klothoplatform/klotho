@@ -26,6 +26,9 @@ properties:
     deploy_time: true
 
 classification:
+  is:
+    - cloudfront_origin
+    - api_stage
 
 delete_context:
   requires_no_upstream: true
