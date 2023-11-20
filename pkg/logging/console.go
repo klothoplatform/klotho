@@ -109,10 +109,10 @@ func (enc *ConsoleEncoder) levelPadding() string {
 func (enc *ConsoleEncoder) EncodeEntry(ent zapcore.Entry, fieldList []zapcore.Field) (*buffer.Buffer, error) {
 	line := pool.Get()
 
-	if ent.Level >= zapcore.WarnLevel {
+	if ent.Level >= zapcore.WarnLevel && enc.HadWarnings != nil {
 		enc.HadWarnings.Store(true)
 	}
-	if ent.Level >= zapcore.ErrorLevel {
+	if ent.Level >= zapcore.ErrorLevel && enc.HadErrors != nil {
 		enc.HadErrors.Store(true)
 	}
 
