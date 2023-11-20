@@ -79,6 +79,11 @@ path_satisfaction:
     - network#Subnets
     - network    # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 steps
 
+consumption:
+  consumed:
+    - model: EnvironmentVariables
+      property_path: EnvironmentVariables
+
 classification:
   is:
     - serverless

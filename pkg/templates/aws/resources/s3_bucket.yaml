@@ -37,6 +37,7 @@ classification:
   is:
     - storage
     - blob
+    - cloudfront_origin
 
 delete_context:
   requires_no_upstream: true

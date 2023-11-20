@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -64,6 +65,11 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 	if err != nil || template == nil {
 		return false, fmt.Errorf("error getting resource template for resource %s: %w", resource.ID, err)
 	}
+
+	if strings.Contains(resource.ID.Name, PHANTOM_PREFIX) {
+		return true, nil
+	}
+
 	explicitlyNotValid := false
 	explicitlyValid := false
 	err = template.LoopProperties(resource, func(prop *knowledgebase.Property) error {
@@ -95,7 +101,7 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 						return knowledgebase.ErrStopWalk
 					}
 				} else {
-					loneDep, err := checkIfLoneDependency(ctx, resource.ID, toCheck.ID, direction)
+					loneDep, err := checkIfLoneDependency(ctx, resource.ID, toCheck.ID, direction, selector)
 					if err != nil {
 						return err
 					}
@@ -155,7 +161,9 @@ func checkIfPropertyContainsResource(property interface{}, resource construct.Re
 	return false
 }
 
-func checkIfLoneDependency(ctx solution_context.SolutionContext, resource, toCheck construct.ResourceId, direction knowledgebase.Direction) (bool, error) {
+func checkIfLoneDependency(ctx solution_context.SolutionContext,
+	resource, toCheck construct.ResourceId, direction knowledgebase.Direction,
+	selector knowledgebase.ResourceSelector) (bool, error) {
 	var resources []construct.ResourceId
 	var err error
 	// we are going to check if the resource was created as a unique resource by any of its direct dependents. if it was and that
@@ -177,8 +185,24 @@ func checkIfLoneDependency(ctx solution_context.SolutionContext, resource, toChe
 		return true, nil
 	} else if len(resources) == 1 && resources[0].Matches(toCheck) {
 		return true, nil
+	} else {
+		for _, res := range resources {
+			depRes, err := ctx.RawView().Vertex(res)
+			if err != nil {
+				return false, err
+			}
+			data := knowledgebase.DynamicValueData{Resource: resource}
+			dynCtx := solution_context.DynamicCtx(ctx)
+			canUse, err := selector.CanUse(dynCtx, data, depRes)
+			if err != nil {
+				return false, err
+			}
+			if canUse {
+				return false, nil
+			}
+		}
+		return true, nil
 	}
-	return false, nil
 }
 
 // checkIfCreatedAsUnique checks if the resource was created as a unique resource by any of its direct dependents. if it was and that

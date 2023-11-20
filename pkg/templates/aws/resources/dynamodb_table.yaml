@@ -63,7 +63,12 @@ classification:
     - high-availability
     - scalable
 
-
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_TABLE_NAME': '{{ fieldRef "Name" .Self }}'
+    
 
 delete_context:
   requires_no_upstream: true

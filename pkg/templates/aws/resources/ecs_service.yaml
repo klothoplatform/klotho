@@ -65,6 +65,12 @@ properties:
             - aws:ecs_task_definition:{{ .Self.Name }}
           unique: true
 
+consumption:
+  consumed:
+    - model: EnvironmentVariables
+      property_path: EnvironmentVariables
+      resource: '{{ fieldValue "TaskDefinition" .Self }}'
+
 path_satisfaction:
   as_target:
     - network

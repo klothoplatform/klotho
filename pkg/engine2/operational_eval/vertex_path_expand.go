@@ -7,6 +7,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -168,7 +169,24 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 	if err := eval.AddEdges(result.Edges...); err != nil {
 		return err
 	}
-	return eval.AddEdges(edges...)
+	if err := eval.AddEdges(edges...); err != nil {
+		return err
+	}
+	delays, err := knowledgebase.ConsumeFromResource(expansion.Dep.Source, expansion.Dep.Target, solution_context.DynamicCtx(eval.Solution))
+	if err != nil {
+		return err
+	}
+	// we add constrains for the delayed consumption here since their property has not yet been evaluated
+	c := eval.Solution.Constraints()
+	for _, delay := range delays {
+		c.Resources = append(c.Resources, constraints.ResourceConstraint{
+			Operator: constraints.AddConstraintOperator,
+			Target:   delay.Resource,
+			Property: delay.PropertyPath,
+			Value:    delay.Value,
+		})
+	}
+	return nil
 }
 
 func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection.ExpansionInput, error) {
