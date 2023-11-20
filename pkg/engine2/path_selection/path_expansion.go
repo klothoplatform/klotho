@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
 type ExpansionInput struct {
@@ -247,12 +248,13 @@ func handleProperties(
 func ExpandPath(
 	ctx solution_context.SolutionContext,
 	input ExpansionInput,
-	path []construct.ResourceId,
+	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
 	if len(path) == 2 {
 		return nil
 	}
+	zap.S().Debugf("Expanding path %s", path)
 
 	type candidate struct {
 		id             construct.ResourceId

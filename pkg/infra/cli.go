@@ -21,6 +21,9 @@ var generateIacCfg struct {
 	inputGraph string
 	outputDir  string
 	appName    string
+	verbose    bool
+	jsonLog    bool
+	profileTo  string
 }
 
 func (i *IacCli) AddIacCli(root *cobra.Command) error {

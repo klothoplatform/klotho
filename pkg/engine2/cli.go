@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
 
@@ -204,6 +205,10 @@ func (em *EngineMain) ListAttributes(cmd *cobra.Command, args []string) error {
 
 func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if engineCfg.profileTo != "" {
+		err := os.MkdirAll(filepath.Dir(engineCfg.profileTo), 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create profile directory: %w", err)
+		}
 		profileF, err := os.OpenFile(engineCfg.profileTo, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 		if err != nil {
 			return fmt.Errorf("failed to open profile file: %w", err)
