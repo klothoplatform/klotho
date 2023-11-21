@@ -38,19 +38,19 @@ func walk[K comparable, T any](
 	f WalkGraphFunc[K],
 	deps map[K]map[K]graph.Edge[K],
 ) error {
-	visited := make(set.Set[K])
+	queued := make(set.Set[K])
 	var queue []K
 
+	queued.Add(start)
 	for d := range deps[start] {
 		queue = append(queue, d)
+		queued.Add(d)
 	}
-	visited.Add(start)
 
 	var err error
 	var current K
 	for len(queue) > 0 {
 		current, queue = queue[0], queue[1:]
-		visited.Add(current)
 
 		nerr := f(current, err)
 		if errors.Is(nerr, StopWalk) {
@@ -62,10 +62,10 @@ func walk[K comparable, T any](
 		err = nerr
 
 		for d := range deps[current] {
-			if visited.Contains(d) {
-				continue
+			if !queued.Contains(d) {
+				queue = append(queue, d)
+				queued.Add(d)
 			}
-			queue = append(queue, d)
 		}
 	}
 	return err

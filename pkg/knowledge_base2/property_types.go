@@ -290,11 +290,11 @@ func (list *ListPropertyType) Parse(value any, ctx DynamicContext, data DynamicV
 	if !ok {
 		// before we fail, check to see if the entire value is a template
 		if strVal, ok := value.(string); ok {
-			var result []any
-			err := ctx.ExecuteDecode(strVal, data, &result)
-			return result, err
+			err := ctx.ExecuteDecode(strVal, data, &val)
+			if err != nil {
+				return nil, fmt.Errorf("invalid list value %v", value)
+			}
 		}
-		return nil, fmt.Errorf("invalid list value %v", value)
 	}
 
 	for _, v := range val {
@@ -331,11 +331,12 @@ func (s *SetPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 	if !ok {
 		// before we fail, check to see if the entire value is a template
 		if strVal, ok := value.(string); ok {
-			var result []any
-			err := ctx.ExecuteDecode(strVal, data, &result)
-			return result, err
+			err := ctx.ExecuteDecode(strVal, data, &val)
+			if err != nil {
+				return nil, fmt.Errorf("invalid list value %v", value)
+			}
 		}
-		return nil, fmt.Errorf("invalid list value %v", value)
+
 	}
 
 	for _, v := range val {
@@ -370,12 +371,15 @@ func (m *MapPropertyType) Parse(value any, ctx DynamicContext, data DynamicValue
 	if !ok {
 		// before we fail, check to see if the entire value is a template
 		if strVal, ok := value.(string); ok {
-			err := ctx.ExecuteDecode(strVal, data, &result)
-			return result, err
-		}
-		mapVal, ok = value.(construct.Properties)
-		if !ok {
-			return nil, fmt.Errorf("invalid map value %v", value)
+			err := ctx.ExecuteDecode(strVal, data, &mapVal)
+			if err != nil {
+				return result, fmt.Errorf("invalid map value %v, decoding string err: %s", value, err)
+			}
+		} else {
+			mapVal, ok = value.(construct.Properties)
+			if !ok {
+				return nil, fmt.Errorf("invalid map value %v", value)
+			}
 		}
 	}
 	// If we are an object with sub properties then we know that we need to get the type of our sub properties to determine how we are parsed into a value

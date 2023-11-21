@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -110,6 +111,9 @@ func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 }
 
 func (v *propertyVertex) Evaluate(eval *Evaluator) error {
+	if v.Ref.Property == "Triggers" {
+		zap.L().Debug("evaluating triggers")
+	}
 	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
@@ -161,7 +165,17 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 		return fmt.Errorf("could not get current value for %s: %w", v.Ref, err)
 	}
 
-	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && v.Template.DefaultValue != nil {
+	recompute := false
+	if v.Template != nil && v.Template.ConfigurationDisabled && v.Template.DefaultValue != nil && len(v.EdgeRules) == 0 {
+		// If the property is configured via edge rules, we don't want to recompute it
+		// as it will be set by the edge rules
+		recompute = true
+	}
+	setDefault := false
+	if currentValue == nil && v.Template != nil && v.Template.DefaultValue != nil {
+		setDefault = true
+	}
+	if setConstraint.Operator == "" && (setDefault || recompute) {
 		err = solution_context.ConfigureResource(
 			sol,
 			res,

@@ -12,6 +12,19 @@ properties:
             - aws:rest_api
   Triggers:
     type: map(string,string)
+    configuration_disabled: true
+    default_value: |
+      {{ $api := fieldValue "RestApi" .Self }}
+      {{ $integrations := allDownstream "aws:api_integration" $api}}
+      {{ $methods := allDownstream "aws:api_method" $api }}
+      {
+        {{- range $index, $integration := $integrations }}
+          "integ/{{ $integration.Name }}": "{{ $integration.Name }}"{{ if or (ne $index (sub (len $integrations) 1)) (ne (len $methods) 0) }},{{ end}}
+        {{- end }}
+        {{- range $index, $method := $methods }}
+          "method/{{ $method.Name }}": "{{ $method.Name }}"{{ if ne $index (sub (len $integrations) 1) }},{{ end}}
+        {{- end }}
+      }
 
 classification:
 
