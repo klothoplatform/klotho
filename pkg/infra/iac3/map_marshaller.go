@@ -30,8 +30,8 @@ func (m TsMap) String() string {
 	i := 0
 	for k, v := range m {
 		buf.WriteString(fmt.Sprintf("%s: %v", k, v))
-		if i <= keys {
-			buf.WriteRune(',')
+		if i < keys-1 {
+			buf.WriteString(", ")
 		}
 		i++
 	}
@@ -44,8 +44,8 @@ func (l TsList) String() string {
 	buf.WriteRune('[')
 	for i, v := range l {
 		fmt.Fprintf(&buf, "%v", v)
-		if i < len(l) {
-			buf.WriteRune(',')
+		if i < len(l)-1 {
+			buf.WriteString(", ")
 		}
 	}
 	buf.WriteRune(']')
