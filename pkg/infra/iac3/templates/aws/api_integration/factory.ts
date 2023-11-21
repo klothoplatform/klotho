@@ -14,6 +14,7 @@ interface Args {
     RequestParameters: ModelCaseWrapper<Record<string, string>>
     Uri: pulumi.Output<string>
     Route: string
+    Target: pulumi.Resource
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -45,7 +46,7 @@ function create(args: Args): aws.apigateway.Integration {
     )
 }
 
-function properties(object: aws.apigateway.Integration, args: Args) {
+function properties(object: ReturnType<typeof create>, args: Args) {
     return {
         LbUri: pulumi.interpolate`http://${
             (args.Target as aws.lb.LoadBalancer).dnsName
