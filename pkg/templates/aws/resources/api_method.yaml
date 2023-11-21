@@ -15,6 +15,8 @@ properties:
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
+      if: |
+        {{ ne (fieldValue "Route" (downstream "aws:api_integration" .Self)) "/" }}
       steps:
         - direction: upstream
           resources:

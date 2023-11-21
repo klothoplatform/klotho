@@ -7,9 +7,11 @@ operational_rules:
         direction: downstream
         resources:
           - '{{ allDownstream "aws:api_integration" .Target}}'
+        num_needed: -1
   - if: '{{ hasDownstream "aws:api_method" .Target }}'
     steps:
       - resource: '{{ .Source }}'
         direction: downstream
         resources:
           - '{{ allDownstream "aws:api_method" .Target}}'
+        num_needed: -1

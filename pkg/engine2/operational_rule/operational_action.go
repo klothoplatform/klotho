@@ -22,7 +22,7 @@ type (
 )
 
 func (action *operationalResourceAction) handleOperationalResourceAction(resource *construct.Resource) error {
-	if action.numNeeded <= 0 {
+	if action.numNeeded == 0 {
 		return nil
 	}
 
@@ -34,7 +34,8 @@ func (action *operationalResourceAction) handleOperationalResourceAction(resourc
 		return nil
 	}
 
-	if action.numNeeded > 0 {
+	// we want the negative and positive case to trigger this so you can specify -1 as all available
+	if action.numNeeded != 0 {
 		err := action.useAvailableResources(resource)
 		if err != nil {
 			return fmt.Errorf("error during operational resource action while using available resources: %w", err)

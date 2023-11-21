@@ -21,7 +21,6 @@ type (
 )
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
-
 	shouldRun, err := EvaluateIfCondition(rule, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
