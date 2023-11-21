@@ -27,8 +27,6 @@ type (
 
 		Classification Classification `json:"classification" yaml:"classification"`
 
-		HasServiceApi bool `json:"has_service_api" yaml:"has_service_api"`
-
 		PathSatisfaction PathSatisfaction `json:"path_satisfaction" yaml:"path_satisfaction"`
 
 		Consumption Consumption `json:"consumption" yaml:"consumption"`

@@ -44,11 +44,17 @@ properties:
     type: string
     default_value: aws:kms
 
-has_service_api: true
 path_satisfaction:
   as_target:
     - network
     - permissions
+
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_BUCKET_NAME': '{{ fieldRef "BucketName" .Self }}'
+
 
 classification:
   is:

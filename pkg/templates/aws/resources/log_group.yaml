@@ -17,7 +17,6 @@ classification:
     - logs
     - monitoring
 
-has_service_api: true
 path_satisfaction:
   as_target:
     - network
