@@ -5,7 +5,7 @@ interface Args {
     Name: string
     FilePath: string
     Transformations?: Record<string, pulumi.Output<string>>
-        Provider: pulumi_k8s.Provider
+    Provider: pulumi_k8s.Provider
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 

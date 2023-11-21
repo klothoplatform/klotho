@@ -7,7 +7,9 @@ interface Args {
     Subnets: aws.ec2.Subnet[]
     Cluster: aws.eks.Cluster
     PodExecutionRole: aws.iam.Role
-    Selectors: TemplateWrapper<pulumi.Input<pulumi.Input<aws.types.input.eks.FargateProfileSelector>[]>>
+    Selectors: TemplateWrapper<
+        pulumi.Input<pulumi.Input<aws.types.input.eks.FargateProfileSelector>[]>
+    >
 }
 
 // noinspection JSUnusedLocalSymbols
