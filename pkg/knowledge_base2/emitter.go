@@ -226,9 +226,21 @@ func (c *ConsumptionObject) Emit(ctx DynamicValueContext, resource construct.Res
 }
 
 func (c *ConsumptionObject) Consume(val any, ctx DynamicValueContext, resource *construct.Resource) error {
-	err := resource.SetProperty(c.PropertyPath, val)
+	rt, err := ctx.KnowledgeBase.GetResourceTemplate(resource.ID)
 	if err != nil {
 		return err
+	}
+	prop := rt.GetProperty(c.PropertyPath)
+	if prop.IsPropertyTypeScalar() {
+		err := resource.SetProperty(c.PropertyPath, val)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := resource.AppendProperty(c.PropertyPath, val)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
