@@ -70,10 +70,15 @@ consumption:
     - model: EnvironmentVariables
       property_path: EnvironmentVariables
       resource: '{{ fieldValue "TaskDefinition" .Self }}'
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_ECS_SERVICE_NAME': '{{ .Self.Name }}'
 
 path_satisfaction:
   as_target:
     - network
+    - service_endpoint
   as_source:
     - network#Subnets
 

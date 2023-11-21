@@ -280,6 +280,23 @@ func HasPath(topo Topology, sol solution_context.SolutionContext, source, target
 	if len(targetTemplate.PathSatisfaction.AsTarget) == 0 || len(srcTemplate.PathSatisfaction.AsSource) == 0 {
 		return false, nil
 	}
+	sourceRes, err := sol.RawView().Vertex(source)
+	if err != nil {
+		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+	}
+	targetRes, err := sol.RawView().Vertex(target)
+	if err != nil {
+		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+	}
+
+	consumed, err := knowledgebase.HasConsumedFromResource(sourceRes, targetRes,
+		solution_context.DynamicCtx(sol))
+	if err != nil {
+		return false, err
+	}
+	if !consumed {
+		return false, nil
+	}
 	return checkPaths(topo, sol, source, target)
 
 }
