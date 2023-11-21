@@ -3,7 +3,7 @@ import * as pulumi from '@pulumi/pulumi'
 
 interface Args {
     Name: string
-    Origins: pulumi.Input<aws.types.input.cloudfront.DistributionOrigin>[]
+    Origins: aws.types.input.cloudfront.DistributionOrigin[]
     CloudfrontDefaultCertificate: boolean
     Enabled: boolean
     DefaultCacheBehavior: aws.types.input.cloudfront.DistributionDefaultCacheBehavior
@@ -19,13 +19,22 @@ function create(args: Args): aws.cloudfront.Distribution {
         viewerCertificate: {
             cloudfrontDefaultCertificate: args.CloudfrontDefaultCertificate,
         },
+        //TMPL {{- if (index .DefaultCacheBehavior "targetOriginId") }}
         defaultCacheBehavior: args.DefaultCacheBehavior,
+        //TMPL {{- else }}
+        //TMPL defaultCacheBehavior: {
+        //TMPL     ...args.DefaultCacheBehavior,
+        //TMPL     targetOriginId: {{(index .Origins 0).originId}},
+        //TMPL },
+        //TMPL {{- end }}
         restrictions: args.Restrictions,
         //TMPL {{- if .DefaultRootObject }}
         defaultRootObject: args.DefaultRootObject,
         //TMPL {{- end }}
     })
 }
+
+function properties(object: ReturnType<typeof create>, args: Args) {}
 
 function infraExports(
     object: ReturnType<typeof create>,
