@@ -42,5 +42,3 @@ function create(args: Args): aws.apigateway.Integration {
         { parent: args.Method }
     )
 }
-
-function properties(ob)
