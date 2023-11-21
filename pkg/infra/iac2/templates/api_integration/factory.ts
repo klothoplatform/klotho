@@ -43,5 +43,4 @@ function create(args: Args): aws.apigateway.Integration {
     )
 }
 
-
 function properties(ob)
