@@ -21,10 +21,6 @@ type (
 )
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
-
-	if ctx.Data.Edge != nil && ctx.Data.Edge.Source.String() == "aws:api_deployment:rest_api_0:api_deployment-0" {
-		fmt.Println("here")
-	}
 	shouldRun, err := EvaluateIfCondition(rule, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
