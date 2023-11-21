@@ -3,6 +3,7 @@ package knowledgebase2
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -15,6 +16,7 @@ type (
 		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
 		SetProperty(property *Property)
 		ZeroValue() any
+		Contains(value any, contains any) bool
 	}
 
 	MapPropertyType struct {
@@ -544,4 +546,102 @@ func (r *ResourcePropertyType) ZeroValue() any {
 
 func (p *PropertyRefPropertyType) ZeroValue() any {
 	return construct.PropertyRef{}
+}
+
+func (m *MapPropertyType) Contains(value any, contains any) bool {
+	mapVal, ok := value.(map[string]any)
+	if !ok {
+		return false
+	}
+	containsMap, ok := contains.(map[string]any)
+	if !ok {
+		return false
+	}
+	for k, v := range containsMap {
+		if val, found := mapVal[k]; found || reflect.DeepEqual(val, v) {
+			return true
+		}
+	}
+	for _, v := range mapVal {
+		for _, cv := range containsMap {
+			if reflect.DeepEqual(v, cv) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (l *ListPropertyType) Contains(value any, contains any) bool {
+	list, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	containsList, ok := contains.([]any)
+	if !ok {
+		return false
+	}
+	for _, v := range list {
+		for _, cv := range containsList {
+			if reflect.DeepEqual(v, cv) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *SetPropertyType) Contains(value any, contains any) bool {
+	valSet, ok := value.(set.HashedSet[string, any])
+	if !ok {
+		return false
+	}
+	containsSet, ok := contains.(set.HashedSet[string, any])
+	if !ok {
+		return false
+	}
+	for _, v := range containsSet.M {
+		for _, val := range valSet.M {
+			if reflect.DeepEqual(v, val) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *StringPropertyType) Contains(value any, contains any) bool {
+	vString, ok := value.(string)
+	if !ok {
+		return false
+	}
+	cString, ok := contains.(string)
+	if !ok {
+		return false
+	}
+	return strings.Contains(vString, cString)
+}
+
+func (i *IntPropertyType) Contains(value any, contains any) bool {
+	return value == contains
+}
+
+func (f *FloatPropertyType) Contains(value any, contains any) bool {
+	return value == contains
+}
+
+func (b *BoolPropertyType) Contains(value any, contains any) bool {
+	return value == contains
+}
+
+func (b *AnyPropertyType) Contains(value any, contains any) bool {
+	return value == contains
+}
+
+func (r *ResourcePropertyType) Contains(value any, contains any) bool {
+	return value == contains
+}
+
+func (p *PropertyRefPropertyType) Contains(value any, contains any) bool {
+	return value == contains
 }

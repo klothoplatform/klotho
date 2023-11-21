@@ -72,6 +72,13 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_RDS_ENDPOINT': '{{ fieldRef "Endpoint" .Self }}'
+        '{{ .Self.Name }}_RDS_CONNECTION_ARN': '{{ fieldRef "RdsConnectionArn" .Self }}'
+
 classification:
   is:
     - storage

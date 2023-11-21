@@ -2,3 +2,5 @@ source: aws:load_balancer
 target: aws:subnet
 
 edge_weight_multiplier: 200
+classification:
+  - target_group
