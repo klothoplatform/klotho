@@ -27,6 +27,8 @@ func writeGraph(input ExpansionInput, working, result construct.Graph) {
 	}
 
 	fprefix := fmt.Sprintf("selection/%s-%s", input.Dep.Source.ID, input.Dep.Target.ID)
+	fprefix = strings.ReplaceAll(fprefix, ":", "_") // some filesystems (NTFS) don't like colons in filenames
+
 	f, err := os.OpenFile(fprefix+".gv", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		zap.S().Errorf("could not create file %s: %v", fprefix, err)
