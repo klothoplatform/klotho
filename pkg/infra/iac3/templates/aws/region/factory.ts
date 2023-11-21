@@ -8,8 +8,11 @@ function create(args: Args): pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionR
     return pulumi.output(aws.getRegion({}))
 }
 
-function properties(object: pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>>, args: Args) {
+function properties(
+    object: pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>>,
+    args: Args
+) {
     return {
-        Name: object.apply(o => o.name),
+        Name: object.apply((o) => o.name),
     }
 }
