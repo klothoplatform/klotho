@@ -94,7 +94,7 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 	default:
 		switch val := reflect.ValueOf(arg); val.Kind() {
 		case reflect.Slice, reflect.Array:
-			list := &TsList{l: make([]any, 0, val.Len())}
+			list := make(TsList, 0, val.Len())
 			for i := 0; i < val.Len(); i++ {
 				if !val.Index(i).IsValid() || val.Index(i).IsNil() {
 					continue
@@ -103,11 +103,11 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 				if err != nil {
 					return "", err
 				}
-				list.Append(output)
+				list = append(list, output)
 			}
 			return list, nil
 		case reflect.Map:
-			TsMap := &TsMap{m: make(map[string]any)}
+			TsMap := make(TsMap, val.Len())
 			for _, key := range val.MapKeys() {
 				if !val.MapIndex(key).IsValid() || val.MapIndex(key).IsZero() {
 					continue
@@ -130,7 +130,7 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 				if err != nil {
 					return "", err
 				}
-				TsMap.SetKey(keyResult, output)
+				TsMap[keyResult] = output
 			}
 			return TsMap, nil
 		case reflect.Struct:
