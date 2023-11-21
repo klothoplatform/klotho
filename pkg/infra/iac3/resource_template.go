@@ -75,7 +75,7 @@ var (
 	findExportFunc string
 
 	curlyEscapes     = regexp.MustCompile(`~~{{`)
-	templateComments = regexp.MustCompile(`//*TMPL\s+`)
+	templateComments = regexp.MustCompile(`//*TMPL ?`)
 )
 
 func (tc *TemplatesCompiler) ParseTemplate(name string, r io.Reader) (*ResourceTemplate, error) {

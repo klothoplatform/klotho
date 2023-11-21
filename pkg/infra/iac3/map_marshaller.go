@@ -2,7 +2,6 @@ package iac3
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 )
 
@@ -19,64 +18,33 @@ type (
 		Append(val any)
 	}
 
-	TsMap struct {
-		m map[string]any
-	}
+	TsMap map[string]any
 
-	TsList struct {
-		l []any
-	}
+	TsList []any
 )
 
-func (m *TsMap) Map() map[string]any {
-	return m.m
-}
-
-func (m *TsMap) SetKey(key string, val any) {
-	m.m[key] = val
-}
-
-func (m *TsMap) String() string {
-	val := reflect.ValueOf(m.m)
+func (m TsMap) String() string {
 	buf := strings.Builder{}
 	buf.WriteRune('{')
-	for i, key := range val.MapKeys() {
-		if !val.MapIndex(key).IsValid() || val.MapIndex(key).IsNil() {
-			continue
-		}
-		keyStr, found := key.Interface().(string)
-		if !found {
-			panic("map key is not a string")
-		}
-		buf.WriteString(keyStr)
-
-		buf.WriteRune(':')
-		buf.WriteString(fmt.Sprintf("%v", val.MapIndex(key).Interface()))
-		if i < (len(val.MapKeys()) - 1) {
+	keys := len(m)
+	i := 0
+	for k, v := range m {
+		buf.WriteString(fmt.Sprintf("%s: %v", k, v))
+		if i <= keys {
 			buf.WriteRune(',')
 		}
+		i++
 	}
 	buf.WriteRune('}')
 	return buf.String()
 }
 
-func (l *TsList) List() []any {
-	return l.l
-}
-
-func (l *TsList) Append(val any) {
-	l.l = append(l.l, val)
-}
-
-func (l *TsList) String() string {
-
-	val := reflect.ValueOf(l.l)
-
+func (l TsList) String() string {
 	buf := strings.Builder{}
 	buf.WriteRune('[')
-	for i := 0; i < val.Len(); i++ {
-		buf.WriteString(fmt.Sprintf("%v", val.Index(i).Interface()))
-		if i < (val.Len() - 1) {
+	for i, v := range l {
+		fmt.Fprintf(&buf, "%v", v)
+		if i < len(l) {
 			buf.WriteRune(',')
 		}
 	}

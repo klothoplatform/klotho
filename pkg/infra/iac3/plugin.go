@@ -30,7 +30,7 @@ func (p Plugin) Name() string {
 }
 
 var (
-	//go:embed Pulumi.yaml.tmpl Pulumi.dev.yaml.tmpl templates/globals.ts
+	//go:embed Pulumi.yaml.tmpl Pulumi.dev.yaml.tmpl templates/globals.ts templates/tsconfig.json
 	files embed.FS
 
 	//go:embed templates/aws/*/factory.ts templates/aws/*/package.json templates/aws/*/*.ts.tmpl
@@ -111,8 +111,8 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		return nil, err
 	}
 	var content []byte
-	content, err = files.ReadFile("tsconfig.json")
-	if err == nil {
+	content, err = files.ReadFile("templates/tsconfig.json")
+	if err != nil {
 		return nil, err
 	}
 	tsConfig := &kio.RawFile{
@@ -148,6 +148,7 @@ func renderGlobals(w io.Writer) error {
 		if strings.HasPrefix(text, "import") {
 			continue
 		}
+		text = strings.TrimPrefix(text, "export ")
 		_, err := fmt.Fprintln(w, text)
 		if err != nil {
 			return err
@@ -191,38 +192,39 @@ func addPulumiKubernetesProviders(g construct.Graph) error {
 	}
 
 	err = construct.WalkGraph(g, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
-		if id.Provider == "kubernetes" {
-			cluster, err := resource.GetProperty("Cluster")
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
-			if cluster == nil {
-				return nerr
-			}
-			clusterId, ok := cluster.(construct.ResourceId)
-			if !ok {
-				return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have an id as cluster property", id))
-			}
-			clusterRes, err := g.Vertex(clusterId)
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
-			kubeconfig, err := clusterRes.GetProperty("KubeConfig")
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
-			provider, ok := providers[kubeconfig.(construct.ResourceId)]
-			if !ok {
-				return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have a provider resource for cluster %s", id, clusterId))
-			}
-			err = resource.SetProperty("Provider", provider.ID)
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
-			err = g.AddEdge(id, provider.ID)
-			if err != nil {
-				return errors.Join(nerr, err)
-			}
+		if id.Provider != "kubernetes" {
+			return nerr
+		}
+		cluster, err := resource.GetProperty("Cluster")
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if cluster == nil {
+			return nerr
+		}
+		clusterId, ok := cluster.(construct.ResourceId)
+		if !ok {
+			return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have an id as cluster property (is: %T)", id, cluster))
+		}
+		clusterRes, err := g.Vertex(clusterId)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		kubeconfig, err := clusterRes.GetProperty("KubeConfig")
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		provider, ok := providers[kubeconfig.(construct.ResourceId)]
+		if !ok {
+			return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have a provider resource for cluster %s", id, clusterId))
+		}
+		err = resource.SetProperty("Provider", provider.ID)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		err = g.AddEdge(id, provider.ID)
+		if err != nil {
+			return errors.Join(nerr, err)
 		}
 		return nerr
 	})
