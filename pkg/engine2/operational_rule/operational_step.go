@@ -51,7 +51,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		}
 	}
 
-	if len(ids) >= step.NumNeeded {
+	if len(ids) >= step.NumNeeded && step.NumNeeded > 0 {
 		return nil
 	}
 

@@ -162,7 +162,7 @@ func (p ClosestPlacer) PlaceResources(
 		return resourceDepths[availableResources[i].ID] < resourceDepths[availableResources[j].ID]
 	})
 	num := *numNeeded
-	if num > len(availableResources) {
+	if num > len(availableResources) || num < 0 {
 		num = len(availableResources)
 	}
 	for _, availableResource := range availableResources[:num] {
