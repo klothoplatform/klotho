@@ -283,25 +283,26 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		// wait until we have a template
 		return NotReadyMax, nil
 	}
-	if v.Template.OperationalRule == nil {
-		if strings.Contains(v.Template.Type, "list") || strings.Contains(v.Template.Type, "set") {
-			// never sure when a list/set is ready - it'll just be appended to by edges through
-			// `v.EdgeRules`
-			return NotReadyHigh, nil
-		}
-		if strings.Contains(v.Template.Type, "map") && len(v.Template.Properties) == 0 {
-			// maps without sub-properties (ie, not objects) are also appended to by edges
-			return NotReadyHigh, nil
-		}
-		// properties that have values set via edge rules dont' have default values
-		if v.Template.DefaultValue != nil {
-			return ReadyNow, nil
-		}
-		// for non-list/set types, once an edge is here to set the value, it can be run
-		if len(v.EdgeRules) > 0 {
-			return ReadyNow, nil
-		}
-		return NotReadyMid, nil
+	if v.Template.OperationalRule != nil {
+		// operational rules should run as soon as possible to create any resources they need
+		return ReadyNow, nil
 	}
-	return ReadyNow, nil
+	if strings.Contains(v.Template.Type, "list") || strings.Contains(v.Template.Type, "set") {
+		// never sure when a list/set is ready - it'll just be appended to by edges through
+		// `v.EdgeRules`
+		return NotReadyHigh, nil
+	}
+	if strings.Contains(v.Template.Type, "map") && len(v.Template.Properties) == 0 {
+		// maps without sub-properties (ie, not objects) are also appended to by edges
+		return NotReadyHigh, nil
+	}
+	// properties that have values set via edge rules dont' have default values
+	if v.Template.DefaultValue != nil {
+		return ReadyNow, nil
+	}
+	// for non-list/set types, once an edge is here to set the value, it can be run
+	if len(v.EdgeRules) > 0 {
+		return ReadyNow, nil
+	}
+	return NotReadyMid, nil
 }
