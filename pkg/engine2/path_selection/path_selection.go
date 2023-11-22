@@ -24,7 +24,6 @@ func BuildPathSelectionGraph(
 	classification string,
 ) (construct.Graph, error) {
 	zap.S().Debugf("Building path selection graph for %s", dep)
-
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 
 	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph

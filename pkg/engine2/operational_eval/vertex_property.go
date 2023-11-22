@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"go.uber.org/zap"
 )
 
 type (
@@ -111,9 +110,6 @@ func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 }
 
 func (v *propertyVertex) Evaluate(eval *Evaluator) error {
-	if v.Ref.Property == "Image" {
-		zap.S().Debugf("Evaluating %s", v.Ref)
-	}
 	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {

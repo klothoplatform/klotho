@@ -31,6 +31,10 @@ properties:
             - aws:availability_zone
   CreationToken: 
     type: string
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 path_satisfaction:
   as_target:

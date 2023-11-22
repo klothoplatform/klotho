@@ -1,0 +1,14 @@
+source: kubernetes:persistent_volume
+target: aws:eks_add_on
+
+operational_rules:
+  - steps:
+      - resource: '{{ .Target }}'
+        direction: downstream
+        resources:
+          - selector: aws:iam_role
+            properties:
+              ManagedPolicies:
+                - arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy
+        unique: true    
+ 
