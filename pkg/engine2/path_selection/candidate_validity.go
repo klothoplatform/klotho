@@ -35,10 +35,6 @@ func checkCandidatesValidity(
 	path []construct.ResourceId,
 	classification string,
 ) (bool, error) {
-	if v, err := checkNamespaceValidity(ctx, resource, path[len(path)-1]); !v || err != nil {
-		zap.S().Debugf("candidate %s is not valid based on namespace", resource.ID)
-		return v, err
-	}
 	// We only care if the validity is true if its not a direct edge since we know direct edges are valid
 	if len(path) <= 3 {
 		return true, nil

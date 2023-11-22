@@ -1,0 +1,14 @@
+source: aws:ecs_task_definition
+target: aws:efs_access_point
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: EfsVolumes
+          value:
+            - FileSystem: '{{ fieldValue "FileSystem" .Target }}'
+              AuthorizationConfig:
+                AccessPoint: '{{ .Target}}'
+                Iam: ENABLED
+              TransitEncryption: ENABLED
+edge_weight_multiplier: 0.9 #Favor access point over mount target

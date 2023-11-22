@@ -194,14 +194,30 @@ func calculateEdgeWeight(
 	// This will achieve priority for existing resources over newly created ones
 	weight := 0
 	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
-		weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
+		if divideSourceBy > 0 {
+			weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
+		} else if divideSourceBy < 0 {
+			weight += (FUNCTIONAL_WEIGHT * divideSourceBy * -1)
+		}
 	} else {
-		weight += (GLUE_WEIGHT / divideSourceBy)
+		if divideSourceBy > 0 {
+			weight += (GLUE_WEIGHT / divideSourceBy)
+		} else if divideSourceBy < 0 {
+			weight += (GLUE_WEIGHT * divideSourceBy * -1)
+		}
 	}
 	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
-		weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
+		if divideTargetBy > 0 {
+			weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
+		} else if divideTargetBy < 0 {
+			weight += (FUNCTIONAL_WEIGHT * divideTargetBy * -1)
+		}
 	} else {
-		weight += (GLUE_WEIGHT / divideTargetBy)
+		if divideTargetBy > 0 {
+			weight += (GLUE_WEIGHT / divideTargetBy)
+		} else if divideTargetBy < 0 {
+			weight += (GLUE_WEIGHT * divideTargetBy * -1)
+		}
 	}
 	et := kb.GetEdgeTemplate(source, target)
 	if et != nil && et.EdgeWeightMultiplier != 0 {

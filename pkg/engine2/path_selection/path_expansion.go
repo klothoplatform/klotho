@@ -312,7 +312,7 @@ func ExpandPath(
 			return errors.Join(nerr, err)
 		}
 		if !valid {
-			weight = 0
+			weight = -1000
 		}
 		candidates[matchIdx][id] += weight
 		return nerr

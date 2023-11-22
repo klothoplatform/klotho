@@ -14,6 +14,7 @@ import (
 	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
 type templateInputArgs map[string]any
@@ -168,6 +169,9 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 		} else if ref, ok := value.(construct.PropertyRef); ok && ref.Resource == r.ID {
 			selfReferences[name] = ref
 		} else {
+			if name == "EnvironmentVariables" {
+				zap.S().Debugf("EnvironmentVariables: %v", value)
+			}
 			argValue, err = tc.convertArg(value, &templateArg)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not convert arg %q: %w", name, err))
