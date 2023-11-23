@@ -39,7 +39,7 @@ type (
 	Arg struct {
 		Name    string
 		Type    string
-		Wrapper string
+		Wrapper WrapperType
 	}
 
 	WrapperType string
@@ -129,7 +129,7 @@ func parseArgs(node *sitter.Node, name string) (map[string]Arg, error) {
 			args[argName] = Arg{Name: argName, Type: argType}
 			continue
 		}
-		args[argName] = Arg{Name: argName, Type: argType, Wrapper: argWrapper.Content()}
+		args[argName] = Arg{Name: argName, Type: argType, Wrapper: WrapperType(argWrapper.Content())}
 	}
 
 	return args, nil

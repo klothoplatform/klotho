@@ -88,8 +88,7 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 		return arg, nil
 
 	case nil:
-		// don't add to inputs
-		return nil, nil
+		return undefined, nil
 
 	default:
 		switch val := reflect.ValueOf(arg); val.Kind() {
@@ -117,13 +116,17 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 					return "", fmt.Errorf("map key is not a string")
 				}
 				keyResult := strcase.ToLowerCamel(keyStr)
-				if templateArg != nil && templateArg.Wrapper == string(CamelCaseWrapper) {
-					keyResult = strcase.ToCamel(keyStr)
-				} else if templateArg != nil && templateArg.Wrapper == string(ModelCaseWrapper) {
-					if validIdentifierPattern.MatchString(keyStr) {
-						keyResult = keyStr
-					} else {
-						keyResult = fmt.Sprintf(`"%s"`, keyStr)
+				if templateArg != nil {
+					switch templateArg.Wrapper {
+					case CamelCaseWrapper:
+						keyResult = strcase.ToCamel(keyStr)
+
+					case ModelCaseWrapper:
+						if validIdentifierPattern.MatchString(keyStr) {
+							keyResult = keyStr
+						} else {
+							keyResult = fmt.Sprintf(`"%s"`, keyStr)
+						}
 					}
 				}
 				output, err := tc.convertArg(val.MapIndex(key).Interface(), templateArg)
@@ -153,7 +156,7 @@ func (tc *TemplatesCompiler) getInputArgs(r *construct.Resource, template *Resou
 		templateArg := template.Args[name]
 		var argValue any
 		var err error
-		if templateArg.Wrapper == string(TemplateWrapper) {
+		if templateArg.Wrapper == TemplateWrapper {
 			argValue, err = tc.useNestedTemplate(template, value, templateArg)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("could not use nested template for arg %q: %w", name, err))
@@ -305,13 +308,13 @@ func (tc *TemplatesCompiler) useNestedTemplate(resTmpl *ResourceTemplate, val an
 }
 
 func (tc *TemplatesCompiler) modelCase(val any) (any, error) {
-	return tc.convertArg(val, &Arg{Wrapper: string(ModelCaseWrapper)})
+	return tc.convertArg(val, &Arg{Wrapper: ModelCaseWrapper})
 }
 
 func (tc *TemplatesCompiler) lowerCamelCase(val any) (any, error) {
-	return tc.convertArg(val, &Arg{Wrapper: string(LowerCamelCaseWrapper)})
+	return tc.convertArg(val, &Arg{Wrapper: LowerCamelCaseWrapper})
 }
 
 func (tc *TemplatesCompiler) camelCase(val any) (any, error) {
-	return tc.convertArg(val, &Arg{Wrapper: string(CamelCaseWrapper)})
+	return tc.convertArg(val, &Arg{Wrapper: CamelCaseWrapper})
 }
