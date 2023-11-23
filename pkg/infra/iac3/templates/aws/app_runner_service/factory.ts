@@ -1,12 +1,14 @@
 import * as aws from '@pulumi/aws'
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Image: docker.Image
     InstanceRole: aws.iam.Role
-    EnvironmentVariables: Record<string, pulumi.Output<string>>
+    EnvironmentVariables: ModelCaseWrapper<Record<string, pulumi.Output<string>>>
+    Port: number
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -20,9 +22,16 @@ function create(args: Args): aws.apprunner.Service {
             imageRepository: {
                 imageIdentifier: args.Image.imageName,
                 imageRepositoryType: 'ECR',
+                //TMPL {{- if (or .Port .EnvironmentVariables) }}
                 imageConfiguration: {
+                    //TMPL {{- if .Port }}
+                    port: 'args.Port',
+                    //TMPL {{- end }}
+                    //TMPL {{- if .EnvironmentVariables }}
                     runtimeEnvironmentVariables: args.EnvironmentVariables,
+                    //TMPL {{- end }}
                 },
+                //TMPL {{- end }}
             },
         },
         instanceConfiguration: {

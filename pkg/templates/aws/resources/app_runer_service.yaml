@@ -1,5 +1,14 @@
 qualified_type_name: aws:app_runner_service
 display_name: App Runner
+sanitize_name:
+  # https://docs.aws.amazon.com/apprunner/latest/api/API_Service.html (ServiceName)
+  # Pattern: [A-Za-z0-9][A-Za-z0-9-_]{3,39}
+  |
+  {{ .
+    | replace `^[^A-Za-z0-9]+` ""
+    | replace `[^A-Za-z0-9-_]+` ""
+    | length 4 40
+  }}
 
 properties:
   Image:
@@ -20,6 +29,9 @@ properties:
           unique: true
   EnvironmentVariables:
     type: map(string,string)
+  Port:
+    type: number
+    default_value: 8080
 
 classification:
   is:
