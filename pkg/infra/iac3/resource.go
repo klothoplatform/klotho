@@ -88,7 +88,10 @@ func (tc *TemplatesCompiler) convertArg(arg any, templateArg *Arg) (any, error) 
 		return arg, nil
 
 	case nil:
-		return undefined, nil
+		// TODO when we're more confident in the properties, replace the `nil` with `undefined`
+		// This will render as `<no content>`, so any properties that are optional
+		// must be guarded by an `if` in the template.
+		return nil, nil
 
 	default:
 		switch val := reflect.ValueOf(arg); val.Kind() {
