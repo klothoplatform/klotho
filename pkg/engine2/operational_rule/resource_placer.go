@@ -221,10 +221,10 @@ func (ctx OperationalRuleContext) findNumConnectionsToTypeForAvailableResources(
 		var connections []construct.ResourceId
 		if step.Direction == knowledgebase.DirectionDownstream {
 			connections, err = solution_context.Upstream(ctx.Solution, availableResource.ID,
-				knowledgebase.FirstFunctionalLayer)
+				knowledgebase.ResourceDirectLayer)
 		} else {
 			connections, err = solution_context.Downstream(ctx.Solution, availableResource.ID,
-				knowledgebase.FirstFunctionalLayer)
+				knowledgebase.ResourceDirectLayer)
 		}
 		var connectionsOfType []construct.ResourceId
 		for _, connection := range connections {

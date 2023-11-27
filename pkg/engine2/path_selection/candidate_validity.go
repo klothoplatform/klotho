@@ -128,8 +128,13 @@ func checkAsTargetValidity(
 				resources, err = solution_context.GetResourcesFromPropertyReference(ctx,
 					resource.ID, ps.PropertyReference)
 				if err != nil {
+					// dont return error because it just means that the property isnt set and we can make the
+					// resource valid
+					zap.S().Debug("no resource available from resource %s from property ref %s", resource.ID, ps.PropertyReference)
+				}
+				if len(resources) == 0 {
+					err = assignForValidity(ctx, resource, path[0], ps)
 					errs = errors.Join(errs, err)
-					continue
 				}
 			}
 			for _, res := range resources {
@@ -170,8 +175,9 @@ func checkAsSourceValidity(
 				resources, err = solution_context.GetResourcesFromPropertyReference(ctx,
 					resource.ID, ps.PropertyReference)
 				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
+					// dont return error because it just means that the property isnt set and we can make the
+					// resource valid
+					zap.S().Debug("no resource available from resource %s from property ref %s", resource.ID, ps.PropertyReference)
 				}
 				if len(resources) == 0 {
 					err = assignForValidity(ctx, resource, path[len(path)-1], ps)
@@ -243,31 +249,40 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 	if err != nil {
 		return err
 	}
+	// include the operation resource in downstreams in case it also can be assigned to the target property
+	downstreams = append(downstreams, operationResource.ID)
 	cfgCtx := solution_context.DynamicCtx(d.ctx)
 
-	assign := func(resource construct.ResourceId, property string) (bool, error) {
+	assign := func(r construct.ResourceId, property string) (bool, error) {
 		var errs error
-		rt, err := d.ctx.KnowledgeBase().GetResourceTemplate(resource)
+		rt, err := d.ctx.KnowledgeBase().GetResourceTemplate(r)
 		if err != nil || rt == nil {
 			return false, fmt.Errorf("error getting resource template for resource %s: %w", resource, err)
 		}
 		p := rt.Properties[property]
 		for _, downstream := range downstreams {
-			val, err := knowledgebase.TransformToPropertyValue(resource, property, downstream, cfgCtx,
-				knowledgebase.DynamicValueData{Resource: resource})
+			val, err := knowledgebase.TransformToPropertyValue(r, property, downstream, cfgCtx,
+				knowledgebase.DynamicValueData{Resource: r})
 			if err != nil || val == nil {
 				continue // Becuase this error may just mean that its not the right type of resource
 			}
-			res, err := d.ctx.RawView().Vertex(resource)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("error getting resource %s: %w", resource, err))
-				continue
+			// We need to check if the current resource is what we are operating on and if so not search our raw view
+			// this is because it could be a phantom resource
+			var currRes *construct.Resource
+			if resource.ID.Matches(r) {
+				currRes = resource
+			} else {
+				currRes, err = d.ctx.RawView().Vertex(r)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("error getting resource %s: %w", resource, err))
+					continue
+				}
 			}
 			if p.IsPropertyTypeScalar() {
-				res.SetProperty(property, downstream)
+				currRes.SetProperty(property, downstream)
 				return true, errs
 			} else {
-				res.AppendProperty(property, downstream)
+				currRes.AppendProperty(property, downstream)
 				return true, errs
 			}
 		}

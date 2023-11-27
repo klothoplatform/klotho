@@ -11,4 +11,21 @@ operational_rules:
                 AccessPoint: '{{ .Target}}'
                 Iam: ENABLED
               TransitEncryption: ENABLED
-edge_weight_multiplier: 0.9 #Favor access point over mount target
+              Name: '{{ .Target.Name }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: MountPoints
+          value:
+            - ContainerPath: '{{ fieldValue "RootDirectory.Path" .Target }}'
+              SourceVolume: '{{ .Target.Name }}'
+              ReadOnly: false
+  - if: |
+      {{ hasUpstream "aws:efs_mount_target" (downstream "aws:efs_file_system" .Target) }}
+    steps:
+      - resource: '{{.Target}}'
+        direction: downstream
+        num_needed: -1
+        resources:
+          - '{{ upstream "aws:efs_mount_target" (downstream "aws:efs_file_system" .Target) }}'
+        
+edge_weight_multiplier: 0.1 #Favor access point over mount target

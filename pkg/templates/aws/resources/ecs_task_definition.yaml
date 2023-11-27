@@ -10,6 +10,15 @@ properties:
           resources:
             - aws:ecr_image:{{ .Self.Name }}-image
           unique: true
+  MountPoints:
+    type: list
+    properties:
+      ContainerPath:
+        type: string
+      SourceVolume:
+        type: string
+      ReadOnly:
+        type: bool
   EnvironmentVariables:
     type: map(string,string)
   Cpu:
@@ -67,6 +76,8 @@ properties:
   EfsVolumes:
     type: list
     properties:
+      Name:
+        type: string
       FileSystem:
         type: resource(aws:efs_file_system)
       RootDirectory:

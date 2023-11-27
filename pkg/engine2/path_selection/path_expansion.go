@@ -251,6 +251,9 @@ func ExpandPath(
 	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
+	if input.Dep.Source.ID.Type == "subnet" && input.Dep.Target.ID.Type == "efs_file_system" {
+		zap.S().Debugf("Expanding path %s", path)
+	}
 	if len(path) == 2 {
 		return nil
 	}
@@ -274,6 +277,20 @@ func ExpandPath(
 	for i, node := range nonBoundaryResources {
 		candidates[i] = make(map[construct.ResourceId]int)
 		candidates[i][node] = 0
+		resource, err := input.TempGraph.Vertex(node)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		// we know phantoms are always valid, but we want to ensure we make them valid based on src and target validity checks
+		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if !valid {
+			candidates[i][node] = -1000
+		}
 		newResources.Add(node)
 	}
 	if errs != nil {

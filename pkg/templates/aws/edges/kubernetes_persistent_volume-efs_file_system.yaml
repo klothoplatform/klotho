@@ -10,11 +10,6 @@ operational_rules:
             properties:
               AddOnName: efs-csi-driver
               Cluster: '{{ fieldValue "Cluster" .Source }}'
-      - resource: '{{ .Target }}'
-        direction: upstream
-        num_needed: 2
-        resources:
-          - aws:efs_mount_target
       - resource: '{{ .Source }}'
         direction: downstream
         resources:
