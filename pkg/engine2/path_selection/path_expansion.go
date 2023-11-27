@@ -251,9 +251,6 @@ func ExpandPath(
 	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
-	if input.Dep.Source.ID.Type == "subnet" && input.Dep.Target.ID.Type == "efs_file_system" {
-		zap.S().Debugf("Expanding path %s", path)
-	}
 	if len(path) == 2 {
 		return nil
 	}

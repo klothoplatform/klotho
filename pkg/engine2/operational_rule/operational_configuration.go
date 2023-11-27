@@ -38,23 +38,9 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	}
 	config.Config.Field = resolvedField
 
-	//inspect the value and add dependencies if its in there
-	// rval := reflect.ValueOf(config.Config.Value)
-
 	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, action)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-
-// func (ctx OperationalRuleContext) addDeploymentDependencyFromConfiguration(rval reflect.Value) {
-// 	switch rval.Kind() {
-// 	case reflect.Slice, reflect.Array:
-// 		for i := 0; i < rval.Len(); i++ {
-// 		}
-
-// 	case reflect.Map:
-// 	case reflect.Struct, reflect.Pointer:
-// 	}
-// }
