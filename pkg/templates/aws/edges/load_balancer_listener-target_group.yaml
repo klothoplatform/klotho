@@ -2,15 +2,30 @@ source: aws:load_balancer_listener
 target: aws:target_group
 operational_rules:
   - configuration_rules:
-      - resource: '{{ .Source }}'
+      - resource: '{{ .Target }}'
         configuration:
           field: Protocol
-          value: '{{ fieldValue "Protocol" .Target }}'
+          value: '{{ fieldValue "Protocol" .Source }}'
       - resource: '{{ .Source }}'
         configuration:
           field: DefaultActions
           value:
             - TargetGroup: '{{ .Target }}'
               Type: forward
+
+  - if: '{{eq (fieldValue "Protocol" .Source) "HTTPS"}}'
+    steps:
+      - resource: '{{ .Source }}'
+        direction: downstream
+        resources:
+          - aws:listener_certificate
+          
+  - if: '{{ not (layeredDownstream "aws:listener_certificate" .Source "direct").IsZero }}'
+    steps:
+      - resource: '{{ layeredDownstream "aws:listener_certificate" .Source "direct" }}'
+        direction: downstream
+        resources:
+          - aws:acm_certificate
+          
 classification:
   - target

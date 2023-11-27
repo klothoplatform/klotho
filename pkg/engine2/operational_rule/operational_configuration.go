@@ -26,7 +26,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 			return err
 		}
 		prop := resTempalte.GetProperty(config.Config.Field)
-		if prop != nil && (strings.Contains(prop.Type, "list") || strings.Contains(prop.Type, "set") || strings.Contains(prop.Type, "map")) {
+		if prop != nil && (strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") || strings.HasPrefix(prop.Type, "map")) {
 			action = "add"
 		}
 	}

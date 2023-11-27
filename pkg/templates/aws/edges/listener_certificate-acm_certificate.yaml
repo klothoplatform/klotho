@@ -1,0 +1,11 @@
+source: aws:listener_certificate
+target: aws:acm_certificate
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Certificate
+          value: '{{ .Target }}'
+          
+unique:
+  source: true

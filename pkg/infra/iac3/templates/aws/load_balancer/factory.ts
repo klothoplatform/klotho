@@ -14,7 +14,11 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.lb.LoadBalancer {
     return new aws.lb.LoadBalancer(args.Name, {
-        internal: args.Scheme == 'internal',
+        //TMPL {{- if eq .Scheme "internal" }}
+        internal: true,
+        //TMPL {{- else }}
+        internal: false,
+        //TMPL {{- end }}
         loadBalancerType: args.Type,
         subnets: args.Subnets.map((subnet) => subnet.id),
         //TMPL {{- if .Tags }}
@@ -29,5 +33,15 @@ function create(args: Args): aws.lb.LoadBalancer {
 function properties(object: aws.lb.LoadBalancer, args: Args) {
     return {
         NlbUri: pulumi.interpolate`http://${object.dnsName}`,
+    }
+}
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        DomainName: object.dnsName,
     }
 }

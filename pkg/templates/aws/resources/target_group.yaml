@@ -19,7 +19,6 @@ properties:
     default_value: 80
   Protocol:
     type: string
-    default_value: TCP
   Vpc:
     type: resource(aws:vpc)
     default_value: '{{ closestDownstream "aws:vpc" .Self }}'

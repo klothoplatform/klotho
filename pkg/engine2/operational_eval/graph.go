@@ -171,11 +171,8 @@ func (eval *Evaluator) edgeVertices(
 
 func (eval *Evaluator) removeKey(k Key) error {
 	err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, k)
-	if err == nil {
+	if err == nil || errors.Is(err, graph.ErrVertexNotFound) {
 		return graph_addons.RemoveVertexAndEdges(eval.graph, k)
-	} else if errors.Is(err, graph.ErrVertexNotFound) {
-		// the key was already evaluated, leave it in the graph for debugging purposes
-		return nil
 	}
 	return err
 }

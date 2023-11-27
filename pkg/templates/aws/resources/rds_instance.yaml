@@ -34,7 +34,7 @@ properties:
           unique: true
   DatabaseName:
     type: string
-    default_value: '{{ .Self.Name }}'
+    default_value: main
   IamDatabaseAuthenticationEnabled:
     type: bool
     default_value: true

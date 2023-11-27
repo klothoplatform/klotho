@@ -1,0 +1,13 @@
+source: aws:load_balancer_listener
+target: aws:listener_certificate
+deployment_order_reversed: true
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Listener
+          value: '{{ .Source }}'
+
+unique:
+  source: true
+  target: true

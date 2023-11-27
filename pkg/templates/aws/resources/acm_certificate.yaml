@@ -1,9 +1,9 @@
-qualified_type_name: aws:ami
-display_name: AMI
+qualified_type_name: aws:acm_certificate
+display_name: ACM Certificate
 
 classification:
   is:
-    - machine_image
+    - certificate
 
 delete_context:
   requires_no_upstream: true

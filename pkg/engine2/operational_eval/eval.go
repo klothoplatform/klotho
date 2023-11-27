@@ -26,7 +26,7 @@ func (eval *Evaluator) Evaluate() error {
 		evaluated := make(set.Set[Key])
 		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
 
-		ready, err := eval.popReady()
+		ready, err := eval.pollReady()
 		if err != nil {
 			return err
 		}
@@ -39,14 +39,25 @@ func (eval *Evaluator) Evaluate() error {
 		var errs error
 		for _, v := range ready {
 			k := v.Key()
+			_, err := eval.unevaluated.Vertex(k)
+			switch {
+			case err != nil && !errors.Is(err, graph.ErrVertexNotFound):
+				errs = errors.Join(errs, err)
+				continue
+			case errors.Is(err, graph.ErrVertexNotFound):
+				// vertex was removed by earlier ready vertex
+				continue
+			}
 			log.Debugf("Evaluating %s", k)
 			evaluated.Add(k)
 			eval.currentKey = &k
-			err := v.Evaluate(eval)
+			err = v.Evaluate(eval)
 			if err != nil {
 				eval.errored.Add(k)
 				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", k, err))
 			}
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
+
 		}
 		if errs != nil {
 			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder), errs)
@@ -58,7 +69,7 @@ func (eval *Evaluator) Evaluate() error {
 	}
 }
 
-func (eval *Evaluator) popReady() ([]Vertex, error) {
+func (eval *Evaluator) pollReady() ([]Vertex, error) {
 	log := eval.Log().With("op", "dequeue")
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
@@ -117,10 +128,6 @@ func (eval *Evaluator) popReady() ([]Vertex, error) {
 		a, b := ready[i].Key(), ready[j].Key()
 		return a.Less(b)
 	})
-
-	for _, v := range ready {
-		errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
-	}
 
 	return ready, errs
 }
