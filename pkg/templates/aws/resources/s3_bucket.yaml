@@ -4,7 +4,7 @@ sanitize_name:
   # https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
   |
   {{ . 
-    | replace `^(xn--)|sthree-)|(sthree-configurator)` ""
+    | replace `^(xn--)|(sthree-)|(sthree-configurator)` ""
     | replace `(-s3alias)|(--ol-s3)$` ""
     | replace `[^a-z0-9.-]+` "-"
     | replace `(^[.-]+)|([.-]+$)` ""
@@ -49,7 +49,6 @@ consumption:
     - model: EnvironmentVariables
       value:
         '{{ .Self.Name }}_BUCKET_NAME': '{{ fieldRef "BucketName" .Self }}'
-
 
 classification:
   is:
