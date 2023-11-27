@@ -30,7 +30,7 @@ properties:
   EnvironmentVariables:
     type: map(string,string)
   Port:
-    type: number
+    type: int
     default_value: 8080
 
 classification:
