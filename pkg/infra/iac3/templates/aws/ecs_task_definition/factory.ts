@@ -18,7 +18,7 @@ interface Args {
     PortMappings?: Record<string, object>
     RequiresCompatibilities?: string[]
     EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]>
-    MountPoints: Record<string,string>
+    MountPoints: Record<string, string>
 }
 
 // noinspection JSUnusedLocalSymbols
