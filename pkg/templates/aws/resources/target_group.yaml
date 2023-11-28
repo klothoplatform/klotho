@@ -32,6 +32,34 @@ properties:
       Port:
         type: int
         default_value: 80
+  HealthCheck:
+    type: map
+    properties:
+      Enabled:
+        type: bool
+        default_value: true
+      Path:
+        type: string
+      Protocol:
+        type: string
+        default_value: '{{ fieldValue "Protocol" .Self }}'
+      Port:
+        type: int
+      Interval:
+        type: int
+        default_value: 30
+      Timeout:
+        type: int
+        default_value: 5
+      HealthyThreshold:
+        type: int
+        default_value: 5
+      UnhealthyThreshold:
+        type: int
+        default_value: 2
+      Matcher:
+        type: string
+        default_value: 200-299
   Arn:
     type: string
     configuration_disabled: true
