@@ -7,16 +7,16 @@
     interval: {{ .Interval }},
     {{- end }}
     {{- if .Matcher }}
-    matcher: {{ .Matcher }},
+    matcher: {{ modelCase .Matcher }},
     {{- end }}
     {{- if .Path }}
-    path: {{ .Path }},
+    path: {{ modelCase .Path }},
     {{- end }}
     {{- if .Port }}
-    port: {{ .Port }},
+    port: "{{ .Port }}",
     {{- end }}
     {{- if .Protocol }}
-    protocol: {{ .Protocol }},
+    protocol: {{ modelCase .Protocol }},
     {{- end }}
     {{- if .Timeout }}
     timeout: {{ .Timeout }},

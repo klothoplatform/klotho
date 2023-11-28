@@ -45,7 +45,6 @@ properties:
         default_value: '{{ fieldValue "Protocol" .Self }}'
       Port:
         type: int
-        default_value: '{{ fieldValue "Port" .Self }}'
       Interval:
         type: int
         default_value: 30

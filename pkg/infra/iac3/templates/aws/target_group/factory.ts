@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -8,6 +9,7 @@ interface Args {
     TargetType: string
     Tags: Record<string, string>
     Targets: { Id: string; Port: number }[]
+    HealthCheck: TemplateWrapper<Record<string, any>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -21,6 +23,7 @@ function create(args: Args): aws.lb.TargetGroup {
             //TMPL {{- if .Tags }}
             tags: args.Tags,
             //TMPL {{- end }}
+            healthCheck: args.HealthCheck,
         })
 
         //TMPL {{- if .Targets }}
