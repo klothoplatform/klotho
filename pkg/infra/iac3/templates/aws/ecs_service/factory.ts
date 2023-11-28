@@ -54,6 +54,7 @@ function create(args: Args): aws.ecs.Service {
             },
             //TMPL {{- end }}
             taskDefinition: args.TaskDefinition.arn,
+            waitForSteadyState: true,
         },
         { dependsOn: args.dependsOn }
     )

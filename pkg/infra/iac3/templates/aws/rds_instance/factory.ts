@@ -51,3 +51,14 @@ function properties(object: aws.rds.Instance, args: Args) {
         Endpoint: object.endpoint,
     }
 }
+
+function infraExports(
+    object: ReturnType<typeof create>,
+    args: Args,
+    props: ReturnType<typeof properties>
+) {
+    return {
+        Address: object.address,
+        Endpoint: object.endpoint,
+    }
+}
