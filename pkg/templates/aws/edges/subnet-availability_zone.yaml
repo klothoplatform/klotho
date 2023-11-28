@@ -1,2 +1,5 @@
 source: aws:subnet
 target: aws:availability_zone
+
+unique:
+  target: true

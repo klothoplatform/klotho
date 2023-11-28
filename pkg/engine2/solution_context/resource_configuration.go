@@ -99,7 +99,7 @@ func GetResourcesFromPropertyReference(
 			r, err := ctx.RawView().Vertex(resId)
 			if r == nil || err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. could not find resource %s: %w",
+					"failed to get resources from property reference. could not find resource %s: %w",
 					resId, err,
 				))
 				continue
@@ -117,14 +117,14 @@ func GetResourcesFromPropertyReference(
 						fieldValueResources = append(fieldValueResources, id)
 					} else {
 						errs = errors.Join(errs, fmt.Errorf(
-							"failed to determine path satisfaction inputs. array property %s on resource %s is not a resource id",
+							"failed to get resources from property reference. array property %s on resource %s is not a resource id",
 							part, resId,
 						))
 					}
 				}
 			} else {
 				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. property %s on resource %s is not a resource id",
+					"failed to get resources from property reference. property %s on resource %s is not a resource id",
 					part, resId,
 				))
 			}

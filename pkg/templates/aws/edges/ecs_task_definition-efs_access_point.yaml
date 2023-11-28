@@ -1,0 +1,31 @@
+source: aws:ecs_task_definition
+target: aws:efs_access_point
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: EfsVolumes
+          value:
+            - FileSystem: '{{ fieldValue "FileSystem" .Target }}'
+              AuthorizationConfig:
+                AccessPoint: '{{ .Target}}'
+                Iam: ENABLED
+              TransitEncryption: ENABLED
+              Name: '{{ .Target.Name }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: MountPoints
+          value:
+            - ContainerPath: '{{ fieldValue "RootDirectory.Path" .Target }}'
+              SourceVolume: '{{ .Target.Name }}'
+              ReadOnly: false
+  - if: |
+      {{ hasUpstream "aws:efs_mount_target" (downstream "aws:efs_file_system" .Target) }}
+    steps:
+      - resource: '{{.Target}}'
+        direction: downstream
+        num_needed: -1
+        resources:
+          - '{{ upstream "aws:efs_mount_target" (downstream "aws:efs_file_system" .Target) }}'
+        
+edge_weight_multiplier: 0.1 #Favor access point over mount target

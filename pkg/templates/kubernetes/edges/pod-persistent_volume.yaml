@@ -1,16 +1,20 @@
 source: kubernetes:pod
 target: kubernetes:persistent_volume
 operational_rules:
-  - if: '{{ hasDownstream "kubernetes:persistent_volume_claim" .Target }}'
+  - if: |
+      {{ and (hasDownstream "kubernetes:persistent_volume_claim" .Target) (ne (len (fieldValue "Object.spec.containers" .Source)) 0) }}
     configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          fields:
-            - |
-              {{ range $index, $container := (fieldValue "Object.spec.containers" .Source) }}
-                Object.spec.containers[{{ $index }}].volumes
-              {{ end }}
+          field: Object.spec.volumes
           value:
-            Name: '{{ fieldValue "object.metadata.name" .Target }}'
-            PersistentVolumeClaim:
-              ClaimName: '{{ fieldValue "Object.metadata.name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'
+            - Name: '{{ fieldValue "Object.metadata.name" .Target }}'
+              PersistentVolumeClaim:
+                ClaimName: '{{ fieldValue "Object.metadata.name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Object.spec.containers[0].volumeMounts
+          value:
+            - Name: '{{ fieldValue "Object.metadata.name" .Target }}'
+              mountPath: /mnt/efs
+      

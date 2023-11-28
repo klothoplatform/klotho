@@ -50,3 +50,9 @@ function create(args: Args): aws.efs.FileSystem {
         }
     )
 }
+
+function properties(object: aws.efs.FileSystem, args: Args) {
+    return {
+        Id: object.id,
+    }
+}

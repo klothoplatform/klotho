@@ -1,8 +1,0 @@
-source: kubernetes:persistent_volume
-target: kubernetes:storage_class
-operational_rules:
-  - configuration_rules:
-      - resource: '{{ .Source }}'
-        configuration:
-          field: Object.spec.storageClassName
-          value: '{{ .Source.object.metadata.name }}'

@@ -43,6 +43,8 @@ properties:
             type: list(string)
           mountOptions:
             type: list(string)
+          persistentVolumeReclaimPolicy:
+            type: string
           storageClassName:
             type: resource(kubernetes:storage_class)
             operational_rule:

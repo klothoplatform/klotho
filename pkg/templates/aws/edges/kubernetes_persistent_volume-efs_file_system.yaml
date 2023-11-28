@@ -5,19 +5,15 @@ operational_rules:
   - steps:
       - resource: '{{ .Source }}'
         direction: downstream
-        num_needed: 2
         resources:
-          - |
-            {{ $subnets := (allDownstream "aws:subnet" .Source) }}
-            {{ range $index, $subnet := $subnets }}
-            - selector: aws:efs_mount_target:{{ .Target }}
-              properties:
-                Subnet: {{ $subnet}}
-            {{ end}}
+          - selector: aws:eks_add_on
+            properties:
+              AddOnName: efs-csi-driver
+              Cluster: '{{ fieldValue "Cluster" .Source }}'
       - resource: '{{ .Source }}'
         direction: downstream
         resources:
-          - kubernets:persistent_volume_claim
+          - kubernetes:persistent_volume_claim
       
     configuration_rules:
       - resource: '{{ .Source }}'
@@ -57,13 +53,16 @@ operational_rules:
           value:
             - tls
 
-      - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
+      - resource: '{{downstream "kubernetes:persistent_volume_claim" .Source}}'
         configuration:
           field: Object.spec.accessModes
           value: 
             - ReadWriteMany
-      - resource: '{{upstream "kubernetes:persistent_volume_claim" .Source}}'
+      - resource: '{{downstream "kubernetes:persistent_volume_claim" .Source}}'
         configuration:
           field: Object.spec.resources.requests
           value:
             storage: 5Gi
+
+classification:
+  - efs_access

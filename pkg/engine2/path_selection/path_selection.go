@@ -24,7 +24,6 @@ func BuildPathSelectionGraph(
 	classification string,
 ) (construct.Graph, error) {
 	zap.S().Debugf("Building path selection graph for %s", dep)
-
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 
 	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph
@@ -194,14 +193,30 @@ func calculateEdgeWeight(
 	// This will achieve priority for existing resources over newly created ones
 	weight := 0
 	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
-		weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
+		if divideSourceBy > 0 {
+			weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
+		} else if divideSourceBy < 0 {
+			weight += (FUNCTIONAL_WEIGHT * divideSourceBy * -1)
+		}
 	} else {
-		weight += (GLUE_WEIGHT / divideSourceBy)
+		if divideSourceBy > 0 {
+			weight += (GLUE_WEIGHT / divideSourceBy)
+		} else if divideSourceBy < 0 {
+			weight += (GLUE_WEIGHT * divideSourceBy * -1)
+		}
 	}
 	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
-		weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
+		if divideTargetBy > 0 {
+			weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
+		} else if divideTargetBy < 0 {
+			weight += (FUNCTIONAL_WEIGHT * divideTargetBy * -1)
+		}
 	} else {
-		weight += (GLUE_WEIGHT / divideTargetBy)
+		if divideTargetBy > 0 {
+			weight += (GLUE_WEIGHT / divideTargetBy)
+		} else if divideTargetBy < 0 {
+			weight += (GLUE_WEIGHT * divideTargetBy * -1)
+		}
 	}
 	et := kb.GetEdgeTemplate(source, target)
 	if et != nil && et.EdgeWeightMultiplier != 0 {

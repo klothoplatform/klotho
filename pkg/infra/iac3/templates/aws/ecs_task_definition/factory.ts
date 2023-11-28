@@ -17,7 +17,8 @@ interface Args {
     Image: docker.Image
     PortMappings?: Record<string, object>
     RequiresCompatibilities?: string[]
-    EfsVolumes: awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]
+    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]>
+    MountPoints: Record<string, string>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -40,6 +41,9 @@ function create(args: Args): aws.ecs.TaskDefinition {
         //TMPL {{- if .TaskRole }}
         taskRoleArn: args.TaskRole.arn,
         //TMPL {{- end }}
+        //TMPL {{- if .EfsVolumes }}
+        volumes: args.EfsVolumes,
+        //TMPL {{- end }}
         containerDefinitions: pulumi.jsonStringify([
             {
                 name: args.Name,
@@ -47,6 +51,9 @@ function create(args: Args): aws.ecs.TaskDefinition {
                 portMappings: args.PortMappings,
                 //TMPL {{- if .EnvironmentVariables }}
                 environment: args.EnvironmentVariables,
+                //TMPL {{- end }}
+                //TMPL {{- if .MountPoints }}
+                mountPoints: args.MountPoints,
                 //TMPL {{- end }}
                 logConfiguration: {
                     logDriver: 'awslogs',
@@ -56,9 +63,6 @@ function create(args: Args): aws.ecs.TaskDefinition {
                         'awslogs-stream-prefix': args.Name,
                     },
                 },
-                //TMPL {{- if .EfsVolumes }}
-                volumes: args.EfsVolumes,
-                //TMPL {{- end }}
             },
         ]),
     })

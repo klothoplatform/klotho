@@ -219,12 +219,14 @@ func (ctx OperationalRuleContext) findNumConnectionsToTypeForAvailableResources(
 	for _, availableResource := range availableResources {
 		var err error
 		var connections []construct.ResourceId
+		// We will look to see what direct dependencies are already existing in the same direction as the rule
+		// if we dont only look at direct, we risk getting incorrect results if the resource can have non functional connections
 		if step.Direction == knowledgebase.DirectionDownstream {
 			connections, err = solution_context.Upstream(ctx.Solution, availableResource.ID,
-				knowledgebase.FirstFunctionalLayer)
+				knowledgebase.ResourceDirectLayer)
 		} else {
 			connections, err = solution_context.Downstream(ctx.Solution, availableResource.ID,
-				knowledgebase.FirstFunctionalLayer)
+				knowledgebase.ResourceDirectLayer)
 		}
 		var connectionsOfType []construct.ResourceId
 		for _, connection := range connections {

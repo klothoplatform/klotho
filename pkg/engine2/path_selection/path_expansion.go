@@ -274,6 +274,21 @@ func ExpandPath(
 	for i, node := range nonBoundaryResources {
 		candidates[i] = make(map[construct.ResourceId]int)
 		candidates[i][node] = 0
+		resource, err := input.TempGraph.Vertex(node)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		// we know phantoms are always able to be valid, so we want to ensure we make them valid based on src and target validity checks
+		// right now we dont want validity checks to be blocking, just preference so we use them to modify the weight
+		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if !valid {
+			candidates[i][node] = -1000
+		}
 		newResources.Add(node)
 	}
 	if errs != nil {
@@ -312,7 +327,7 @@ func ExpandPath(
 			return errors.Join(nerr, err)
 		}
 		if !valid {
-			weight = 0
+			weight = -1000
 		}
 		candidates[matchIdx][id] += weight
 		return nerr

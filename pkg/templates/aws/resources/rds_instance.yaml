@@ -78,6 +78,8 @@ consumption:
       value:
         '{{ .Self.Name }}_RDS_ENDPOINT': '{{ fieldRef "Endpoint" .Self }}'
         '{{ .Self.Name }}_RDS_CONNECTION_ARN': '{{ fieldRef "RdsConnectionArn" .Self }}'
+        '{{ .Self.Name }}_RDS_USERNAME': '{{ fieldRef "Username" .Self }}'
+        '{{ .Self.Name }}_RDS_PASSWORD': '{{ fieldRef "Password" .Self }}'
 
 classification:
   is:

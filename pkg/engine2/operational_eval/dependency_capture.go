@@ -127,9 +127,29 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 				// for all refs that could match this.
 				continue
 			}
-			// set the source to the ref that is being configured, not necessarily the key that dependencies are being
-			// calculated for
-			ctx.src = Key{Ref: ref}
+
+			// Check to see if we're setting a list element's property
+			// If we are, we need to depend on the list resolving first.
+			res, err := ctx.DAG().Vertex(ref.Resource)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not find rule's resource: %w", err))
+				continue
+			}
+			_, err = res.GetProperty(ref.Property)
+			if err != nil {
+				if bracketIdx := strings.Index(ref.Property, "["); bracketIdx != -1 {
+					listRef := ref
+					listRef.Property = ref.Property[:bracketIdx]
+					ctx.addRef(listRef)
+				} else {
+					errs = errors.Join(errs, fmt.Errorf("could not find rule's property: %w", err))
+					continue
+				}
+			} else {
+				// set the source to the ref that is being configured, not necessarily the key that dependencies are being
+				// calculated for, but only when the reference exists
+				ctx.src = Key{Ref: ref}
+			}
 		}
 		exec(opRule.If)
 		ctx.ExecuteValue(rule.Config.Value, data)
