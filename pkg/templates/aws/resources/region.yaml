@@ -2,4 +2,4 @@ qualified_type_name: aws:region
 display_name: Region
 
 delete_context:
-  require_no_upstream: true
+  requires_no_upstream: true

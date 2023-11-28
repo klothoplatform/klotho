@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -110,6 +111,10 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		if err != nil {
 			return err
 		}
+		err = ForceRemoveDependency(ctx.Data.Resource, prop, ctx.Solution)
+		if err != nil {
+			return err
+		}
 		return reconciler.RemoveResource(ctx.Solution, prop, false)
 
 	case []construct.ResourceId:
@@ -137,6 +142,7 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		var errs error
 		for rem := range toRemove {
 			log.Infof("removing %s, does not match selectors", prop)
+			errs = errors.Join(errs, ForceRemoveDependency(ctx.Data.Resource, rem, ctx.Solution))
 			errs = errors.Join(errs, reconciler.RemoveResource(ctx.Solution, rem, false))
 		}
 
@@ -174,6 +180,7 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		var errs error
 		for rem := range toRemove {
 			log.Infof("removing %s, does not match selectors", prop)
+			errs = errors.Join(errs, ForceRemoveDependency(ctx.Data.Resource, rem, ctx.Solution))
 			errs = errors.Join(errs, reconciler.RemoveResource(ctx.Solution, rem, false))
 		}
 
@@ -187,6 +194,10 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		}
 		log.Infof("removing %s, does not match selectors", prop)
 		err = path.Remove(nil)
+		if err != nil {
+			return err
+		}
+		err = ForceRemoveDependency(ctx.Data.Resource, prop.Resource, ctx.Solution)
 		if err != nil {
 			return err
 		}
@@ -211,4 +222,20 @@ func EvaluateIfCondition(
 		return false, err
 	}
 	return result, nil
+}
+
+func ForceRemoveDependency(
+	res1, res2 construct.ResourceId,
+	sol solution_context.SolutionContext,
+) error {
+
+	err := sol.RawView().RemoveEdge(res1, res2)
+	if err != nil && !errors.Is(err, graph.ErrEdgeNotFound) {
+		return err
+	}
+	err = sol.RawView().RemoveEdge(res2, res1)
+	if err != nil && !errors.Is(err, graph.ErrEdgeNotFound) {
+		return err
+	}
+	return nil
 }

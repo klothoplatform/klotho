@@ -1,0 +1,5 @@
+source: aws:listener_certificate
+target: aws:acm_certificate
+          
+unique:
+  source: true

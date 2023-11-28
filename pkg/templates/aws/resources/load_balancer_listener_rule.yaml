@@ -1,0 +1,31 @@
+qualified_type_name: aws:load_balancer_listener_rule
+display_name: Listener Rule
+
+properties:
+  Actions:
+    type: list
+    properties:
+      Type:
+        type: string
+        default_value: forward
+      TargetGroup:
+        type: resource(aws:target_group)
+        default_value: '{{ downstream "aws:target_group" .Self }}'
+  Conditions:
+    type: list
+    properties:
+      PathPattern:
+        type: list(string)
+        default_value: path-pattern
+      HttpRequestMethod:
+        type: list(string)
+  Listener:
+    type: resource(aws:load_balancer_listener)
+    default_value: '{{ upstream "aws:load_balancer_listener" .Self }}'
+  Priority:
+    type: int
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+views:
+  dataflow: small

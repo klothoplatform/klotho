@@ -7,7 +7,6 @@ properties:
     default_value: 80
   Protocol:
     type: string
-    default_value: TCP
   LoadBalancer:
     type: resource(aws:load_balancer)
     default_value: '{{ upstream "aws:load_balancer" .Self }}'
