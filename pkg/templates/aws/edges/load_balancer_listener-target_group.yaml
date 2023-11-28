@@ -6,6 +6,10 @@ operational_rules:
         configuration:
           field: Protocol
           value: '{{ fieldValue "Protocol" .Source }}'
+      - resource: '{{ .Target }}'
+        configuration:
+          field: HealthCheck.Protocol
+          value: '{{ fieldValue "Protocol" .Source }}'
       - resource: '{{ .Source }}'
         configuration:
           field: DefaultActions

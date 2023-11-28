@@ -1,0 +1,27 @@
+{
+    enabled: {{ .Enabled }},
+    {{- if .HealthyThreshold }}
+    healthyThreshold: {{ .HealthyThreshold }},
+    {{- end }}
+    {{- if .Interval }}
+    interval: {{ .Interval }},
+    {{- end }}
+    {{- if .Matcher }}
+    matcher: {{ .Matcher }},
+    {{- end }}
+    {{- if .Path }}
+    path: {{ .Path }},
+    {{- end }}
+    {{- if .Port }}
+    port: {{ .Port }},
+    {{- end }}
+    {{- if .Protocol }}
+    protocol: {{ .Protocol }},
+    {{- end }}
+    {{- if .Timeout }}
+    timeout: {{ .Timeout }},
+    {{- end }}
+    {{- if .UnhealthyThreshold }}
+    unhealthyThreshold: {{ .UnhealthyThreshold }}
+    {{- end }}
+}
