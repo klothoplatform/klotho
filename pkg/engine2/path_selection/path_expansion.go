@@ -279,7 +279,8 @@ func ExpandPath(
 			errs = errors.Join(errs, err)
 			continue
 		}
-		// we know phantoms are always valid, but we want to ensure we make them valid based on src and target validity checks
+		// we know phantoms are always able to be valid, so we want to ensure we make them valid based on src and target validity checks
+		// right now we dont want validity checks to be blocking, just preference so we use them to modify the weight
 		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
 		if err != nil {
 			errs = errors.Join(errs, err)
