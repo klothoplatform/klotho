@@ -41,6 +41,17 @@ type (
 		SanitizeNameTmpl string `yaml:"sanitize_name"`
 	}
 
+	ResourceProperty interface {
+		Name() string
+		Type() string
+		Required() bool
+		Validate(value any) error
+		Properties() map[string]ResourceProperty
+		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
+		ZeroValue() any
+		Contains(value any, contains any) bool
+	}
+
 	Properties map[string]*Property
 
 	Property struct {
@@ -58,7 +69,7 @@ type (
 
 		DeployTime bool `json:"deploy_time" yaml:"deploy_time"`
 
-		OperationalRule *OperationalRule `json:"operational_rule" yaml:"operational_rule"`
+		OperationalRule *PropertyRule `json:"operational_rule" yaml:"operational_rule"`
 
 		Properties map[string]*Property `json:"properties" yaml:"properties"`
 

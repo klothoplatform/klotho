@@ -16,16 +16,26 @@ type (
 		ConfigurationRules []ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
 	}
 
+	PropertyRule struct {
+		If    string          `json:"if" yaml:"if"`
+		Step  OperationalStep `json:"step" yaml:"step"`
+		Value any             `json:"value" yaml:"value"`
+	}
+
+	EdgeOperationalStep struct {
+		Resource string `json:"resource" yaml:"resource"`
+		OperationalStep
+	}
+
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational
 	OperationalStep struct {
-		Resource string `json:"resource" yaml:"resource"`
 		// Direction defines the direction of the rule. The direction options are upstream or downstream
 		Direction Direction `json:"direction" yaml:"direction"`
 		// Resources defines the resource types that the rule should be enforced on. Resource types must be specified if classifications is not specified
 		Resources []ResourceSelector `json:"resources" yaml:"resources"`
 		// NumNeeded defines the number of resources that must satisfy the rule
 		NumNeeded int `json:"num_needed" yaml:"num_needed"`
-
+		// FailIfMissing fails if the step is not satisfied when being evaluated. If this flag is set, the step cannot create dependencies
 		FailIfMissing bool `json:"fail_if_missing" yaml:"fail_if_missing"`
 		// Unique defines if the resource that is created should be unique
 		Unique bool `json:"unique" yaml:"unique"`
