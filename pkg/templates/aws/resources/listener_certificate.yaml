@@ -4,12 +4,17 @@ display_name: Listener Certificate
 properties:
   Certificate:
     type: resource(aws:acm_certificate)
+    operational_rule:
+      steps:
+        - direction: downstream
+          resources:
+            - aws:acm_certificate
     required: true
   Listener:
     type: resource(aws:load_balancer_listener)
     required: true
 
-    
+
 delete_context:
   requires_no_upstream_or_downstream: true
 views:

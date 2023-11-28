@@ -32,9 +32,10 @@ properties:
     operational_rule:
       if: '{{ fieldValue "Scheme" .Self | eq "internet-facing" }}'
       steps:
-        - direction: downstream
+        - direction: upstream
           resources:
             - aws:security_group
+          unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:

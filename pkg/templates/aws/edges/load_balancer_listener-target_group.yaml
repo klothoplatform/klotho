@@ -19,13 +19,6 @@ operational_rules:
         direction: downstream
         resources:
           - aws:listener_certificate
-          
-  - if: '{{ not (layeredDownstream "aws:listener_certificate" .Source "direct").IsZero }}'
-    steps:
-      - resource: '{{ layeredDownstream "aws:listener_certificate" .Source "direct" }}'
-        direction: downstream
-        resources:
-          - aws:acm_certificate
-          
+
 classification:
   - target

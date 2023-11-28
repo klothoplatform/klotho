@@ -21,7 +21,7 @@ properties:
         type: list(string)
   Listener:
     type: resource(aws:load_balancer_listener)
-    default_value: '{{ upstream "aws:load_balancer" .Self }}'
+    default_value: '{{ upstream "aws:load_balancer_listener" .Self }}'
   Priority:
     type: int
 
