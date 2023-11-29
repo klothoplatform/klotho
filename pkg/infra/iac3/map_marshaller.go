@@ -2,6 +2,7 @@ package iac3
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -26,11 +27,16 @@ type (
 func (m TsMap) String() string {
 	buf := strings.Builder{}
 	buf.WriteRune('{')
-	keys := len(m)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	i := 0
-	for k, v := range m {
+	for _, k := range keys {
+		v := m[k]
 		buf.WriteString(fmt.Sprintf("%s: %v", k, v))
-		if i < keys-1 {
+		if i < len(m)-1 {
 			buf.WriteString(", ")
 		}
 		i++

@@ -25,12 +25,12 @@ func TestTsMap_String(t *testing.T) {
 		{
 			name: "map with multiple entries",
 			m:    TsMap{"foo": "bar", "baz": "qux"},
-			want: "{foo: bar, baz: qux}",
+			want: "{baz: qux, foo: bar}",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.m.String(), tt.want)
+			assert.Equal(t, tt.want, tt.m.String())
 		})
 	}
 }
