@@ -55,15 +55,19 @@ func (ao *appliedOutputs) dedupe() error {
 		return nil
 	}
 
-	values := make(map[appliedOutput]struct{})
 	var err error
-	for _, v := range *ao {
-		values[v] = struct{}{}
-	}
-	*ao = make([]appliedOutput, 0, len(values))
+	values := make(map[appliedOutput]struct{})
 	names := make(map[string]struct{})
-	for v := range values {
-		*ao = append(*ao, v)
+	for i := 0; i < len(*ao); i++ {
+		v := (*ao)[i]
+		if _, ok := values[v]; ok {
+			i--
+			// Delete the duplicate (shift everything down)
+			copy((*ao)[i:], (*ao)[i+1:])
+			*ao = (*ao)[:len(*ao)-1]
+			continue
+		}
+		values[v] = struct{}{}
 		if _, ok := names[v.Name]; ok {
 			err = errors.Join(err, fmt.Errorf("duplicate applied output name %q", v.Name))
 		}
