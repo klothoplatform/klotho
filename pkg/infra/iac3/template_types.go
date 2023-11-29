@@ -35,18 +35,7 @@ type (
 	}
 
 	appliedOutputs []appliedOutput
-
-	// undefinedT is a helper type to represent the `undefined` value in a template. It is needed over just using
-	// "undefined" because the string is not false-y.
-	undefinedT string
 )
-
-// undefined is false-y in a template (if used in an `if`), but resolves to `undefined` when rendered.
-var undefined = undefinedT("")
-
-func (undefinedT) String() string {
-	return "undefined"
-}
 
 func (tc TemplatesCompiler) NewAppliedOutput(ref construct.PropertyRef, name string) appliedOutput {
 	ao := appliedOutput{Name: name}

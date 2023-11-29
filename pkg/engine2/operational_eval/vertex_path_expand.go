@@ -21,14 +21,6 @@ type (
 		TempGraph     construct.Graph
 		Satisfication knowledgebase.EdgePathSatisfaction
 	}
-
-	// pathSatisfication is a wrapper around [EdgePathSatisfaction] that makes unset distinguishable
-	// from expanding on an empty classification. Once all expansions have classification, this can
-	// be removed and use [EdgePathSatisfaction] directly (`.valid` becomes `.Classification != ""`)
-	pathSatisfication struct {
-		knowledgebase.EdgePathSatisfaction
-		valid bool
-	}
 )
 
 func (v *pathExpandVertex) Key() Key {

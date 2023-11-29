@@ -181,7 +181,7 @@ func LoadConstraintsFromFile(path string) (Constraints, error) {
 	if err != nil {
 		return Constraints{}, err
 	}
-	defer f.Close() // nolint:errcheck
+	defer f.Close() //nolint:errcheck
 
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {

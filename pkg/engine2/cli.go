@@ -217,7 +217,10 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 			pprof.StopCPUProfile()
 			profileF.Close()
 		}()
-		pprof.StartCPUProfile(profileF)
+		err = pprof.StartCPUProfile(profileF)
+		if err != nil {
+			return fmt.Errorf("failed to start profile: %w", err)
+		}
 	}
 
 	// Set up analytics, and hook them up to the logs

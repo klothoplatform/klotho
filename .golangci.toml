@@ -7,3 +7,7 @@ tab-width = 2
 # there's currently no way to only log violations in golangci-lint
 # https://github.com/golangci/golangci-lint/issues/1981
 # enable = ["lll"]
+
+[run]
+# Don't bother linting test files
+skip-files = ["pkg/.*_test.go"]

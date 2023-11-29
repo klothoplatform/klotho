@@ -433,56 +433,6 @@ func ExpandPath(
 	return nil
 }
 
-func runOnNamespaces(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) error {
-	if src.ID.Namespace != "" && target.ID.Namespace != "" {
-		kb := ctx.KnowledgeBase()
-		targetNamespaceResourceId, err := kb.GetResourcesNamespaceResource(target)
-		if targetNamespaceResourceId.IsZero() {
-			return fmt.Errorf("could not find namespace resource for %s", target)
-		}
-		if err != nil {
-			return err
-		}
-
-		srcNamespaceResourceId, err := kb.GetResourcesNamespaceResource(src)
-		if srcNamespaceResourceId.IsZero() {
-			return fmt.Errorf("could not find namespace resource for %s", src)
-		}
-		if err != nil {
-			return err
-		}
-		srcNamespaceResource, err := ctx.RawView().Vertex(srcNamespaceResourceId)
-		if err != nil {
-			return err
-		}
-		targetNamespaceResource, err := ctx.RawView().Vertex(targetNamespaceResourceId)
-		if err != nil {
-			return err
-		}
-		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(
-			construct.SimpleEdge{Source: srcNamespaceResourceId, Target: targetNamespaceResourceId},
-			kb,
-			"",
-		)
-		if err != nil {
-			return fmt.Errorf("could not build path selection graph: %w", err)
-		}
-		// TODO: We should get all of the as source and as targets here to ensure we have all paths required
-		input := ExpansionInput{
-			Dep:            construct.ResourceEdge{Source: srcNamespaceResource, Target: targetNamespaceResource},
-			Classification: "",
-			TempGraph:      tg,
-		}
-		edges, err := expandEdge(ctx, input, result.Graph)
-		if err != nil {
-			return err
-		}
-		result.Edges = append(result.Edges, edges...)
-	}
-	return nil
-}
-
 func connectThroughNamespace(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) (
 	connected bool,
 	errs error,

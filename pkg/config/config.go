@@ -109,7 +109,7 @@ func ReadConfig(fpath string) (Application, error) {
 	if err != nil {
 		return appCfg, err
 	}
-	defer f.Close() // nolint:errcheck
+	defer f.Close() //nolint:errcheck
 
 	return ReadConfigReader(fpath, f)
 }

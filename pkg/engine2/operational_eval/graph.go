@@ -84,7 +84,11 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 	generateAndAddVertex := func(
 		edge construct.SimpleEdge,
 		kb knowledgebase.TemplateKB,
-		satisfication knowledgebase.EdgePathSatisfaction) error {
+		satisfication knowledgebase.EdgePathSatisfaction,
+	) error {
+		if satisfication.Classification == "" {
+			return fmt.Errorf("edge %s has no classification to expand", edge)
+		}
 
 		buildTempGraph := true
 		// We are checking to see if either of the source or target nodes will change due to property references,

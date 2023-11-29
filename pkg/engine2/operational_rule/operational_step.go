@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/dominikbraun/graph"
-	"github.com/iancoleman/strcase"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -241,17 +240,6 @@ func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowled
 	} else {
 		return ctx.Solution.OperationalView().RemoveEdge(resource, dependentResource)
 	}
-}
-
-func (ctx OperationalRuleContext) addResourceName(partialId construct.ResourceId) construct.ResourceId {
-	// TODO handle cases when multiple resources want to use the same ID, such as `aws:subnet:myvpc:public` by adding an
-	// incrementing number to them.
-	if ctx.Property != nil {
-		partialId.Name = strcase.ToSnake(ctx.Property.Name)
-		return partialId
-	}
-	partialId.Name = fmt.Sprintf("%s_%s", ctx.Data.Edge.Source.Name, ctx.Data.Edge.Target.Name)
-	return partialId
 }
 
 func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {

@@ -49,7 +49,7 @@ func LoadConstructGraphFromFile(path string) (*construct.ConstructGraph, error) 
 	if err != nil {
 		return graph, err
 	}
-	defer f.Close() // nolint:errcheck
+	defer f.Close() //nolint:errcheck
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
 		return graph, err
@@ -95,7 +95,7 @@ func LoadResourceGraphFromFile(path string) (*construct.ResourceGraph, error) {
 	if err != nil {
 		return graph, err
 	}
-	defer f.Close() // nolint:errcheck
+	defer f.Close() //nolint:errcheck
 	err = yaml.NewDecoder(f).Decode(&input)
 	if err != nil {
 		return graph, err
