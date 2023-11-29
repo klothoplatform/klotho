@@ -23,6 +23,7 @@ type fauxConfigContext struct {
 
 func newDepCapture(inner knowledgebase.DynamicValueContext, changes graphChanges, src Key) *fauxConfigContext {
 	return &fauxConfigContext{
+		propRef: src.Ref,
 		inner:   inner,
 		changes: changes,
 		src:     src,

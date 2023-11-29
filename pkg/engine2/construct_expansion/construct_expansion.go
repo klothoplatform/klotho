@@ -67,7 +67,7 @@ func (ctx *ConstructExpansionContext) ExpandConstruct(res *construct.Resource, c
 func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet ExpansionSet, constructQualifiedType string) ([]ExpansionSolution, error) {
 	var possibleExpansions []ExpansionSolution
 	var joinedErr error
-	functionality := ctx.Kb.GetFunctionality(expansionSet.Construct.ID)
+	functionality := knowledgebase.GetFunctionality(ctx.Kb, expansionSet.Construct.ID)
 	for _, res := range ctx.Kb.ListResources() {
 		if constructQualifiedType != "" && res.Id().QualifiedTypeName() != constructQualifiedType {
 			continue
@@ -82,11 +82,15 @@ func (ctx *ConstructExpansionContext) findPossibleExpansions(expansionSet Expans
 				unsatisfiedAttributes = append(unsatisfiedAttributes, ms)
 			}
 		}
-		baseRes := construct.CreateResource(construct.ResourceId{
+		baseRes, err := knowledgebase.CreateResource(ctx.Kb, construct.ResourceId{
 			Provider: res.Id().Provider,
 			Type:     res.Id().Type,
 			Name:     expansionSet.Construct.ID.Name,
 		})
+		if err != nil {
+			joinedErr = errors.Join(joinedErr, err)
+			continue
+		}
 		expansions, err := ctx.findExpansions(unsatisfiedAttributes, []graph.Edge[construct.Resource](nil), *baseRes, functionality)
 		if err != nil {
 			joinedErr = errors.Join(joinedErr, err)
@@ -135,7 +139,6 @@ func (ctx *ConstructExpansionContext) findExpansions(attributes []string, edges 
 					result = append(result, expansions...)
 				}
 			}
-
 		}
 	}
 	if len(result) == 0 {

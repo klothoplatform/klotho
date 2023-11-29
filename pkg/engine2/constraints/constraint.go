@@ -203,3 +203,20 @@ func ParseConstraintsFromFile(bytes []byte) (Constraints, error) {
 
 	return list.ToConstraints()
 }
+
+func (c Constraints) ToList() ConstraintList {
+	var list ConstraintList
+	for i := range c.Application {
+		list = append(list, &c.Application[i])
+	}
+	for i := range c.Construct {
+		list = append(list, &c.Construct[i])
+	}
+	for i := range c.Resources {
+		list = append(list, &c.Resources[i])
+	}
+	for i := range c.Edges {
+		list = append(list, &c.Edges[i])
+	}
+	return list
+}

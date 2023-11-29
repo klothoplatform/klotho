@@ -294,7 +294,7 @@ func (ctx DynamicValueContext) upstream(selector any, resource construct.Resourc
 			match = id
 			return graph_addons.StopWalk
 		}
-		if ctx.KB().GetFunctionality(id) != Unknown {
+		if GetFunctionality(ctx.KB(), id) != Unknown {
 			return graph_addons.SkipPath
 		}
 		return nil
@@ -387,7 +387,7 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 			match = id
 			return graph_addons.StopWalk
 		}
-		if ctx.KB().GetFunctionality(id) != Unknown {
+		if GetFunctionality(ctx.KB(), id) != Unknown {
 			return graph_addons.SkipPath
 		}
 		return nil

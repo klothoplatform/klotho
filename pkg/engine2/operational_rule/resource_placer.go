@@ -195,9 +195,9 @@ func BuildUndirectedGraph(ctx solution_context.SolutionContext) (construct.Graph
 	for _, e := range edges {
 		weight := 1
 		// increase weights for edges that are connected to a functional resource
-		if ctx.KnowledgeBase().GetFunctionality(e.Source) != knowledgebase.Unknown {
+		if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), e.Source) != knowledgebase.Unknown {
 			weight = 1000
-		} else if ctx.KnowledgeBase().GetFunctionality(e.Target) != knowledgebase.Unknown {
+		} else if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), e.Target) != knowledgebase.Unknown {
 			weight = 1000
 		}
 		err := undirected.AddEdge(e.Source, e.Target, graph.EdgeWeight(weight))

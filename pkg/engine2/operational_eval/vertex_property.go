@@ -29,7 +29,6 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 	changes := newChanges()
 
 	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), changes, prop.Key())
-	propCtx.propRef = prop.Ref
 
 	kb := eval.Solution.KnowledgeBase()
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}

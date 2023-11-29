@@ -179,7 +179,7 @@ func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalSt
 		if err != nil {
 			return err
 		}
-		if kb.GetFunctionality(id) == knowledgebase.Unknown {
+		if knowledgebase.GetFunctionality(kb, id) == knowledgebase.Unknown {
 			return reconciler.RemoveResource(ctx.Solution, id, false)
 		}
 		return nil

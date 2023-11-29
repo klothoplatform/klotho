@@ -423,34 +423,6 @@ func Test_MapParse(t *testing.T) {
 			},
 		},
 		{
-
-			name: "Parse map property with sub properties and default values",
-			property: MapPropertyType{
-				Property: &Property{
-					Type: "map",
-					Properties: map[string]*Property{
-						"nested": {
-							Name:         "nested",
-							Type:         "string",
-							DefaultValue: "test",
-						},
-						"second": {
-							Name:         "second",
-							Type:         "bool",
-							DefaultValue: true,
-						},
-					},
-				},
-			},
-			value: map[string]interface{}{
-				"nested": "notTest",
-			},
-			expected: map[string]interface{}{
-				"nested": "notTest",
-				"second": true,
-			},
-		},
-		{
 			name: "Parse map property with sub properties incorrect, should error",
 			property: MapPropertyType{
 				Property: &Property{

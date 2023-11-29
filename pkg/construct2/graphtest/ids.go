@@ -25,3 +25,12 @@ func ParseEdge(t *testing.T, str string) construct.Edge {
 		Target: io.Target,
 	}
 }
+
+func ParseRef(t *testing.T, str string) construct.PropertyRef {
+	var ref construct.PropertyRef
+	err := ref.UnmarshalText([]byte(str))
+	if err != nil {
+		t.Fatalf("failed to parse property ref %q: %v", str, err)
+	}
+	return ref
+}

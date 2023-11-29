@@ -2,7 +2,7 @@ package engine2
 
 import (
 	"github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"gopkg.in/yaml.v3"
 )
 
@@ -25,7 +25,7 @@ type FileFormat struct {
 
 func (ff FileFormat) MarshalYAML() (interface{}, error) {
 	constraintsNode := &yaml.Node{}
-	err := constraintsNode.Encode(ff.Constraints)
+	err := constraintsNode.Encode(ff.Constraints.ToList())
 	if err != nil {
 		return nil, err
 	}
@@ -60,13 +60,16 @@ func (ff FileFormat) MarshalYAML() (interface{}, error) {
 
 func (ff *FileFormat) UnmarshalYAML(node *yaml.Node) error {
 	var constraints struct {
-		Constraints constraints.Constraints `yaml:"constraints"`
+		Constraints constraints.ConstraintList `yaml:"constraints"`
 	}
 	err := node.Decode(&constraints)
 	if err != nil {
 		return err
 	}
-	ff.Constraints = constraints.Constraints
+	ff.Constraints, err = constraints.Constraints.ToConstraints()
+	if err != nil {
+		return err
+	}
 
 	var graph construct2.YamlGraph
 	err = node.Decode(&graph)

@@ -23,7 +23,6 @@ type (
 		HasFunctionalPath(from, to construct.ResourceId) bool
 		AllPaths(from, to construct.ResourceId) ([][]*ResourceTemplate, error)
 		GetAllowedNamespacedResourceIds(ctx DynamicValueContext, resourceId construct.ResourceId) ([]construct.ResourceId, error)
-		GetFunctionality(id construct.ResourceId) Functionality
 		GetClassification(id construct.ResourceId) Classification
 		GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error)
 		GetResourcePropertyType(resource construct.ResourceId, propertyName string) string
@@ -252,7 +251,7 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext
 	return result, nil
 }
 
-func (kb *KnowledgeBase) GetFunctionality(id construct.ResourceId) Functionality {
+func GetFunctionality(kb TemplateKB, id construct.ResourceId) Functionality {
 	template, _ := kb.GetResourceTemplate(id)
 	if template == nil {
 		return Unknown
