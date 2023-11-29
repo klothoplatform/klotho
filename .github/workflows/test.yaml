@@ -27,4 +27,12 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run test
-        run: go test -race -v ./...
+        run: go test -race -v -coverprofile=c.out ./...
+
+      - name: Update coverage report
+        if: github.event_name == 'push' && github.ref == 'main'
+        uses: ncruces/go-coverage-report@v0
+        with:
+          coverage-file: c.out
+          chart: true
+          reuse-go: true
