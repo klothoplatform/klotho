@@ -13,14 +13,6 @@ import (
 )
 
 type (
-	// validityChecker defines methods for checking validity of a candidate based on the operation specified in the
-	// path satisfaction route. The validityChecker has the ability to both check if a candidate is valid
-	// and mutate a candidate to be valid
-	validityChecker interface {
-		isValid(resourceToCheck, targetResource construct.ResourceId) (bool, error)
-		makeValid(resource, operationResource construct.ResourceId) error
-	}
-
 	// downstreamChecker is a validityChecker that checks if a candidate is valid based on what is downstream of the specified
 	// resources
 	downstreamChecker struct {
@@ -279,11 +271,9 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 				}
 			}
 			if p.IsPropertyTypeScalar() {
-				currRes.SetProperty(property, downstream)
-				return true, errs
+				return true, errors.Join(errs, currRes.SetProperty(property, downstream))
 			} else {
-				currRes.AppendProperty(property, downstream)
-				return true, errs
+				return true, errors.Join(errs, currRes.AppendProperty(property, downstream))
 			}
 		}
 		return false, errs

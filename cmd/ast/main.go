@@ -49,7 +49,7 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer z.Sync() // nolint:errcheck
+	defer z.Sync() //nolint:errcheck
 	defer zap.ReplaceGlobals(z)()
 
 	if cfg.file == "" {

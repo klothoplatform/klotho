@@ -323,6 +323,8 @@ func newChanges() graphChanges {
 }
 
 // addNode is a convenient lower-level add for [graphChanges.nodes]
+//
+//nolint:unused
 func (changes graphChanges) addNode(v Vertex) {
 	changes.nodes[v.Key()] = v
 }
@@ -434,7 +436,11 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 				replaceVertex(key, vertex)
 				// because the temp graph contains the src and target as nodes, we need to update it if it exists
 				if vertex.TempGraph != nil {
-					construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId})
+					err := construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId})
+					if err != nil {
+						errs = errors.Join(errs, err)
+						continue
+					}
 				}
 			}
 		}

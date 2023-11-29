@@ -85,7 +85,10 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 			pprof.StopCPUProfile()
 			profileF.Close()
 		}()
-		pprof.StartCPUProfile(profileF)
+		err = pprof.StartCPUProfile(profileF)
+		if err != nil {
+			return fmt.Errorf("failed to start profile: %w", err)
+		}
 	}
 
 	var files []io.File
