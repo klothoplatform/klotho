@@ -30,7 +30,7 @@ jobs:
         run: go test -race -v -coverprofile=c.out ./...
 
       - name: Update coverage report
-        if: github.ref == 'main'
+        if: github.ref_name == 'main'
         uses: ncruces/go-coverage-report@v0
         with:
           coverage-file: c.out
