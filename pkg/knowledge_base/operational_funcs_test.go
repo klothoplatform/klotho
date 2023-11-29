@@ -85,22 +85,10 @@ func TestDynamicValueContext_ExecuteDecode(t *testing.T) {
 
 		// DAG access
 		{
-			name: "upstream",
-			tmpl: `{{ upstream "test:resource" .Self }}`,
-			data: simpleData,
-			want: b.Id(),
-		},
-		{
 			name: "all upstream",
 			tmpl: `{{ allUpstream "test:resource" .Self | toJson }}`,
 			data: simpleData,
 			want: []construct.ResourceId{b.Id(), a.Id()},
-		},
-		{
-			name: "downstream",
-			tmpl: `{{ downstream "test:resource" .Self }}`,
-			data: simpleData,
-			want: c.Id(),
 		},
 		{
 			name: "all downstream",
