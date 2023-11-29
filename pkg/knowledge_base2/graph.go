@@ -73,7 +73,7 @@ func resourceGlue(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(id construct.ResourceId, nerr error) error {
-		if kb.GetFunctionality(id) == Unknown {
+		if GetFunctionality(kb, id) == Unknown {
 			if ids != nil {
 				(*ids) = append(*ids, id)
 			}
@@ -91,7 +91,7 @@ func firstFunctional(
 		if ids != nil {
 			(*ids) = append(*ids, id)
 		}
-		if kb.GetFunctionality(id) == Unknown {
+		if GetFunctionality(kb, id) == Unknown {
 			return nil
 		}
 		return graph_addons.SkipPath
@@ -126,7 +126,7 @@ func DependenciesSkipEdgeLayer(
 
 	case ResourceGlueLayer:
 		return func(e construct.Edge) bool {
-			return kb.GetFunctionality(e.Target) != Unknown
+			return GetFunctionality(kb, e.Target) != Unknown
 		}
 
 	case FirstFunctionalLayer:
@@ -136,11 +136,11 @@ func DependenciesSkipEdgeLayer(
 				return false
 			}
 			// Unknown -> X edges are not interesting, keep those
-			if kb.GetFunctionality(e.Source) == Unknown {
+			if GetFunctionality(kb, e.Source) == Unknown {
 				return false
 			}
 			// Since source is now != Unknown, only keep edges w/ target == Unknown
-			return kb.GetFunctionality(e.Target) != Unknown
+			return GetFunctionality(kb, e.Target) != Unknown
 		}
 
 	default:
@@ -174,7 +174,7 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 func DownstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
 	var result []construct.ResourceId
 	err := graph_addons.WalkDown(dag, resource, func(id construct.ResourceId, nerr error) error {
-		if kb.GetFunctionality(id) != Unknown {
+		if GetFunctionality(kb, id) != Unknown {
 			result = append(result, id)
 			return graph_addons.SkipPath
 		}
@@ -230,7 +230,7 @@ func layerWalkFunc(
 func UpstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
 	var result []construct.ResourceId
 	err := graph_addons.WalkUp(dag, resource, func(id construct.ResourceId, nerr error) error {
-		if kb.GetFunctionality(id) != Unknown {
+		if GetFunctionality(kb, id) != Unknown {
 			result = append(result, id)
 			return graph_addons.SkipPath
 		}

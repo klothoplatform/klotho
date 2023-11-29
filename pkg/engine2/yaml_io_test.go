@@ -4,17 +4,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
 func TestFileFormat(t *testing.T) {
-	makeGraph := func(elements ...any) construct2.Graph {
-		return graphtest.MakeGraph(t, construct2.NewGraph(), elements...)
+	makeGraph := func(elements ...any) construct.Graph {
+		return graphtest.MakeGraph(t, construct.NewGraph(), elements...)
 	}
 	tests := []struct {
 		name string
@@ -28,9 +27,11 @@ func TestFileFormat(t *testing.T) {
 					"p:t:a -> p:t:b",
 				),
 				Constraints: constraints.Constraints{
-					&constraints.ApplicationConstraint{
-						Operator: constraints.AddConstraintOperator,
-						Node:     construct.ResourceId{Provider: "p", Type: "t", Name: "a"},
+					Application: []constraints.ApplicationConstraint{
+						{
+							Operator: constraints.AddConstraintOperator,
+							Node:     construct.ResourceId{Provider: "p", Type: "t", Name: "a"},
+						},
 					},
 				},
 			},

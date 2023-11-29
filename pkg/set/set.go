@@ -7,6 +7,12 @@ import (
 
 type Set[T comparable] map[T]struct{}
 
+func SetOf[T comparable](vs ...T) Set[T] {
+	s := make(Set[T])
+	s.Add(vs...)
+	return s
+}
+
 func (s Set[T]) Add(vs ...T) {
 	for _, v := range vs {
 		s[v] = struct{}{}

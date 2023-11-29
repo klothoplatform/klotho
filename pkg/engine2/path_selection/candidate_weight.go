@@ -70,7 +70,7 @@ func determineCandidateWeight(
 		availableWeight = -5
 	}
 	for _, res := range shortestPath {
-		if ctx.KnowledgeBase().GetFunctionality(res) != knowledgebase.Unknown {
+		if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), res) != knowledgebase.Unknown {
 			availableWeight -= 2
 		} else {
 			availableWeight -= 1
@@ -84,7 +84,7 @@ func determineCandidateWeight(
 		availableWeight = -5
 	}
 	for _, res := range shortestPath {
-		if ctx.KnowledgeBase().GetFunctionality(res) != knowledgebase.Unknown {
+		if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), res) != knowledgebase.Unknown {
 			availableWeight -= 1
 		}
 	}

@@ -192,7 +192,7 @@ func calculateEdgeWeight(
 	// We do so to allow for the preference of existing resources since we can multiply these weights by a decimal
 	// This will achieve priority for existing resources over newly created ones
 	weight := 0
-	if kb.GetFunctionality(source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
+	if knowledgebase.GetFunctionality(kb, source) != knowledgebase.Unknown && !source.Matches(dep.Source) {
 		if divideSourceBy > 0 {
 			weight += (FUNCTIONAL_WEIGHT / divideSourceBy)
 		} else if divideSourceBy < 0 {
@@ -205,7 +205,7 @@ func calculateEdgeWeight(
 			weight += (GLUE_WEIGHT * divideSourceBy * -1)
 		}
 	}
-	if kb.GetFunctionality(target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
+	if knowledgebase.GetFunctionality(kb, target) != knowledgebase.Unknown && !target.Matches(dep.Target) {
 		if divideTargetBy > 0 {
 			weight += (FUNCTIONAL_WEIGHT / divideTargetBy)
 		} else if divideTargetBy < 0 {

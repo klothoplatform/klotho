@@ -30,6 +30,18 @@ func NewTestSolution() *TestSolution {
 
 func (sol *TestSolution) LoadState(t *testing.T, initGraph ...any) {
 	graphtest.MakeGraph(t, sol.RawView(), initGraph...)
+
+	// Start recording changes after initial graph is loaded.
+	sol.dataflow = graphtest.RecordChanges(sol.dataflow)
+	sol.deployment = graphtest.RecordChanges(sol.deployment)
+}
+
+func (sol *TestSolution) DataflowChanges() *graphtest.GraphChanges {
+	return sol.dataflow.(*graphtest.GraphChanges)
+}
+
+func (sol *TestSolution) DeploymentChanges() *graphtest.GraphChanges {
+	return sol.deployment.(*graphtest.GraphChanges)
 }
 
 func (sol *TestSolution) With(key string, value interface{}) solution_context.SolutionContext {
@@ -67,16 +79,19 @@ type testOperationalView struct {
 	Mock *mock.Mock
 }
 
-func (view testOperationalView) MakeResourcesOperational(resources []*construct.Resource) (construct.ResourceIdChangeResults, error) {
+func (view testOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
 	args := view.Mock.Called(resources)
-	return args.Get(0).(construct.ResourceIdChangeResults), args.Error(1)
+	return args.Error(0)
 }
 
-func (view testOperationalView) MakeEdgeOperational(
-	source, target construct.ResourceId,
-) ([]*construct.Resource, []construct.Edge, error) {
-	args := view.Mock.Called(source, target)
-	return args.Get(0).([]*construct.Resource), args.Get(1).([]construct.Edge), args.Error(2)
+func (view testOperationalView) UpdateResourceID(oldId, newId construct.ResourceId) error {
+	args := view.Mock.Called(oldId, newId)
+	return args.Error(0)
+}
+
+func (view testOperationalView) MakeEdgesOperational(edges []construct.Edge) error {
+	args := view.Mock.Called(edges)
+	return args.Error(0)
 }
 
 type ExpectedGraphs struct {
@@ -84,14 +99,18 @@ type ExpectedGraphs struct {
 }
 
 func (expect ExpectedGraphs) AssertEqual(t *testing.T, sol solution_context.SolutionContext) {
-	graphtest.AssertGraphEqual(t,
-		graphtest.MakeGraph(t, construct.NewGraph(), expect.Dataflow...),
-		sol.DataflowGraph(),
-		"Dataflow",
-	)
-	graphtest.AssertGraphEqual(t,
-		graphtest.MakeGraph(t, construct.NewGraph(), expect.Deployment...),
-		sol.DeploymentGraph(),
-		"Deployment",
-	)
+	if expect.Dataflow != nil {
+		graphtest.AssertGraphEqual(t,
+			graphtest.MakeGraph(t, construct.NewGraph(), expect.Dataflow...),
+			sol.DataflowGraph(),
+			"Dataflow",
+		)
+	}
+	if expect.Deployment != nil {
+		graphtest.AssertGraphEqual(t,
+			graphtest.MakeGraph(t, construct.NewGraph(), expect.Deployment...),
+			sol.DeploymentGraph(),
+			"Deployment",
+		)
+	}
 }
