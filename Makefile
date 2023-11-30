@@ -25,7 +25,7 @@ clean_debug:
 
 .PHONY: engine_test
 engine_test:
-	KLOTHO_TEST_ENGINE=y go test -v -timeout 1m -run '^TestEngine$$' ./pkg/engine2
+	go test -v -timeout 1m -run '^TestEngine$$' ./pkg/engine2
 
 .PHONY: regen_tests
 regen_tests:
