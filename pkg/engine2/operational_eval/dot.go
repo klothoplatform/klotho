@@ -6,9 +6,7 @@ import (
 	"io"
 	"strings"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/dot"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
 const (
@@ -21,14 +19,21 @@ const (
 func keyAttributes(eval *Evaluator, key Key) map[string]string {
 	attribs := make(map[string]string)
 	var style []string
-	if !key.Ref.Resource.IsZero() {
+	switch key.keyType() {
+	case keyTypeProperty:
 		attribs["label"] = fmt.Sprintf(`%s\n#%s`, key.Ref.Resource, key.Ref.Property)
 		attribs["shape"] = "box"
-	} else if key.GraphState != "" {
+
+	case keyTypeEdge:
+		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
+		attribs["shape"] = "parallelogram"
+
+	case keyTypeGraphState:
 		attribs["label"] = string(key.GraphState)
 		attribs["shape"] = "box"
 		style = append(style, "dashed")
-	} else if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
+
+	case keyTypePathExpand:
 		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
 		var extra []string
 		if key.PathSatisfication.Classification != "" {
@@ -46,13 +51,7 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 
 		attribs["shape"] = "parallelogram"
 		style = append(style, "dashed")
-	} else if key.Edge != (construct.SimpleEdge{}) {
-		attribs["label"] = fmt.Sprintf(`%s\n→ %s`, key.Edge.Source, key.Edge.Target)
-		attribs["shape"] = "parallelogram"
-	} else if key.Internal != "" {
-		attribs["label"] = fmt.Sprintf(`|%s|`, key.Internal)
-		attribs["shape"] = "polygon"
-	} else {
+	default:
 		attribs["label"] = fmt.Sprintf(`%s\n(UNKOWN)`, key)
 		attribs["color"] = "#fc8803"
 	}

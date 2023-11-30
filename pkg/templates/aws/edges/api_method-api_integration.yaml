@@ -14,3 +14,4 @@ operational_rules:
                 keysToMapWithDefault true |
                 toJson
             }}
+unique: one-to-one

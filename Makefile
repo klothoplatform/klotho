@@ -21,3 +21,12 @@ iac: $(GO_FILES) $(IAC_TEMPLATES)
 .PHONY: clean_debug
 clean_debug:
 	find . \( -name '*.gv' -or -name '*.gv.svg' \) -delete
+
+
+.PHONY: engine_test
+engine_test:
+	KLOTHO_TEST_ENGINE=y go test -v -timeout 1m -run '^TestEngine$$' ./pkg/engine2
+
+.PHONY: regen_tests
+regen_tests:
+	find pkg/engine2/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;

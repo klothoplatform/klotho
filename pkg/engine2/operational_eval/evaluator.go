@@ -34,7 +34,6 @@ type (
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
 		PathSatisfication knowledgebase.EdgePathSatisfaction
-		Internal          string
 	}
 
 	Vertex interface {
@@ -55,6 +54,9 @@ type (
 		// edges is map[source]targets
 		edges map[Key]set.Set[Key]
 	}
+
+	// keyType makes it easy to switch on, and by being an int makes sorting of keys easier
+	keyType int
 )
 
 const (
@@ -71,6 +73,13 @@ const (
 	NotReadyMax
 )
 
+const (
+	keyTypeProperty keyType = iota
+	keyTypeEdge
+	keyTypeGraphState
+	keyTypePathExpand
+)
+
 func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 	return &Evaluator{
 		Solution:    ctx,
@@ -80,14 +89,36 @@ func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 	}
 }
 
-func (key Key) String() string {
+func (key Key) keyType() keyType {
 	if !key.Ref.Resource.IsZero() {
-		return key.Ref.String()
+		return keyTypeProperty
 	}
 	if key.GraphState != "" {
-		return string(key.GraphState)
+		return keyTypeGraphState
 	}
 	if key.PathSatisfication != (knowledgebase.EdgePathSatisfaction{}) {
+		return keyTypePathExpand
+	}
+	// make sure edge is last because PathExpand also has an edge
+	if key.Edge != (construct.SimpleEdge{}) {
+		return keyTypeEdge
+	}
+	return -1
+}
+
+func (key Key) String() string {
+	kt := key.keyType()
+	switch kt {
+	case keyTypeProperty:
+		return key.Ref.String()
+
+	case keyTypeEdge:
+		return key.Edge.String()
+
+	case keyTypeGraphState:
+		return string(key.GraphState)
+
+	case keyTypePathExpand:
 		args := []string{
 			key.Edge.String(),
 		}
@@ -102,51 +133,33 @@ func (key Key) String() string {
 		}
 		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
 	}
-	if key.Edge != (construct.SimpleEdge{}) {
-		return key.Edge.String()
-	}
-	if key.Internal != "" {
-		return fmt.Sprintf("|%s|", key.Internal)
-	}
 	return "<empty>"
 }
 
 func (key Key) Less(other Key) bool {
-	if !key.Ref.Resource.IsZero() {
-		if other.Ref.Resource.IsZero() {
-			return true
-		}
+	myKT := key.keyType()
+	otherKT := other.keyType()
+	if myKT != otherKT {
+		return myKT < otherKT
+	}
+	switch myKT {
+	case keyTypeProperty:
 		if key.Ref.Resource != other.Ref.Resource {
 			return construct.ResourceIdLess(key.Ref.Resource, other.Ref.Resource)
 		}
 		return key.Ref.Property < other.Ref.Property
-	}
-	if key.GraphState != "" {
-		if other.GraphState == "" {
-			return true
-		}
+
+	case keyTypeEdge:
+		return key.Edge.Less(other.Edge)
+
+	case keyTypeGraphState:
 		return key.GraphState < other.GraphState
-	}
-	// if key.PathSatisfication.valid {
-	// 	if !other.PathSatisfication.valid {
-	// 		return true
-	// 	}
-	// 	if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
-	// 		return key.PathSatisfication.Classification < other.PathSatisfication.Classification
-	// 	}
-	// 	return key.Edge.Less(other.Edge)
-	// }
-	if key.Edge != (construct.SimpleEdge{}) {
-		if other.Edge == (construct.SimpleEdge{}) {
-			return true
+
+	case keyTypePathExpand:
+		if key.PathSatisfication.Classification != other.PathSatisfication.Classification {
+			return key.PathSatisfication.Classification < other.PathSatisfication.Classification
 		}
 		return key.Edge.Less(other.Edge)
-	}
-	if key.Internal != "" {
-		if other.Internal == "" {
-			return true
-		}
-		return key.Internal < other.Internal
 	}
 	// Empty key, put that last, though it should never happen
 	return false

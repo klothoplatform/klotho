@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -20,14 +21,19 @@ import (
 var seenFiles = make(set.Set[string])
 
 func writeGraph(input ExpansionInput, working, result construct.Graph) {
-	err := os.Mkdir("selection", 0755)
+	dir := "selection"
+	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
+		dir = filepath.Join(debugDir, "selection")
+	}
+	err := os.MkdirAll(dir, 0755)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		zap.S().Warnf("Could not create folder for selection diagram: %v", err)
 		return
 	}
 
-	fprefix := fmt.Sprintf("selection/%s-%s", input.Dep.Source.ID, input.Dep.Target.ID)
+	fprefix := fmt.Sprintf("%s-%s", input.Dep.Source.ID, input.Dep.Target.ID)
 	fprefix = strings.ReplaceAll(fprefix, ":", "_") // some filesystems (NTFS) don't like colons in filenames
+	fprefix = filepath.Join(dir, fprefix)
 
 	f, err := os.OpenFile(fprefix+".gv", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {

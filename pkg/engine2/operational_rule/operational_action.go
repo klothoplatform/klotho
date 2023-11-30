@@ -120,6 +120,24 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 func (action *operationalResourceAction) useAvailableResources(resource *construct.Resource) error {
 	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
 	availableResources := make(set.Set[*construct.Resource])
+
+	var err error
+	var directDeps, oppositeDeps map[construct.ResourceId]map[construct.ResourceId]construct.Edge
+	if action.Step.Direction == knowledgebase.DirectionDownstream {
+		var perr error
+		directDeps, err = action.ruleCtx.Solution.DataflowGraph().AdjacencyMap()
+		oppositeDeps, perr = action.ruleCtx.Solution.DataflowGraph().PredecessorMap()
+		err = errors.Join(err, perr)
+	} else {
+		var perr error
+		directDeps, err = action.ruleCtx.Solution.DataflowGraph().PredecessorMap()
+		oppositeDeps, perr = action.ruleCtx.Solution.DataflowGraph().AdjacencyMap()
+		err = errors.Join(err, perr)
+	}
+	if err != nil {
+		return err
+	}
+
 	// Next we will loop through and try to use available resources if the unique flag is not set
 	for _, resourceSelector := range action.Step.Resources {
 		ids, err := resourceSelector.ExtractResourceIds(configCtx, action.ruleCtx.Data)
@@ -193,11 +211,70 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				} else if err != nil {
 					return fmt.Errorf("error checking %s satisfies namespace: %w", resId, err)
 				}
-				availableResources.Add(res)
+
+				var edge construct.SimpleEdge
+				if action.Step.Direction == knowledgebase.DirectionDownstream {
+					edge = construct.SimpleEdge{Source: resource.ID, Target: res.ID}
+				} else {
+					edge = construct.SimpleEdge{Source: res.ID, Target: resource.ID}
+				}
+				// Check to see if the edge already exists, if it does, then we should be able to reuse the resource
+				_, err = action.ruleCtx.Solution.RawView().Edge(edge.Source, edge.Target)
+				if err == nil {
+					availableResources.Add(res)
+					continue
+				} else if !errors.Is(err, graph.ErrEdgeNotFound) {
+					return err
+				}
+				edgeTmpl := action.ruleCtx.Solution.KnowledgeBase().GetEdgeTemplate(edge.Source, edge.Target)
+				if edgeTmpl == nil {
+					continue
+				}
+				if edgeTmpl.Unique == (knowledgebase.Unique{}) {
+					// many-to-many is okay
+					availableResources.Add(res)
+					continue
+				}
+				switch action.Step.Direction {
+				case knowledgebase.DirectionDownstream:
+					if !edgeTmpl.Unique.Target {
+						// one-to-many is okay
+						availableResources.Add(res)
+						continue
+					}
+
+				case knowledgebase.DirectionUpstream:
+					if !edgeTmpl.Unique.Source {
+						// many-to-one are okay
+						availableResources.Add(res)
+						continue
+					}
+				}
+
+				// is unique, check to see if we already have one
+				// this works for both up/downstream because `directDeps` is the correct direction
+				hasType := false
+				for d := range directDeps[resource.ID] {
+					if d.QualifiedTypeName() == res.ID.QualifiedTypeName() {
+						hasType = true
+						break
+					}
+				}
+				if !hasType {
+					for d := range oppositeDeps[res.ID] {
+						if d.QualifiedTypeName() == resource.ID.QualifiedTypeName() {
+							hasType = true
+							break
+						}
+					}
+				}
+				if !hasType {
+					availableResources.Add(res)
+				}
 			}
 		}
 	}
-	err := action.placeResources(resource, availableResources)
+	err = action.placeResources(resource, availableResources)
 	if err != nil {
 		return fmt.Errorf("error during operational resource action while placing resources: %w", err)
 	}
