@@ -1,0 +1,26 @@
+provider: aws
+resources:
+  lambda_function/lambda_function_1:
+    children: aws:ecr_image:lambda_function_1-image,aws:iam_role:lambda_function_1-ExecutionRole,aws:log_group:lambda_function_1-log-group
+
+
+  lambda_function/lambda_function_0:
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:lambda_function_0-log-group
+
+
+  rest_api/rest_api_1:
+
+  aws:api_integration:rest_api_1/integ1:
+    parent: rest_api/rest_api_1
+
+  aws:api_integration:rest_api_1/integ1 -> lambda_function/lambda_function_1:
+    path: aws:lambda_permission:integ1-lambda_function_1
+
+
+  aws:api_integration:rest_api_1/integ0:
+    parent: rest_api/rest_api_1
+
+  aws:api_integration:rest_api_1/integ0 -> lambda_function/lambda_function_0:
+    path: aws:lambda_permission:integ0-lambda_function_0
+
+

@@ -28,9 +28,15 @@ func attributes(result construct.Graph, id construct.ResourceId, props graph.Ver
 		a["label"] = id.String()
 		a["shape"] = "box"
 	}
-	if name := props.Attributes["new_name"]; name != "" {
-		// vertex is a renamed phantom
+	if newidstr := props.Attributes["new_id"]; newidstr != "" {
+		// vertex is a renamed node
 		a["style"] = "dashed"
+		newid := id
+		_ = newid.UnmarshalText([]byte(newidstr))
+		name := newid.Name
+		if newid.Namespace != "" {
+			name = fmt.Sprintf("%s:%s", newid.Namespace, name)
+		}
 		a["label"] = fmt.Sprintf(`%s\n:%s`, id.QualifiedTypeName(), name)
 	}
 	if _, err := result.Vertex(id); err == nil {
@@ -64,8 +70,8 @@ func graphToDOTCluster(class string, working, result construct.Graph, out io.Wri
 	fixId := func(id construct.ResourceId) construct.ResourceId {
 		_, tProps, _ := working.VertexWithProperties(id)
 		if tProps.Attributes != nil {
-			if name := tProps.Attributes["new_name"]; name != "" {
-				id.Name = name
+			if newid := tProps.Attributes["new_id"]; newid != "" {
+				errs = errors.Join(errs, id.UnmarshalText([]byte(newid)))
 			}
 		}
 		return id

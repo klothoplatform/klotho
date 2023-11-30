@@ -1,0 +1,17 @@
+provider: aws
+resources:
+  lambda_function/lambda_function_0:
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:lambda_function_0-log-group
+
+
+  rest_api/rest_api_1:
+
+  dynamodb_table/dynamodb_table_3:
+
+  aws:api_integration:rest_api_1/rest_api_1_integration_0:
+    parent: rest_api/rest_api_1
+
+  aws:api_integration:rest_api_1/rest_api_1_integration_0 -> lambda_function/lambda_function_0:
+    path: aws:lambda_permission:rest_api_1_integration_0_lambda_function_0
+
+

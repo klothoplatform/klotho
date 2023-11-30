@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/dominikbraun/graph"
@@ -38,6 +39,9 @@ func PrintGraph(g Graph) {
 }
 
 func (eval *Evaluator) writeGraph(prefix string) {
+	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
+		prefix = filepath.Join(debugDir, prefix)
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {

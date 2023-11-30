@@ -1,0 +1,48 @@
+constraints:
+  - node: aws:rest_api:rest_api_1
+    operator: add
+    scope: application
+  # lambda 0
+  - node: aws:lambda_function:lambda_function_0
+    operator: add
+    scope: application
+  - node: aws:api_integration:rest_api_1:integ0
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:rest_api:rest_api_1
+      target: aws:api_integration:rest_api_1:integ0
+  - operator: equals
+    property: Route
+    scope: resource
+    target: aws:api_integration:rest_api_1:integ0
+    value: /lambda0/api
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:api_integration:rest_api_1:integ0
+      target: aws:lambda_function:lambda_function_0
+  # lambda 1
+  - node: aws:lambda_function:lambda_function_1
+    operator: add
+    scope: application
+  - node: aws:api_integration:rest_api_1:integ1
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:rest_api:rest_api_1
+      target: aws:api_integration:rest_api_1:integ1
+  - operator: equals
+    property: Route
+    scope: resource
+    target: aws:api_integration:rest_api_1:integ1
+    value: /lambda1/api
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:api_integration:rest_api_1:integ1
+      target: aws:lambda_function:lambda_function_1

@@ -9,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -76,28 +77,34 @@ func expandEdge(
 		return nil, errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
 	}
 
-	name := fmt.Sprintf("%s_%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
+	name := fmt.Sprintf("%s-%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
 	// rename phantom nodes
-	result := make([]construct.ResourceId, len(path))
+	result := make(construct.Path, len(path))
 	for i, id := range path {
 		if strings.HasPrefix(id.Name, PHANTOM_PREFIX) {
+			oldId := id
 			id.Name = name
-			if node, err := ctx.RawView().Vertex(id); err == nil && node != nil {
-				name = fmt.Sprintf("%s_%s-2", name, id.Name)
-				id.Name = name
+			for suffix := 0; suffix < 1000; suffix++ {
+				_, err := ctx.RawView().Vertex(id)
+				if err != nil && errors.Is(err, graph.ErrVertexNotFound) {
+					break
+				} else if err != nil {
+					return nil, err
+				}
+				id.Name = fmt.Sprintf("%s-%d", name, suffix)
 			}
-			_, props, err := input.TempGraph.VertexWithProperties(id)
+			_, props, err := input.TempGraph.VertexWithProperties(oldId)
 			if err == nil && props.Attributes != nil {
-				props.Attributes["new_name"] = name
+				props.Attributes["new_id"] = id.String()
 			}
 		}
 		result[i] = id
 	}
-	resultResources, errs := addResourceListToGraph(ctx, g, result)
+	resultResources, errs := addPathToGraph(ctx, g, result)
 	if errs != nil {
 		return nil, errors.Join(errs, err)
 	}
-	errs = errors.Join(errs, handleProperties(ctx, resultResources, g))
+	errs = errors.Join(errs, handleProperties(ctx, resultResources, input.TempGraph, g))
 	edges, err := findSubExpansionsToRun(resultResources, ctx)
 	return edges, errors.Join(errs, err)
 }
@@ -173,6 +180,7 @@ func findSubExpansionsToRun(
 func handleProperties(
 	ctx solution_context.SolutionContext,
 	resultResources []*construct.Resource,
+	tempGraph construct.Graph,
 	g construct.Graph,
 ) error {
 	var errs error
@@ -201,40 +209,46 @@ func handleProperties(
 				for _, selector := range step.Resources {
 					if step.Direction == knowledgebase.DirectionDownstream && i < len(resultResources)-1 {
 						downstreamRes := resultResources[i+1]
-						if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
-							knowledgebase.DynamicValueData{Resource: res.ID}, downstreamRes); canUse && err == nil {
+						canUse, err := selector.CanUse(
+							solution_context.DynamicCtx(ctx),
+							knowledgebase.DynamicValueData{Resource: res.ID},
+							downstreamRes,
+						)
+						if canUse && err == nil {
 							err = opRuleCtx.SetField(res, downstreamRes, step)
 							if err != nil {
 								errs = errors.Join(errs, err)
 							}
 							if prop.Namespace && exists != nil {
-								err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
-								if err != nil {
-									errs = errors.Join(errs, err)
-								}
+								errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), oldId))
 							}
 						}
 					} else if i > 0 {
 						upstreamRes := resultResources[i-1]
-						if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
-							knowledgebase.DynamicValueData{Resource: res.ID}, upstreamRes); canUse && err == nil {
+						canUse, err := selector.CanUse(
+							solution_context.DynamicCtx(ctx),
+							knowledgebase.DynamicValueData{Resource: res.ID},
+							upstreamRes,
+						)
+						if canUse && err == nil {
 							err = opRuleCtx.SetField(res, upstreamRes, step)
 							if err != nil {
 								errs = errors.Join(errs, err)
 							}
 							if prop.Namespace && exists != nil {
-								err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
-								if err != nil {
-									errs = errors.Join(errs, err)
-								}
+								errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), id))
 							}
 						}
 
 					}
 				}
 			}
-			if prop.Namespace && oldId.Namespace != res.ID.Namespace {
-				errs = errors.Join(errs, construct.ReplaceResource(g, oldId, res))
+			if prop.Namespace && oldId != res.ID {
+				errs = errors.Join(errs, graph_addons.ReplaceVertex(g, oldId, res, construct.ResourceHasher))
+				_, props, err := tempGraph.VertexWithProperties(oldId)
+				if err == nil && props.Attributes != nil {
+					props.Attributes["new_id"] = res.ID.String()
+				}
 			}
 			return nil
 		}
@@ -488,14 +502,14 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 	return
 }
 
-func addResourceListToGraph(ctx solution_context.SolutionContext, g construct.Graph, resources []construct.ResourceId) (
+func addPathToGraph(ctx solution_context.SolutionContext, g construct.Graph, path construct.Path) (
 	[]*construct.Resource,
 	error,
 ) {
 	var result []*construct.Resource
 	var errs error
 	var prevRes construct.ResourceId
-	for i, resource := range resources {
+	for i, resource := range path {
 		r, err := ctx.RawView().Vertex(resource)
 		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 			errs = errors.Join(errs, err)

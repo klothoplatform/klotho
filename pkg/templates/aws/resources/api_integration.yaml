@@ -15,7 +15,7 @@ properties:
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
-      if: | 
+      if: |
         {{ ne (fieldValue "Route" .Self) "/" }}
       steps:
         - direction: upstream
@@ -31,6 +31,9 @@ properties:
         - direction: upstream
           resources:
             - selector: aws:api_method
+              properties:
+                RestApi: '{{ fieldValue "RestApi" .Self }}'
+                Resource: '{{ fieldValue "Resource" .Self }}'
   RequestParameters:
     type: map(string,string)
     operational_rule:

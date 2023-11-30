@@ -1,0 +1,171 @@
+resources:
+    aws:api_stage:rest_api_1:api_stage-0:
+        Deployment: aws:api_deployment:rest_api_1:api_deployment-0
+        RestApi: aws:rest_api:rest_api_1
+        StageName: stage
+    aws:api_deployment:rest_api_1:api_deployment-0:
+        RestApi: aws:rest_api:rest_api_1
+        Triggers:
+            api_method-0: api_method-0
+            api_method-1: api_method-1
+            integ0: integ0
+            integ1: integ1
+    aws:rest_api:rest_api_1:
+        BinaryMediaTypes:
+            - application/octet-stream
+            - image/*
+        Stages:
+            - aws:api_stage:rest_api_1:api_stage-0
+    aws:api_resource:rest_api_1:lambda0:
+        FullPath: /lambda0
+        PathPart: lambda0
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_resource:rest_api_1:lambda1:
+        FullPath: /lambda1
+        PathPart: lambda1
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_resource:rest_api_1:api_resource-0:
+        FullPath: /lambda0/api
+        ParentResource: aws:api_resource:rest_api_1:lambda0
+        PathPart: api
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_resource:rest_api_1:api_resource-1:
+        FullPath: /lambda1/api
+        ParentResource: aws:api_resource:rest_api_1:lambda1
+        PathPart: api
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_method:rest_api_1:api_method-0:
+        Authorization: NONE
+        HttpMethod: ANY
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_1:api_resource-0
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_method:rest_api_1:api_method-1:
+        Authorization: NONE
+        HttpMethod: ANY
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_1:api_resource-1
+        RestApi: aws:rest_api:rest_api_1
+    aws:api_integration:rest_api_1:integ0:
+        IntegrationHttpMethod: POST
+        Method: aws:api_method:rest_api_1:api_method-0
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_1:api_resource-0
+        RestApi: aws:rest_api:rest_api_1
+        Route: /lambda0/api
+        Target: aws:lambda_function:lambda_function_0
+        Type: AWS_PROXY
+        Uri: aws:lambda_function:lambda_function_0#LambdaIntegrationUri
+    aws:api_integration:rest_api_1:integ1:
+        IntegrationHttpMethod: POST
+        Method: aws:api_method:rest_api_1:api_method-1
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_1:api_resource-1
+        RestApi: aws:rest_api:rest_api_1
+        Route: /lambda1/api
+        Target: aws:lambda_function:lambda_function_1
+        Type: AWS_PROXY
+        Uri: aws:lambda_function:lambda_function_1#LambdaIntegrationUri
+    aws:lambda_permission:integ0-lambda_function_0:
+        Action: lambda:InvokeFunction
+        Function: aws:lambda_function:lambda_function_0
+        Principal: apigateway.amazonaws.com
+        Source: aws:rest_api:rest_api_1#ChildResources
+    aws:lambda_permission:integ1-lambda_function_1:
+        Action: lambda:InvokeFunction
+        Function: aws:lambda_function:lambda_function_1
+        Principal: apigateway.amazonaws.com
+        Source: aws:rest_api:rest_api_1#ChildResources
+    aws:lambda_function:lambda_function_0:
+        ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
+        Image: aws:ecr_image:lambda_function_0-image
+        LogGroup: aws:log_group:lambda_function_0-log-group
+        MemorySize: 512
+        Timeout: 180
+    aws:lambda_function:lambda_function_1:
+        ExecutionRole: aws:iam_role:lambda_function_1-ExecutionRole
+        Image: aws:ecr_image:lambda_function_1-image
+        LogGroup: aws:log_group:lambda_function_1-log-group
+        MemorySize: 512
+        Timeout: 180
+    aws:ecr_image:lambda_function_0-image:
+        Context: .
+        Dockerfile: lambda_function_0-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function_0-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:ecr_image:lambda_function_1-image:
+        Context: .
+        Dockerfile: lambda_function_1-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function_1-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    aws:log_group:lambda_function_0-log-group:
+        LogGroupName: /aws/lambda/lambda_function_0
+        RetentionInDays: 5
+    aws:ecr_repo:ecr_repo-0:
+        ForceDelete: true
+    aws:log_group:lambda_function_1-log-group:
+        LogGroupName: /aws/lambda/lambda_function_1
+        RetentionInDays: 5
+edges:
+    aws:api_stage:rest_api_1:api_stage-0 -> aws:api_deployment:rest_api_1:api_deployment-0:
+    aws:api_stage:rest_api_1:api_stage-0 -> aws:rest_api:rest_api_1:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_integration:rest_api_1:integ0:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_integration:rest_api_1:integ1:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:api_method-0:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:api_method-1:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:rest_api:rest_api_1:
+    aws:rest_api:rest_api_1 -> aws:api_integration:rest_api_1:integ0:
+    aws:rest_api:rest_api_1 -> aws:api_integration:rest_api_1:integ1:
+    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:api_method-0:
+    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:api_method-1:
+    aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:api_resource-0:
+    aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:api_resource-1:
+    aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:lambda0:
+    aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:lambda1:
+    aws:api_resource:rest_api_1:lambda0 -> aws:api_resource:rest_api_1:api_resource-0:
+    aws:api_resource:rest_api_1:lambda1 -> aws:api_resource:rest_api_1:api_resource-1:
+    aws:api_resource:rest_api_1:api_resource-0 -> aws:api_integration:rest_api_1:integ0:
+    aws:api_resource:rest_api_1:api_resource-0 -> aws:api_method:rest_api_1:api_method-0:
+    aws:api_resource:rest_api_1:api_resource-1 -> aws:api_integration:rest_api_1:integ1:
+    aws:api_resource:rest_api_1:api_resource-1 -> aws:api_method:rest_api_1:api_method-1:
+    aws:api_method:rest_api_1:api_method-0 -> aws:api_integration:rest_api_1:integ0:
+    aws:api_method:rest_api_1:api_method-1 -> aws:api_integration:rest_api_1:integ1:
+    aws:api_integration:rest_api_1:integ0 -> aws:lambda_permission:integ0-lambda_function_0:
+    aws:api_integration:rest_api_1:integ1 -> aws:lambda_permission:integ1-lambda_function_1:
+    aws:lambda_permission:integ0-lambda_function_0 -> aws:lambda_function:lambda_function_0:
+    aws:lambda_permission:integ1-lambda_function_1 -> aws:lambda_function:lambda_function_1:
+    aws:lambda_function:lambda_function_0 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:lambda_function:lambda_function_0 -> aws:ecr_image:lambda_function_0-image:
+    aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole:
+    aws:lambda_function:lambda_function_1 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:lambda_function:lambda_function_1 -> aws:ecr_image:lambda_function_1-image:
+    aws:lambda_function:lambda_function_1 -> aws:iam_role:lambda_function_1-ExecutionRole:
+    aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:lambda_function_0-log-group:
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_0-log-group:
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_1-log-group:
+    aws:ecr_image:lambda_function_1-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function_1-ExecutionRole -> aws:log_group:lambda_function_1-log-group:
