@@ -270,11 +270,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 					continue
 				}
 			}
-			if p.IsPropertyTypeScalar() {
-				return true, errors.Join(errs, currRes.SetProperty(property, downstream))
-			} else {
-				return true, errors.Join(errs, currRes.AppendProperty(property, downstream))
-			}
+			return true, errors.Join(errs, p.AppendProperty(currRes, downstream))
 		}
 		return false, errs
 	}

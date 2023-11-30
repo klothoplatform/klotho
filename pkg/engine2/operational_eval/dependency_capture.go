@@ -165,11 +165,39 @@ func (ctx *fauxConfigContext) ExecuteOpRule(
 		exec(opRule.If)
 	}
 	for _, step := range opRule.Steps {
-		for _, stepRes := range step.Resources {
-			exec(stepRes.Selector)
-			for _, propValue := range stepRes.Properties {
-				exec(propValue)
-			}
+		errs = errors.Join(errs, ctx.executeOpStep(data, step))
+	}
+	return errs
+}
+
+func (ctx *fauxConfigContext) ExecutePropertyRule(
+	data knowledgebase.DynamicValueData,
+	propRule knowledgebase.PropertyRule,
+) error {
+	var errs error
+	exec := func(v any) {
+		errs = errors.Join(errs, ctx.Execute(v, data))
+	}
+	exec(propRule.If)
+	if propRule.Value != nil {
+		ctx.ExecuteValue(propRule.Value, data)
+	}
+	errs = errors.Join(errs, ctx.executeOpStep(data, propRule.Step))
+	return errs
+}
+
+func (ctx *fauxConfigContext) executeOpStep(
+	data knowledgebase.DynamicValueData,
+	step knowledgebase.OperationalStep,
+) error {
+	var errs error
+	exec := func(v any) {
+		errs = errors.Join(errs, ctx.Execute(v, data))
+	}
+	for _, stepRes := range step.Resources {
+		exec(stepRes.Selector)
+		for _, propValue := range stepRes.Properties {
+			exec(propValue)
 		}
 	}
 	return errs
@@ -251,14 +279,7 @@ func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, err
 	if prop == nil {
 		return nil, fmt.Errorf("could not find property %s on template %s", property, tmpl.Id())
 	}
-	ptype, err := prop.PropertyType()
-	if err != nil {
-		return nil, fmt.Errorf(
-			"could not get property type for property %s on template %s: %w",
-			property, tmpl.Id(), err,
-		)
-	}
-	return ptype.ZeroValue(), nil
+	return prop.ZeroValue(), nil
 }
 
 func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {

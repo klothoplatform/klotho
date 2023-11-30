@@ -39,7 +39,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	var ids []construct.ResourceId
 	if ctx.Property != nil {
 		var err error
-		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Path)
+		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Details().Path)
 		if err != nil {
 			return err
 		}
@@ -254,65 +254,68 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 	if step.UsePropertyRef != "" {
 		propertyValue = construct.PropertyRef{Resource: fieldResource.ID, Property: step.UsePropertyRef}
 	}
+	path := ctx.Property.Details().Path
 
-	if ctx.Property.IsPropertyTypeScalar() {
-		res, err := resource.GetProperty(ctx.Property.Path)
+	removeResource := func(currResId construct.ResourceId) error {
+		err := ctx.removeDependencyForDirection(step.Direction, resource.ID, currResId)
 		if err != nil {
-			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
+			return err
 		}
-		// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
-		if currResId, ok := res.(construct.ResourceId); ok && !currResId.IsZero() {
-			if res != fieldResource.ID {
-				err = ctx.removeDependencyForDirection(step.Direction, resource.ID, currResId)
-				if err != nil {
-					return err
-				}
-				zap.S().Infof("Removing old field value for '%s' (%s) for %s", ctx.Property.Path, res, fieldResource.ID)
-				// Remove the old field value if it's unused
-				err = reconciler.RemoveResource(ctx.Solution, currResId, false)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err = resource.SetProperty(ctx.Property.Path, propertyValue)
+		zap.S().Infof("Removing old field value for '%s' (%s) for %s", path, currResId, fieldResource.ID)
+		// Remove the old field value if it's unused
+		err = reconciler.RemoveResource(ctx.Solution, currResId, false)
 		if err != nil {
-			return fmt.Errorf("error setting field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
+			return err
 		}
-		zap.S().Debugf("set field %s#%s to %s", resource.ID, ctx.Property.Path, fieldResource.ID)
-		// See if we need to namespace the resource due to setting the property
-		if ctx.Property.Namespace {
-			resource.ID.Namespace = fieldResource.ID.Name
-		}
-	} else {
-		// First lets check if the array already contains the id. if it does we dont want to append it
-		res, err := resource.GetProperty(ctx.Property.Path)
-		if err != nil {
-			zap.S().Debugf("property %s not found on resource %s", ctx.Property.Path, resource.ID)
-		}
-		resVal := reflect.ValueOf(res)
-		if resVal.IsValid() && (resVal.Kind() == reflect.Slice || resVal.Kind() == reflect.Array) {
-			// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
-			for i := 0; i < resVal.Len(); i++ {
-				currResId, ok := resVal.Index(i).Interface().(construct.ResourceId)
-				if !ok {
-					continue
-				}
-				if !currResId.IsZero() && currResId == fieldResource.ID {
-					return nil
-				}
-			}
-		}
-		// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
-		err = resource.AppendProperty(ctx.Property.Path, propertyValue)
-		if err != nil {
-			return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, ctx.Property.Path, fieldResource.ID, err)
-		}
-		zap.S().Infof("appended field %s#%s with %s", resource.ID, ctx.Property.Path, fieldResource.ID)
+		return nil
 	}
 
+	removeCurrentValue := func(res any) error {
+		switch val := res.(type) {
+		case construct.ResourceId:
+			if val != fieldResource.ID {
+				return removeResource(val)
+			}
+		case construct.PropertyRef:
+			if val.Resource != fieldResource.ID {
+				return removeResource(val.Resource)
+			}
+		}
+		return nil
+	}
+
+	propVal, err := resource.GetProperty(path)
+	if err != nil {
+		zap.S().Debugf("property %s not found on resource %s", path, resource.ID)
+	}
+	err = removeCurrentValue(propVal)
+	if err != nil {
+		return err
+	}
+	resVal := reflect.ValueOf(propVal)
+	if resVal.IsValid() && (resVal.Kind() == reflect.Slice || resVal.Kind() == reflect.Array) {
+		// If the current field is a resource id we will compare it against the one passed in to see if we need to remove the current resource
+		for i := 0; i < resVal.Len(); i++ {
+			currResId, ok := resVal.Index(i).Interface().(construct.ResourceId)
+			if !ok {
+				continue
+			}
+			if !currResId.IsZero() && currResId == fieldResource.ID {
+				return nil
+			}
+		}
+	}
+	// Right now we only enforce the top level properties if they have rules, so we can assume the path is equal to the name of the property
+	err = ctx.Property.AppendProperty(resource, propertyValue)
+	if err != nil {
+		return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, path, fieldResource.ID, err)
+	}
+	zap.S().Infof("appended field %s#%s with %s", resource.ID, path, fieldResource.ID)
+	if ctx.Property.Details().Namespace {
+		resource.ID.Namespace = fieldResource.ID.Name
+	}
+
+	// updated the rule context ids if they have changed
 	if ctx.Data.Resource.Matches(oldId) {
 		ctx.Data.Resource = resource.ID
 	}

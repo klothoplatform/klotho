@@ -145,9 +145,9 @@ func (eval *Evaluator) resourceVertices(
 	changes := newChanges()
 	var errs error
 
-	addProp := func(prop *knowledgebase.Property) error {
+	addProp := func(prop knowledgebase.Property) error {
 		vertex := &propertyVertex{
-			Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Path},
+			Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Details().Path},
 			Template:  prop,
 			EdgeRules: make(map[construct.SimpleEdge][]knowledgebase.OperationalRule),
 		}

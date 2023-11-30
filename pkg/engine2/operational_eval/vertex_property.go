@@ -16,7 +16,7 @@ type (
 	propertyVertex struct {
 		Ref construct.PropertyRef
 
-		Template  *knowledgebase.Property
+		Template  knowledgebase.Property
 		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
 	}
 )
@@ -35,21 +35,21 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
-		propCtx.ExecuteValue(prop.Template.DefaultValue, resData)
-
-		if opRule := prop.Template.OperationalRule; opRule != nil {
-			if err := propCtx.ExecuteOpRule(resData, *opRule); err != nil {
+		prop.Template.GetDefaultValue(propCtx.inner, resData)
+		details := prop.Template.Details()
+		if opRule := details.OperationalRule; opRule != nil {
+			if err := propCtx.ExecutePropertyRule(resData, *opRule); err != nil {
 				return changes, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 
-		if !prop.Template.Namespace {
+		if !details.Namespace {
 			tmpl, err := kb.GetResourceTemplate(prop.Ref.Resource)
 			if err != nil {
 				return changes, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
 			}
 			for propKey, propTmpl := range tmpl.Properties {
-				if propTmpl.Namespace {
+				if propTmpl.Details().Namespace {
 					nsRef := construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey}
 					propCtx.addRef(nsRef)
 				}
@@ -130,8 +130,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
 		return err
 	}
-
-	if strings.HasPrefix(v.Template.Type, "list") || strings.HasPrefix(v.Template.Type, "set") {
+	propertyType := v.Template.Type()
+	if strings.HasPrefix(propertyType, "list") || strings.HasPrefix(propertyType, "set") {
 		// If we have modified a list or set we want to re add the resource to be evaluated
 		// so the nested fields are ensured to be set if required
 		return eval.AddResources(res)
@@ -160,11 +160,16 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 		return fmt.Errorf("could not get current value for %s: %w", v.Ref, err)
 	}
 
-	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && v.Template.DefaultValue != nil {
+	ctx := solution_context.DynamicCtx(sol)
+	defaultVal, err := v.Template.GetDefaultValue(ctx, dynData)
+	if err != nil {
+		return fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
+	}
+	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && defaultVal != nil {
 		err = solution_context.ConfigureResource(
 			sol,
 			res,
-			knowledgebase.Configuration{Field: v.Ref.Property, Value: v.Template.DefaultValue},
+			knowledgebase.Configuration{Field: v.Ref.Property, Value: defaultVal},
 			dynData,
 			"set",
 		)
@@ -181,12 +186,6 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 		property := resTemplate.GetProperty(v.Ref.Property)
 		if property == nil {
 			return fmt.Errorf("could not get property %s from resource %s", v.Ref.Property, res.ID)
-		}
-		switch setConstraint.Operator {
-		case constraints.AddConstraintOperator, constraints.RemoveConstraintOperator:
-			if property.IsPropertyTypeScalar() {
-				return fmt.Errorf("cannot add/remove to scalar property %s", v.Ref)
-			}
 		}
 		err = solution_context.ConfigureResource(
 			sol,
@@ -228,7 +227,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 }
 
 func (v *propertyVertex) evaluateResourceOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
-	if v.Template == nil || v.Template.OperationalRule == nil {
+	if v.Template == nil || v.Template.Details().OperationalRule == nil {
 		return nil
 	}
 
@@ -238,7 +237,7 @@ func (v *propertyVertex) evaluateResourceOperational(sol solution_context.Soluti
 		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 	}
 
-	err := opCtx.HandleOperationalRule(*v.Template.OperationalRule)
+	err := opCtx.HandlePropertyRule(*v.Template.Details().OperationalRule)
 	if err != nil {
 		return fmt.Errorf("could not apply operational rule for %s: %w", v.Ref, err)
 	}
@@ -282,21 +281,26 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		// wait until we have a template
 		return NotReadyMax, nil
 	}
-	if v.Template.OperationalRule != nil {
+	if v.Template.Details().OperationalRule != nil {
 		// operational rules should run as soon as possible to create any resources they need
 		return ReadyNow, nil
 	}
-	if strings.Contains(v.Template.Type, "list") || strings.Contains(v.Template.Type, "set") {
+	ptype := v.Template.Type()
+	if strings.Contains(ptype, "list") || strings.Contains(ptype, "set") {
 		// never sure when a list/set is ready - it'll just be appended to by edges through
 		// `v.EdgeRules`
 		return NotReadyHigh, nil
 	}
-	if strings.Contains(v.Template.Type, "map") && len(v.Template.Properties) == 0 {
+	if strings.Contains(ptype, "map") && len(v.Template.SubProperties()) == 0 {
 		// maps without sub-properties (ie, not objects) are also appended to by edges
 		return NotReadyHigh, nil
 	}
 	// properties that have values set via edge rules dont' have default values
-	if v.Template.DefaultValue != nil {
+	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution), knowledgebase.DynamicValueData{Resource: v.Ref.Resource})
+	if err != nil {
+		return NotReadyMid, fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
+	}
+	if defaultVal != nil {
 		return ReadyNow, nil
 	}
 	// for non-list/set types, once an edge is here to set the value, it can be run

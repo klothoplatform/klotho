@@ -194,7 +194,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 						if err != nil {
 							return err
 						}
-						if tmpl.GetProperty(k).Namespace {
+						if tmpl.GetProperty(k).Details().Namespace {
 							oldId := res.ID
 							res.ID.Namespace = resource.ID.Namespace
 							err := action.ruleCtx.Solution.OperationalView().UpdateResourceID(oldId, res.ID)
