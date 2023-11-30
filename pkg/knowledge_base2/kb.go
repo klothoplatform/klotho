@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"text/template"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -32,7 +33,7 @@ type (
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
 	KnowledgeBase struct {
 		underlying graph.Graph[string, *ResourceTemplate]
-		models     map[string]*Model
+		Models     map[string]*Model
 	}
 
 	EdgePathSatisfaction struct {
@@ -41,6 +42,11 @@ type (
 		Classification string
 		Source         PathSatisfactionRoute
 		Target         PathSatisfactionRoute
+	}
+
+	ValueOrTemplate struct {
+		Value    any
+		Template *template.Template
 	}
 )
 
@@ -59,7 +65,7 @@ func NewKB() *KnowledgeBase {
 }
 
 func (kb *KnowledgeBase) GetModel(model string) *Model {
-	return kb.models[model]
+	return kb.Models[model]
 }
 
 // ListResources returns a list of all resources in the knowledge base
@@ -216,37 +222,34 @@ func (kb *KnowledgeBase) GetAllowedNamespacedResourceIds(ctx DynamicValueContext
 	if property == nil {
 		return result, nil
 	}
-	rule := property.OperationalRule
+	rule := property.Details().OperationalRule
 	if rule == nil {
 		return result, nil
 	}
-	for _, step := range rule.Steps {
-		if step.Resources != nil {
-			for _, resource := range step.Resources {
-				if resource.Selector != "" {
-					id, err := ExecuteDecodeAsResourceId(ctx, resource.Selector, DynamicValueData{Resource: resourceId})
-					if err != nil {
-						return nil, err
-					}
-					template, err := kb.GetResourceTemplate(id)
-					if err != nil {
-						return nil, err
-					}
-					if template.ResourceContainsClassifications(resource.Classifications) {
-						result = append(result, id)
-					}
+	if rule.Step.Resources != nil {
+		for _, resource := range rule.Step.Resources {
+			if resource.Selector != "" {
+				id, err := ExecuteDecodeAsResourceId(ctx, resource.Selector, DynamicValueData{Resource: resourceId})
+				if err != nil {
+					return nil, err
 				}
-				if resource.Classifications != nil && resource.Selector == "" {
-					for _, resTempalte := range kb.ListResources() {
-						if resTempalte.ResourceContainsClassifications(resource.Classifications) {
-							result = append(result, resTempalte.Id())
-						}
-					}
-
+				template, err := kb.GetResourceTemplate(id)
+				if err != nil {
+					return nil, err
+				}
+				if template.ResourceContainsClassifications(resource.Classifications) {
+					result = append(result, id)
 				}
 			}
-		}
+			if resource.Classifications != nil && resource.Selector == "" {
+				for _, resTempalte := range kb.ListResources() {
+					if resTempalte.ResourceContainsClassifications(resource.Classifications) {
+						result = append(result, resTempalte.Id())
+					}
+				}
 
+			}
+		}
 	}
 	return result, nil
 }
@@ -274,7 +277,7 @@ func (kb *KnowledgeBase) GetResourcesNamespaceResource(resource *construct.Resou
 	}
 	namespaceProperty := template.GetNamespacedProperty()
 	if namespaceProperty != nil {
-		ns, err := resource.GetProperty(namespaceProperty.Name)
+		ns, err := resource.GetProperty(namespaceProperty.Details().Name)
 		if err != nil {
 			return construct.ResourceId{}, err
 		}
@@ -295,8 +298,8 @@ func (kb *KnowledgeBase) GetResourcePropertyType(resource construct.ResourceId, 
 		return ""
 	}
 	for _, property := range template.Properties {
-		if property.Name == propertyName {
-			return property.Type
+		if property.Details().Name == propertyName {
+			return property.Type()
 		}
 	}
 	return ""
@@ -322,21 +325,14 @@ func TransformToPropertyValue(
 			propertyName, resource,
 		)
 	}
-	propertyType, err := property.PropertyType()
-	if err != nil {
-		return nil, fmt.Errorf(
-			"could not find property type %s on resource %s for property %s",
-			property.Type, resource, property.Name,
-		)
-	}
 	if value == nil {
-		return propertyType.ZeroValue(), nil
+		return property.ZeroValue(), nil
 	}
-	val, err := propertyType.Parse(value, ctx, data)
+	val, err := property.Parse(value, ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"could not parse value %v for property %s on resource %s: %w",
-			value, property.Name, resource, err,
+			value, property.Details().Name, resource, err,
 		)
 	}
 	return val, nil
@@ -363,8 +359,8 @@ resourceLoop:
 		}
 		data := DynamicValueData{Resource: resource.ID}
 
-		for _, prop := range tmpl.Properties {
-			path, err := resource.PropertyPath(prop.Name)
+		for name := range tmpl.Properties {
+			path, err := resource.PropertyPath(name)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
@@ -373,14 +369,14 @@ resourceLoop:
 			if preXform == nil {
 				continue
 			}
-			val, err := TransformToPropertyValue(resource.ID, prop.Name, preXform, ctx, data)
+			val, err := TransformToPropertyValue(resource.ID, name, preXform, ctx, data)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("error transforming %s#%s: %w", resource.ID, prop.Name, err))
+				errs = errors.Join(errs, fmt.Errorf("error transforming %s#%s: %w", resource.ID, name, err))
 				continue resourceLoop
 			}
 			err = path.Set(val)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("errors setting %s#%s: %w", resource.ID, prop.Name, err))
+				errs = errors.Join(errs, fmt.Errorf("errors setting %s#%s: %w", resource.ID, name, err))
 				continue resourceLoop
 			}
 		}

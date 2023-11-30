@@ -16,10 +16,16 @@ type (
 		ConfigurationRules []ConfigurationRule `json:"configuration_rules" yaml:"configuration_rules"`
 	}
 
+	EdgeRule struct {
+		If                 string                `json:"if" yaml:"if"`
+		Steps              []EdgeOperationalStep `json:"steps" yaml:"steps"`
+		ConfigurationRules []ConfigurationRule   `json:"configuration_rules" yaml:"configuration_rules"`
+	}
+
 	PropertyRule struct {
-		If    string          `json:"if" yaml:"if"`
-		Step  OperationalStep `json:"step" yaml:"step"`
-		Value any             `json:"value" yaml:"value"`
+		If    string           `json:"if" yaml:"if"`
+		Step  *OperationalStep `json:"step" yaml:"step"`
+		Value any              `json:"value" yaml:"value"`
 	}
 
 	EdgeOperationalStep struct {
@@ -29,6 +35,7 @@ type (
 
 	// OperationalRule defines a rule that must pass checks and actions which must be carried out to make a resource operational
 	OperationalStep struct {
+		Resource string `json:"resource" yaml:"resource"`
 		// Direction defines the direction of the rule. The direction options are upstream or downstream
 		Direction Direction `json:"direction" yaml:"direction"`
 		// Resources defines the resource types that the rule should be enforced on. Resource types must be specified if classifications is not specified

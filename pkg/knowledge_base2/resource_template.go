@@ -1,14 +1,10 @@
 package knowledgebase2
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
-	"text/template"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -38,43 +34,41 @@ type (
 
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
 
-		SanitizeNameTmpl string `yaml:"sanitize_name"`
+		SanitizeNameTmpl SanitizeTmpl `yaml:"sanitize_name"`
 	}
 
-	ResourceProperty interface {
-		Name() string
+	PropertyDetails struct {
+		Name string
+		// DefaultValue has to be any because it may be a template and it may be a value of the correct type
+		Namespace bool `yaml:"namespace"`
+		// Required defines if the property is required
+		Required bool
+		// ConfigurationDisabled defines if the property is allowed to be configured by the user
+		ConfigurationDisabled bool `json:"configuration_disabled" yaml:"configuration_disabled"`
+		// DeployTime defines if the property is only available at deploy time
+		DeployTime bool `json:"deploy_time" yaml:"deploy_time"`
+		// OperationalRule defines a rule that is executed at runtime to determine the value of the property
+		OperationalRule *PropertyRule `json:"operational_rule" yaml:"operational_rule"`
+		// Path is the path to the property in the resource
+		Path string `json:"-" yaml:"-"`
+	}
+
+	Property interface {
+		SetProperty(resource *construct.Resource, value any) error
+		AppendProperty(resource *construct.Resource, value any) error
+		RemoveProperty(resource *construct.Resource, value any) error
+		Details() *PropertyDetails
+		Clone() Property
 		Type() string
-		Required() bool
-		Validate(value any) error
-		Properties() map[string]ResourceProperty
+		GetDefaultValue(ctx DynamicValueContext, data DynamicValueData) (any, error)
+		Validate(value any, properties construct.Properties) error
+		SubProperties() map[string]Property
 		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
 		ZeroValue() any
 		Contains(value any, contains any) bool
 	}
 
-	Properties map[string]*Property
-
-	Property struct {
-		Name string `json:"name" yaml:"name"`
-		// Type defines the type of the property
-		Type string `json:"type" yaml:"type"`
-
-		Namespace bool `json:"namespace" yaml:"namespace"`
-
-		DefaultValue any `json:"default_value" yaml:"default_value"`
-
-		Required bool `json:"required" yaml:"required"`
-
-		ConfigurationDisabled bool `json:"configuration_disabled" yaml:"configuration_disabled"`
-
-		DeployTime bool `json:"deploy_time" yaml:"deploy_time"`
-
-		OperationalRule *PropertyRule `json:"operational_rule" yaml:"operational_rule"`
-
-		Properties map[string]*Property `json:"properties" yaml:"properties"`
-
-		Path string `json:"-" yaml:"-"`
-	}
+	Properties map[string]Property
 
 	Classification struct {
 		Is    []string `json:"is" yaml:"is"`
@@ -108,33 +102,6 @@ const (
 	Unknown   Functionality = "Unknown"
 )
 
-func (p *Properties) UnmarshalYAML(n *yaml.Node) error {
-	type h Properties
-	var p2 h
-	err := n.Decode(&p2)
-	if err != nil {
-		return err
-	}
-	for name, property := range p2 {
-		property.Name = name
-		property.Path = name
-		setChildPaths(property, name)
-		p2[name] = property
-	}
-	*p = Properties(p2)
-	return nil
-}
-
-func setChildPaths(property *Property, currPath string) {
-	for name, child := range property.Properties {
-		child.Name = name
-		path := currPath + "." + name
-		child.Path = path
-		setChildPaths(child, path)
-		property.Properties[name] = child
-	}
-}
-
 func (g *Gives) UnmarshalJSON(content []byte) error {
 	givesString := string(content)
 	if givesString == "" {
@@ -165,6 +132,14 @@ func (g *Gives) UnmarshalYAML(n *yaml.Node) error {
 	return nil
 }
 
+func (p *Properties) Clone() Properties {
+	newProps := make(Properties, len(*p))
+	for k, v := range *p {
+		newProps[k] = v.Clone()
+	}
+	return newProps
+}
+
 func (template ResourceTemplate) Id() construct.ResourceId {
 	args := strings.Split(template.QualifiedTypeName, ":")
 	return construct.ResourceId{
@@ -191,67 +166,8 @@ func CreateResource(kb TemplateKB, id construct.ResourceId) (*construct.Resource
 	}, nil
 }
 
-func SanitizeEdge(kb TemplateKB, e construct.SimpleEdge) (construct.SimpleEdge, error) {
-	sRT, err := kb.GetResourceTemplate(e.Source)
-	if err != nil {
-		return e, fmt.Errorf("could not get source resource template: %w", err)
-	}
-	tRT, err := kb.GetResourceTemplate(e.Target)
-	if err != nil {
-		return e, fmt.Errorf("could not get target resource template: %w", err)
-	}
-	e.Source.Name, err = sRT.SanitizeName(e.Source.Name)
-	if err != nil {
-		return e, fmt.Errorf("could not sanitize source name: %w", err)
-	}
-	e.Target.Name, err = tRT.SanitizeName(e.Target.Name)
-	if err != nil {
-		return e, fmt.Errorf("could not sanitize target name: %w", err)
-	}
-	return e, nil
-}
-
 func (rt ResourceTemplate) SanitizeName(name string) (string, error) {
-	if rt.SanitizeNameTmpl == "" {
-		return name, nil
-	}
-	nt, err := template.New(rt.QualifiedTypeName + "/sanitize_name").
-		Funcs(template.FuncMap{
-			"replace": func(pattern, replace, name string) (string, error) {
-				re, err := regexp.Compile(pattern)
-				if err != nil {
-					return name, err
-				}
-				return re.ReplaceAllString(name, replace), nil
-			},
-
-			"length": func(min, max int, name string) string {
-				if len(name) < min {
-					return name + strings.Repeat("0", min-len(name))
-				}
-				if len(name) > max {
-					base := name[:max-8]
-					h := sha256.New()
-					fmt.Fprint(h, name)
-					x := fmt.Sprintf("%x", h.Sum(nil))
-					return base + x[:8]
-				}
-				return name
-			},
-
-			"lower": strings.ToLower,
-			"upper": strings.ToUpper,
-		}).
-		Parse(rt.SanitizeNameTmpl)
-	if err != nil {
-		return name, fmt.Errorf("could not parse sanitize name template %q: %w", rt.SanitizeNameTmpl, err)
-	}
-	buf := new(bytes.Buffer)
-	err = nt.Execute(buf, name)
-	if err != nil {
-		return name, fmt.Errorf("could not execute sanitize name template on %q: %w", name, err)
-	}
-	return strings.TrimSpace(buf.String()), nil
+	return rt.SanitizeNameTmpl.Execute(name)
 }
 
 func (template ResourceTemplate) GivesAttributeForFunctionality(attribute string, functionality Functionality) bool {
@@ -304,52 +220,30 @@ func (template ResourceTemplate) ResourceContainsClassifications(needs []string)
 	return true
 }
 
-func (template ResourceTemplate) GetNamespacedProperty() *Property {
+func (template ResourceTemplate) GetNamespacedProperty() Property {
 	for _, property := range template.Properties {
-		if property.Namespace {
+		if property.Details().Namespace {
 			return property
 		}
 	}
 	return nil
 }
 
-func (template ResourceTemplate) GetProperty(name string) *Property {
-	fields := strings.Split(name, ".")
+func (template ResourceTemplate) GetProperty(path string) Property {
+	fields := strings.Split(path, ".")
 	properties := template.Properties
 	for i, field := range fields {
 		currFieldName := strings.Split(field, "[")[0]
 		found := false
 		for _, property := range properties {
-			if property.Name != currFieldName {
+			if property.Details().Name != currFieldName {
 				continue
 			}
 			found = true
 			if len(fields) == i+1 {
 				return property
 			} else {
-				pType, err := property.PropertyType()
-				if err != nil {
-					return nil
-				}
-				// If the property types are a list or map, without sub fields
-				//  we want to just return the property since we are setting an index or key of the end value
-				switch p := pType.(type) {
-				case *MapPropertyType:
-					if p.Value != "" {
-						return &Property{
-							Type: p.Value,
-							Path: name,
-						}
-					}
-				case *ListPropertyType:
-					if p.Value != "" {
-						return &Property{
-							Type: p.Value,
-							Path: name,
-						}
-					}
-				}
-				properties = property.Properties
+				properties = property.SubProperties()
 			}
 		}
 		if !found {
@@ -361,7 +255,16 @@ func (template ResourceTemplate) GetProperty(name string) *Property {
 
 var ErrStopWalk = errors.New("stop walk")
 
-func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp func(*Property) error) error {
+// ReplacePath runs a simple [strings.ReplaceAll] on the path of the property and all of its sub properties.
+// NOTE: this mutates the property, so make sure to [Property.Clone] it first if you don't want that.
+func ReplacePath(p Property, original, replacement string) {
+	p.Details().Path = strings.ReplaceAll(p.Details().Path, original, replacement)
+	for _, prop := range p.SubProperties() {
+		ReplacePath(prop, original, replacement)
+	}
+}
+
+func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp func(Property) error) error {
 	queue := []Properties{tmpl.Properties}
 	var props Properties
 	var errs error
@@ -377,34 +280,34 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 				continue
 			}
 
-			if strings.HasPrefix(prop.Type, "list") || strings.HasPrefix(prop.Type, "set") {
-				p, err := res.GetProperty(prop.Path)
+			if strings.HasPrefix(prop.Type(), "list") || strings.HasPrefix(prop.Type(), "set") {
+				p, err := res.GetProperty(prop.Details().Path)
 				if err != nil || p == nil {
 					continue
 				}
 				// Because lists/sets will start as empty, do not recurse into their sub-properties if its not set.
 				// To allow for defaults within list objects and operational rules to be run, we will look in the property
 				// to see if there are values.
-				if strings.HasPrefix(prop.Type, "list") {
+				if strings.HasPrefix(prop.Type(), "list") {
 					length := reflect.ValueOf(p).Len()
 					for i := 0; i < length; i++ {
 						subProperties := make(Properties)
-						for subK, subProp := range prop.Properties {
+						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%d]", prop.Path, i))
+							ReplacePath(prop, prop.Details().Path, fmt.Sprintf("%s[%d]", prop.Details().Path, i))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {
 							queue = append(queue, subProperties)
 						}
 					}
-				} else if strings.HasPrefix(prop.Type, "set") {
+				} else if strings.HasPrefix(prop.Type(), "set") {
 					hs := p.(set.HashedSet[string, any])
 					for k := range hs.ToMap() {
 						subProperties := make(Properties)
-						for subK, subProp := range prop.Properties {
+						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							propTemplate.ReplacePath(prop.Path, fmt.Sprintf("%s[%s]", prop.Path, k))
+							ReplacePath(prop, prop.Details().Path, fmt.Sprintf("%s[%s]", prop.Details().Path, k))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {
@@ -413,8 +316,8 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 					}
 
 				}
-			} else if prop.Properties != nil {
-				queue = append(queue, prop.Properties)
+			} else if prop.SubProperties() != nil {
+				queue = append(queue, prop.SubProperties())
 			}
 		}
 	}
