@@ -160,12 +160,12 @@ func (s *SetProperty) Validate(value any, properties construct.Properties) error
 	}
 	if s.MinLength != nil {
 		if setVal.Len() < *s.MinLength {
-			return fmt.Errorf("value %s is too short. minimum length is %d", setVal.Len(), *s.MinLength)
+			return fmt.Errorf("value %s is too short. minimum length is %d", setVal, *s.MinLength)
 		}
 	}
 	if s.MaxLength != nil {
 		if setVal.Len() > *s.MaxLength {
-			return fmt.Errorf("value %s is too long. maximum length is %d", setVal.Len(), *s.MaxLength)
+			return fmt.Errorf("value %s is too long. maximum length is %d", setVal, *s.MaxLength)
 		}
 	}
 

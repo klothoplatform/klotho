@@ -14,6 +14,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
@@ -125,7 +126,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 }
 
 func (em *EngineMain) AddEngine() error {
-	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
 		return err
 	}
@@ -140,17 +141,18 @@ type resourceInfo struct {
 	Views           map[string]string `json:"views"`
 }
 
-func addSubProperties(properties map[string]any, subProperties map[string]*knowledgebase.Property) {
+func addSubProperties(properties map[string]any, subProperties map[string]knowledgebase.Property) {
 	for _, subProperty := range subProperties {
-		properties[subProperty.Name] = map[string]any{
-			"type":                  subProperty.Type,
-			"deployTime":            subProperty.DeployTime,
-			"configurationDisabled": subProperty.ConfigurationDisabled,
-			"required":              subProperty.Required,
+		details := subProperty.Details()
+		properties[details.Name] = map[string]any{
+			"type":                  subProperty.Type(),
+			"deployTime":            details.DeployTime,
+			"configurationDisabled": details.ConfigurationDisabled,
+			"required":              details.Required,
 		}
-		if subProperty.Properties != nil {
-			properties[subProperty.Name].(map[string]any)["properties"] = map[string]any{}
-			addSubProperties(properties[subProperty.Name].(map[string]any)["properties"].(map[string]any), subProperty.Properties)
+		if subProperty.SubProperties() != nil {
+			properties[details.Name].(map[string]any)["properties"] = map[string]any{}
+			addSubProperties(properties[details.Name].(map[string]any)["properties"].(map[string]any), subProperty.SubProperties())
 		}
 	}
 
@@ -167,15 +169,16 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 	for _, resourceType := range resourceTypes {
 		properties := map[string]any{}
 		for _, property := range resourceType.Properties {
-			properties[property.Name] = map[string]any{
-				"type":                  property.Type,
-				"deployTime":            property.DeployTime,
-				"configurationDisabled": property.ConfigurationDisabled,
-				"required":              property.Required,
+			details := property.Details()
+			properties[details.Name] = map[string]any{
+				"type":                  property.Type(),
+				"deployTime":            details.DeployTime,
+				"configurationDisabled": details.ConfigurationDisabled,
+				"required":              details.Required,
 			}
-			if property.Properties != nil {
-				properties[property.Name].(map[string]any)["properties"] = map[string]any{}
-				addSubProperties(properties[property.Name].(map[string]any)["properties"].(map[string]any), property.Properties)
+			if property.SubProperties() != nil {
+				properties[details.Name].(map[string]any)["properties"] = map[string]any{}
+				addSubProperties(properties[details.Name].(map[string]any)["properties"].(map[string]any), property.SubProperties())
 			}
 		}
 		typeAndClassifications[resourceType.QualifiedTypeName] = resourceInfo{

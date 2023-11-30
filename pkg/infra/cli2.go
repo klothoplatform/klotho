@@ -13,7 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac3"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/spf13/cobra"
@@ -106,7 +106,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kb, err := knowledgebase.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
 		return err
 	}
