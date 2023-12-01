@@ -55,6 +55,10 @@ properties:
     type: bool
     default_value: false
 
+path_satisfaction:
+  as_source:
+    - network
+
 classification:
   is:
     - network

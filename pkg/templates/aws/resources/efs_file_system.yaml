@@ -35,11 +35,16 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 path_satisfaction:
   as_target:
     - network
     - efs_access
+    - permissions
 
 classification:
   is:
