@@ -24,7 +24,7 @@ type (
 	}
 )
 
-func ParsePropertyRef(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
+func ParsePropertyRef(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (construct.PropertyRef, error) {
 	if val, ok := value.(string); ok {
 		result := construct.PropertyRef{}
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -34,7 +34,7 @@ func ParsePropertyRef(value any, ctx knowledgebase.DynamicContext, data knowledg
 		rp := ResourceProperty{}
 		id, err := rp.Parse(val["resource"], ctx, data)
 		if err != nil {
-			return nil, err
+			return construct.PropertyRef{}, err
 		}
 		return construct.PropertyRef{
 			Property: val["property"].(string),
@@ -44,7 +44,7 @@ func ParsePropertyRef(value any, ctx knowledgebase.DynamicContext, data knowledg
 	if val, ok := value.(construct.PropertyRef); ok {
 		return val, nil
 	}
-	return nil, fmt.Errorf("invalid property reference value %v", value)
+	return construct.PropertyRef{}, fmt.Errorf("invalid property reference value %v", value)
 }
 
 func (p *PropertyValidityCheck) Validate(value any, properties construct.Properties) error {

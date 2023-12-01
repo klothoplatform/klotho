@@ -111,10 +111,8 @@ func (r *ResourceProperty) Parse(value any, ctx knowledgebase.DynamicContext, da
 	}
 	val, err := ParsePropertyRef(value, ctx, data)
 	if err == nil {
-		if ptype, ok := val.(construct.PropertyRef); ok {
-			if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(ptype.Resource) {
-				return nil, fmt.Errorf("resource value %v does not match type %s", value, r.AllowedTypes)
-			}
+		if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(val.Resource) {
+			return nil, fmt.Errorf("resource value %v does not match type %s", value, r.AllowedTypes)
 		}
 		return val, nil
 	}
