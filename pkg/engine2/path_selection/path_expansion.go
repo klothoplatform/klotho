@@ -203,7 +203,7 @@ func handleProperties(
 				Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 			}
 			details := prop.Details()
-			if details.OperationalRule == nil || details.OperationalRule.Step == nil {
+			if details.OperationalRule == nil || len(details.OperationalRule.Step.Resources) == 0 {
 				return nil
 			}
 			step := details.OperationalRule.Step
@@ -216,7 +216,7 @@ func handleProperties(
 						downstreamRes,
 					)
 					if canUse && err == nil {
-						err = opRuleCtx.SetField(res, downstreamRes, *step)
+						err = opRuleCtx.SetField(res, downstreamRes, step)
 						if err != nil {
 							errs = errors.Join(errs, err)
 						}
@@ -228,7 +228,7 @@ func handleProperties(
 					upstreamRes := resultResources[i-1]
 					if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
 						knowledgebase.DynamicValueData{Resource: res.ID}, upstreamRes); canUse && err == nil {
-						err = opRuleCtx.SetField(res, upstreamRes, *step)
+						err = opRuleCtx.SetField(res, upstreamRes, step)
 						if err != nil {
 							errs = errors.Join(errs, err)
 						}
