@@ -29,21 +29,8 @@ func (a *AnyProperty) Details() *knowledgebase.PropertyDetails {
 }
 
 func (a *AnyProperty) Clone() knowledgebase.Property {
-	return &AnyProperty{
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   a.DefaultValue,
-			ValidityChecks: a.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  a.Name,
-			Path:                  a.Path,
-			Required:              a.Required,
-			ConfigurationDisabled: a.ConfigurationDisabled,
-			DeployTime:            a.DeployTime,
-			OperationalRule:       a.OperationalRule,
-			Namespace:             a.Namespace,
-		},
-	}
+	clone := *a
+	return &clone
 }
 
 func (a *AnyProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -117,6 +104,6 @@ func (a *AnyProperty) Validate(value any, properties construct.Properties) error
 	return nil
 }
 
-func (a *AnyProperty) SubProperties() map[string]knowledgebase.Property {
+func (a *AnyProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }

@@ -76,25 +76,10 @@ func (s *SetProperty) Clone() knowledgebase.Property {
 	if s.Properties != nil {
 		props = s.Properties.Clone()
 	}
-	return &SetProperty{
-		MinLength:    s.MinLength,
-		MaxLength:    s.MaxLength,
-		ItemProperty: itemProp,
-		Properties:   props,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   s.DefaultValue,
-			ValidityChecks: s.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  s.Name,
-			Path:                  s.Path,
-			Required:              s.Required,
-			ConfigurationDisabled: s.ConfigurationDisabled,
-			DeployTime:            s.DeployTime,
-			OperationalRule:       s.OperationalRule,
-			Namespace:             s.Namespace,
-		},
-	}
+	clone := *s
+	clone.ItemProperty = itemProp
+	clone.Properties = props
+	return &clone
 }
 
 func (s *SetProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -159,23 +144,11 @@ func (s *SetProperty) Contains(value any, contains any) bool {
 	return false
 }
 
-// set path
-func (s *SetProperty) SetPath(path string) {
-	s.Path = path
-}
-
-func (s *SetProperty) PropertyName() string {
-	return s.Name
-}
 func (s *SetProperty) Type() string {
 	if s.ItemProperty != nil {
 		return fmt.Sprintf("set(%s)", s.ItemProperty.Type())
 	}
 	return "set"
-}
-
-func (s *SetProperty) IsRequired() bool {
-	return s.Required
 }
 
 func (s *SetProperty) Validate(value any, properties construct.Properties) error {
@@ -206,6 +179,6 @@ func (s *SetProperty) Validate(value any, properties construct.Properties) error
 	return nil
 }
 
-func (s *SetProperty) SubProperties() map[string]knowledgebase.Property {
+func (s *SetProperty) SubProperties() knowledgebase.Properties {
 	return s.Properties
 }

@@ -62,7 +62,7 @@ type (
 		Type() string
 		GetDefaultValue(ctx DynamicValueContext, data DynamicValueData) (any, error)
 		Validate(value any, properties construct.Properties) error
-		SubProperties() map[string]Property
+		SubProperties() Properties
 		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
 		ZeroValue() any
 		Contains(value any, contains any) bool

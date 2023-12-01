@@ -56,22 +56,8 @@ func (r *ResourceProperty) Details() *knowledgebase.PropertyDetails {
 	return &r.PropertyDetails
 }
 func (r *ResourceProperty) Clone() knowledgebase.Property {
-	return &ResourceProperty{
-		AllowedTypes: r.AllowedTypes,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   r.DefaultValue,
-			ValidityChecks: r.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  r.Name,
-			Path:                  r.Path,
-			Required:              r.Required,
-			ConfigurationDisabled: r.ConfigurationDisabled,
-			DeployTime:            r.DeployTime,
-			OperationalRule:       r.OperationalRule,
-			Namespace:             r.Namespace,
-		},
-	}
+	clone := *r
+	return &clone
 }
 
 func (r *ResourceProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -152,6 +138,6 @@ func (r *ResourceProperty) Validate(value any, properties construct.Properties) 
 	return nil
 }
 
-func (r *ResourceProperty) SubProperties() map[string]knowledgebase.Property {
+func (r *ResourceProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }

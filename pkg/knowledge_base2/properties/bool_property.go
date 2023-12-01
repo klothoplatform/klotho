@@ -33,21 +33,8 @@ func (b *BoolProperty) RemoveProperty(resource *construct.Resource, value any) e
 }
 
 func (b *BoolProperty) Clone() knowledgebase.Property {
-	return &BoolProperty{
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   b.DefaultValue,
-			ValidityChecks: b.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  b.Name,
-			Path:                  b.Path,
-			Required:              b.Required,
-			ConfigurationDisabled: b.ConfigurationDisabled,
-			DeployTime:            b.DeployTime,
-			OperationalRule:       b.OperationalRule,
-			Namespace:             b.Namespace,
-		},
-	}
+	clone := *b
+	return &clone
 }
 
 func (b *BoolProperty) Details() *knowledgebase.PropertyDetails {
@@ -97,6 +84,6 @@ func (b *BoolProperty) Validate(value any, properties construct.Properties) erro
 	return nil
 }
 
-func (b *BoolProperty) SubProperties() map[string]knowledgebase.Property {
+func (b *BoolProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }

@@ -48,25 +48,10 @@ func (l *ListProperty) Clone() knowledgebase.Property {
 	if l.Properties != nil {
 		props = l.Properties.Clone()
 	}
-	return &ListProperty{
-		MinLength:    l.MinLength,
-		MaxLength:    l.MaxLength,
-		ItemProperty: itemProp,
-		Properties:   props,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   l.DefaultValue,
-			ValidityChecks: l.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  l.Name,
-			Path:                  l.Path,
-			Required:              l.Required,
-			ConfigurationDisabled: l.ConfigurationDisabled,
-			DeployTime:            l.DeployTime,
-			OperationalRule:       l.OperationalRule,
-			Namespace:             l.Namespace,
-		},
-	}
+	clone := *l
+	clone.ItemProperty = itemProp
+	clone.Properties = props
+	return &clone
 }
 
 func (list *ListProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -176,6 +161,6 @@ func (l *ListProperty) Validate(value any, properties construct.Properties) erro
 	return nil
 }
 
-func (l *ListProperty) SubProperties() map[string]knowledgebase.Property {
+func (l *ListProperty) SubProperties() knowledgebase.Properties {
 	return l.Properties
 }

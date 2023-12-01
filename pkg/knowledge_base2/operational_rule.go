@@ -23,9 +23,9 @@ type (
 	}
 
 	PropertyRule struct {
-		If    string           `json:"if" yaml:"if"`
-		Step  *OperationalStep `json:"step" yaml:"step"`
-		Value any              `json:"value" yaml:"value"`
+		If    string          `json:"if" yaml:"if"`
+		Step  OperationalStep `json:"step" yaml:"step"`
+		Value any             `json:"value" yaml:"value"`
 	}
 
 	EdgeOperationalStep struct {

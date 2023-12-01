@@ -63,12 +63,3 @@ func (p *PropertyValidityCheck) Validate(value any, properties construct.Propert
 	}
 	return nil
 }
-
-func decodeAsPropertyRef(template *template.Template, ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	var ref construct.PropertyRef
-	err := ctx.ExecuteTemplateDecode(template, data, &ref)
-	if err != nil {
-		return nil, err
-	}
-	return ref, nil
-}

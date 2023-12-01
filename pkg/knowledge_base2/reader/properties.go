@@ -206,82 +206,62 @@ func InitializeProperty(ptype string) (knowledgebase.Property, error) {
 	return p(val)
 }
 
-var initializePropertyFunc = map[string]func(val string) (knowledgebase.Property, error){
-	"string": func(val string) (knowledgebase.Property, error) { return &properties.StringProperty{}, nil },
-	"int":    func(val string) (knowledgebase.Property, error) { return &properties.IntProperty{}, nil },
-	"float":  func(val string) (knowledgebase.Property, error) { return &properties.FloatProperty{}, nil },
-	"bool":   func(val string) (knowledgebase.Property, error) { return &properties.BoolProperty{}, nil },
-	"resource": func(val string) (knowledgebase.Property, error) {
-		id := construct.ResourceId{}
-		err := id.UnmarshalText([]byte(val))
-		if err != nil {
-			return nil, fmt.Errorf("invalid resource id for property type %s: %w", val, err)
-		}
-		return &properties.ResourceProperty{
-			AllowedTypes: construct.ResourceList{id},
-		}, nil
-	},
-	"map": func(val string) (knowledgebase.Property, error) {
-		if val == "" {
-			return &properties.MapProperty{}, nil
-		}
-		args := strings.Split(val, ",")
-		if len(args) != 2 {
-			return nil, fmt.Errorf("invalid number of arguments for map property type")
-		}
-		keyVal, err := getPropertyType(args[0])
-		if err != nil {
-			return nil, err
-		}
-		valProp, err := getPropertyType(args[1])
-		if err != nil {
-			return nil, err
-		}
-		return &properties.MapProperty{KeyProperty: keyVal, ValueProperty: valProp}, nil
-	},
-	"list": func(val string) (knowledgebase.Property, error) {
-		if val == "" {
-			return &properties.ListProperty{}, nil
-		}
-		itemProp, err := getPropertyType(val)
-		if err != nil {
-			return nil, err
-		}
-		return &properties.ListProperty{ItemProperty: itemProp}, nil
-	},
-	"set": func(val string) (knowledgebase.Property, error) {
-		if val == "" {
-			return &properties.SetProperty{}, nil
-		}
-		itemProp, err := getPropertyType(val)
-		if err != nil {
-			return nil, err
-		}
-		return &properties.SetProperty{ItemProperty: itemProp}, nil
-	},
-	"any": func(val string) (knowledgebase.Property, error) { return &properties.AnyProperty{}, nil },
-}
+var initializePropertyFunc map[string]func(val string) (knowledgebase.Property, error)
 
-func getPropertyType(ptype string) (knowledgebase.Property, error) {
-	if ptype == "" {
-		return nil, fmt.Errorf("property does not have a type")
+func init() {
+	initializePropertyFunc = map[string]func(val string) (knowledgebase.Property, error){
+		"string": func(val string) (knowledgebase.Property, error) { return &properties.StringProperty{}, nil },
+		"int":    func(val string) (knowledgebase.Property, error) { return &properties.IntProperty{}, nil },
+		"float":  func(val string) (knowledgebase.Property, error) { return &properties.FloatProperty{}, nil },
+		"bool":   func(val string) (knowledgebase.Property, error) { return &properties.BoolProperty{}, nil },
+		"resource": func(val string) (knowledgebase.Property, error) {
+			id := construct.ResourceId{}
+			err := id.UnmarshalText([]byte(val))
+			if err != nil {
+				return nil, fmt.Errorf("invalid resource id for property type %s: %w", val, err)
+			}
+			return &properties.ResourceProperty{
+				AllowedTypes: construct.ResourceList{id},
+			}, nil
+		},
+		"map": func(val string) (knowledgebase.Property, error) {
+			if val == "" {
+				return &properties.MapProperty{}, nil
+			}
+			args := strings.Split(val, ",")
+			if len(args) != 2 {
+				return nil, fmt.Errorf("invalid number of arguments for map property type")
+			}
+			keyVal, err := InitializeProperty(args[0])
+			if err != nil {
+				return nil, err
+			}
+			valProp, err := InitializeProperty(args[1])
+			if err != nil {
+				return nil, err
+			}
+			return &properties.MapProperty{KeyProperty: keyVal, ValueProperty: valProp}, nil
+		},
+		"list": func(val string) (knowledgebase.Property, error) {
+			if val == "" {
+				return &properties.ListProperty{}, nil
+			}
+			itemProp, err := InitializeProperty(val)
+			if err != nil {
+				return nil, err
+			}
+			return &properties.ListProperty{ItemProperty: itemProp}, nil
+		},
+		"set": func(val string) (knowledgebase.Property, error) {
+			if val == "" {
+				return &properties.SetProperty{}, nil
+			}
+			itemProp, err := InitializeProperty(val)
+			if err != nil {
+				return nil, err
+			}
+			return &properties.SetProperty{ItemProperty: itemProp}, nil
+		},
+		"any": func(val string) (knowledgebase.Property, error) { return &properties.AnyProperty{}, nil },
 	}
-	parts := strings.Split(ptype, "(")
-	p, found := propertyTypeMap[parts[0]]
-	if !found {
-		return nil, fmt.Errorf("unknown property type '%s'", ptype)
-	}
-	return p(), nil
-}
-
-var propertyTypeMap = map[string]func() knowledgebase.Property{
-	"string":   func() knowledgebase.Property { return &properties.StringProperty{} },
-	"int":      func() knowledgebase.Property { return &properties.IntProperty{} },
-	"float":    func() knowledgebase.Property { return &properties.FloatProperty{} },
-	"bool":     func() knowledgebase.Property { return &properties.BoolProperty{} },
-	"resource": func() knowledgebase.Property { return &properties.ResourceProperty{} },
-	"map":      func() knowledgebase.Property { return &properties.MapProperty{} },
-	"list":     func() knowledgebase.Property { return &properties.ListProperty{} },
-	"set":      func() knowledgebase.Property { return &properties.SetProperty{} },
-	"any":      func() knowledgebase.Property { return &properties.AnyProperty{} },
 }

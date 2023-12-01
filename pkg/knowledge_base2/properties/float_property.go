@@ -39,23 +39,8 @@ func (f *FloatProperty) Details() *knowledgebase.PropertyDetails {
 }
 
 func (f *FloatProperty) Clone() knowledgebase.Property {
-	return &FloatProperty{
-		LowerBound: f.LowerBound,
-		UpperBound: f.UpperBound,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   f.DefaultValue,
-			ValidityChecks: f.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  f.Name,
-			Path:                  f.Path,
-			Required:              f.Required,
-			ConfigurationDisabled: f.ConfigurationDisabled,
-			DeployTime:            f.DeployTime,
-			OperationalRule:       f.OperationalRule,
-			Namespace:             f.Namespace,
-		},
-	}
+	clone := *f
+	return &clone
 }
 
 func (f *FloatProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -95,20 +80,8 @@ func (f *FloatProperty) Contains(value any, contains any) bool {
 	return false
 }
 
-func (f *FloatProperty) SetPath(path string) {
-	f.Path = path
-}
-
-func (f *FloatProperty) PropertyName() string {
-	return f.Name
-}
-
 func (f *FloatProperty) Type() string {
 	return "float"
-}
-
-func (f *FloatProperty) IsRequired() bool {
-	return f.Required
 }
 
 func (f *FloatProperty) Validate(value any, properties construct.Properties) error {
@@ -125,6 +98,6 @@ func (f *FloatProperty) Validate(value any, properties construct.Properties) err
 	return nil
 }
 
-func (f *FloatProperty) SubProperties() map[string]knowledgebase.Property {
+func (f *FloatProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }

@@ -41,23 +41,8 @@ func (s *StringProperty) Details() *knowledgebase.PropertyDetails {
 }
 
 func (s *StringProperty) Clone() knowledgebase.Property {
-	return &StringProperty{
-		AllowedValues: s.AllowedValues,
-		SanitizeTmpl:  s.SanitizeTmpl,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   s.DefaultValue,
-			ValidityChecks: s.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  s.Name,
-			Path:                  s.Path,
-			Required:              s.Required,
-			ConfigurationDisabled: s.ConfigurationDisabled,
-			DeployTime:            s.DeployTime,
-			OperationalRule:       s.OperationalRule,
-			Namespace:             s.Namespace,
-		},
-	}
+	clone := *s
+	return &clone
 }
 
 func (s *StringProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -125,6 +110,6 @@ func (s *StringProperty) Validate(value any, properties construct.Properties) er
 	return nil
 }
 
-func (s *StringProperty) SubProperties() map[string]knowledgebase.Property {
+func (s *StringProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }

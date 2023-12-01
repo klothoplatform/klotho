@@ -53,26 +53,11 @@ func (m *MapProperty) Clone() knowledgebase.Property {
 	if m.Properties != nil {
 		props = m.Properties.Clone()
 	}
-	return &MapProperty{
-		MinLength:     m.MinLength,
-		MaxLength:     m.MaxLength,
-		KeyProperty:   keyProp,
-		ValueProperty: valProp,
-		Properties:    props,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   m.DefaultValue,
-			ValidityChecks: m.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  m.Name,
-			Path:                  m.Path,
-			Required:              m.Required,
-			ConfigurationDisabled: m.ConfigurationDisabled,
-			DeployTime:            m.DeployTime,
-			OperationalRule:       m.OperationalRule,
-			Namespace:             m.Namespace,
-		},
-	}
+	clone := *m
+	clone.KeyProperty = keyProp
+	clone.ValueProperty = valProp
+	clone.Properties = props
+	return &clone
 }
 
 func (m *MapProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -210,6 +195,6 @@ func (m *MapProperty) Validate(value any, properties construct.Properties) error
 	return nil
 }
 
-func (m *MapProperty) SubProperties() map[string]knowledgebase.Property {
+func (m *MapProperty) SubProperties() knowledgebase.Properties {
 	return m.Properties
 }

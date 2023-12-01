@@ -39,23 +39,8 @@ func (i *IntProperty) Details() *knowledgebase.PropertyDetails {
 }
 
 func (i *IntProperty) Clone() knowledgebase.Property {
-	return &IntProperty{
-		LowerBound: i.LowerBound,
-		UpperBound: i.UpperBound,
-		SharedPropertyFields: SharedPropertyFields{
-			DefaultValue:   i.DefaultValue,
-			ValidityChecks: i.ValidityChecks,
-		},
-		PropertyDetails: knowledgebase.PropertyDetails{
-			Name:                  i.Name,
-			Path:                  i.Path,
-			Required:              i.Required,
-			ConfigurationDisabled: i.ConfigurationDisabled,
-			DeployTime:            i.DeployTime,
-			OperationalRule:       i.OperationalRule,
-			Namespace:             i.Namespace,
-		},
-	}
+	clone := *i
+	return &clone
 }
 
 func (i *IntProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -89,20 +74,8 @@ func (i *IntProperty) Contains(value any, contains any) bool {
 	return false
 }
 
-func (i *IntProperty) SetPath(path string) {
-	i.Path = path
-}
-
-func (i *IntProperty) PropertyName() string {
-	return i.Name
-}
-
 func (i *IntProperty) Type() string {
 	return "int"
-}
-
-func (i *IntProperty) IsRequired() bool {
-	return i.Required
 }
 
 func (i *IntProperty) Validate(value any, properties construct.Properties) error {
@@ -119,6 +92,6 @@ func (i *IntProperty) Validate(value any, properties construct.Properties) error
 	return nil
 }
 
-func (i *IntProperty) SubProperties() map[string]knowledgebase.Property {
+func (i *IntProperty) SubProperties() knowledgebase.Properties {
 	return nil
 }
