@@ -27,13 +27,13 @@ properties:
   Method:
     type: resource(aws:api_method)
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - selector: aws:api_method
-              properties:
-                RestApi: '{{ fieldValue "RestApi" .Self }}'
-                Resource: '{{ fieldValue "Resource" .Self }}'
+      step:
+        direction: upstream
+        resources:
+          - selector: aws:api_method
+            properties:
+              RestApi: '{{ fieldValue "RestApi" .Self }}'
+              Resource: '{{ fieldValue "Resource" .Self }}'
   RequestParameters:
     type: map(string,string)
     operational_rule:
