@@ -9,10 +9,10 @@ properties:
     type: resource(aws:region)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:region
+      step:
+        direction: downstream
+        resources:
+          - aws:region
 
 delete_context:
   requires_no_upstream: true

@@ -16,12 +16,12 @@ properties:
     type: resource
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - classifications:
-                - cluster
-                - kubernetes
+      step:
+        direction: downstream
+        resources:
+          - classifications:
+              - cluster
+              - kubernetes
   Object:
     type: map
     properties:
@@ -44,17 +44,17 @@ properties:
           volumeName:
             type: resource(kubernetes:persistent_volume)
             operational_rule:
-              steps:
-                - direction: upstream
-                  resources:
-                    - kubernetes:persistent_volume
+              step:
+                direction: upstream
+                resources:
+                  - kubernetes:persistent_volume
           storageClassName:
             type: resource(kubernetes:storage_class)
             operational_rule:
-              steps:
-                - direction: upstream
-                  resources:
-                    - kubernetes:storage_class
+              step:
+                direction: upstream
+                resources:
+                  - kubernetes:storage_class
           volumeMode:
             type: string
 

@@ -5,10 +5,10 @@ properties:
     type: resource(aws:vpc)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:vpc
+      step:
+        direction: downstream
+        resources:
+          - aws:vpc
   IngressRules:
     type: set
     properties:

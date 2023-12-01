@@ -6,13 +6,13 @@ properties:
   image:
     type: string
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - classifications:
-                - image
-          unique: true
-          use_property_ref: ImageName
+      step:
+        direction: downstream
+        resources:
+          - classifications:
+            - image
+        unique: true
+        use_property_ref: ImageName
     required: true
   command:
     type: list(string)

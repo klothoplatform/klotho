@@ -8,21 +8,21 @@ properties:
     type: resource(aws:rest_api)
     namespace: true
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:rest_api
+      step:
+        direction: upstream
+        resources:
+          - aws:rest_api
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
       if: |
         {{ ne (fieldValue "Route" (downstream "aws:api_integration" .Self)) "/" }}
-      steps:
-        - direction: upstream
-          resources:
-            - selector: aws:api_resource
-              properties:
-                FullPath: '{{ fieldValue "Route" (downstream "aws:api_integration" .Self) }}'
+      step:
+        direction: upstream
+        resources:
+          - selector: aws:api_resource
+            properties:
+              FullPath: '{{ fieldValue "Route" (downstream "aws:api_integration" .Self) }}'
   HttpMethod:
     type: string
     default_value: ANY

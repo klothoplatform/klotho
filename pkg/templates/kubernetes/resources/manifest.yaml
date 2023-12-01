@@ -18,12 +18,12 @@ properties:
     type: resource
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - classifications:
-                - cluster
-                - kubernetes
+      step:
+        direction: downstream
+        resources:
+          - classifications:
+              - cluster
+              - kubernetes
 
 delete_context:
   requires_no_upstream: true

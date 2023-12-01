@@ -9,17 +9,17 @@ properties:
     type: resource(aws:rest_api)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:rest_api
+      step:
+        direction: downstream
+        resources:
+          - aws:rest_api
   Deployment:
     type: resource(aws:api_deployment)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:api_deployment
+      step:
+        direction: downstream
+        resources:
+          - aws:api_deployment
   StageInvokeUrl:
     type: string
     configuration_disabled: true

@@ -6,17 +6,17 @@ properties:
     type: resource(aws:vpc)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:vpc
+      step:
+        direction: downstream
+        resources:
+          - aws:vpc
   Region:
     type: resource(aws:region)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:region
+      step:
+        direction: downstream
+        resources:
+          - aws:region
   ServiceName:
     type: string
   VpcEndpointType:

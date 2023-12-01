@@ -5,10 +5,10 @@ properties:
   Certificate:
     type: resource(aws:acm_certificate)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:acm_certificate
+      step:
+        direction: downstream
+        resources:
+          - aws:acm_certificate
     required: true
   Listener:
     type: resource(aws:load_balancer_listener)

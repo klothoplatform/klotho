@@ -17,30 +17,30 @@ properties:
   Role:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role
+        unique: true
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
-          num_needed: 2
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
+        num_needed: 2
   Auths:
     type: set(map)
     properties:

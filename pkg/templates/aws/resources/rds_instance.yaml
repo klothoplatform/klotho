@@ -20,18 +20,18 @@ properties:
   SubnetGroup:
     type: resource(aws:rds_subnet_group)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:rds_subnet_group
+      step:
+        direction: downstream
+        resources:
+          - aws:rds_subnet_group
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   DatabaseName:
     type: string
     default_value: main

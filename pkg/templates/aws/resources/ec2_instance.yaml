@@ -5,35 +5,35 @@ properties:
   InstanceProfile:
     type: resource(aws:iam_instance_profile)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_instance_profile:{{ .Self.Name }}
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_instance_profile:{{ .Self.Name }}
   SecurityGroup:
     type: list(resource(aws:security_group))
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
   AMI:
     type: resource(aws:ami)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:ami
+      step:
+        direction: downstream
+        resources:
+          - aws:ami
   InstanceType:
     type: string
     default: t3.medium

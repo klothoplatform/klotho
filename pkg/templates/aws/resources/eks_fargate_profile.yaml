@@ -5,29 +5,29 @@ properties:
   Cluster:
     type: resource(aws:eks_cluster)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:eks_cluster
+      step:
+        direction: downstream
+        resources:
+          - aws:eks_cluster
   PodExecutionRole:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role
+        unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
-          num_needed: 2
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
+        num_needed: 2
   Selectors:
     type: list
     properties:

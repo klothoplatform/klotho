@@ -9,10 +9,10 @@ properties:
   Repo:
     type: resource(aws:ecr_repo)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:ecr_repo
+      step:
+        direction: downstream
+        resources:
+          - aws:ecr_repo
   Context:
     type: string
     default_value: '.'

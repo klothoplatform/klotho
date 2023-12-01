@@ -5,10 +5,10 @@ properties:
   Function:
     type: resource(aws:lambda_function)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:lambda_function
+      step:
+        direction: downstream
+        resources:
+          - aws:lambda_function
   Principal:
     type: string
   Action:

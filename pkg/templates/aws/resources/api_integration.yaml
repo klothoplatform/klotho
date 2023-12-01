@@ -8,22 +8,22 @@ properties:
     type: resource(aws:rest_api)
     namespace: true
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:rest_api
+      step:
+        direction: upstream
+        resources:
+          - aws:rest_api
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
       if: |
         {{ ne (fieldValue "Route" .Self) "/" }}
-      steps:
-        - direction: upstream
-          resources:
-            - selector: 'aws:api_resource'
-              properties:
-                FullPath: '{{ fieldValue "Route" .Self }}'
-                RestApi: '{{ fieldValue "RestApi" .Self }}'
+      step:
+        direction: upstream
+        resources:
+          - selector: 'aws:api_resource'
+            properties:
+              FullPath: '{{ fieldValue "Route" .Self }}'
+              RestApi: '{{ fieldValue "RestApi" .Self }}'
   Method:
     type: resource(aws:api_method)
     operational_rule:
@@ -37,17 +37,13 @@ properties:
   RequestParameters:
     type: map(string,string)
     operational_rule:
-      configuration_rules:
-        - resource: '{{ .Self }}'
-          configuration:
-            field: RequestParameters
-            value: |
-              {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^{\\w+\\+?}$" }}
-              {{ zipToMap
-                  ($params | mapString "{([^+}]*)\\+?}" "integration.request.path.$1")
-                  ($params | mapString "{([^+}]*)\\+?}" "method.request.path.$1")
-                | toJson
-              }}
+      Value: |
+        {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^{\\w+\\+?}$" }}
+        {{ zipToMap
+            ($params | mapString "{([^+}]*)\\+?}" "integration.request.path.$1")
+            ($params | mapString "{([^+}]*)\\+?}" "method.request.path.$1")
+          | toJson
+        }}
   IntegrationHttpMethod:
     type: string
     default_value: ANY
