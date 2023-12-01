@@ -11,7 +11,7 @@ properties:
             - aws:ecr_image:{{ .Self.Name }}-image
           unique: true
   MountPoints:
-    type: list
+    type: set
     properties:
       ContainerPath:
         type: string
@@ -57,7 +57,7 @@ properties:
     type: string
     default_value: awsvpc
   PortMappings:
-    type: list
+    type: set
     default_value:
       - ContainerPort: 80
         HostPort: 80
@@ -74,7 +74,7 @@ properties:
     default_value:
       - FARGATE
   EfsVolumes:
-    type: list
+    type: set
     properties:
       Name:
         type: string
