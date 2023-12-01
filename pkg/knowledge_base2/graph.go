@@ -257,7 +257,7 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 	for _, property := range template.Properties {
 		ruleSatisfied := false
 		rule := property.Details().OperationalRule
-		if rule == nil {
+		if rule == nil || rule.Step == nil {
 			continue
 		}
 		step := rule.Step

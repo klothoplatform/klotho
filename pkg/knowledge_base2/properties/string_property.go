@@ -114,7 +114,7 @@ func (s *StringProperty) Validate(value any, properties construct.Properties) er
 
 	if s.SanitizeTmpl != nil {
 		oldVal := stringVal
-		_, err := s.SanitizeTmpl.Execute(stringVal)
+		stringVal, err := s.SanitizeTmpl.Execute(stringVal)
 		if err != nil {
 			return err
 		}

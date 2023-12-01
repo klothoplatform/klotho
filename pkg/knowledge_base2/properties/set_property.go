@@ -34,21 +34,33 @@ func (s *SetProperty) AppendProperty(resource *construct.Resource, value any) er
 		return err
 	}
 	if propVal == nil {
-		propVal = set.HashedSet[string, any]{
-			Hasher: func(s any) string {
-				return fmt.Sprintf("%v", s)
-			},
-		}
-		err = s.SetProperty(resource, propVal)
-		if err != nil {
-			return err
+		if val, ok := value.(set.HashedSet[string, any]); ok {
+			return s.SetProperty(resource, val)
 		}
 	}
 	return resource.AppendProperty(s.Path, value)
 }
 
 func (s *SetProperty) RemoveProperty(resource *construct.Resource, value any) error {
-	return resource.RemoveProperty(s.Path, value)
+	propVal, err := resource.GetProperty(s.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	propSet, ok := propVal.(set.HashedSet[string, any])
+	if !ok {
+		return errors.New("invalid set value")
+	}
+	if val, ok := value.(set.HashedSet[string, any]); ok {
+		for _, v := range val.ToSlice() {
+			propSet.Remove(v)
+		}
+	} else {
+		return fmt.Errorf("invalid set value %v", value)
+	}
+	return s.SetProperty(resource, propSet)
 }
 
 func (s *SetProperty) Details() *knowledgebase.PropertyDetails {
@@ -137,17 +149,13 @@ func (s *SetProperty) Contains(value any, contains any) bool {
 	if !ok {
 		return false
 	}
-	containsSet, ok := contains.(set.HashedSet[string, any])
-	if !ok {
-		return false
-	}
-	for _, v := range containsSet.M {
-		for _, val := range valSet.M {
-			if reflect.DeepEqual(v, val) {
-				return true
-			}
+
+	for _, val := range valSet.M {
+		if reflect.DeepEqual(contains, val) {
+			return true
 		}
 	}
+
 	return false
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -398,7 +399,7 @@ func Test_setField(t *testing.T) {
 		name          string
 		resource      *construct.Resource
 		resourceToSet *construct.Resource
-		property      *knowledgebase.Property
+		property      knowledgebase.Property
 		initialState  []any
 		step          knowledgebase.OperationalStep
 		wantResource  *construct.Resource
@@ -413,9 +414,15 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
-			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource1:test1 -> mock:resource4:thisWillBeReplaced"},
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name:      "Res4",
+					Path:      "Res4",
+					Namespace: true,
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
+			initialState: []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource1:test1 -> mock:resource4:thisWillBeReplaced"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
 				Properties: map[string]interface{}{
@@ -436,9 +443,15 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
-			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource4:thisWillBeReplaced -> mock:resource1:test1"},
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name:      "Res4",
+					Path:      "Res4",
+					Namespace: true,
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
+			initialState: []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource4:thisWillBeReplaced -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
 				Properties: map[string]interface{}{
@@ -457,9 +470,15 @@ func Test_setField(t *testing.T) {
 				Properties: make(map[string]interface{}),
 			},
 			resourceToSet: MockResource4("test4"),
-			property:      &knowledgebase.Property{Name: "Res4", Namespace: true, Path: "Res4", Type: "resource"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
-			initialState:  []any{"mock:resource1:test1", "mock:resource4:test4", "mock:resource4:test4 -> mock:resource1:test1"},
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name:      "Res4",
+					Path:      "Res4",
+					Namespace: true,
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
+			initialState: []any{"mock:resource1:test1", "mock:resource4:test4", "mock:resource4:test4 -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
 				Properties: map[string]interface{}{
@@ -481,8 +500,13 @@ func Test_setField(t *testing.T) {
 			},
 			initialState:  []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource4:test4 -> mock:resource1:test1"},
 			resourceToSet: res4,
-			property:      &knowledgebase.Property{Name: "Res4", Path: "Res4", Type: "resource"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name: "Res4",
+					Path: "Res4",
+				},
+			},
+			step: knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
 				Properties: map[string]interface{}{
@@ -503,9 +527,15 @@ func Test_setField(t *testing.T) {
 				},
 			},
 			resourceToSet: MockResource2("test2"),
-			property:      &knowledgebase.Property{Name: "Res2s", Type: "list(resource)", Path: "Res2s"},
-			step:          knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
-			initialState:  []any{"mock:resource2:test", "mock:resource1:test1", "mock:resource2:test -> mock:resource1:test1"},
+			property: &properties.ListProperty{
+				ItemProperty: &properties.ResourceProperty{},
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name: "Res2s",
+					Path: "Res2s",
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionUpstream},
+			initialState: []any{"mock:resource2:test", "mock:resource1:test1", "mock:resource2:test -> mock:resource1:test1"},
 			wantResource: &construct.Resource{
 				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
 				Properties: map[string]interface{}{
@@ -587,19 +617,24 @@ func MockResource4(name string) *construct.Resource {
 var resource1 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource1",
 	Properties: knowledgebase.Properties{
-		"Name": {
-			Name:      "Name",
-			Type:      "string",
-			Namespace: false,
+		"Name": &properties.StringProperty{
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name: "Name",
+			},
 		},
-		"Res4": {
-			Name:      "Res4",
-			Type:      "resource",
-			Namespace: true,
+		"Res4": &properties.ResourceProperty{
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name:      "Res4",
+				Path:      "Res4",
+				Namespace: true,
+			},
 		},
-		"Res2s": {
-			Name: "Res2s",
-			Type: "list(resource)",
+		"Res2s": &properties.ListProperty{
+			ItemProperty: &properties.ResourceProperty{},
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name: "Res2s",
+				Path: "Res2s",
+			},
 		},
 	},
 	Classification: knowledgebase.Classification{
@@ -611,10 +646,10 @@ var resource1 = &knowledgebase.ResourceTemplate{
 var resource2 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource2",
 	Properties: knowledgebase.Properties{
-		"Name": {
-			Name:      "Name",
-			Type:      "string",
-			Namespace: false,
+		"Name": &properties.StringProperty{
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name: "Name",
+			},
 		},
 	},
 	Classification: knowledgebase.Classification{
@@ -626,10 +661,10 @@ var resource2 = &knowledgebase.ResourceTemplate{
 var resource3 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource3",
 	Properties: knowledgebase.Properties{
-		"Name": {
-			Name:      "Name",
-			Type:      "string",
-			Namespace: false,
+		"Name": &properties.StringProperty{
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name: "Name",
+			},
 		},
 	},
 	Classification: knowledgebase.Classification{
@@ -641,10 +676,10 @@ var resource3 = &knowledgebase.ResourceTemplate{
 var resource4 = &knowledgebase.ResourceTemplate{
 	QualifiedTypeName: "mock:resource4",
 	Properties: knowledgebase.Properties{
-		"Name": {
-			Name:      "Name",
-			Type:      "string",
-			Namespace: false,
+		"Name": &properties.StringProperty{
+			PropertyDetails: knowledgebase.PropertyDetails{
+				Name: "Name",
+			},
 		},
 	},
 	Classification: knowledgebase.Classification{

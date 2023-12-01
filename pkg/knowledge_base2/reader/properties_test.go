@@ -22,7 +22,7 @@ func Test_ConvertProperty(t *testing.T) {
 				Path:          "test",
 				Required:      true,
 				AllowedValues: []string{"test1", "test2"},
-				SanitizeTmpl:  *knowledgebase.SanitizeTmpl,
+				SanitizeTmpl:  "test",
 				// Name string `json:"name" yaml:"name"`
 				// // Type defines the type of the property
 				// Type string `json:"type" yaml:"type"`

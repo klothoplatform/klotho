@@ -11,7 +11,6 @@ import (
 type (
 	ResourceProperty struct {
 		AllowedTypes construct.ResourceList
-		Namespace    bool
 		SharedPropertyFields
 		knowledgebase.PropertyDetails
 	}
@@ -31,6 +30,24 @@ func (r *ResourceProperty) AppendProperty(resource *construct.Resource, value an
 }
 
 func (r *ResourceProperty) RemoveProperty(resource *construct.Resource, value any) error {
+	propVal, err := resource.GetProperty(r.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	propId, ok := propVal.(construct.ResourceId)
+	if !ok {
+		return fmt.Errorf("error attempting to remove resource property: invalid property value %v", propVal)
+	}
+	valId, ok := value.(construct.ResourceId)
+	if !ok {
+		return fmt.Errorf("error attempting to remove resource property: invalid resource value %v", value)
+	}
+	if !propId.Matches(valId) {
+		return fmt.Errorf("error attempting to remove resource property: resource value %v does not match property value %v", value, propVal)
+	}
 	delete(resource.Properties, r.Path)
 	return nil
 }
@@ -41,7 +58,6 @@ func (r *ResourceProperty) Details() *knowledgebase.PropertyDetails {
 func (r *ResourceProperty) Clone() knowledgebase.Property {
 	return &ResourceProperty{
 		AllowedTypes: r.AllowedTypes,
-		Namespace:    r.Namespace,
 		SharedPropertyFields: SharedPropertyFields{
 			DefaultValue:   r.DefaultValue,
 			ValidityChecks: r.ValidityChecks,
@@ -68,7 +84,7 @@ func (r *ResourceProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext
 func (r *ResourceProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if val, ok := value.(string); ok {
 		id, err := knowledgebase.ExecuteDecodeAsResourceId(ctx, val, data)
-		if !id.IsZero() && !r.AllowedTypes.MatchesAny(id) {
+		if !id.IsZero() && len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(id) {
 			return nil, fmt.Errorf("resource value %v does not match allowed types %s", value, r.AllowedTypes)
 		}
 		return id, err
@@ -82,13 +98,13 @@ func (r *ResourceProperty) Parse(value any, ctx knowledgebase.DynamicContext, da
 		if namespace, ok := val["namespace"]; ok {
 			id.Namespace = namespace.(string)
 		}
-		if !r.AllowedTypes.MatchesAny(id) {
+		if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(id) {
 			return nil, fmt.Errorf("resource value %v does not match type %s", value, r.AllowedTypes)
 		}
 		return id, nil
 	}
 	if val, ok := value.(construct.ResourceId); ok {
-		if !r.AllowedTypes.MatchesAny(val) {
+		if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(val) {
 			return nil, fmt.Errorf("resource value %v does not match type %s", value, r.AllowedTypes)
 		}
 		return val, nil
@@ -96,7 +112,7 @@ func (r *ResourceProperty) Parse(value any, ctx knowledgebase.DynamicContext, da
 	val, err := ParsePropertyRef(value, ctx, data)
 	if err == nil {
 		if ptype, ok := val.(construct.PropertyRef); ok {
-			if !r.AllowedTypes.MatchesAny(ptype.Resource) {
+			if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(ptype.Resource) {
 				return nil, fmt.Errorf("resource value %v does not match type %s", value, r.AllowedTypes)
 			}
 		}
@@ -113,14 +129,6 @@ func (r *ResourceProperty) Contains(value any, contains any) bool {
 	return false
 }
 
-// set path
-func (r *ResourceProperty) SetPath(path string) {
-	r.Path = path
-}
-
-func (r *ResourceProperty) PropertyName() string {
-	return r.Name
-}
 func (r *ResourceProperty) Type() string {
 	if len(r.AllowedTypes) > 0 {
 		typeString := ""
@@ -133,10 +141,6 @@ func (r *ResourceProperty) Type() string {
 		return fmt.Sprintf("resource(%s)", typeString)
 	}
 	return "resource"
-}
-
-func (r *ResourceProperty) IsRequired() bool {
-	return r.Required
 }
 
 func (r *ResourceProperty) Validate(value any, properties construct.Properties) error {
