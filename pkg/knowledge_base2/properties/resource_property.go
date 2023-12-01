@@ -10,11 +10,10 @@ import (
 
 type (
 	ResourceProperty struct {
-		DefaultValue *construct.ResourceId  `json:"default_value" yaml:"default_value"`
-		AllowedTypes construct.ResourceList `yaml:"allowed_types"`
-		Namespace    bool                   `yaml:"namespace"`
+		AllowedTypes construct.ResourceList
+		Namespace    bool
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -37,18 +36,17 @@ func (r *ResourceProperty) RemoveProperty(resource *construct.Resource, value an
 }
 
 func (r *ResourceProperty) Details() *knowledgebase.PropertyDetails {
-	return r.PropertyDetails
+	return &r.PropertyDetails
 }
 func (r *ResourceProperty) Clone() knowledgebase.Property {
 	return &ResourceProperty{
-		DefaultValue: r.DefaultValue,
 		AllowedTypes: r.AllowedTypes,
 		Namespace:    r.Namespace,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: r.DefaultValueTemplate,
-			ValidityChecks:       r.ValidityChecks,
+			DefaultValue:   r.DefaultValue,
+			ValidityChecks: r.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  r.Name,
 			Path:                  r.Path,
 			Required:              r.Required,
@@ -61,17 +59,10 @@ func (r *ResourceProperty) Clone() knowledgebase.Property {
 }
 
 func (r *ResourceProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if r.DefaultValue != nil {
-		return *r.DefaultValue, nil
-	} else if r.DefaultValueTemplate != nil {
-		var result construct.ResourceId
-		err := ctx.ExecuteTemplateDecode(r.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return decodeAsPropertyRef(r.DefaultValueTemplate, ctx, data)
-		}
-		return result, nil
+	if r.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return r.Parse(r.DefaultValue, ctx, data)
 }
 
 func (r *ResourceProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {

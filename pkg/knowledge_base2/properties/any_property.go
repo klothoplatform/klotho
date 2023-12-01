@@ -7,9 +7,8 @@ import (
 
 type (
 	AnyProperty struct {
-		DefaultValue any `json:"default_value" yaml:"default_value"`
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -26,17 +25,16 @@ func (a *AnyProperty) RemoveProperty(resource *construct.Resource, value any) er
 }
 
 func (a *AnyProperty) Details() *knowledgebase.PropertyDetails {
-	return a.PropertyDetails
+	return &a.PropertyDetails
 }
 
 func (a *AnyProperty) Clone() knowledgebase.Property {
 	return &AnyProperty{
-		DefaultValue: a.DefaultValue,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: a.DefaultValueTemplate,
-			ValidityChecks:       a.ValidityChecks,
+			DefaultValue:   a.DefaultValue,
+			ValidityChecks: a.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  a.Name,
 			Path:                  a.Path,
 			Required:              a.Required,
@@ -49,17 +47,10 @@ func (a *AnyProperty) Clone() knowledgebase.Property {
 }
 
 func (a *AnyProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if a.DefaultValue != nil {
-		return a.DefaultValue, nil
-	} else if a.DefaultValueTemplate != nil {
-		var result any
-		err := ctx.ExecuteTemplateDecode(a.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+	if a.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return a.Parse(a.DefaultValue, ctx, data)
 }
 
 func (a *AnyProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {

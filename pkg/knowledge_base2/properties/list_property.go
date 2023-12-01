@@ -11,13 +11,12 @@ import (
 
 type (
 	ListProperty struct {
-		DefaultValue []any                  `json:"default_value" yaml:"default_value"`
-		MinLength    *int                   `yaml:"min_length"`
-		MaxLength    *int                   `yaml:"max_length"`
-		ItemProperty knowledgebase.Property `yaml:"item_property"`
+		MinLength    *int
+		MaxLength    *int
+		ItemProperty knowledgebase.Property
 		Properties   knowledgebase.Properties
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -37,21 +36,28 @@ func (l *ListProperty) RemoveProperty(resource *construct.Resource, value any) e
 }
 
 func (l *ListProperty) Details() *knowledgebase.PropertyDetails {
-	return l.PropertyDetails
+	return &l.PropertyDetails
 }
 
 func (l *ListProperty) Clone() knowledgebase.Property {
+	var itemProp knowledgebase.Property
+	if l.ItemProperty != nil {
+		itemProp = l.ItemProperty.Clone()
+	}
+	var props knowledgebase.Properties
+	if l.Properties != nil {
+		props = l.Properties.Clone()
+	}
 	return &ListProperty{
-		DefaultValue: l.DefaultValue,
 		MinLength:    l.MinLength,
 		MaxLength:    l.MaxLength,
-		ItemProperty: l.ItemProperty.Clone(),
-		Properties:   l.Properties.Clone(),
+		ItemProperty: itemProp,
+		Properties:   props,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: l.DefaultValueTemplate,
-			ValidityChecks:       l.ValidityChecks,
+			DefaultValue:   l.DefaultValue,
+			ValidityChecks: l.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  l.Name,
 			Path:                  l.Path,
 			Required:              l.Required,
@@ -64,17 +70,10 @@ func (l *ListProperty) Clone() knowledgebase.Property {
 }
 
 func (list *ListProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if list.DefaultValue != nil {
-		return list.DefaultValue, nil
-	} else if list.DefaultValueTemplate != nil {
-		var result []any
-		err := ctx.ExecuteTemplateDecode(list.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+	if list.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return list.Parse(list.DefaultValue, ctx, data)
 }
 
 func (list *ListProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {

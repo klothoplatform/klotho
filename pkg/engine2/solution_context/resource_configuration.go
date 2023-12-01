@@ -25,7 +25,14 @@ func ConfigureResource(
 		return fmt.Errorf("data resource (%s) does not match configuring resource (%s)", data.Resource, resource.ID)
 	}
 	field := configuration.Field
-
+	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
+	if err != nil {
+		return err
+	}
+	property := rt.GetProperty(field)
+	if property == nil {
+		return fmt.Errorf("failed to get property %s on resource %s: %w", field, resource.ID, err)
+	}
 	val, err := knowledgebase.TransformToPropertyValue(
 		resource.ID,
 		field,
@@ -39,17 +46,17 @@ func ConfigureResource(
 
 	switch action {
 	case "set":
-		err = resource.SetProperty(field, val)
+		err = property.SetProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to set property %s on resource %s: %w", field, resource.ID, err)
 		}
 	case "add":
-		err = resource.AppendProperty(field, val)
+		err = property.AppendProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to add property %s on resource %s: %w", field, resource.ID, err)
 		}
 	case "remove":
-		err = resource.RemoveProperty(field, val)
+		err = property.RemoveProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to remove property %s on resource %s: %w", field, resource.ID, err)
 		}

@@ -73,9 +73,11 @@ func (ctx OperationalRuleContext) HandlePropertyRule(rule knowledgebase.Property
 	}
 
 	var errs error
-	err = ctx.HandleOperationalStep(*rule.Step)
-	if err != nil {
-		errs = errors.Join(errs, fmt.Errorf("could not apply step: %w", err))
+	if rule.Step != nil {
+		err = ctx.HandleOperationalStep(*rule.Step)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not apply step: %w", err))
+		}
 	}
 
 	if rule.Value != nil {

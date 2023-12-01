@@ -11,11 +11,10 @@ import (
 
 type (
 	StringProperty struct {
-		SanitizeTmpl  *knowledgebase.SanitizeTmpl `yaml:"sanitize"`
-		AllowedValues []string                    `yaml:"allowed_values"`
-		DefaultValue  *string                     `json:"default_value" yaml:"default_value"`
+		SanitizeTmpl  *knowledgebase.SanitizeTmpl
+		AllowedValues []string
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -25,7 +24,7 @@ func (str *StringProperty) SetProperty(resource *construct.Resource, value any) 
 	} else if val, ok := value.(construct.PropertyRef); ok {
 		return resource.SetProperty(str.Path, val)
 	}
-	return fmt.Errorf("invalid string value %v", value)
+	return fmt.Errorf("could not set string property: invalid string value %v", value)
 }
 
 func (str *StringProperty) AppendProperty(resource *construct.Resource, value any) error {
@@ -38,19 +37,18 @@ func (str *StringProperty) RemoveProperty(resource *construct.Resource, value an
 }
 
 func (s *StringProperty) Details() *knowledgebase.PropertyDetails {
-	return s.PropertyDetails
+	return &s.PropertyDetails
 }
 
 func (s *StringProperty) Clone() knowledgebase.Property {
 	return &StringProperty{
-		DefaultValue:  s.DefaultValue,
 		AllowedValues: s.AllowedValues,
 		SanitizeTmpl:  s.SanitizeTmpl,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: s.DefaultValueTemplate,
-			ValidityChecks:       s.ValidityChecks,
+			DefaultValue:   s.DefaultValue,
+			ValidityChecks: s.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  s.Name,
 			Path:                  s.Path,
 			Required:              s.Required,
@@ -63,17 +61,10 @@ func (s *StringProperty) Clone() knowledgebase.Property {
 }
 
 func (s *StringProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if s.DefaultValue != nil {
-		return *s.DefaultValue, nil
-	} else if s.DefaultValueTemplate != nil {
-		var result construct.ResourceId
-		err := ctx.ExecuteTemplateDecode(s.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return decodeAsPropertyRef(s.DefaultValueTemplate, ctx, data)
-		}
-		return result, nil
+	if s.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return s.Parse(s.DefaultValue, ctx, data)
 }
 
 func (str *StringProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -87,7 +78,7 @@ func (str *StringProperty) Parse(value any, ctx knowledgebase.DynamicContext, da
 		err := ctx.ExecuteDecode(val, data, &result)
 		return result, err
 	}
-	return nil, fmt.Errorf("invalid string value %v", value)
+	return nil, fmt.Errorf("could not parse string property: invalid string value %v", value)
 }
 
 func (s *StringProperty) ZeroValue() any {
@@ -113,7 +104,7 @@ func (s *StringProperty) Type() string {
 func (s *StringProperty) Validate(value any, properties construct.Properties) error {
 	stringVal, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("invalid string value %v", value)
+		return fmt.Errorf("could not validate property: invalid string value %v", value)
 	}
 	if s.AllowedValues != nil {
 		if !collectionutil.Contains(s.AllowedValues, stringVal) {

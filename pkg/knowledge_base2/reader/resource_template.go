@@ -33,9 +33,12 @@ func (r *ResourceTemplate) Convert() (*knowledgebase.ResourceTemplate, error) {
 	if err != nil {
 		return nil, err
 	}
-	sanitizeTmpl, err := knowledgebase.NewSanitizationTmpl(r.QualifiedTypeName, r.SanitizeNameTmpl)
-	if err != nil {
-		return nil, err
+	var sanitizeTmpl *knowledgebase.SanitizeTmpl
+	if r.SanitizeNameTmpl != "" {
+		sanitizeTmpl, err = knowledgebase.NewSanitizationTmpl(r.QualifiedTypeName, r.SanitizeNameTmpl)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &knowledgebase.ResourceTemplate{
 		QualifiedTypeName: r.QualifiedTypeName,

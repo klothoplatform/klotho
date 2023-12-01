@@ -11,16 +11,16 @@ import (
 
 type (
 	SharedPropertyFields struct {
-		DefaultValueTemplate *template.Template `json:"default_value" yaml:"default_value"`
-		ValidityChecks       []PropertyValidityCheck
+		DefaultValue   any
+		ValidityChecks []PropertyValidityCheck
 	}
 
 	PropertyValidityCheck struct {
 		template *template.Template
 	}
 	ValidityCheckData struct {
-		Properties construct.Properties
-		Value      any
+		Properties construct.Properties `json:"properties" yaml:"properties"`
+		Value      any                  `json:"value" yaml:"value"`
 	}
 )
 

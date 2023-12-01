@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func NewSanitizationTmpl(name string, tmpl string) (SanitizeTmpl, error) {
+func NewSanitizationTmpl(name string, tmpl string) (*SanitizeTmpl, error) {
 	t, err := template.New(name + "/sanitize").
 		Funcs(template.FuncMap{
 			"replace": func(pattern, replace, name string) (string, error) {
@@ -44,7 +44,7 @@ func NewSanitizationTmpl(name string, tmpl string) (SanitizeTmpl, error) {
 			"upper": strings.ToUpper,
 		}).
 		Parse(tmpl)
-	return SanitizeTmpl{
+	return &SanitizeTmpl{
 		template: t,
 	}, err
 }

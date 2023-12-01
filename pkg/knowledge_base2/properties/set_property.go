@@ -12,13 +12,12 @@ import (
 
 type (
 	SetProperty struct {
-		DefaultValue []any                  `json:"default_value" yaml:"default_value"`
-		MinLength    *int                   `yaml:"min_length"`
-		MaxLength    *int                   `yaml:"max_length"`
-		ItemProperty knowledgebase.Property `yaml:"item_property"`
+		MinLength    *int
+		MaxLength    *int
+		ItemProperty knowledgebase.Property
 		Properties   knowledgebase.Properties
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -30,6 +29,21 @@ func (s *SetProperty) SetProperty(resource *construct.Resource, value any) error
 }
 
 func (s *SetProperty) AppendProperty(resource *construct.Resource, value any) error {
+	propVal, err := resource.GetProperty(s.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		propVal = set.HashedSet[string, any]{
+			Hasher: func(s any) string {
+				return fmt.Sprintf("%v", s)
+			},
+		}
+		err = s.SetProperty(resource, propVal)
+		if err != nil {
+			return err
+		}
+	}
 	return resource.AppendProperty(s.Path, value)
 }
 
@@ -38,21 +52,28 @@ func (s *SetProperty) RemoveProperty(resource *construct.Resource, value any) er
 }
 
 func (s *SetProperty) Details() *knowledgebase.PropertyDetails {
-	return s.PropertyDetails
+	return &s.PropertyDetails
 }
 
 func (s *SetProperty) Clone() knowledgebase.Property {
+	var itemProp knowledgebase.Property
+	if s.ItemProperty != nil {
+		itemProp = s.ItemProperty.Clone()
+	}
+	var props knowledgebase.Properties
+	if s.Properties != nil {
+		props = s.Properties.Clone()
+	}
 	return &SetProperty{
-		DefaultValue: s.DefaultValue,
 		MinLength:    s.MinLength,
 		MaxLength:    s.MaxLength,
-		ItemProperty: s.ItemProperty.Clone(),
-		Properties:   s.Properties.Clone(),
+		ItemProperty: itemProp,
+		Properties:   props,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: s.DefaultValueTemplate,
-			ValidityChecks:       s.ValidityChecks,
+			DefaultValue:   s.DefaultValue,
+			ValidityChecks: s.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  s.Name,
 			Path:                  s.Path,
 			Required:              s.Required,
@@ -65,14 +86,10 @@ func (s *SetProperty) Clone() knowledgebase.Property {
 }
 
 func (s *SetProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if s.DefaultValue != nil {
-		return s.DefaultValue, nil
-	} else if s.DefaultValueTemplate != nil {
-		var result []any
-		err := ctx.ExecuteTemplateDecode(s.DefaultValueTemplate, data, &result)
-		return result, err
+	if s.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return s.Parse(s.DefaultValue, ctx, data)
 }
 
 func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -81,7 +98,7 @@ func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 			return fmt.Sprintf("%v", s)
 		},
 	}
-	val, ok := value.([]any)
+	vals, ok := value.([]any)
 	if !ok {
 		// before we fail, check to see if the entire value is a template
 		if strVal, ok := value.(string); ok {
@@ -92,7 +109,7 @@ func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 		return nil, fmt.Errorf("invalid list value %v", value)
 	}
 
-	for _, v := range val {
+	for _, v := range vals {
 		if len(s.Properties) != 0 {
 			m := MapProperty{Properties: s.Properties}
 			val, err := m.Parse(v, ctx, data)
@@ -101,7 +118,7 @@ func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 			}
 			result.Add(val)
 		} else {
-			val, err := s.ItemProperty.Parse(val, ctx, data)
+			val, err := s.ItemProperty.Parse(v, ctx, data)
 			if err != nil {
 				return nil, err
 			}
@@ -156,16 +173,16 @@ func (s *SetProperty) IsRequired() bool {
 func (s *SetProperty) Validate(value any, properties construct.Properties) error {
 	setVal, ok := value.(set.HashedSet[string, any])
 	if !ok {
-		return fmt.Errorf("invalid string value %v", value)
+		return fmt.Errorf("could not validate set property: invalid set value %v", value)
 	}
 	if s.MinLength != nil {
 		if setVal.Len() < *s.MinLength {
-			return fmt.Errorf("value %s is too short. minimum length is %d", setVal, *s.MinLength)
+			return fmt.Errorf("value %s is too short. minimum length is %d", setVal.M, *s.MinLength)
 		}
 	}
 	if s.MaxLength != nil {
 		if setVal.Len() > *s.MaxLength {
-			return fmt.Errorf("value %s is too long. maximum length is %d", setVal, *s.MaxLength)
+			return fmt.Errorf("value %s is too long. maximum length is %d", setVal.M, *s.MaxLength)
 		}
 	}
 

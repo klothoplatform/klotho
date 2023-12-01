@@ -9,11 +9,10 @@ import (
 
 type (
 	FloatProperty struct {
-		LowerBound   *float64 `yaml:"lower_bound"`
-		UpperBound   *float64 `yaml:"upper_bound"`
-		DefaultValue *float64 `json:"default_value" yaml:"default_value"`
+		LowerBound *float64
+		UpperBound *float64
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -36,19 +35,18 @@ func (f *FloatProperty) RemoveProperty(resource *construct.Resource, value any) 
 }
 
 func (f *FloatProperty) Details() *knowledgebase.PropertyDetails {
-	return f.PropertyDetails
+	return &f.PropertyDetails
 }
 
 func (f *FloatProperty) Clone() knowledgebase.Property {
 	return &FloatProperty{
-		LowerBound:   f.LowerBound,
-		UpperBound:   f.UpperBound,
-		DefaultValue: f.DefaultValue,
+		LowerBound: f.LowerBound,
+		UpperBound: f.UpperBound,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: f.DefaultValueTemplate,
-			ValidityChecks:       f.ValidityChecks,
+			DefaultValue:   f.DefaultValue,
+			ValidityChecks: f.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  f.Name,
 			Path:                  f.Path,
 			Required:              f.Required,
@@ -61,17 +59,10 @@ func (f *FloatProperty) Clone() knowledgebase.Property {
 }
 
 func (f *FloatProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if f.DefaultValue != nil {
-		return f.DefaultValue, nil
-	} else if f.DefaultValueTemplate != nil {
-		var result float64
-		err := ctx.ExecuteTemplateDecode(f.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return decodeAsPropertyRef(f.DefaultValueTemplate, ctx, data)
-		}
-		return result, nil
+	if f.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return f.Parse(f.DefaultValue, ctx, data)
 }
 
 func (f *FloatProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
@@ -126,10 +117,10 @@ func (f *FloatProperty) Validate(value any, properties construct.Properties) err
 		return fmt.Errorf("invalid int value %v", value)
 	}
 	if f.LowerBound != nil && floatVal < *f.LowerBound {
-		return fmt.Errorf("int value %v is less than lower bound %d", value, *f.LowerBound)
+		return fmt.Errorf("int value %f is less than lower bound %f", value, *f.LowerBound)
 	}
 	if f.UpperBound != nil && floatVal > *f.UpperBound {
-		return fmt.Errorf("int value %v is greater than upper bound %d", value, *f.UpperBound)
+		return fmt.Errorf("int value %f is greater than upper bound %f", value, *f.UpperBound)
 	}
 	return nil
 }

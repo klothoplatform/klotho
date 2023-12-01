@@ -75,7 +75,7 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 	err = template.LoopProperties(resource, func(prop knowledgebase.Property) error {
 		details := prop.Details()
 		rule := details.OperationalRule
-		if rule == nil {
+		if rule == nil || rule.Step == nil {
 			return nil
 		}
 		step := rule.Step
@@ -247,7 +247,7 @@ func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resour
 		err = template.LoopProperties(currRes, func(prop knowledgebase.Property) error {
 			details := prop.Details()
 			rule := details.OperationalRule
-			if rule == nil {
+			if rule == nil || rule.Step == nil {
 				return nil
 			}
 			step := rule.Step

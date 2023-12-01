@@ -34,15 +34,15 @@ type (
 
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
 
-		SanitizeNameTmpl SanitizeTmpl `yaml:"sanitize_name"`
+		SanitizeNameTmpl *SanitizeTmpl `yaml:"sanitize_name"`
 	}
 
 	PropertyDetails struct {
-		Name string
+		Name string `json:"name" yaml:"name"`
 		// DefaultValue has to be any because it may be a template and it may be a value of the correct type
 		Namespace bool `yaml:"namespace"`
 		// Required defines if the property is required
-		Required bool
+		Required bool `json:"required" yaml:"required"`
 		// ConfigurationDisabled defines if the property is allowed to be configured by the user
 		ConfigurationDisabled bool `json:"configuration_disabled" yaml:"configuration_disabled"`
 		// DeployTime defines if the property is only available at deploy time
@@ -167,6 +167,9 @@ func CreateResource(kb TemplateKB, id construct.ResourceId) (*construct.Resource
 }
 
 func (rt ResourceTemplate) SanitizeName(name string) (string, error) {
+	if rt.SanitizeNameTmpl == nil {
+		return name, nil
+	}
 	return rt.SanitizeNameTmpl.Execute(name)
 }
 
@@ -294,7 +297,7 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 						subProperties := make(Properties)
 						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							ReplacePath(prop, prop.Details().Path, fmt.Sprintf("%s[%d]", prop.Details().Path, i))
+							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%d]", prop.Details().Path, i))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {
@@ -302,12 +305,16 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 						}
 					}
 				} else if strings.HasPrefix(prop.Type(), "set") {
-					hs := p.(set.HashedSet[string, any])
+					hs, ok := p.(set.HashedSet[string, any])
+					if !ok {
+						errs = errors.Join(errs, fmt.Errorf("could not cast property to set"))
+						continue
+					}
 					for k := range hs.ToMap() {
 						subProperties := make(Properties)
 						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							ReplacePath(prop, prop.Details().Path, fmt.Sprintf("%s[%s]", prop.Details().Path, k))
+							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%s]", prop.Details().Path, k))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {

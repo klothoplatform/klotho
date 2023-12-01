@@ -69,7 +69,7 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 		}
 
 		model := Model{}
-		err = yaml.NewDecoder(f).Decode(model)
+		err = yaml.NewDecoder(f).Decode(&model)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error decoding model file %s: %w", path, err))
 		}

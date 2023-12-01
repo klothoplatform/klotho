@@ -182,7 +182,9 @@ func (ctx *fauxConfigContext) ExecutePropertyRule(
 	if propRule.Value != nil {
 		ctx.ExecuteValue(propRule.Value, data)
 	}
-	errs = errors.Join(errs, ctx.executeOpStep(data, *propRule.Step))
+	if propRule.Step != nil {
+		errs = errors.Join(errs, ctx.executeOpStep(data, *propRule.Step))
+	}
 	return errs
 }
 

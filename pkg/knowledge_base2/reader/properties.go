@@ -2,8 +2,10 @@ package reader
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
@@ -30,7 +32,7 @@ type (
 
 		OperationalRule *knowledgebase.PropertyRule `json:"operational_rule" yaml:"operational_rule"`
 
-		Properties map[string]*Property `json:"properties" yaml:"properties"`
+		Properties Properties `json:"properties" yaml:"properties"`
 
 		MinLength *int `yaml:"min_length"`
 		MaxLength *int `yaml:"max_length"`
@@ -40,8 +42,8 @@ type (
 
 		AllowedTypes construct.ResourceList `yaml:"allowed_types"`
 
-		SanitizeTmpl  *knowledgebase.SanitizeTmpl `yaml:"sanitize"`
-		AllowedValues []string                    `yaml:"allowed_values"`
+		SanitizeTmpl  string   `yaml:"sanitize"`
+		AllowedValues []string `yaml:"allowed_values"`
 
 		KeyProperty   knowledgebase.Property `yaml:"key_property"`
 		ValueProperty knowledgebase.Property `yaml:"value_property"`
@@ -78,7 +80,6 @@ func (p *Properties) Convert() (knowledgebase.Properties, error) {
 			errs = fmt.Errorf("%w\n%s", errs, err.Error())
 			continue
 		}
-		setChildPaths(prop, name)
 		props[name] = propertyType
 	}
 	return props, nil
@@ -89,15 +90,56 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 	if err != nil {
 		return nil, err
 	}
-	// marshall the existing property to yaml and unmarshall it into the new property type
-	data, err := yaml.Marshal(p)
-	if err != nil {
-		return nil, err
+
+	srcVal := reflect.ValueOf(p).Elem()
+	dstVal := reflect.ValueOf(propertyType).Elem()
+	for i := 0; i < srcVal.NumField(); i++ {
+		srcField := srcVal.Field(i)
+		fieldName := srcVal.Type().Field(i).Name
+		dstField := dstVal.FieldByName(fieldName)
+		if dstField.IsValid() && dstField.CanSet() {
+			// Skip nil pointers
+			if (srcField.Kind() == reflect.Ptr || srcField.Kind() == reflect.Interface) && srcField.IsNil() {
+				continue
+			}
+			// Handle sub properties so we can recurse down the tree
+			if fieldName == "Properties" {
+				properties, ok := srcField.Interface().(Properties)
+				if !ok {
+					return nil, fmt.Errorf("invalid properties")
+				}
+				var errs error
+				props := knowledgebase.Properties{}
+				for name, prop := range properties {
+					propertyType, err := prop.Convert()
+					if err != nil {
+						errs = fmt.Errorf("%w\n%s", errs, err.Error())
+						continue
+					}
+					props[name] = propertyType
+				}
+				if errs != nil {
+					return nil, errs
+				}
+				dstField.Set(reflect.ValueOf(props))
+				continue
+			}
+
+			if dstField.Type() == srcField.Type() {
+				dstField.Set(srcField)
+			} else {
+				if conversion, found := fieldConversion[fieldName]; found {
+					err := conversion(srcField, p, propertyType)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, fmt.Errorf("invalid property type %s", fieldName)
+				}
+			}
+		}
 	}
-	err = yaml.Unmarshal(data, &propertyType)
-	if err != nil {
-		return nil, err
-	}
+
 	details := propertyType.Details()
 	details.Path = p.Path
 	return propertyType, nil
@@ -128,6 +170,24 @@ func (p *Property) Clone() *Property {
 		cloned.Properties[k] = v.Clone()
 	}
 	return &cloned
+}
+
+var fieldConversion = map[string]func(val reflect.Value, p *Property, kp knowledgebase.Property) error{
+	"SanitizeTmpl": func(val reflect.Value, p *Property, kp knowledgebase.Property) error {
+		sanitizeTmpl, ok := val.Interface().(string)
+		if !ok {
+			return fmt.Errorf("invalid sanitize template")
+		}
+		// generate random uuid as the name of the template
+		name := uuid.New().String()
+		tmpl, err := knowledgebase.NewSanitizationTmpl(name, sanitizeTmpl)
+		if err != nil {
+			return err
+		}
+		dstField := reflect.ValueOf(kp).Elem().FieldByName("SanitizeTmpl")
+		dstField.Set(reflect.ValueOf(tmpl))
+		return nil
+	},
 }
 
 func InitializeProperty(ptype string) (knowledgebase.Property, error) {

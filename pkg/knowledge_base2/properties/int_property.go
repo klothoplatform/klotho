@@ -9,11 +9,10 @@ import (
 
 type (
 	IntProperty struct {
-		LowerBound   *int `yaml:"lower_bound"`
-		UpperBound   *int `yaml:"upper_bound"`
-		DefaultValue *int `json:"default_value" yaml:"default_value"`
+		LowerBound *int
+		UpperBound *int
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -36,19 +35,18 @@ func (i *IntProperty) RemoveProperty(resource *construct.Resource, value any) er
 }
 
 func (i *IntProperty) Details() *knowledgebase.PropertyDetails {
-	return i.PropertyDetails
+	return &i.PropertyDetails
 }
 
 func (i *IntProperty) Clone() knowledgebase.Property {
 	return &IntProperty{
-		LowerBound:   i.LowerBound,
-		UpperBound:   i.UpperBound,
-		DefaultValue: i.DefaultValue,
+		LowerBound: i.LowerBound,
+		UpperBound: i.UpperBound,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: i.DefaultValueTemplate,
-			ValidityChecks:       i.ValidityChecks,
+			DefaultValue:   i.DefaultValue,
+			ValidityChecks: i.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  i.Name,
 			Path:                  i.Path,
 			Required:              i.Required,
@@ -61,17 +59,10 @@ func (i *IntProperty) Clone() knowledgebase.Property {
 }
 
 func (i *IntProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if i.DefaultValue != nil {
-		return i.DefaultValue, nil
-	} else if i.DefaultValueTemplate != nil {
-		var result int
-		err := ctx.ExecuteTemplateDecode(i.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return decodeAsPropertyRef(i.DefaultValueTemplate, ctx, data)
-		}
-		return result, nil
+	if i.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return i.Parse(i.DefaultValue, ctx, data)
 }
 
 func (i *IntProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {

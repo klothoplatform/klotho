@@ -11,14 +11,13 @@ import (
 
 type (
 	MapProperty struct {
-		DefaultValue  map[string]any         `json:"default_value" yaml:"default_value"`
-		MinLength     *int                   `yaml:"min_length"`
-		MaxLength     *int                   `yaml:"max_length"`
-		KeyProperty   knowledgebase.Property `yaml:"key_property"`
-		ValueProperty knowledgebase.Property `yaml:"value_property"`
+		MinLength     *int
+		MaxLength     *int
+		KeyProperty   knowledgebase.Property
+		ValueProperty knowledgebase.Property
 		Properties    knowledgebase.Properties
 		SharedPropertyFields
-		*knowledgebase.PropertyDetails
+		knowledgebase.PropertyDetails
 	}
 )
 
@@ -38,22 +37,33 @@ func (m *MapProperty) RemoveProperty(resource *construct.Resource, value any) er
 }
 
 func (m *MapProperty) Details() *knowledgebase.PropertyDetails {
-	return m.PropertyDetails
+	return &m.PropertyDetails
 }
 
 func (m *MapProperty) Clone() knowledgebase.Property {
+	var keyProp knowledgebase.Property
+	if m.KeyProperty != nil {
+		keyProp = m.KeyProperty.Clone()
+	}
+	var valProp knowledgebase.Property
+	if m.ValueProperty != nil {
+		valProp = m.ValueProperty.Clone()
+	}
+	var props knowledgebase.Properties
+	if m.Properties != nil {
+		props = m.Properties.Clone()
+	}
 	return &MapProperty{
-		DefaultValue:  m.DefaultValue,
 		MinLength:     m.MinLength,
 		MaxLength:     m.MaxLength,
-		KeyProperty:   m.KeyProperty.Clone(),
-		ValueProperty: m.ValueProperty.Clone(),
-		Properties:    m.Properties.Clone(),
+		KeyProperty:   keyProp,
+		ValueProperty: valProp,
+		Properties:    props,
 		SharedPropertyFields: SharedPropertyFields{
-			DefaultValueTemplate: m.DefaultValueTemplate,
-			ValidityChecks:       m.ValidityChecks,
+			DefaultValue:   m.DefaultValue,
+			ValidityChecks: m.ValidityChecks,
 		},
-		PropertyDetails: &knowledgebase.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Name:                  m.Name,
 			Path:                  m.Path,
 			Required:              m.Required,
@@ -66,17 +76,10 @@ func (m *MapProperty) Clone() knowledgebase.Property {
 }
 
 func (m *MapProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
-	if m.DefaultValue != nil {
-		return m.DefaultValue, nil
-	} else if m.DefaultValueTemplate != nil {
-		var result []any
-		err := ctx.ExecuteTemplateDecode(m.DefaultValueTemplate, data, &result)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+	if m.DefaultValue == nil {
+		return nil, nil
 	}
-	return nil, nil
+	return m.Parse(m.DefaultValue, ctx, data)
 }
 
 func (m *MapProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
