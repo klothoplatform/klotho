@@ -144,9 +144,6 @@ func (eval *Evaluator) resourceVertices(
 ) (graphChanges, error) {
 	changes := newChanges()
 	var errs error
-	if res.ID.Type == "iam_role" {
-		res.ID.Type = "iam_role"
-	}
 	addProp := func(prop knowledgebase.Property) error {
 		vertex := &propertyVertex{
 			Ref:       construct.PropertyRef{Resource: res.ID, Property: prop.Details().Path},

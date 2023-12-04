@@ -35,7 +35,7 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
-		_, _ = prop.Template.GetDefaultValue(propCtx.inner, resData)
+		_, _ = prop.Template.GetDefaultValue(propCtx, resData)
 		details := prop.Template.Details()
 		if opRule := details.OperationalRule; opRule != nil {
 			if err := propCtx.ExecutePropertyRule(resData, *opRule); err != nil {
@@ -286,12 +286,12 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		return ReadyNow, nil
 	}
 	ptype := v.Template.Type()
-	if strings.Contains(ptype, "list") || strings.Contains(ptype, "set") {
+	if strings.HasPrefix(ptype, "list") || strings.HasPrefix(ptype, "set") {
 		// never sure when a list/set is ready - it'll just be appended to by edges through
 		// `v.EdgeRules`
 		return NotReadyHigh, nil
 	}
-	if strings.Contains(ptype, "map") && len(v.Template.SubProperties()) == 0 {
+	if strings.HasPrefix(ptype, "map") && len(v.Template.SubProperties()) == 0 {
 		// maps without sub-properties (ie, not objects) are also appended to by edges
 		return NotReadyHigh, nil
 	}

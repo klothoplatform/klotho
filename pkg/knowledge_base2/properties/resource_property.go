@@ -59,7 +59,7 @@ func (r *ResourceProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (r *ResourceProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (r *ResourceProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if r.DefaultValue == nil {
 		return nil, nil
 	}

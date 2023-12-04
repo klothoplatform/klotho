@@ -79,7 +79,7 @@ func (m *MapProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (m *MapProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (m *MapProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if m.DefaultValue == nil {
 		return nil, nil
 	}

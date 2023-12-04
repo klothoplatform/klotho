@@ -270,25 +270,20 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 		return nil
 	}
 
-	removeCurrentValue := func(res any) error {
-		switch val := res.(type) {
-		case construct.ResourceId:
-			if val != fieldResource.ID {
-				return removeResource(val)
-			}
-		case construct.PropertyRef:
-			if val.Resource != fieldResource.ID {
-				return removeResource(val.Resource)
-			}
-		}
-		return nil
-	}
-
 	propVal, err := resource.GetProperty(path)
 	if err != nil {
 		zap.S().Debugf("property %s not found on resource %s", path, resource.ID)
 	}
-	err = removeCurrentValue(propVal)
+	switch val := propVal.(type) {
+	case construct.ResourceId:
+		if val != fieldResource.ID {
+			err = removeResource(val)
+		}
+	case construct.PropertyRef:
+		if val.Resource != fieldResource.ID {
+			err = removeResource(val.Resource)
+		}
+	}
 	if err != nil {
 		return err
 	}

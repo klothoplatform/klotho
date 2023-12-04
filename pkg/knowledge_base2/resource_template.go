@@ -79,7 +79,7 @@ type (
 		// Type returns the string representation of the type of the property, as it should appear in the resource template
 		Type() string
 		// GetDefaultValue returns the default value for the property, pertaining to the specific data being passed in for execution
-		GetDefaultValue(ctx DynamicValueContext, data DynamicValueData) (any, error)
+		GetDefaultValue(ctx DynamicContext, data DynamicValueData) (any, error)
 		// Validate ensures the value is valid for the property and returns an error if it is not
 		Validate(value any, properties construct.Properties) error
 		// SubProperties returns the sub properties of the property, if any. This is used for properties that are complex structures,

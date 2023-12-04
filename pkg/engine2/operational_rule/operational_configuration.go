@@ -17,7 +17,6 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	if err != nil {
 		return fmt.Errorf("resource %s not found: %w", res, err)
 	}
-	action := "add"
 
 	resolvedField := config.Config.Field
 	err = dyn.ExecuteDecode(config.Config.Field, ctx.Data, &resolvedField)
@@ -26,7 +25,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	}
 	config.Config.Field = resolvedField
 
-	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, action)
+	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, "add")
 	if err != nil {
 		return err
 	}

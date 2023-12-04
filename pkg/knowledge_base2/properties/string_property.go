@@ -51,7 +51,7 @@ func (s *StringProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (s *StringProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (s *StringProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if s.DefaultValue == nil {
 		return nil, nil
 	}

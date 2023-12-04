@@ -40,7 +40,7 @@ func (a *AnyProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (a *AnyProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (a *AnyProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if a.DefaultValue == nil {
 		return nil, nil
 	}

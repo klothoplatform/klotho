@@ -47,7 +47,7 @@ func (b *BoolProperty) Details() *knowledgebase.PropertyDetails {
 	return &b.PropertyDetails
 }
 
-func (b *BoolProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (b *BoolProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if b.DefaultValue == nil {
 		return nil, nil
 	}

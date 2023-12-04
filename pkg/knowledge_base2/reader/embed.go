@@ -26,6 +26,9 @@ func NewKBFromFs(resources, edges, models fs.FS) (*knowledgebase.KnowledgeBase, 
 		}
 		kbModels[name] = kbModel
 	}
+	if errs != nil {
+		return nil, errs
+	}
 	kb.Models = kbModels
 	templates, err := TemplatesFromFs(resources, readerModels)
 	if err != nil {

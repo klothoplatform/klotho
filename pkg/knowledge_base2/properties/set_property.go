@@ -82,7 +82,7 @@ func (s *SetProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (s *SetProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (s *SetProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if s.DefaultValue == nil {
 		return nil, nil
 	}

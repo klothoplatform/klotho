@@ -49,7 +49,7 @@ func (i *IntProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (i *IntProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (i *IntProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if i.DefaultValue == nil {
 		return nil, nil
 	}

@@ -13,8 +13,11 @@ import (
 )
 
 type (
+	// Properties defines the structure of properties defined in yaml as a part of a template.
 	Properties map[string]*Property
 
+	// Property defines the structure of a property defined in yaml as a part of a template.
+	// these fields must be exactly the union of all the fields in the different property types.
 	Property struct {
 		Name string `json:"name" yaml:"name"`
 		// Type defines the type of the property
@@ -97,45 +100,46 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 		srcField := srcVal.Field(i)
 		fieldName := srcVal.Type().Field(i).Name
 		dstField := dstVal.FieldByName(fieldName)
-		if dstField.IsValid() && dstField.CanSet() {
-			// Skip nil pointers
-			if (srcField.Kind() == reflect.Ptr || srcField.Kind() == reflect.Interface) && srcField.IsNil() {
-				continue
+		if !dstField.IsValid() || !dstField.CanSet() {
+			continue
+		}
+		// Skip nil pointers
+		if (srcField.Kind() == reflect.Ptr || srcField.Kind() == reflect.Interface) && srcField.IsNil() {
+			continue
+		}
+		// Handle sub properties so we can recurse down the tree
+		if fieldName == "Properties" {
+			properties, ok := srcField.Interface().(Properties)
+			if !ok {
+				return nil, fmt.Errorf("invalid properties")
 			}
-			// Handle sub properties so we can recurse down the tree
-			if fieldName == "Properties" {
-				properties, ok := srcField.Interface().(Properties)
-				if !ok {
-					return nil, fmt.Errorf("invalid properties")
+			var errs error
+			props := knowledgebase.Properties{}
+			for name, prop := range properties {
+				propertyType, err := prop.Convert()
+				if err != nil {
+					errs = fmt.Errorf("%w\n%s", errs, err.Error())
+					continue
 				}
-				var errs error
-				props := knowledgebase.Properties{}
-				for name, prop := range properties {
-					propertyType, err := prop.Convert()
-					if err != nil {
-						errs = fmt.Errorf("%w\n%s", errs, err.Error())
-						continue
-					}
-					props[name] = propertyType
-				}
-				if errs != nil {
-					return nil, errs
-				}
-				dstField.Set(reflect.ValueOf(props))
-				continue
+				props[name] = propertyType
 			}
+			if errs != nil {
+				return nil, errs
+			}
+			dstField.Set(reflect.ValueOf(props))
+			continue
+		}
 
-			if dstField.Type() == srcField.Type() {
-				dstField.Set(srcField)
-			} else {
-				if conversion, found := fieldConversion[fieldName]; found {
-					err := conversion(srcField, p, propertyType)
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					return nil, fmt.Errorf("invalid property type %s", fieldName)
+		if dstField.Type() == srcField.Type() {
+			dstField.Set(srcField)
+		} else {
+			if conversion, found := fieldConversion[fieldName]; found {
+				err := conversion(srcField, p, propertyType)
+				if err != nil {
+					return nil, err
 				}
+			} else {
+				return nil, fmt.Errorf("invalid property type %s", fieldName)
 			}
 		}
 	}
@@ -151,7 +155,6 @@ func setChildPaths(property *Property, currPath string) {
 		path := currPath + "." + name
 		child.Path = path
 		setChildPaths(child, path)
-		property.Properties[name] = child
 	}
 }
 
@@ -172,6 +175,7 @@ func (p *Property) Clone() *Property {
 	return &cloned
 }
 
+// fieldConversion is a map providing functionality on how to convert inputs into our internal types if they are not inherently the same structure
 var fieldConversion = map[string]func(val reflect.Value, p *Property, kp knowledgebase.Property) error{
 	"SanitizeTmpl": func(val reflect.Value, p *Property, kp knowledgebase.Property) error {
 		sanitizeTmpl, ok := val.Interface().(string)

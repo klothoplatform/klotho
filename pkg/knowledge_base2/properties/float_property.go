@@ -50,7 +50,7 @@ func (f *FloatProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (f *FloatProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (f *FloatProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if f.DefaultValue == nil {
 		return nil, nil
 	}

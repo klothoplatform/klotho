@@ -97,7 +97,7 @@ func (l *ListProperty) Clone() knowledgebase.Property {
 	return &clone
 }
 
-func (list *ListProperty) GetDefaultValue(ctx knowledgebase.DynamicValueContext, data knowledgebase.DynamicValueData) (any, error) {
+func (list *ListProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
 	if list.DefaultValue == nil {
 		return nil, nil
 	}
