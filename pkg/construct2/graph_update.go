@@ -2,6 +2,7 @@ package construct2
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
@@ -23,9 +24,12 @@ func CopyEdgeProps(p graph.EdgeProperties) func(*graph.EdgeProperties) {
 // references (as [ResourceId] or [PropertyRef]) of the old ID to the new ID in any resource that depends on or is
 // depended on by the resource.
 func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
+	if oldId == newRes.ID {
+		return nil
+	}
 	err := graph_addons.ReplaceVertex(g, oldId, newRes, ResourceHasher)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not update resource %s to %s: %w", oldId, newRes.ID, err)
 	}
 
 	updateId := func(path PropertyPathItem) error {

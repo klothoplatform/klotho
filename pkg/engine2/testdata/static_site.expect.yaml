@@ -1,0 +1,57 @@
+resources:
+    aws:cloudfront_distribution:cloudfront_distribution_1:
+        CloudfrontDefaultCertificate: true
+        DefaultCacheBehavior:
+            AllowedMethods:
+                - DELETE
+                - GET
+                - HEAD
+                - OPTIONS
+                - PATCH
+                - POST
+                - PUT
+            CachedMethods:
+                - HEAD
+                - GET
+            DefaultTtl: 3600
+            ForwardedValues:
+                Cookies:
+                    Forward: none
+                QueryString: true
+            MaxTtl: 86400
+            MinTtl: 0
+            TargetOriginId: s3-bucket-0
+            ViewerProtocolPolicy: allow-all
+        Enabled: true
+        Origins:
+            - DomainName: aws:s3_bucket:s3-bucket-0#BucketRegionalDomainName
+              OriginId: s3-bucket-0
+              S3OriginConfig:
+                OriginAccessIdentity: aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0#CloudfrontAccessIdentityPath
+        Restrictions:
+            GeoRestriction:
+                RestrictionType: none
+    aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0:
+        Comment: this is needed to set up S3 polices so that the S3 bucket is not public
+    aws:s3_bucket_policy:s3_bucket_policy-0:
+        Bucket: aws:s3_bucket:s3-bucket-0
+        Policy:
+            Statement:
+                - Action:
+                    - s3:GetObject
+                  Effect: Allow
+                  Principal:
+                    AWS:
+                        - aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0#IamArn
+                  Resource:
+                    - aws:s3_bucket:s3-bucket-0#AllBucketDirectory
+            Version: "2012-10-17"
+    aws:s3_bucket:s3-bucket-0:
+        ForceDestroy: true
+        SSEAlgorithm: AES256
+edges:
+    ? aws:cloudfront_distribution:cloudfront_distribution_1 -> aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0
+    :
+    aws:cloudfront_distribution:cloudfront_distribution_1 -> aws:s3_bucket:s3-bucket-0:
+    aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0 -> aws:s3_bucket_policy:s3_bucket_policy-0:
+    aws:s3_bucket_policy:s3_bucket_policy-0 -> aws:s3_bucket:s3-bucket-0:

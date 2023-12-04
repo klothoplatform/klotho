@@ -1,0 +1,14 @@
+provider: aws
+resources:
+  cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
+
+  s3_bucket/s3-bucket-0:
+
+  s3_bucket_policy/s3_bucket_policy-0:
+  s3_bucket_policy/s3_bucket_policy-0 -> cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
+  s3_bucket_policy/s3_bucket_policy-0 -> s3_bucket/s3-bucket-0:
+
+  cloudfront_distribution/cloudfront_distribution_1:
+  cloudfront_distribution/cloudfront_distribution_1 -> cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
+  cloudfront_distribution/cloudfront_distribution_1 -> s3_bucket/s3-bucket-0:
+

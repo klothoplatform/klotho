@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/stretchr/testify/assert"
+	"github.com/r3labs/diff"
 	"gopkg.in/yaml.v3"
 )
 
@@ -83,7 +83,7 @@ func (tc engineTestCase) Test(t *testing.T) {
 		t.Fatal(fmt.Errorf("failed to marshal actual output: %w", err))
 	}
 
-	assert.Equal(t, string(expectContent), string(actualContent))
+	assertYamlMatches(t, string(expectContent), string(actualContent), "dataflow")
 
 	// Always visualize views even if we're not testing them to make sure that it at least succeeds
 	vizFiles, err := main.Engine.VisualizeViews(sol)
@@ -123,15 +123,53 @@ func (tc engineTestCase) Test(t *testing.T) {
 			if err != nil {
 				t.Error(fmt.Errorf("failed to read iac viz file: %w", err))
 			} else {
-				assert.Equal(t, string(iacExpect), buf.String(), "IaC topology")
+				// assert.Equal(t, string(iacExpect), buf.String(), "IaC topology")
+				assertYamlMatches(t, string(iacExpect), buf.String(), "IaC topology")
 			}
 		} else if strings.HasPrefix(f.Path(), "dataflow-") && dataflowVizFile != nil {
 			dataflowExpect, err := io.ReadAll(dataflowVizFile)
 			if err != nil {
 				t.Error(fmt.Errorf("failed to read dataflow viz file: %w", err))
 			} else {
-				assert.Equal(t, string(dataflowExpect), buf.String(), "dataflow topology")
+				// assert.Equal(t, string(dataflowExpect), buf.String(), "dataflow topology")
+				assertYamlMatches(t, string(dataflowExpect), buf.String(), "dataflow topology")
 			}
+		}
+	}
+}
+
+func assertYamlMatches(t *testing.T, expectStr, actualStr string, name string) {
+	t.Helper()
+	var expect, actual map[string]interface{}
+	err := yaml.Unmarshal([]byte(expectStr), &expect)
+	if err != nil {
+		t.Errorf("failed to unmarshal expected %s graph: %v", name, err)
+		return
+	}
+	err = yaml.Unmarshal([]byte(actualStr), &actual)
+	if err != nil {
+		t.Errorf("failed to unmarshal actual %s graph: %v", name, err)
+		return
+	}
+	differ, err := diff.NewDiffer(diff.SliceOrdering(false))
+	if err != nil {
+		t.Errorf("failed to create differ for %s: %v", name, err)
+		return
+	}
+	changes, err := differ.Diff(expect, actual)
+	if err != nil {
+		t.Errorf("failed to diff %s: %v", name, err)
+		return
+	}
+	for _, c := range changes {
+		path := strings.Join(c.Path, ".")
+		switch c.Type {
+		case diff.CREATE:
+			t.Errorf("[%s] %s %s: %v", name, c.Type, path, c.To)
+		case diff.DELETE:
+			t.Errorf("[%s] %s %s: %v", name, c.Type, path, c.From)
+		case diff.UPDATE:
+			t.Errorf("[%s] %s %s: %v -> %v", name, c.Type, path, c.From, c.To)
 		}
 	}
 }

@@ -46,6 +46,7 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/r3labs/diff v1.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect

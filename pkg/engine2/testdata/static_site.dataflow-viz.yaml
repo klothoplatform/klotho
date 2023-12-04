@@ -1,0 +1,9 @@
+provider: aws
+resources:
+  s3_bucket/s3-bucket-0:
+
+  cloudfront_distribution/cloudfront_distribution_1:
+  cloudfront_distribution/cloudfront_distribution_1 -> s3_bucket/s3-bucket-0:
+    {}
+
+

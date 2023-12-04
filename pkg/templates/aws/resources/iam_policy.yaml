@@ -40,6 +40,10 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
+path_satisfaction:
+  as_target:
+    - permissions
+
 classification:
   is:
     - policy

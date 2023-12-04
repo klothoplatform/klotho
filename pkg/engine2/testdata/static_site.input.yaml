@@ -1,0 +1,12 @@
+constraints:
+  - node: aws:s3_bucket:s3_bucket_0
+    operator: add
+    scope: application
+  - node: aws:cloudfront_distribution:cloudfront_distribution_1
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:cloudfront_distribution:cloudfront_distribution_1
+      target: aws:s3_bucket:s3-bucket-0
