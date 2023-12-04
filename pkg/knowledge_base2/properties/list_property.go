@@ -35,7 +35,10 @@ func (l *ListProperty) AppendProperty(resource *construct.Resource, value any) e
 		return err
 	}
 	if propval == nil {
-		l.SetProperty(resource, []any{})
+		err := l.SetProperty(resource, []any{})
+		if err != nil {
+			return err
+		}
 	}
 	if l.ItemProperty != nil && !strings.HasPrefix(l.ItemProperty.Type(), "list") {
 		if reflect.ValueOf(value).Kind() == reflect.Slice || reflect.ValueOf(value).Kind() == reflect.Array {
