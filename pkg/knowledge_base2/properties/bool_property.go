@@ -83,7 +83,7 @@ func (b *BoolProperty) Type() string {
 	return "bool"
 }
 
-func (b *BoolProperty) Validate(value any, properties construct.Properties) error {
+func (b *BoolProperty) Validate(resource *construct.Resource, value any) error {
 	if _, ok := value.(bool); !ok {
 		return fmt.Errorf("invalid bool value %v", value)
 	}

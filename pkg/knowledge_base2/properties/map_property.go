@@ -176,7 +176,7 @@ func (m *MapProperty) Type() string {
 	return "map"
 }
 
-func (m *MapProperty) Validate(value any, properties construct.Properties) error {
+func (m *MapProperty) Validate(resource *construct.Resource, value any) error {
 	mapVal, ok := value.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid map value %v", value)
@@ -194,16 +194,16 @@ func (m *MapProperty) Validate(value any, properties construct.Properties) error
 	var errs error
 	if m.KeyProperty != nil && m.ValueProperty != nil {
 		for k, v := range mapVal {
-			if err := m.KeyProperty.Validate(k, properties); err != nil {
+			if err := m.KeyProperty.Validate(resource, k); err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid key %v for map property type %s: %w", k, m.KeyProperty.Type(), err))
 			}
-			if err := m.ValueProperty.Validate(v, properties); err != nil {
+			if err := m.ValueProperty.Validate(resource, v); err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid value %v for map property type %s: %w", v, m.ValueProperty.Type(), err))
 			}
 		}
 	} else {
 		for _, v := range mapVal {
-			if err := m.ValueProperty.Validate(v, properties); err != nil {
+			if err := m.ValueProperty.Validate(resource, v); err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid value %v for map property type %s: %w", v, m.ValueProperty.Type(), err))
 			}
 		}

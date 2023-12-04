@@ -92,7 +92,7 @@ func (s *StringProperty) Type() string {
 	return "string"
 }
 
-func (s *StringProperty) Validate(value any, properties construct.Properties) error {
+func (s *StringProperty) Validate(resource *construct.Resource, value any) error {
 	stringVal, ok := value.(string)
 	if !ok {
 		return fmt.Errorf("could not validate property: invalid string value %v", value)

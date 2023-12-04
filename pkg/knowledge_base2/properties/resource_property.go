@@ -126,7 +126,7 @@ func (r *ResourceProperty) Type() string {
 	return "resource"
 }
 
-func (r *ResourceProperty) Validate(value any, properties construct.Properties) error {
+func (r *ResourceProperty) Validate(resource *construct.Resource, value any) error {
 	id, ok := value.(construct.ResourceId)
 	if !ok {
 		return fmt.Errorf("invalid resource value %v", value)

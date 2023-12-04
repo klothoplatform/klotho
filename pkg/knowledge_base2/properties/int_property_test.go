@@ -208,8 +208,8 @@ func Test_IntProperty_Validate(t *testing.T) {
 				PropertyDetails: knowledgebase2.PropertyDetails{
 					Path: "test",
 				},
-				UpperBound: &upperBound,
-				LowerBound: &lowerBound,
+				MaxValue: &upperBound,
+				MinValue: &lowerBound,
 			},
 			value: 5,
 		},
@@ -219,8 +219,8 @@ func Test_IntProperty_Validate(t *testing.T) {
 				PropertyDetails: knowledgebase2.PropertyDetails{
 					Path: "test",
 				},
-				UpperBound: &upperBound,
-				LowerBound: &lowerBound,
+				MaxValue: &upperBound,
+				MinValue: &lowerBound,
 			},
 			value:   11,
 			wantErr: true,
@@ -231,8 +231,8 @@ func Test_IntProperty_Validate(t *testing.T) {
 				PropertyDetails: knowledgebase2.PropertyDetails{
 					Path: "test",
 				},
-				UpperBound: &upperBound,
-				LowerBound: &lowerBound,
+				MaxValue: &upperBound,
+				MinValue: &lowerBound,
 			},
 			value:   -1,
 			wantErr: true,
@@ -251,7 +251,8 @@ func Test_IntProperty_Validate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			err := test.property.Validate(test.value, construct.Properties{})
+			resource := &construct.Resource{}
+			err := test.property.Validate(resource, test.value)
 			if test.wantErr {
 				assert.Error(err)
 				return

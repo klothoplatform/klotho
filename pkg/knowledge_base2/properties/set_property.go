@@ -151,7 +151,7 @@ func (s *SetProperty) Type() string {
 	return "set"
 }
 
-func (s *SetProperty) Validate(value any, properties construct.Properties) error {
+func (s *SetProperty) Validate(resource *construct.Resource, value any) error {
 	setVal, ok := value.(set.HashedSet[string, any])
 	if !ok {
 		return fmt.Errorf("could not validate set property: invalid set value %v", value)
@@ -169,7 +169,7 @@ func (s *SetProperty) Validate(value any, properties construct.Properties) error
 
 	var errs error
 	for _, item := range setVal.ToSlice() {
-		if err := s.ItemProperty.Validate(item, properties); err != nil {
+		if err := s.ItemProperty.Validate(resource, item); err != nil {
 			errs = errors.Join(errs, fmt.Errorf("invalid item %v: %v", item, err))
 		}
 	}

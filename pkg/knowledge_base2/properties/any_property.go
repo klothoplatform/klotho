@@ -107,7 +107,7 @@ func (a *AnyProperty) Type() string {
 	return "any"
 }
 
-func (a *AnyProperty) Validate(value any, properties construct.Properties) error {
+func (a *AnyProperty) Validate(resource *construct.Resource, value any) error {
 	return nil
 }
 

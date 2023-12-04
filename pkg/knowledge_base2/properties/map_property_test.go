@@ -272,7 +272,8 @@ func Test_MapProperty_Validate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			err := test.property.Validate(test.value, construct.Properties{})
+			resource := &construct.Resource{}
+			err := test.property.Validate(resource, test.value)
 			if test.wantErr {
 				assert.Error(err)
 				return

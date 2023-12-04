@@ -81,7 +81,7 @@ type (
 		// GetDefaultValue returns the default value for the property, pertaining to the specific data being passed in for execution
 		GetDefaultValue(ctx DynamicContext, data DynamicValueData) (any, error)
 		// Validate ensures the value is valid for the property and returns an error if it is not
-		Validate(value any, properties construct.Properties) error
+		Validate(resource *construct.Resource, value any) error
 		// SubProperties returns the sub properties of the property, if any. This is used for properties that are complex structures,
 		// such as lists, sets, or maps
 		SubProperties() Properties

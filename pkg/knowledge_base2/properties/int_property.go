@@ -9,8 +9,8 @@ import (
 
 type (
 	IntProperty struct {
-		LowerBound *int
-		UpperBound *int
+		MinValue *int
+		MaxValue *int
 		SharedPropertyFields
 		knowledgebase.PropertyDetails
 	}
@@ -84,16 +84,16 @@ func (i *IntProperty) Type() string {
 	return "int"
 }
 
-func (i *IntProperty) Validate(value any, properties construct.Properties) error {
+func (i *IntProperty) Validate(resource *construct.Resource, value any) error {
 	intVal, ok := value.(int)
 	if !ok {
 		return fmt.Errorf("invalid int value %v", value)
 	}
-	if i.LowerBound != nil && intVal < *i.LowerBound {
-		return fmt.Errorf("int value %v is less than lower bound %d", value, *i.LowerBound)
+	if i.MinValue != nil && intVal < *i.MinValue {
+		return fmt.Errorf("int value %v is less than lower bound %d", value, *i.MinValue)
 	}
-	if i.UpperBound != nil && intVal > *i.UpperBound {
-		return fmt.Errorf("int value %v is greater than upper bound %d", value, *i.UpperBound)
+	if i.MaxValue != nil && intVal > *i.MaxValue {
+		return fmt.Errorf("int value %v is greater than upper bound %d", value, *i.MaxValue)
 	}
 	return nil
 }

@@ -569,7 +569,8 @@ func Test_SetValidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			actual := tt.property.Validate(tt.value, construct.Properties{})
+			resource := &construct.Resource{}
+			actual := tt.property.Validate(resource, tt.value)
 			if tt.expected {
 				assert.NoError(actual)
 			} else {

@@ -40,8 +40,8 @@ type (
 		MinLength *int `yaml:"min_length"`
 		MaxLength *int `yaml:"max_length"`
 
-		LowerBound *float64 `yaml:"lower_bound"`
-		UpperBound *float64 `yaml:"upper_bound"`
+		MinValue *float64 `yaml:"lower_bound"`
+		MaxValue *float64 `yaml:"upper_bound"`
 
 		AllowedTypes construct.ResourceList `yaml:"allowed_types"`
 
@@ -213,6 +213,7 @@ func InitializeProperty(ptype string) (knowledgebase.Property, error) {
 var initializePropertyFunc map[string]func(val string) (knowledgebase.Property, error)
 
 func init() {
+	// initializePropertyFunc initialization is deferred to prevent cyclic initialization (a compiler error) with `InitializeProperty`
 	initializePropertyFunc = map[string]func(val string) (knowledgebase.Property, error){
 		"string": func(val string) (knowledgebase.Property, error) { return &properties.StringProperty{}, nil },
 		"int":    func(val string) (knowledgebase.Property, error) { return &properties.IntProperty{}, nil },

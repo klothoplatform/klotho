@@ -439,7 +439,8 @@ func Test_StringValidate(t *testing.T) {
 				}
 				tt.property.SanitizeTmpl = tmpl
 			}
-			actual := tt.property.Validate(tt.value, construct.Properties{})
+			resource := &construct.Resource{}
+			actual := tt.property.Validate(resource, tt.value)
 			if tt.expected {
 				assert.NoError(actual)
 			} else {

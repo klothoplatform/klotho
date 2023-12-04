@@ -167,7 +167,7 @@ func (l *ListProperty) Type() string {
 	return "list"
 }
 
-func (l *ListProperty) Validate(value any, properties construct.Properties) error {
+func (l *ListProperty) Validate(resource *construct.Resource, value any) error {
 	listVal, ok := value.([]any)
 	if !ok {
 		return fmt.Errorf("invalid map value %v", value)
@@ -187,12 +187,12 @@ func (l *ListProperty) Validate(value any, properties construct.Properties) erro
 	for _, v := range listVal {
 		if len(l.Properties) != 0 {
 			m := MapProperty{Properties: l.Properties}
-			err := m.Validate(v, properties)
+			err := m.Validate(resource, v)
 			if err != nil {
 				errs = errors.New(errs.Error() + "\n" + err.Error())
 			}
 		} else {
-			err := l.ItemProperty.Validate(v, properties)
+			err := l.ItemProperty.Validate(resource, v)
 			if err != nil {
 				errs = errors.New(errs.Error() + "\n" + err.Error())
 			}

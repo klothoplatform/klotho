@@ -9,8 +9,8 @@ import (
 
 type (
 	FloatProperty struct {
-		LowerBound *float64
-		UpperBound *float64
+		MinValue *float64
+		MaxValue *float64
 		SharedPropertyFields
 		knowledgebase.PropertyDetails
 	}
@@ -91,16 +91,16 @@ func (f *FloatProperty) Type() string {
 	return "float"
 }
 
-func (f *FloatProperty) Validate(value any, properties construct.Properties) error {
+func (f *FloatProperty) Validate(resource *construct.Resource, value any) error {
 	floatVal, ok := value.(float64)
 	if !ok {
 		return fmt.Errorf("invalid int value %v", value)
 	}
-	if f.LowerBound != nil && floatVal < *f.LowerBound {
-		return fmt.Errorf("int value %f is less than lower bound %f", value, *f.LowerBound)
+	if f.MinValue != nil && floatVal < *f.MinValue {
+		return fmt.Errorf("int value %f is less than lower bound %f", value, *f.MinValue)
 	}
-	if f.UpperBound != nil && floatVal > *f.UpperBound {
-		return fmt.Errorf("int value %f is greater than upper bound %f", value, *f.UpperBound)
+	if f.MaxValue != nil && floatVal > *f.MaxValue {
+		return fmt.Errorf("int value %f is greater than upper bound %f", value, *f.MaxValue)
 	}
 	return nil
 }

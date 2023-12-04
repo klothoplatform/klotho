@@ -297,7 +297,8 @@ func Test_BoolPropertyValidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			err := tt.property.Validate(tt.value, construct.Properties{})
+			resource := &construct.Resource{}
+			err := tt.property.Validate(resource, tt.value)
 			assert.Equal(tt.wantErr, err != nil)
 		})
 	}
