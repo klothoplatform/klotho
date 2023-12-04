@@ -15,16 +15,22 @@ import (
 type (
 	// ResourceTemplate defines how rules are handled by the engine in terms of making sure they are functional in the graph
 	ResourceTemplate struct {
+		// QualifiedTypeName is the qualified type name of the resource
 		QualifiedTypeName string `json:"qualified_type_name" yaml:"qualified_type_name"`
 
+		// DisplayName is the common name that refers to the resource
 		DisplayName string `json:"display_name" yaml:"display_name"`
 
+		// Properties defines the properties that the resource has
 		Properties Properties `json:"properties" yaml:"properties"`
 
+		// Classification defines the classification of the resource
 		Classification Classification `json:"classification" yaml:"classification"`
 
+		// PathSatisfaction defines what paths must exist for the resource must be connected to and from
 		PathSatisfaction PathSatisfaction `json:"path_satisfaction" yaml:"path_satisfaction"`
 
+		// Consumption defines properties the resource may emit or consume from other resources it is connected to or expanded from
 		Consumption Consumption `json:"consumption" yaml:"consumption"`
 
 		// DeleteContext defines the context in which a resource can be deleted
@@ -32,11 +38,14 @@ type (
 		// Views defines the views that the resource should be added to as a distinct node
 		Views map[string]string `json:"views" yaml:"views"`
 
+		// NoIac defines if the resource should be ignored by the IaC engine
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
 
+		// SanitizeNameTmpl defines a template that is used to sanitize the name of the resource
 		SanitizeNameTmpl *SanitizeTmpl `yaml:"sanitize_name"`
 	}
 
+	// PropertyDetails defines the common details of a property
 	PropertyDetails struct {
 		Name string `json:"name" yaml:"name"`
 		// DefaultValue has to be any because it may be a template and it may be a value of the correct type
@@ -53,30 +62,54 @@ type (
 		Path string `json:"-" yaml:"-"`
 	}
 
+	// Property is an interface used to define a property that exists on a resource
+	// Properties are used to define the structure of a resource and how it is configured
+	// Each property implementation refers to a specific type of property, such as a string or a list, etc
 	Property interface {
+		// SetProperty sets the value of the property on the resource
 		SetProperty(resource *construct.Resource, value any) error
+		// AppendProperty appends the value to the property on the resource
 		AppendProperty(resource *construct.Resource, value any) error
+		// RemoveProperty removes the value from the property on the resource
 		RemoveProperty(resource *construct.Resource, value any) error
+		// Details returns the property details for the property
 		Details() *PropertyDetails
+		// Clone returns a clone of the property
 		Clone() Property
+		// Type returns the string representation of the type of the property, as it should appear in the resource template
 		Type() string
+		// GetDefaultValue returns the default value for the property, pertaining to the specific data being passed in for execution
 		GetDefaultValue(ctx DynamicValueContext, data DynamicValueData) (any, error)
+		// Validate ensures the value is valid for the property and returns an error if it is not
 		Validate(value any, properties construct.Properties) error
+		// SubProperties returns the sub properties of the property, if any. This is used for properties that are complex structures,
+		// such as lists, sets, or maps
 		SubProperties() Properties
+		// Parse parses a given value to ensure it is the correct type for the property. If the given value cannot be converted
+		// to the respective property type an error is returned. The returned value will always be the correct type for the property
 		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
+		// ZeroValue returns the zero value for the property type
 		ZeroValue() any
+		// Contains returns true if the value contains the given value
 		Contains(value any, contains any) bool
 	}
 
+	// Properties is a map of properties
 	Properties map[string]Property
 
+	// Classification defines the classification of a resource
 	Classification struct {
-		Is    []string `json:"is" yaml:"is"`
-		Gives []Gives  `json:"gives" yaml:"gives"`
+		// Is defines the classifications that the resource belongs to
+		Is []string `json:"is" yaml:"is"`
+		// Gives defines the attributes that the resource gives to other resources
+		Gives []Gives `json:"gives" yaml:"gives"`
 	}
 
+	// Gives defines an attribute that can be provided to other functionalities for the resource it belongs to
 	Gives struct {
-		Attribute     string
+		// Attribute is the attribute that is given
+		Attribute string
+		// Functionality is the list of functionalities that the attribute is given to
 		Functionality []string
 	}
 

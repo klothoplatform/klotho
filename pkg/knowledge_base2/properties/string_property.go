@@ -32,8 +32,14 @@ func (str *StringProperty) AppendProperty(resource *construct.Resource, value an
 }
 
 func (str *StringProperty) RemoveProperty(resource *construct.Resource, value any) error {
-	delete(resource.Properties, str.Path)
-	return nil
+	propVal, err := resource.GetProperty(str.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	return resource.RemoveProperty(str.Path, nil)
 }
 
 func (s *StringProperty) Details() *knowledgebase.PropertyDetails {

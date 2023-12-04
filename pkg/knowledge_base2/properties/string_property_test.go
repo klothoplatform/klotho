@@ -87,7 +87,7 @@ func Test_RemoveStringProperty(t *testing.T) {
 		name     string
 		property *StringProperty
 		resource *construct.Resource
-		value    string
+		value    any
 	}{
 		{
 			name:     "string property",
@@ -102,7 +102,7 @@ func Test_RemoveStringProperty(t *testing.T) {
 		{
 			name: "existing property",
 			resource: &construct.Resource{
-				Properties: map[string]any{
+				Properties: construct.Properties{
 					"test": "test",
 				},
 			},
@@ -111,7 +111,7 @@ func Test_RemoveStringProperty(t *testing.T) {
 					Path: "test",
 				},
 			},
-			value: "test2",
+			value: []any{"test"},
 		},
 	}
 	for _, tt := range tests {

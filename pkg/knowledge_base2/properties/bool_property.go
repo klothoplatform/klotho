@@ -28,8 +28,14 @@ func (b *BoolProperty) AppendProperty(resource *construct.Resource, value any) e
 }
 
 func (b *BoolProperty) RemoveProperty(resource *construct.Resource, value any) error {
-	delete(resource.Properties, b.Path)
-	return nil
+	propVal, err := resource.GetProperty(b.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	return resource.RemoveProperty(b.Path, value)
 }
 
 func (b *BoolProperty) Clone() knowledgebase.Property {

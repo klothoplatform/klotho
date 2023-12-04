@@ -432,6 +432,23 @@ func (i *mapValuePathItem) Remove(value any) (err error) {
 		arr = arr.Elem()
 	}
 	if arr.Kind() != reflect.Slice && arr.Kind() != reflect.Array {
+		if hs, ok := arr.Interface().(set.HashedSet[string, any]); ok {
+			if hs.Contains(value) {
+				removed := hs.Remove(value)
+				if !removed {
+					return &PropertyPathError{
+						Path:  itemToPath(i),
+						Cause: fmt.Errorf("value %v not removed from set", value),
+					}
+				}
+			} else {
+				return &PropertyPathError{
+					Path:  itemToPath(i),
+					Cause: fmt.Errorf("value %v not found in set", value),
+				}
+			}
+			return nil
+		}
 		return &PropertyPathError{
 			Path:  itemToPath(i),
 			Cause: fmt.Errorf("for non-nil value'd (%v), must be array (got %s) to remove by value", value, arr.Type()),

@@ -30,8 +30,15 @@ func (f *FloatProperty) AppendProperty(resource *construct.Resource, value any) 
 }
 
 func (f *FloatProperty) RemoveProperty(resource *construct.Resource, value any) error {
-	delete(resource.Properties, f.Path)
-	return nil
+	propVal, err := resource.GetProperty(f.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	return resource.RemoveProperty(f.Path, value)
+
 }
 
 func (f *FloatProperty) Details() *knowledgebase.PropertyDetails {

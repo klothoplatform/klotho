@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
@@ -28,10 +30,48 @@ func (l *ListProperty) SetProperty(resource *construct.Resource, value any) erro
 }
 
 func (l *ListProperty) AppendProperty(resource *construct.Resource, value any) error {
+	propval, err := resource.GetProperty(l.Path)
+	if err != nil {
+		return err
+	}
+	if propval == nil {
+		l.SetProperty(resource, []any{})
+	}
+	if l.ItemProperty != nil && !strings.HasPrefix(l.ItemProperty.Type(), "list") {
+		if reflect.ValueOf(value).Kind() == reflect.Slice || reflect.ValueOf(value).Kind() == reflect.Array {
+			var errs error
+			for i := 0; i < reflect.ValueOf(value).Len(); i++ {
+				err := resource.AppendProperty(l.Path, reflect.ValueOf(value).Index(i).Interface())
+				if err != nil {
+					errs = errors.Join(errs, err)
+				}
+			}
+			return errs
+		}
+	}
 	return resource.AppendProperty(l.Path, value)
 }
 
 func (l *ListProperty) RemoveProperty(resource *construct.Resource, value any) error {
+	propval, err := resource.GetProperty(l.Path)
+	if err != nil {
+		return err
+	}
+	if propval == nil {
+		return nil
+	}
+	if l.ItemProperty != nil && !strings.HasPrefix(l.ItemProperty.Type(), "list") {
+		if reflect.ValueOf(value).Kind() == reflect.Slice || reflect.ValueOf(value).Kind() == reflect.Array {
+			var errs error
+			for i := 0; i < reflect.ValueOf(value).Len(); i++ {
+				err := resource.RemoveProperty(l.Path, reflect.ValueOf(value).Index(i).Interface())
+				if err != nil {
+					errs = errors.Join(errs, err)
+				}
+			}
+			return errs
+		}
+	}
 	return resource.RemoveProperty(l.Path, value)
 }
 
@@ -105,7 +145,7 @@ func (l *ListProperty) Contains(value any, contains any) bool {
 	}
 	containsList, ok := contains.([]any)
 	if !ok {
-		return false
+		return collectionutil.Contains(list, contains)
 	}
 	for _, v := range list {
 		for _, cv := range containsList {

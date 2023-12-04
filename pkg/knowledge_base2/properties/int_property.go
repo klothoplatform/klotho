@@ -30,8 +30,14 @@ func (i *IntProperty) AppendProperty(resource *construct.Resource, value any) er
 }
 
 func (i *IntProperty) RemoveProperty(resource *construct.Resource, value any) error {
-	delete(resource.Properties, i.Path)
-	return nil
+	propVal, err := resource.GetProperty(i.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	return resource.RemoveProperty(i.Path, value)
 }
 
 func (i *IntProperty) Details() *knowledgebase.PropertyDetails {

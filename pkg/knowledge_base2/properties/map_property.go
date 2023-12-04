@@ -33,6 +33,25 @@ func (m *MapProperty) AppendProperty(resource *construct.Resource, value any) er
 }
 
 func (m *MapProperty) RemoveProperty(resource *construct.Resource, value any) error {
+	propVal, err := resource.GetProperty(m.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return nil
+	}
+	propMap, ok := propVal.(map[string]any)
+	if !ok {
+		return fmt.Errorf("error attempting to remove map property: invalid property value %v", propVal)
+	}
+	if val, ok := value.(map[string]any); ok {
+		for k, v := range val {
+			if val, found := propMap[k]; found && reflect.DeepEqual(val, v) {
+				delete(propMap, k)
+			}
+		}
+		return resource.SetProperty(m.Path, propMap)
+	}
 	return resource.RemoveProperty(m.Path, value)
 }
 

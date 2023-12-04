@@ -35,7 +35,7 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
-		prop.Template.GetDefaultValue(propCtx.inner, resData)
+		_, _ = prop.Template.GetDefaultValue(propCtx.inner, resData)
 		details := prop.Template.Details()
 		if opRule := details.OperationalRule; opRule != nil {
 			if err := propCtx.ExecutePropertyRule(resData, *opRule); err != nil {

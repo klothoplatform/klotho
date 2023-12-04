@@ -17,6 +17,13 @@ func (a *AnyProperty) SetProperty(resource *construct.Resource, value any) error
 }
 
 func (a *AnyProperty) AppendProperty(resource *construct.Resource, value any) error {
+	propVal, err := resource.GetProperty(a.Path)
+	if err != nil {
+		return err
+	}
+	if propVal == nil {
+		return a.SetProperty(resource, value)
+	}
 	return resource.AppendProperty(a.Path, value)
 }
 

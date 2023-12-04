@@ -48,8 +48,7 @@ func (r *ResourceProperty) RemoveProperty(resource *construct.Resource, value an
 	if !propId.Matches(valId) {
 		return fmt.Errorf("error attempting to remove resource property: resource value %v does not match property value %v", value, propVal)
 	}
-	delete(resource.Properties, r.Path)
-	return nil
+	return resource.RemoveProperty(r.Path, value)
 }
 
 func (r *ResourceProperty) Details() *knowledgebase.PropertyDetails {
