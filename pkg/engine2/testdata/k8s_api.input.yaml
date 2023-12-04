@@ -1,0 +1,46 @@
+constraints:
+  # Add Pod
+  - node: kubernetes:pod:pod_2
+    operator: add
+    scope: application
+  # Add API gateway
+  - node: aws:rest_api:rest_api_4
+    operator: add
+    scope: application
+  - node: aws:api_method:rest_api_4:rest_api_4_integration_0_method
+    operator: add
+    scope: application
+  - node: aws:api_integration:rest_api_4:rest_api_4_integration_0
+    operator: add
+    scope: application
+  - operator: equals
+    property: HttpMethod
+    scope: resource
+    target: aws:api_method:rest_api_4:rest_api_4_integration_0_method
+    value: ANY
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:rest_api:rest_api_4
+      target: aws:api_integration:rest_api_4:rest_api_4_integration_0
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:api_method:rest_api_4:rest_api_4_integration_0_method
+      target: aws:api_integration:rest_api_4:rest_api_4_integration_0
+  - operator: equals
+    property: Method
+    scope: resource
+    target: aws:api_integration:rest_api_4:rest_api_4_integration_0
+    value: aws:api_method:rest_api_4:rest_api_4_integration_0_method
+  - operator: equals
+    property: Route
+    scope: resource
+    target: aws:api_integration:rest_api_4:rest_api_4_integration_0
+    value: /{proxy+}
+  # Connect Route -> Pod
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:api_integration:rest_api_4:rest_api_4_integration_0
+      target: kubernetes:pod:pod2

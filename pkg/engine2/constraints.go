@@ -15,14 +15,20 @@ import (
 func ApplyConstraints(ctx solution_context.SolutionContext) error {
 	var errs error
 	for _, constraint := range ctx.Constraints().Application {
-		errs = errors.Join(errs, applyApplicationConstraint(ctx, constraint))
+		err := applyApplicationConstraint(ctx, constraint)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+		}
 	}
 	if errs != nil {
 		return errs
 	}
 
 	for _, constraint := range ctx.Constraints().Edges {
-		errs = errors.Join(errs, applyEdgeConstraint(ctx, constraint))
+		err := applyEdgeConstraint(ctx, constraint)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+		}
 	}
 	if errs != nil {
 		return errs
@@ -30,7 +36,10 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 
 	resourceConstraints := ctx.Constraints().Resources
 	for i := range resourceConstraints {
-		errs = errors.Join(errs, applySanitization(ctx, &resourceConstraints[i]))
+		err := applySanitization(ctx, &resourceConstraints[i])
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
+		}
 	}
 
 	return nil
@@ -111,40 +120,6 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		}
 	}
 
-	addPath := func() error {
-		switch _, err := ctx.RawView().Vertex(constraint.Target.Source); {
-		case errors.Is(err, graph.ErrVertexNotFound):
-			res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Target.Source)
-			if err != nil {
-				return fmt.Errorf("could not create source resource: %w", err)
-			}
-			err = ctx.OperationalView().AddVertex(res)
-			if err != nil {
-				return fmt.Errorf("could not add source resource %s: %w", constraint.Target.Source, err)
-			}
-
-		case err != nil:
-			return fmt.Errorf("could not get source resource %s: %w", constraint.Target.Source, err)
-		}
-
-		switch _, err := ctx.RawView().Vertex(constraint.Target.Target); {
-		case errors.Is(err, graph.ErrVertexNotFound):
-			res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Target.Target)
-			if err != nil {
-				return fmt.Errorf("could not create target resource: %w", err)
-			}
-			err = ctx.OperationalView().AddVertex(res)
-			if err != nil {
-				return fmt.Errorf("could not add target resource %s: %w", constraint.Target.Target, err)
-			}
-
-		case err != nil:
-			return fmt.Errorf("could not get target resource %s: %w", constraint.Target.Target, err)
-		}
-
-		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
-	}
-
 	removePath := func() error {
 		paths, err := graph.AllPathsBetween(ctx.DataflowGraph(), constraint.Target.Source, constraint.Target.Target)
 		switch {
@@ -181,7 +156,7 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
-		return addPath()
+		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
 
 	case constraints.MustNotExistConstraintOperator:
 		return removePath()

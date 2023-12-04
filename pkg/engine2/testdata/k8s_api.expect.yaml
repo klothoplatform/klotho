@@ -1,0 +1,697 @@
+resources:
+    aws:api_stage:rest_api_4:api_stage-0:
+        Deployment: aws:api_deployment:rest_api_4:api_deployment-0
+        RestApi: aws:rest_api:rest_api_4
+        StageName: stage
+    aws:eks_add_on:vpc-cni:
+        AddOnName: vpc-cni
+        Cluster: aws:eks_cluster:eks_cluster-0
+    aws:security_group_rule:security_group_rule-0:
+        CidrBlocks:
+            - 10.0.0.0/16
+        Description: Allow ingress traffic from within the vpc
+        FromPort: 0
+        Protocol: "-1"
+        SecurityGroupId: aws:eks_cluster:eks_cluster-0#ClusterSecurityGroup
+        ToPort: 0
+        Type: ingress
+    kubernetes:helm_chart:eks_cluster-0:metricsserver:
+        Chart: metrics-server
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Internal: true
+        Repo: https://kubernetes-sigs.github.io/metrics-server/
+    kubernetes:kube_config:kube_config-eks_cluster-0-0:
+        apiVersion: v1
+        clusters:
+            - cluster:
+                certificateAuthorityData: aws:eks_cluster:eks_cluster-0#CertificateAuthorityData
+                server: aws:eks_cluster:eks_cluster-0#ClusterEndpoint
+              name: aws:eks_cluster:eks_cluster-0#Name
+        contexts:
+            - context:
+                cluster: aws:eks_cluster:eks_cluster-0#Name
+                user: aws:eks_cluster:eks_cluster-0#Name
+              name: aws:eks_cluster:eks_cluster-0#Name
+        currentContext: aws:eks_cluster:eks_cluster-0#Name
+        kind: Config
+        users:
+            - name: aws:eks_cluster:eks_cluster-0#Name
+              user:
+                exec:
+                    apiVersion: client.authentication.k8s.io/v1beta1
+                    args:
+                        - eks
+                        - get-token
+                        - --cluster-name
+                        - aws:eks_cluster:eks_cluster-0#Name
+                        - --region
+                        - aws:region:region-0#Name
+                    command: aws
+    kubernetes:manifest:fluent-bit:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        FilePath: https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml
+    aws:api_deployment:rest_api_4:api_deployment-0:
+        RestApi: aws:rest_api:rest_api_4
+        Triggers:
+            rest_api_4_integration_0: rest_api_4_integration_0
+            rest_api_4_integration_0_method: rest_api_4_integration_0_method
+    kubernetes:config_map:fluent-bit-cluster-info:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            data:
+                cluster:
+                    name: aws:eks_cluster:eks_cluster-0#Name
+                http:
+                    port: "2020"
+                    server: "On"
+                logs:
+                    region: aws:region:region-0#Name
+                read:
+                    head: "Off"
+                    tail: "On"
+            kind: ConfigMap
+            metadata:
+                labels:
+                    k8s-app: fluent-bit
+                name: fluent-bit-cluster-info
+                namespace: kubernetes:namespace:amazon-cloudwatch
+    aws:rest_api:rest_api_4:
+        BinaryMediaTypes:
+            - application/octet-stream
+            - image/*
+        Stages:
+            - aws:api_stage:rest_api_4:api_stage-0
+    kubernetes:namespace:amazon-cloudwatch:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+                labels:
+                    name: amazon-cloudwatch
+                name: amazon-cloudwatch
+    aws:api_resource:rest_api_4:api_resource-0:
+        FullPath: /{proxy+}
+        PathPart: '{proxy+}'
+        RestApi: aws:rest_api:rest_api_4
+    aws:api_method:rest_api_4:rest_api_4_integration_0_method:
+        Authorization: NONE
+        HttpMethod: ANY
+        RequestParameters:
+            method.request.path.proxy: true
+        Resource: aws:api_resource:rest_api_4:api_resource-0
+        RestApi: aws:rest_api:rest_api_4
+    aws:api_integration:rest_api_4:rest_api_4_integration_0:
+        ConnectionType: VPC_LINK
+        IntegrationHttpMethod: ANY
+        Method: aws:api_method:rest_api_4:rest_api_4_integration_0_method
+        RequestParameters:
+            integration.request.path.proxy: method.request.path.proxy
+        Resource: aws:api_resource:rest_api_4:api_resource-0
+        RestApi: aws:rest_api:rest_api_4
+        Route: /{proxy+}
+        Target: aws:load_balancer:rest-api-4-integbcc77100
+        Type: HTTP_PROXY
+        Uri: aws:api_integration:rest_api_4:rest_api_4_integration_0#LbUri
+        VpcLink: aws:vpc_link:rest_api_4_integration_0-pod2
+    aws:vpc_link:rest_api_4_integration_0-pod2:
+        Target: aws:load_balancer:rest-api-4-integbcc77100
+    aws:load_balancer:rest-api-4-integbcc77100:
+        Scheme: internal
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+        Type: network
+    aws:load_balancer_listener:rest_api_4_integration_0-pod2:
+        DefaultActions:
+            - TargetGroup: aws:target_group:rest-api-4-integbcc77100
+              Type: forward
+        LoadBalancer: aws:load_balancer:rest-api-4-integbcc77100
+        Port: 80
+        Protocol: TCP
+    aws:target_group:rest-api-4-integbcc77100:
+        HealthCheck:
+            Enabled: true
+            HealthyThreshold: 5
+            Interval: 30
+            Matcher: 200-299
+            Protocol: TCP
+            Timeout: 5
+            UnhealthyThreshold: 2
+        Port: 80
+        Protocol: TCP
+        TargetType: ip
+        Vpc: aws:vpc:vpc-0
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: elbv2.k8s.aws/v1beta1
+            kind: TargetGroupBinding
+            metadata:
+                labels:
+                    KLOTHO_ID_LABEL: restapi4integration0-pod2
+                name: restapi4integration0-pod2
+            spec:
+                serviceRef:
+                    name: restapi4integration0-pod2
+                    port: 80
+                targetGroupARN: aws:target_group:rest-api-4-integbcc77100#Arn
+    kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller:
+        Chart: aws-load-balancer-controller
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Internal: true
+        Repo: https://aws.github.io/eks-charts
+        Values:
+            clusterName: aws:eks_cluster:eks_cluster-0#Name
+            objectSelector:
+                matchLabels:
+                    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+            podLabels:
+                KLOTHO_ID_LABEL: kubernetes-helm-chart-aws-load-balancer-controller
+                app: aws-lb-controller
+            region: aws:region:region-0#Name
+            serviceAccount:
+                create: false
+                name: aws-load-balancer-controller
+            vpcId: aws:vpc:vpc-0#Id
+            webhookNamespaceSelectors: null
+        Version: 1.5.5
+    kubernetes:service:restapi4integration0-pod2:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            kind: Service
+            metadata:
+                labels:
+                    KLOTHO_ID_LABEL: restapi4integration0-pod2
+                name: restapi4integration0-pod2
+            spec:
+                ports:
+                    - name: pod2-pod2-80
+                      port: "80"
+                      protocol: TCP
+                      targetPort: "80"
+                selector:
+                    KLOTHO_ID_LABEL: pod2
+                    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+                serviceType: ClusterIP
+    kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            automountServiceAccountToken: true
+            kind: ServiceAccount
+            metadata:
+                annotations:
+                    eks.amazonaws.com/role-arn: aws:iam_role:aws-load-balancer-controller#Arn
+                labels:
+                    KLOTHO_ID_LABEL: aws-load-balancer-controller
+                name: aws-load-balancer-controller
+    kubernetes:pod:eks_cluster-0:pod2:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            kind: Pod
+            metadata:
+                labels:
+                    KLOTHO_ID_LABEL: pod2
+                    elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+                name: pod2
+            spec:
+                automountServiceAccountToken: true
+                containers:
+                    - image: aws:ecr_image:ecr_image-pod2-0#ImageName
+                      name: pod2
+                      ports:
+                        - containerPort: 80
+                          hostPort: 80
+                          name: default-tcp
+                          protocol: TCP
+                serviceAccountName: kubernetes:service_account:eks_cluster-0:pod2
+    aws:iam_role:aws-load-balancer-controller:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRoleWithWebIdentity
+                  Effect: Allow
+                  Principal:
+                    Federated:
+                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+            Version: "2012-10-17"
+    aws:ecr_image:ecr_image-pod2-0:
+        Context: .
+        Dockerfile: ecr_image-pod2-0.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:eks_node_group:eks_node_group-0:
+        AmiType: AL2_x86_64
+        Cluster: aws:eks_cluster:eks_cluster-0
+        DesiredSize: 2
+        DiskSize: 20
+        InstanceTypes:
+            - t3.medium
+        MaxSize: 3
+        MaxUnavailable: 1
+        MinSize: 1
+        NodeRole: aws:iam_role:iam_role-eks_node_group-0-2
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+    kubernetes:service_account:eks_cluster-0:pod2:
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Object:
+            apiVersion: v1
+            automountServiceAccountToken: true
+            kind: ServiceAccount
+            metadata:
+                annotations:
+                    eks.amazonaws.com/role-arn: aws:iam_role:pod2#Arn
+                    helm.sh/hook: pre-install
+                labels:
+                    KLOTHO_ID_LABEL: pod2
+                name: pod2
+    aws:iam_role_policy_attachment:aws-load-balancer-controller-iam_policy-0:
+        Policy: aws:iam_policy:iam_policy-0
+        Role: aws:iam_role:aws-load-balancer-controller
+    aws:ecr_repo:ecr_repo-0:
+        ForceDelete: true
+    aws:iam_role:iam_role-eks_node_group-0-2:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - ec2.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+            - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+            - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+            - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+            - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+    aws:iam_role:pod2:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRoleWithWebIdentity
+                  Effect: Allow
+                  Principal:
+                    Federated:
+                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+            Version: "2012-10-17"
+    aws:iam_policy:iam_policy-0:
+        Policy:
+            Statement:
+                - Action:
+                    - ec2:DescribeAccountAttributes
+                    - ec2:DescribeAddresses
+                    - ec2:DescribeAvailabilityZones
+                    - ec2:DescribeInternetGateways
+                    - ec2:DescribeVpcs
+                    - ec2:DescribeVpcPeeringConnections
+                    - ec2:DescribeSubnets
+                    - ec2:DescribeSecurityGroups
+                    - ec2:DescribeInstances
+                    - ec2:DescribeNetworkInterfaces
+                    - ec2:DescribeTags
+                    - ec2:GetCoipPoolUsage
+                    - ec2:DescribeCoipPools
+                    - elasticloadbalancing:DescribeLoadBalancers
+                    - elasticloadbalancing:DescribeLoadBalancerAttributes
+                    - elasticloadbalancing:DescribeListeners
+                    - elasticloadbalancing:DescribeListenerCertificates
+                    - elasticloadbalancing:DescribeSSLPolicies
+                    - elasticloadbalancing:DescribeRules
+                    - elasticloadbalancing:DescribeTargetGroups
+                    - elasticloadbalancing:DescribeTargetGroupAttributes
+                    - elasticloadbalancing:DescribeTargetHealth
+                    - elasticloadbalancing:DescribeTags
+                    - elasticloadbalancing:CreateListener
+                    - elasticloadbalancing:DeleteListener
+                    - elasticloadbalancing:CreateRule
+                    - elasticloadbalancing:DeleteRule
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - cognito-idp:DescribeUserPoolClient
+                    - acm:ListCertificates
+                    - acm:DescribeCertificate
+                    - iam:ListServerCertificates
+                    - iam:GetServerCertificate
+                    - waf-regional:GetWebACL
+                    - waf-regional:GetWebACLForResource
+                    - waf-regional:AssociateWebACL
+                    - waf-regional:DisassociateWebACL
+                    - wafv2:GetWebACL
+                    - wafv2:GetWebACLForResource
+                    - wafv2:AssociateWebACL
+                    - wafv2:DisassociateWebACL
+                    - shield:GetSubscriptionState
+                    - shield:DescribeProtection
+                    - shield:CreateProtection
+                    - shield:DeleteProtection
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - iam:CreateServiceLinkedRole
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - ec2:AuthorizeSecurityGroupIngress
+                    - ec2:RevokeSecurityGroupIngress
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - ec2:CreateSecurityGroup
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - ec2:CreateTags
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:ec2:*:*:security-group/*
+                - Action:
+                    - ec2:CreateTags
+                    - ec2:DeleteTags
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:ec2:*:*:security-group/*
+                - Action:
+                    - ec2:AuthorizeSecurityGroupIngress
+                    - ec2:RevokeSecurityGroupIngress
+                    - ec2:DeleteSecurityGroup
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:ec2:*:*:security-group/*
+                - Action:
+                    - elasticloadbalancing:CreateLoadBalancer
+                    - elasticloadbalancing:CreateTargetGroup
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:ec2:*:*:security-group/*
+                - Action:
+                    - elasticloadbalancing:AddTags
+                    - elasticloadbalancing:RemoveTags
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+                    - arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*
+                    - arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*
+                - Action:
+                    - elasticloadbalancing:AddTags
+                    - elasticloadbalancing:RemoveTags
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*
+                    - arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*
+                    - arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*
+                    - arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*
+                - Action:
+                    - elasticloadbalancing:ModifyLoadBalancerAttributes
+                    - elasticloadbalancing:SetIpAddressType
+                    - elasticloadbalancing:SetSecurityGroups
+                    - elasticloadbalancing:SetSubnets
+                    - elasticloadbalancing:DeleteLoadBalancer
+                    - elasticloadbalancing:ModifyTargetGroup
+                    - elasticloadbalancing:ModifyTargetGroupAttributes
+                    - elasticloadbalancing:DeleteTargetGroup
+                  Condition: {}
+                  Effect: Allow
+                  Resource:
+                    - '*'
+                - Action:
+                    - elasticloadbalancing:RegisterTargets
+                    - elasticloadbalancing:DeregisterTargets
+                  Effect: Allow
+                  Resource:
+                    - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+                - Action:
+                    - elasticloadbalancing:SetWebAcl
+                    - elasticloadbalancing:ModifyListener
+                    - elasticloadbalancing:AddListenerCertificates
+                    - elasticloadbalancing:RemoveListenerCertificates
+                    - elasticloadbalancing:ModifyRule
+                  Effect: Allow
+                  Resource:
+                    - '*'
+            Version: "2012-10-17"
+    aws:iam_oidc_provider:eks_cluster-0:
+        ClientIdLists:
+            - sts.amazonaws.com
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Region: aws:region:region-0
+    aws:availability_zone:region-0:availability_zone-0:
+        Index: 0
+        Region: aws:region:region-0
+    aws:availability_zone:region-0:availability_zone-1:
+        Index: 1
+        Region: aws:region:region-0
+    aws:availability_zone:region-0:availability_zone-2:
+        Index: 2
+        Region: aws:region:region-0
+    aws:availability_zone:region-0:availability_zone-3:
+        Index: 3
+        Region: aws:region:region-0
+    aws:region:region-0:
+    aws:eks_cluster:eks_cluster-0:
+        ClusterRole: aws:iam_role:ClusterRole-eks_cluster-0
+        KubeConfig: kubernetes:kube_config:kube_config-eks_cluster-0-0
+        SecurityGroups:
+            - aws:security_group:vpc-0:security_group-eks_cluster-0-0
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+        Vpc: aws:vpc:vpc-0
+    aws:iam_role:ClusterRole-eks_cluster-0:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - eks.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+    aws:subnet:vpc-0:subnet-0:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
+        CidrBlock: 10.0.128.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:route_table-subnet-0-0
+        Type: private
+        Vpc: aws:vpc:vpc-0
+    aws:subnet:vpc-0:subnet-1:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
+        CidrBlock: 10.0.192.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:route_table-subnet-1-1
+        Type: private
+        Vpc: aws:vpc:vpc-0
+    aws:route_table_association:subnet-0-route_table-subnet-0-0:
+        RouteTable: aws:route_table:route_table-subnet-0-0
+        Subnet: aws:subnet:vpc-0:subnet-0
+    aws:route_table_association:subnet-1-route_table-subnet-1-1:
+        RouteTable: aws:route_table:route_table-subnet-1-1
+        Subnet: aws:subnet:vpc-0:subnet-1
+    aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        IngressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows ingress traffic from the EKS control plane
+              FromPort: 9443
+              Protocol: TCP
+              ToPort: 9443
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.128.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-0
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.192.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-1
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        Vpc: aws:vpc:vpc-0
+    aws:route_table:route_table-subnet-0-0:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0
+        Vpc: aws:vpc:vpc-0
+    aws:route_table:route_table-subnet-1-1:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1
+        Vpc: aws:vpc:vpc-0
+    aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0:
+        ElasticIp: aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0
+        Subnet: aws:subnet:vpc-0:subnet-2
+    aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1:
+        ElasticIp: aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1
+        Subnet: aws:subnet:vpc-0:subnet-3
+    aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
+    aws:subnet:vpc-0:subnet-2:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-2
+        CidrBlock: ""
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:route_table-subnet-2-2
+        Type: public
+        Vpc: aws:vpc:vpc-0
+    aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1:
+    aws:subnet:vpc-0:subnet-3:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-3
+        CidrBlock: ""
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:route_table-subnet-3-3
+        Type: public
+        Vpc: aws:vpc:vpc-0
+    aws:route_table_association:subnet-2-route_table-subnet-2-2:
+        RouteTable: aws:route_table:route_table-subnet-2-2
+        Subnet: aws:subnet:vpc-0:subnet-2
+    aws:route_table_association:subnet-3-route_table-subnet-3-3:
+        RouteTable: aws:route_table:route_table-subnet-3-3
+        Subnet: aws:subnet:vpc-0:subnet-3
+    aws:route_table:route_table-subnet-2-2:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Vpc: aws:vpc:vpc-0
+    aws:route_table:route_table-subnet-3-3:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Vpc: aws:vpc:vpc-0
+    aws:internet_gateway:vpc-0:internet_gateway-0:
+        Vpc: aws:vpc:vpc-0
+    aws:vpc:vpc-0:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+edges:
+    aws:api_stage:rest_api_4:api_stage-0 -> aws:api_deployment:rest_api_4:api_deployment-0:
+    aws:api_stage:rest_api_4:api_stage-0 -> aws:rest_api:rest_api_4:
+    aws:eks_add_on:vpc-cni -> aws:eks_cluster:eks_cluster-0:
+    aws:security_group_rule:security_group_rule-0 -> aws:vpc:vpc-0:
+    kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_node_group:eks_node_group-0:
+    kubernetes:kube_config:kube_config-eks_cluster-0-0 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:manifest:fluent-bit -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:manifest:fluent-bit -> kubernetes:config_map:fluent-bit-cluster-info:
+    aws:api_deployment:rest_api_4:api_deployment-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
+    aws:api_deployment:rest_api_4:api_deployment-0 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
+    aws:api_deployment:rest_api_4:api_deployment-0 -> aws:rest_api:rest_api_4:
+    kubernetes:config_map:fluent-bit-cluster-info -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:config_map:fluent-bit-cluster-info -> kubernetes:namespace:amazon-cloudwatch:
+    aws:rest_api:rest_api_4 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
+    aws:rest_api:rest_api_4 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
+    aws:rest_api:rest_api_4 -> aws:api_resource:rest_api_4:api_resource-0:
+    kubernetes:namespace:amazon-cloudwatch -> aws:eks_cluster:eks_cluster-0:
+    aws:api_resource:rest_api_4:api_resource-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
+    aws:api_resource:rest_api_4:api_resource-0 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
+    aws:api_method:rest_api_4:rest_api_4_integration_0_method -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
+    aws:api_integration:rest_api_4:rest_api_4_integration_0 -> aws:vpc_link:rest_api_4_integration_0-pod2:
+    aws:vpc_link:rest_api_4_integration_0-pod2 -> aws:load_balancer:rest-api-4-integbcc77100:
+    aws:load_balancer:rest-api-4-integbcc77100 -> aws:load_balancer_listener:rest_api_4_integration_0-pod2:
+    aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-0:
+    aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-1:
+    aws:load_balancer_listener:rest_api_4_integration_0-pod2 -> aws:target_group:rest-api-4-integbcc77100:
+    aws:target_group:rest-api-4-integbcc77100 -> kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
+    ? kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
+    :
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:service:restapi4integration0-pod2:
+    kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:region:region-0:
+    ? kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
+    :
+    kubernetes:service:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:service:restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0:pod2:
+    kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:iam_role:aws-load-balancer-controller:
+    kubernetes:pod:eks_cluster-0:pod2 -> aws:ecr_image:ecr_image-pod2-0:
+    kubernetes:pod:eks_cluster-0:pod2 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:pod:eks_cluster-0:pod2 -> aws:eks_node_group:eks_node_group-0:
+    kubernetes:pod:eks_cluster-0:pod2 -> kubernetes:service_account:eks_cluster-0:pod2:
+    aws:iam_role:aws-load-balancer-controller -> aws:iam_oidc_provider:eks_cluster-0:
+    aws:iam_role:aws-load-balancer-controller -> aws:iam_role_policy_attachment:aws-load-balancer-controller-iam_policy-0:
+    aws:ecr_image:ecr_image-pod2-0 -> aws:ecr_repo:ecr_repo-0:
+    aws:eks_node_group:eks_node_group-0 -> aws:eks_cluster:eks_cluster-0:
+    aws:eks_node_group:eks_node_group-0 -> aws:iam_role:iam_role-eks_node_group-0-2:
+    aws:eks_node_group:eks_node_group-0 -> aws:subnet:vpc-0:subnet-0:
+    aws:eks_node_group:eks_node_group-0 -> aws:subnet:vpc-0:subnet-1:
+    kubernetes:service_account:eks_cluster-0:pod2 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:service_account:eks_cluster-0:pod2 -> aws:iam_role:pod2:
+    aws:iam_role_policy_attachment:aws-load-balancer-controller-iam_policy-0 -> aws:iam_policy:iam_policy-0:
+    aws:iam_role:pod2 -> aws:iam_oidc_provider:eks_cluster-0:
+    aws:iam_oidc_provider:eks_cluster-0 -> aws:eks_cluster:eks_cluster-0:
+    aws:iam_oidc_provider:eks_cluster-0 -> aws:region:region-0:
+    aws:availability_zone:region-0:availability_zone-0 -> aws:region:region-0:
+    aws:availability_zone:region-0:availability_zone-1 -> aws:region:region-0:
+    aws:availability_zone:region-0:availability_zone-2 -> aws:region:region-0:
+    aws:availability_zone:region-0:availability_zone-3 -> aws:region:region-0:
+    aws:eks_cluster:eks_cluster-0 -> aws:iam_role:ClusterRole-eks_cluster-0:
+    aws:eks_cluster:eks_cluster-0 -> aws:subnet:vpc-0:subnet-0:
+    aws:eks_cluster:eks_cluster-0 -> aws:subnet:vpc-0:subnet-1:
+    aws:eks_cluster:eks_cluster-0 -> aws:vpc:vpc-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:availability_zone:region-0:availability_zone-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:route_table_association:subnet-0-route_table-subnet-0-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:vpc:vpc-0:
+    aws:subnet:vpc-0:subnet-1 -> aws:availability_zone:region-0:availability_zone-1:
+    aws:subnet:vpc-0:subnet-1 -> aws:route_table_association:subnet-1-route_table-subnet-1-1:
+    aws:subnet:vpc-0:subnet-1 -> aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+    aws:subnet:vpc-0:subnet-1 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-0-route_table-subnet-0-0 -> aws:route_table:route_table-subnet-0-0:
+    aws:route_table_association:subnet-1-route_table-subnet-1-1 -> aws:route_table:route_table-subnet-1-1:
+    aws:security_group:vpc-0:security_group-eks_cluster-0-0 -> aws:eks_cluster:eks_cluster-0:
+    aws:security_group:vpc-0:security_group-eks_cluster-0-0 -> aws:vpc:vpc-0:
+    aws:route_table:route_table-subnet-0-0 -> aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0:
+    aws:route_table:route_table-subnet-0-0 -> aws:vpc:vpc-0:
+    aws:route_table:route_table-subnet-1-1 -> aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1:
+    aws:route_table:route_table-subnet-1-1 -> aws:vpc:vpc-0:
+    ? aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0 -> aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0
+    :
+    aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0 -> aws:subnet:vpc-0:subnet-2:
+    ? aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1 -> aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1
+    :
+    aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1 -> aws:subnet:vpc-0:subnet-3:
+    aws:subnet:vpc-0:subnet-2 -> aws:availability_zone:region-0:availability_zone-2:
+    aws:subnet:vpc-0:subnet-2 -> aws:route_table_association:subnet-2-route_table-subnet-2-2:
+    aws:subnet:vpc-0:subnet-2 -> aws:vpc:vpc-0:
+    aws:subnet:vpc-0:subnet-3 -> aws:availability_zone:region-0:availability_zone-3:
+    aws:subnet:vpc-0:subnet-3 -> aws:route_table_association:subnet-3-route_table-subnet-3-3:
+    aws:subnet:vpc-0:subnet-3 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-2-route_table-subnet-2-2 -> aws:route_table:route_table-subnet-2-2:
+    aws:route_table_association:subnet-3-route_table-subnet-3-3 -> aws:route_table:route_table-subnet-3-3:
+    aws:route_table:route_table-subnet-2-2 -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:route_table-subnet-2-2 -> aws:vpc:vpc-0:
+    aws:route_table:route_table-subnet-3-3 -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:route_table-subnet-3-3 -> aws:vpc:vpc-0:
+    aws:internet_gateway:vpc-0:internet_gateway-0 -> aws:vpc:vpc-0:

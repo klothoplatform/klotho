@@ -79,7 +79,7 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-    
+
 classification:
   is:
     - role
@@ -87,7 +87,7 @@ classification:
   gives:
     - permissions
     - security
-    
+
 delete_context:
   requires_no_upstream: true
 views:

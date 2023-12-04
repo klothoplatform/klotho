@@ -2,6 +2,7 @@ package graph_addons
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dominikbraun/graph"
 )
@@ -19,7 +20,7 @@ func ReplaceVertex[K comparable, T any](g graph.Graph[K, T], oldId K, newValue T
 
 	err = g.AddVertex(newValue, func(vp *graph.VertexProperties) { *vp = props })
 	if err != nil {
-		return err
+		return fmt.Errorf("could not add new vertex %v: %w", newKey, err)
 	}
 
 	edges, err := g.Edges()
@@ -40,10 +41,13 @@ func ReplaceVertex[K comparable, T any](g graph.Graph[K, T], oldId K, newValue T
 		if e.Target == oldId {
 			newEdge.Target = newKey
 		}
-		errs = errors.Join(errs,
+		edgeErr := errors.Join(
 			g.RemoveEdge(e.Source, e.Target),
 			g.AddEdge(newEdge.Source, newEdge.Target, func(ep *graph.EdgeProperties) { *ep = e.Properties }),
 		)
+		if edgeErr != nil {
+			errs = errors.Join(errs, fmt.Errorf("failed to update edge %v -> %v: %w", e.Source, e.Target, edgeErr))
+		}
 	}
 	if errs != nil {
 		return errs

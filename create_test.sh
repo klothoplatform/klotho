@@ -13,6 +13,7 @@ name=${name%.input}
 echo "Running $name"
 
 # Run the engine
+echo "Using $out_dir as output directory"
 go run ./cmd/engine Run \
   -i "$1" \
   -c "$1" \

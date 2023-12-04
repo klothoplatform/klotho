@@ -42,6 +42,10 @@ func (eval *Evaluator) writeGraph(prefix string) {
 	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
 		prefix = filepath.Join(debugDir, prefix)
 	}
+	if err := os.MkdirAll(filepath.Dir(prefix), 0755); err != nil {
+		zap.S().Errorf("could not create debug directory %s: %v", filepath.Dir(prefix), err)
+		return
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
