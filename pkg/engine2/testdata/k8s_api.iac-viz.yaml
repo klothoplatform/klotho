@@ -68,19 +68,17 @@ resources:
   kubernetes:service_account:eks_cluster-0/pod2 -> eks_cluster/eks_cluster-0:
   kubernetes:service_account:eks_cluster-0/pod2 -> iam_role/pod2:
 
-  elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
-
-  aws:subnet:vpc-0/subnet-2:
-  aws:subnet:vpc-0/subnet-2 -> aws:availability_zone:region-0/availability_zone-0:
-  aws:subnet:vpc-0/subnet-2 -> vpc/vpc-0:
-
   elastic_ip/elastic_ip-nat_gateway-route_table-subnet-1-1-1-1:
 
   aws:subnet:vpc-0/subnet-3:
   aws:subnet:vpc-0/subnet-3 -> aws:availability_zone:region-0/availability_zone-1:
   aws:subnet:vpc-0/subnet-3 -> vpc/vpc-0:
 
-  elastic_ip/elastic_ip-nat_gateway-route_table-subnet-3-3-2-2:
+  elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
+
+  aws:subnet:vpc-0/subnet-2:
+  aws:subnet:vpc-0/subnet-2 -> aws:availability_zone:region-0/availability_zone-0:
+  aws:subnet:vpc-0/subnet-2 -> vpc/vpc-0:
 
   aws:api_method:rest_api_4/rest_api_4_integration_0_method:
   aws:api_method:rest_api_4/rest_api_4_integration_0_method -> aws:api_resource:rest_api_4/api_resource-0:
@@ -102,20 +100,16 @@ resources:
   kubernetes:namespace/amazon-cloudwatch:
   kubernetes:namespace/amazon-cloudwatch -> eks_cluster/eks_cluster-0:
 
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0:
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0 -> aws:subnet:vpc-0/subnet-2:
+  aws:internet_gateway:vpc-0/internet_gateway-0:
+  aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
 
   aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1-1-1:
   aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1-1-1 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-1-1-1-1:
   aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1-1-1 -> aws:subnet:vpc-0/subnet-3:
 
-  aws:internet_gateway:vpc-0/internet_gateway-0:
-  aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
-
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-3-3-2:
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-3-3-2 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-3-3-2-2:
-  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-3-3-2 -> aws:subnet:vpc-0/subnet-2:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0 -> aws:subnet:vpc-0/subnet-2:
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> aws:api_method:rest_api_4/rest_api_4_integration_0_method:
@@ -138,22 +132,21 @@ resources:
   kubernetes:config_map/fluent-bit-cluster-info -> eks_cluster/eks_cluster-0:
   kubernetes:config_map/fluent-bit-cluster-info -> kubernetes:namespace/amazon-cloudwatch:
 
-  route_table/route_table-subnet-0-0:
-  route_table/route_table-subnet-0-0 -> aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0:
-  route_table/route_table-subnet-0-0 -> vpc/vpc-0:
-
-  route_table/route_table-subnet-1-1:
-  route_table/route_table-subnet-1-1 -> aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1-1-1:
-  route_table/route_table-subnet-1-1 -> vpc/vpc-0:
+  route_table/route_table-subnet-3-3:
+  route_table/route_table-subnet-3-3 -> aws:internet_gateway:vpc-0/internet_gateway-0:
+  route_table/route_table-subnet-3-3 -> vpc/vpc-0:
 
   route_table/route_table-subnet-2-2:
   route_table/route_table-subnet-2-2 -> aws:internet_gateway:vpc-0/internet_gateway-0:
   route_table/route_table-subnet-2-2 -> vpc/vpc-0:
 
-  route_table/route_table-subnet-3-3:
-  route_table/route_table-subnet-3-3 -> aws:internet_gateway:vpc-0/internet_gateway-0:
-  route_table/route_table-subnet-3-3 -> aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-3-3-2:
-  route_table/route_table-subnet-3-3 -> vpc/vpc-0:
+  route_table/route_table-subnet-1-1:
+  route_table/route_table-subnet-1-1 -> aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1-1-1:
+  route_table/route_table-subnet-1-1 -> vpc/vpc-0:
+
+  route_table/route_table-subnet-0-0:
+  route_table/route_table-subnet-0-0 -> aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0-0-0:
+  route_table/route_table-subnet-0-0 -> vpc/vpc-0:
 
   iam_policy/iam_policy-0:
 
@@ -182,15 +175,21 @@ resources:
   security_group_rule/security_group_rule-0:
   security_group_rule/security_group_rule-0 -> vpc/vpc-0:
 
+  route_table_association/subnet-3-route_table-subnet-3-3:
+  route_table_association/subnet-3-route_table-subnet-3-3 -> route_table/route_table-subnet-3-3:
+  route_table_association/subnet-3-route_table-subnet-3-3 -> aws:subnet:vpc-0/subnet-3:
+
+  route_table_association/subnet-2-route_table-subnet-2-2:
+  route_table_association/subnet-2-route_table-subnet-2-2 -> route_table/route_table-subnet-2-2:
+  route_table_association/subnet-2-route_table-subnet-2-2 -> aws:subnet:vpc-0/subnet-2:
+
+  route_table_association/subnet-1-route_table-subnet-1-1:
+  route_table_association/subnet-1-route_table-subnet-1-1 -> route_table/route_table-subnet-1-1:
+  route_table_association/subnet-1-route_table-subnet-1-1 -> aws:subnet:vpc-0/subnet-1:
+
   route_table_association/subnet-0-route_table-subnet-0-0:
   route_table_association/subnet-0-route_table-subnet-0-0 -> route_table/route_table-subnet-0-0:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> route_table/route_table-subnet-1-1:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> route_table/route_table-subnet-2-2:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> route_table/route_table-subnet-3-3:
   route_table_association/subnet-0-route_table-subnet-0-0 -> aws:subnet:vpc-0/subnet-0:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> aws:subnet:vpc-0/subnet-1:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> aws:subnet:vpc-0/subnet-2:
-  route_table_association/subnet-0-route_table-subnet-0-0 -> aws:subnet:vpc-0/subnet-3:
 
   load_balancer_listener/rest_api_4_integration_0-pod2:
   load_balancer_listener/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:

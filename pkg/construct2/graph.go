@@ -68,7 +68,7 @@ func stringTo(g Graph, w io.Writer) error {
 		for t := range adjacent[id] {
 			targets = append(targets, t)
 		}
-		sort.Sort(sortedIds(targets))
+		sort.Sort(SortedIds(targets))
 
 		for _, t := range targets {
 			e := adjacent[id][t]

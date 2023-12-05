@@ -126,7 +126,7 @@ func bellmanFord(g Graph, source ResourceId, skipEdge func(Edge) bool) (*bellman
 	for key := range adjacencyMap {
 		sortedKeys = append(sortedKeys, key)
 	}
-	sort.Sort(sortedIds(sortedKeys))
+	sort.Sort(SortedIds(sortedKeys))
 
 	for i := 0; i < len(adjacencyMap)-1; i++ {
 		for _, key := range sortedKeys {
