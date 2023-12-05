@@ -151,3 +151,40 @@ func (u *Unique) UnmarshalYAML(n *yaml.Node) error {
 
 	return fmt.Errorf("could not decode 'unique' field")
 }
+
+// CanAdd returns whether the edge source -> target can be added based on the uniqueness rules.
+// - "many-to-many" always returns true
+// - "one-to-many" returns true if the target does not have any edges that match the source type
+// - "many-to-one" returns true if the source does not have any edges that match the target type
+// - "one-to-one" returns true if neither the source nor the target have any edges that match the other type
+func (u Unique) CanAdd(edges []construct.Edge, source, target construct.ResourceId) bool {
+	if !u.Source && !u.Target {
+		return true
+	}
+
+	if u.Source { // one-to-many or one-to-one
+		sourceSel := construct.ResourceId{Provider: source.Provider, Type: source.Type}
+		for _, e := range edges {
+			if e.Target != target {
+				continue
+			}
+			// Make sure that the target doesn't have any edges that match the source type
+			if sourceSel.Matches(e.Source) && e.Source != source {
+				return false
+			}
+		}
+	}
+	if u.Target { // many-to-one or one-to-one
+		targetSel := construct.ResourceId{Provider: target.Provider, Type: target.Type}
+		for _, e := range edges {
+			if e.Source != source {
+				continue
+			}
+			// Make sure that the source doesn't have any edges that match the target type
+			if targetSel.Matches(e.Target) && e.Target != target {
+				return false
+			}
+		}
+	}
+	return true
+}

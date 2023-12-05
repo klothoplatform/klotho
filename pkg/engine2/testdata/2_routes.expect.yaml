@@ -49,8 +49,8 @@ resources:
     aws:api_integration:rest_api_1:integ0:
         IntegrationHttpMethod: POST
         Method: aws:api_method:rest_api_1:api_method-0
-        Resource: aws:api_resource:rest_api_1:api_resource-0
         RequestParameters: {}
+        Resource: aws:api_resource:rest_api_1:api_resource-0
         RestApi: aws:rest_api:rest_api_1
         Route: /lambda0/api
         Target: aws:lambda_function:lambda_function_0
