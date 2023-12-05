@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -119,8 +120,17 @@ func bellmanFord(g Graph, source ResourceId, skipEdge func(Edge) bool) (*bellman
 	}
 	dist[source] = 0
 
+	// Sort the keys to ensure deterministic results. It adds +O(N) to the runtime, but
+	// when it's already O(N * E), it doesn't matter.
+	sortedKeys := make([]ResourceId, 0, len(adjacencyMap))
+	for key := range adjacencyMap {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Sort(sortedIds(sortedKeys))
+
 	for i := 0; i < len(adjacencyMap)-1; i++ {
-		for key, edges := range adjacencyMap {
+		for _, key := range sortedKeys {
+			edges := adjacencyMap[key]
 			for _, edge := range edges {
 				if skipEdge(edge) {
 					continue
@@ -134,7 +144,8 @@ func bellmanFord(g Graph, source ResourceId, skipEdge func(Edge) bool) (*bellman
 		}
 	}
 
-	for _, edges := range adjacencyMap {
+	for _, key := range sortedKeys {
+		edges := adjacencyMap[key]
 		for _, edge := range edges {
 			if skipEdge(edge) {
 				continue

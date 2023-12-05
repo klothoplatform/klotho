@@ -169,7 +169,7 @@ func assertYamlMatches(t *testing.T, expectStr, actualStr string, name string) {
 		case diff.DELETE:
 			t.Errorf("[%s] %s %s: %v", name, c.Type, path, c.From)
 		case diff.UPDATE:
-			t.Errorf("[%s] %s %s: %v -> %v", name, c.Type, path, c.From, c.To)
+			t.Errorf("[%s] %s %s: %v to %v", name, c.Type, path, c.From, c.To)
 		}
 	}
 }

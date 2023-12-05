@@ -116,7 +116,18 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 		}
 		zap.S().Debugf("%s paths: %d", src, len(deps.Paths))
 		sort.Slice(deps.Paths, func(i, j int) bool {
-			return len(deps.Paths[i]) < len(deps.Paths[j])
+			li, lj := len(deps.Paths[i]), len(deps.Paths[j])
+			if li != lj {
+				return li < lj
+			}
+			for pathIdx := 0; pathIdx < li; pathIdx++ {
+				resI := deps.Paths[i][pathIdx]
+				resJ := deps.Paths[j][pathIdx]
+				if resI != resJ {
+					return construct.ResourceIdLess(resI, resJ)
+				}
+			}
+			return false
 		})
 		seenSmall := make(set.Set[construct.ResourceId])
 		for _, path := range deps.Paths {
@@ -127,24 +138,25 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (c
 			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
 			switch dstTag {
 			case ParentIconTag:
-				if node.Parent.IsZero() {
-					template, err := e.Kb.GetResourceTemplate(dst)
+				if !node.Parent.IsZero() {
+					continue
+				}
+				template, err := e.Kb.GetResourceTemplate(dst)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+				if collectionutil.Contains(template.Classification.Is, "cluster") ||
+					collectionutil.Contains(template.Classification.Is, "network") {
+					hasPath, err := HasParent(topo, ctx, src, dst)
 					if err != nil {
 						errs = errors.Join(errs, err)
-						continue
 					}
-					if collectionutil.Contains(template.Classification.Is, "cluster") ||
-						collectionutil.Contains(template.Classification.Is, "network") {
-						hasPath, err := HasParent(topo, ctx, src, dst)
-						if err != nil {
-							errs = errors.Join(errs, err)
-						}
-						if node.Parent.IsZero() && hasPath {
-							node.Parent = dst
-						}
-					} else {
-						errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
+					if node.Parent.IsZero() && hasPath {
+						node.Parent = dst
 					}
+				} else {
+					errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
 				}
 			case BigIconTag:
 				errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))

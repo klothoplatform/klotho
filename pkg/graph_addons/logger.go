@@ -6,13 +6,10 @@ import (
 )
 
 type LoggingGraph[K comparable, T any] struct {
-	Log   *zap.SugaredLogger
-	Graph graph.Graph[K, T]
-	Hash  func(T) K
-}
+	graph.Graph[K, T]
 
-func (g LoggingGraph[K, T]) Traits() *graph.Traits {
-	return g.Graph.Traits()
+	Log  *zap.SugaredLogger
+	Hash func(T) K
 }
 
 func (g LoggingGraph[K, T]) AddVertex(value T, options ...func(*graph.VertexProperties)) error {
@@ -28,14 +25,6 @@ func (g LoggingGraph[K, T]) AddVertex(value T, options ...func(*graph.VertexProp
 func (g LoggingGraph[K, T]) AddVerticesFrom(other graph.Graph[K, T]) error {
 	// TODO
 	return g.Graph.AddVerticesFrom(other)
-}
-
-func (g LoggingGraph[K, T]) Vertex(hash K) (T, error) {
-	return g.Graph.Vertex(hash)
-}
-
-func (g LoggingGraph[K, T]) VertexWithProperties(hash K) (T, graph.VertexProperties, error) {
-	return g.Graph.VertexWithProperties(hash)
 }
 
 func (g LoggingGraph[K, T]) RemoveVertex(hash K) error {
@@ -63,14 +52,6 @@ func (g LoggingGraph[K, T]) AddEdgesFrom(other graph.Graph[K, T]) error {
 	return g.Graph.AddEdgesFrom(other)
 }
 
-func (g LoggingGraph[K, T]) Edge(sourceHash K, targetHash K) (graph.Edge[T], error) {
-	return g.Graph.Edge(sourceHash, targetHash)
-}
-
-func (g LoggingGraph[K, T]) Edges() ([]graph.Edge[K], error) {
-	return g.Graph.Edges()
-}
-
 func (g LoggingGraph[K, T]) UpdateEdge(source K, target K, options ...func(properties *graph.EdgeProperties)) error {
 	err := g.Graph.UpdateEdge(source, target, options...)
 	if err != nil {
@@ -91,26 +72,10 @@ func (g LoggingGraph[K, T]) RemoveEdge(source K, target K) error {
 	return err
 }
 
-func (g LoggingGraph[K, T]) AdjacencyMap() (map[K]map[K]graph.Edge[K], error) {
-	return g.Graph.AdjacencyMap()
-}
-
-func (g LoggingGraph[K, T]) PredecessorMap() (map[K]map[K]graph.Edge[K], error) {
-	return g.Graph.PredecessorMap()
-}
-
 func (g LoggingGraph[K, T]) Clone() (graph.Graph[K, T], error) {
 	cloned, err := g.Graph.Clone()
 	if err != nil {
 		return nil, err
 	}
 	return LoggingGraph[K, T]{Log: g.Log, Graph: cloned}, nil
-}
-
-func (g LoggingGraph[K, T]) Order() (int, error) {
-	return g.Graph.Order()
-}
-
-func (g LoggingGraph[K, T]) Size() (int, error) {
-	return g.Graph.Size()
 }
