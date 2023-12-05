@@ -56,6 +56,9 @@ properties:
   Type:
     type: string
     default_value: network
+    allowed_values:
+      - network
+      - application
   NlbUri:
     type: string
     configuration_disabled: true

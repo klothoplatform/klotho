@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime/pprof"
 	"strings"
 
+	"github.com/iancoleman/strcase"
 	"github.com/klothoplatform/klotho/pkg/analytics"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -150,6 +152,14 @@ func addSubProperties(properties map[string]any, subProperties map[string]knowle
 			"configurationDisabled": details.ConfigurationDisabled,
 			"required":              details.Required,
 		}
+		validationFields := []string{"MinLength", "MaxLength", "MinValue", "MaxValue", "AllowedValues"}
+		for _, validationField := range validationFields {
+			valField := reflect.ValueOf(subProperty).Elem().FieldByName(validationField)
+			if valField.IsValid() && !valField.IsZero() {
+				val := valField.Interface()
+				properties[details.Name].(map[string]any)[strcase.ToLowerCamel(validationField)] = val
+			}
+		}
 		if subProperty.SubProperties() != nil {
 			properties[details.Name].(map[string]any)["properties"] = map[string]any{}
 			addSubProperties(properties[details.Name].(map[string]any)["properties"].(map[string]any), subProperty.SubProperties())
@@ -168,19 +178,7 @@ func (em *EngineMain) ListResourceTypes(cmd *cobra.Command, args []string) error
 
 	for _, resourceType := range resourceTypes {
 		properties := map[string]any{}
-		for _, property := range resourceType.Properties {
-			details := property.Details()
-			properties[details.Name] = map[string]any{
-				"type":                  property.Type(),
-				"deployTime":            details.DeployTime,
-				"configurationDisabled": details.ConfigurationDisabled,
-				"required":              details.Required,
-			}
-			if property.SubProperties() != nil {
-				properties[details.Name].(map[string]any)["properties"] = map[string]any{}
-				addSubProperties(properties[details.Name].(map[string]any)["properties"].(map[string]any), property.SubProperties())
-			}
-		}
+		addSubProperties(properties, resourceType.Properties)
 		typeAndClassifications[resourceType.QualifiedTypeName] = resourceInfo{
 			Classifications: resourceType.Classification.Is,
 			Properties:      properties,

@@ -34,7 +34,7 @@ properties:
       Namespace:
         type: string
       Labels:
-        type: map(string)
+        type: map(string,string)
 
 classifications:
   is:

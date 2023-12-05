@@ -40,8 +40,8 @@ type (
 		MinLength *int `yaml:"min_length"`
 		MaxLength *int `yaml:"max_length"`
 
-		MinValue *float64 `yaml:"lower_bound"`
-		MaxValue *float64 `yaml:"upper_bound"`
+		MinValue *float64 `yaml:"min_value"`
+		MaxValue *float64 `yaml:"max_value"`
 
 		AllowedTypes construct.ResourceList `yaml:"allowed_types"`
 
@@ -85,7 +85,7 @@ func (p *Properties) Convert() (knowledgebase.Properties, error) {
 		}
 		props[name] = propertyType
 	}
-	return props, nil
+	return props, errs
 }
 
 func (p *Property) Convert() (knowledgebase.Property, error) {
@@ -130,18 +130,34 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 			continue
 		}
 
-		if dstField.Type() == srcField.Type() {
+		if dstField.Type().AssignableTo(srcField.Type()) {
 			dstField.Set(srcField)
-		} else {
-			if conversion, found := fieldConversion[fieldName]; found {
-				err := conversion(srcField, p, propertyType)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, fmt.Errorf("invalid property type %s", fieldName)
+			continue
+		}
+
+		if dstField.Kind() == reflect.Ptr && srcField.Kind() == reflect.Ptr {
+			if srcField.Type().Elem().AssignableTo(dstField.Type().Elem()) {
+				dstField.Set(srcField)
+				continue
+			} else if srcField.Type().Elem().ConvertibleTo(dstField.Type().Elem()) {
+				val := srcField.Elem().Convert(dstField.Type().Elem())
+				// set dest field to a pointer of val
+				dstField.Set(reflect.New(dstField.Type().Elem()))
+				dstField.Elem().Set(val)
+				continue
 			}
 		}
+
+		if conversion, found := fieldConversion[fieldName]; found {
+			err := conversion(srcField, p, propertyType)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		return nil, fmt.Errorf("invalid field name %s, for property %s of type %s", fieldName, p.Name, p.Type)
+
 	}
 
 	details := propertyType.Details()
@@ -235,7 +251,7 @@ func init() {
 			}
 			args := strings.Split(val, ",")
 			if len(args) != 2 {
-				return nil, fmt.Errorf("invalid number of arguments for map property type")
+				return nil, fmt.Errorf("invalid number of arguments for map property type: %s", val)
 			}
 			keyVal, err := InitializeProperty(args[0])
 			if err != nil {

@@ -46,9 +46,13 @@ properties:
   Timeout:
     type: int
     default_value: 180
+    min_value: 1
+    max_value: 900
   MemorySize:
     type: int
     default_value: 512
+    min_value: 128
+    max_value: 10240
   EfsAccessPoint:
     type: resource(aws:efs_access_point)
   LogGroup:

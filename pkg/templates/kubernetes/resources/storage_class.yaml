@@ -39,7 +39,7 @@ properties:
       mountOptions:
         type: list(string)
       allowVolumeExpansion:
-        type: boolean
+        type: bool
       reclaimPolicy:
         type: string
       volumeBindingMode:
