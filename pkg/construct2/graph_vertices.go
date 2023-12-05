@@ -6,35 +6,6 @@ import (
 	"sort"
 )
 
-// sortedIds is a helper type for sorting ResourceIds by purely their content, for use when deterministic ordering
-// is desired (when no other sources of ordering are available).
-type sortedIds []ResourceId
-
-func (s sortedIds) Len() int {
-	return len(s)
-}
-
-func ResourceIdLess(a, b ResourceId) bool {
-	if a.Provider != b.Provider {
-		return a.Provider < b.Provider
-	}
-	if a.Type != b.Type {
-		return a.Type < b.Type
-	}
-	if a.Namespace != b.Namespace {
-		return a.Namespace < b.Namespace
-	}
-	return a.Name < b.Name
-}
-
-func (s sortedIds) Less(i, j int) bool {
-	return ResourceIdLess(s[i], s[j])
-}
-
-func (s sortedIds) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
 // ToplogicalSort provides a stable topological ordering of resource IDs.
 // This is a modified implementation of graph.StableTopologicalSort with the primary difference
 // being any uses of the internal function `enqueueArbitrary`.
@@ -92,9 +63,9 @@ func toplogicalSort(g Graph, invertLess bool) ([]ResourceId, error) {
 
 			// Tie-break on the ID contents themselves
 			if invertLess {
-				return !sortedIds(remainingIds).Less(i, j)
+				return !SortedIds(remainingIds).Less(i, j)
 			}
-			return sortedIds(remainingIds).Less(i, j)
+			return SortedIds(remainingIds).Less(i, j)
 		})
 		enqueue(remainingIds[0])
 	}
@@ -106,7 +77,7 @@ func toplogicalSort(g Graph, invertLess bool) ([]ResourceId, error) {
 	order := make([]ResourceId, 0, len(predecessorMap))
 	visited := make(map[ResourceId]struct{})
 
-	sort.Sort(sortedIds(queue))
+	sort.Sort(SortedIds(queue))
 
 	for len(queue) > 0 {
 		currentVertex := queue[0]
@@ -137,9 +108,9 @@ func toplogicalSort(g Graph, invertLess bool) ([]ResourceId, error) {
 		}
 
 		if invertLess {
-			sort.Sort(sort.Reverse(sortedIds(frontier)))
+			sort.Sort(sort.Reverse(SortedIds(frontier)))
 		} else {
-			sort.Sort(sortedIds(frontier))
+			sort.Sort(SortedIds(frontier))
 		}
 
 		enqueue(frontier...)

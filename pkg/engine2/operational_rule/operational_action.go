@@ -3,6 +3,7 @@ package operational_rule
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -125,6 +126,10 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 	if err != nil {
 		return err
 	}
+	resources, err := construct.ToplogicalSort(action.ruleCtx.Solution.RawView())
+	if err != nil {
+		return err
+	}
 
 	// Next we will loop through and try to use available resources if the unique flag is not set
 	for _, resourceSelector := range action.Step.Resources {
@@ -147,10 +152,6 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				continue
 			}
 
-			resources, err := construct.ToplogicalSort(action.ruleCtx.Solution.RawView())
-			if err != nil {
-				return err
-			}
 			for _, resId := range resources {
 				res, err := action.ruleCtx.Solution.RawView().Vertex(resId)
 				if err != nil {
@@ -239,7 +240,11 @@ func (action *operationalResourceAction) placeResources(resource *construct.Reso
 	}
 	placer := placerGen()
 	placer.SetCtx(action.ruleCtx)
-	return placer.PlaceResources(resource, action.Step, availableResources.ToSlice(), &action.numNeeded)
+	resources := availableResources.ToSlice()
+	sort.Slice(resources, func(i, j int) bool {
+		return construct.ResourceIdLess(resources[i].ID, resources[j].ID)
+	})
+	return placer.PlaceResources(resource, action.Step, resources, &action.numNeeded)
 }
 
 func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResource *construct.Resource, resource *construct.Resource) (bool, error) {
@@ -382,22 +387,25 @@ func (action *operationalResourceAction) createAndAddDependency(res, stepResourc
 }
 
 func (action *operationalResourceAction) generateResourceName(resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
-	if resourceToSet.Name == "" {
-		numResources := 0
-		ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
-		if err != nil {
-			return err
-		}
-		for _, id := range ids {
-			if id.Type == resourceToSet.Type {
-				numResources++
-			}
-		}
-		if action.Step.Unique {
-			resourceToSet.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.Type, resource.Name, numResources)
-		} else {
-			resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
+	if resourceToSet.Name != "" {
+		return nil
+	}
+	numResources := 0
+	ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
+	if err != nil {
+		return err
+	}
+	matcher := construct.ResourceId{Provider: resourceToSet.Provider, Type: resourceToSet.Type, Namespace: resourceToSet.Namespace}
+	for _, id := range ids {
+		if matcher.Matches(id) {
+			numResources++
 		}
 	}
+	if action.Step.Unique {
+		resourceToSet.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.Type, resource.Name, numResources)
+	} else {
+		resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
+	}
+
 	return nil
 }

@@ -73,7 +73,7 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 		for t := range adj[source] {
 			targets = append(targets, t)
 		}
-		sort.Sort(sortedIds(targets))
+		sort.Sort(SortedIds(targets))
 		for _, target := range targets {
 			edges.Content = append(edges.Content,
 				&yaml.Node{

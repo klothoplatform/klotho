@@ -59,6 +59,16 @@ func TestUnique_CanAdd(t *testing.T) {
 			want: false,
 		},
 		{
+			name:   "one-to-one (full match)",
+			unique: Unique{Source: true, Target: true},
+			graph: []any{
+				"p:source:a",
+				"p:target:b",
+				"p:source:a -> p:target:b",
+			},
+			want: true,
+		},
+		{
 			name:   "one-to-many (no match)",
 			unique: Unique{Source: true},
 			graph: []any{

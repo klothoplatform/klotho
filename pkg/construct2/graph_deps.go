@@ -31,7 +31,7 @@ func DirectDownstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 			ids = append(ids, e.Target)
 		}
 	}
-	sort.Sort(sortedIds(ids))
+	sort.Sort(SortedIds(ids))
 
 	return ids, nil
 }
@@ -61,7 +61,7 @@ func DirectUpstreamDependencies(g Graph, r ResourceId) ([]ResourceId, error) {
 			ids = append(ids, e.Source)
 		}
 	}
-	sort.Sort(sortedIds(ids))
+	sort.Sort(SortedIds(ids))
 
 	return ids, nil
 }
@@ -73,7 +73,7 @@ func allDependencies(deps map[ResourceId]map[ResourceId]Edge, r ResourceId) []Re
 	for d := range deps[r] {
 		stack = append(stack, d)
 	}
-	sort.Sort(sortedIds(stack))
+	sort.Sort(SortedIds(stack))
 
 	var ids []ResourceId
 	for len(stack) > 0 {
@@ -90,7 +90,7 @@ func allDependencies(deps map[ResourceId]map[ResourceId]Edge, r ResourceId) []Re
 			}
 			next = append(next, d)
 		}
-		sort.Sort(sortedIds(next))
+		sort.Sort(SortedIds(next))
 		stack = append(stack, next...)
 	}
 
