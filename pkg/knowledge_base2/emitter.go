@@ -150,12 +150,7 @@ func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicV
 					errs = errors.Join(errs, fmt.Errorf("property %s not found", consume.PropertyPath))
 					continue
 				}
-				ptype, err := prop.PropertyType()
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				if ptype.Contains(pval, val) {
+				if prop.Contains(pval, val) {
 					return true, nil
 				}
 			}
@@ -231,16 +226,5 @@ func (c *ConsumptionObject) Consume(val any, ctx DynamicValueContext, resource *
 		return err
 	}
 	prop := rt.GetProperty(c.PropertyPath)
-	if prop.IsPropertyTypeScalar() {
-		err := resource.SetProperty(c.PropertyPath, val)
-		if err != nil {
-			return err
-		}
-	} else {
-		err := resource.AppendProperty(c.PropertyPath, val)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return prop.AppendProperty(resource, val)
 }

@@ -6,10 +6,10 @@ properties:
     type: resource(aws:rest_api)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:rest_api
+      step:
+        direction: downstream
+        resources:
+          - aws:rest_api
   Triggers:
     type: map(string,string)
 

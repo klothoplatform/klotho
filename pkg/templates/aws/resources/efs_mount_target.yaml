@@ -6,28 +6,28 @@ properties:
     type: resource(aws:efs_file_system)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:efs_file_system
+      step:
+        direction: downstream
+        resources:
+          - aws:efs_file_system
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   IpAddress:
     type: string
 

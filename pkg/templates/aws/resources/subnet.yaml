@@ -7,27 +7,27 @@ properties:
     required: true
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:vpc
+      step:
+        direction: downstream
+        resources:
+          - aws:vpc
   AvailabilityZone:
     type: resource(aws:availability_zone)
     required: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:availability_zone
-          selection_operator: spread
+      step:
+        direction: downstream
+        resources:
+          - aws:availability_zone
+        selection_operator: spread
   RouteTable:
     type: resource(aws:route_table)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:route_table
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:route_table
+        unique: true
   CidrBlock:
     type: string
     default_value: |

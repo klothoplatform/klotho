@@ -31,31 +31,34 @@ properties:
     type: list(resource(aws:security_group))
     operational_rule:
       if: '{{ fieldValue "Scheme" .Self | eq "internet-facing" }}'
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: |
-                  {{- if eq (fieldValue "Scheme" .Self) "internet-facing"}}
-                    public
-                  {{- else}}
-                    private
-                  {{- end}}
-          num_needed: 2
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: |
+                {{- if eq (fieldValue "Scheme" .Self) "internet-facing"}}
+                  public
+                {{- else}}
+                  private
+                {{- end}}
+        num_needed: 2
   Tags:
     type: map(string,string)
   Type:
     type: string
     default_value: network
+    allowed_values:
+      - network
+      - application
   NlbUri:
     type: string
     configuration_disabled: true

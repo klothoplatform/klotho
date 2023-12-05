@@ -16,25 +16,18 @@ import (
 type (
 	OperationalRuleContext struct {
 		Solution solution_context.SolutionContext
-		Property *knowledgebase.Property
+		Property knowledgebase.Property
 		Data     knowledgebase.DynamicValueData
 	}
 )
 
 func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
-	shouldRun, err := EvaluateIfCondition(rule, ctx.Solution, ctx.Data)
+	shouldRun, err := EvaluateIfCondition(rule.If, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
 	}
 	if !shouldRun {
 		return nil
-	}
-
-	if ctx.Property != nil && len(rule.Steps) > 0 {
-		err := ctx.CleanProperty(rule)
-		if err != nil {
-			return err
-		}
 	}
 
 	var errs error
@@ -56,20 +49,70 @@ func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Opera
 	return errs
 }
 
+func (ctx OperationalRuleContext) HandlePropertyRule(rule knowledgebase.PropertyRule) error {
+	if ctx.Property == nil {
+		return fmt.Errorf("property rule has no property")
+	}
+	if ctx.Data.Resource.IsZero() {
+		return fmt.Errorf("property rule has no resource")
+	}
+
+	shouldRun, err := EvaluateIfCondition(rule.If, ctx.Solution, ctx.Data)
+	if err != nil {
+		return err
+	}
+	if !shouldRun {
+		return nil
+	}
+
+	if ctx.Property != nil && len(rule.Step.Resources) > 0 {
+		err := ctx.CleanProperty(rule.Step)
+		if err != nil {
+			return err
+		}
+	}
+
+	var errs error
+	if len(rule.Step.Resources) > 0 {
+		err = ctx.HandleOperationalStep(rule.Step)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not apply step: %w", err))
+		}
+	}
+
+	if rule.Value != nil {
+		dynctx := solution_context.DynamicCtx(ctx.Solution)
+		val, err := ctx.Property.Parse(rule.Value, dynctx, ctx.Data)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not parse value %s: %w", rule.Value, err))
+		}
+		resource, err := ctx.Solution.RawView().Vertex(ctx.Data.Resource)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not get resource %s: %w", ctx.Data.Resource, err))
+		} else {
+			err = ctx.Property.SetProperty(resource, val)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not set property %s: %w", ctx.Property, err))
+			}
+		}
+	}
+	return errs
+}
+
 // CleanProperty clears the property associated with the rule if it no longer matches the rule.
 // For array properties, each element must match at least one step selector and non-matching
 // elements will be removed.
-func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRule) error {
+func (ctx OperationalRuleContext) CleanProperty(step knowledgebase.OperationalStep) error {
 	log := zap.L().With(
 		zap.String("op", "op_rule"),
-		zap.String("property", ctx.Property.Path),
+		zap.String("property", ctx.Property.Details().Path),
 		zap.String("resource", ctx.Data.Resource.String()),
 	).Sugar()
 	resource, err := ctx.Solution.RawView().Vertex(ctx.Data.Resource)
 	if err != nil {
 		return err
 	}
-	path, err := resource.PropertyPath(ctx.Property.Path)
+	path, err := resource.PropertyPath(ctx.Property.Details().Path)
 	if err != nil {
 		return err
 	}
@@ -83,17 +126,16 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 		if err != nil {
 			return false, err
 		}
-		for _, step := range rule.Steps {
-			for i, sel := range step.Resources {
-				match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
-				if err != nil {
-					return false, fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
-				}
-				if match {
-					return true, nil
-				}
+		for i, sel := range step.Resources {
+			match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
+			if err != nil {
+				return false, fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
+			}
+			if match {
+				return true, nil
 			}
 		}
+
 		return false, nil
 	}
 
@@ -208,16 +250,16 @@ func (ctx OperationalRuleContext) CleanProperty(rule knowledgebase.OperationalRu
 }
 
 func EvaluateIfCondition(
-	rule knowledgebase.OperationalRule,
+	tmplString string,
 	sol solution_context.SolutionContext,
 	data knowledgebase.DynamicValueData,
 ) (bool, error) {
-	if rule.If == "" {
+	if tmplString == "" {
 		return true, nil
 	}
 	result := false
 	dyn := solution_context.DynamicCtx(sol)
-	err := dyn.ExecuteDecode(rule.If, data, &result)
+	err := dyn.ExecuteDecode(tmplString, data, &result)
 	if err != nil {
 		return false, err
 	}

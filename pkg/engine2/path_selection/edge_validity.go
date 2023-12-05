@@ -72,48 +72,50 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 
 	explicitlyNotValid := false
 	explicitlyValid := false
-	err = template.LoopProperties(resource, func(prop *knowledgebase.Property) error {
-		if prop.OperationalRule == nil {
+	err = template.LoopProperties(resource, func(prop knowledgebase.Property) error {
+		details := prop.Details()
+		rule := details.OperationalRule
+		if rule == nil || len(rule.Step.Resources) == 0 {
 			return nil
 		}
-		for _, step := range prop.OperationalRule.Steps {
-			if !step.Unique || step.Direction != direction {
+		step := rule.Step
+		if !step.Unique || step.Direction != direction {
+			return nil
+		}
+		//check if the upstream resource is the same type as the matched resource type
+		for _, selector := range step.Resources {
+			match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: resource.ID},
+				toCheck)
+			if err != nil {
+				return fmt.Errorf("error checking if resource %s matches selector %s: %w", toCheck, selector.Selector, err)
+			}
+			// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
+			if !match {
 				continue
 			}
-			//check if the upstream resource is the same type as the matched resource type
-			for _, selector := range step.Resources {
-				match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: resource.ID},
-					toCheck)
-				if err != nil {
-					return fmt.Errorf("error checking if resource %s matches selector %s: %w", toCheck, selector, err)
-				}
-				// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
-				if !match {
-					continue
-				}
-				property, err := resource.GetProperty(prop.Path)
-				if err != nil {
-					return fmt.Errorf("error getting property %s for resource %s: %w", prop.Path, toCheck, err)
-				}
-				if property != nil {
-					if checkIfPropertyContainsResource(property, toCheck.ID) {
-						explicitlyValid = true
-						return knowledgebase.ErrStopWalk
-					}
-				} else {
-					loneDep, err := checkIfLoneDependency(ctx, resource.ID, toCheck.ID, direction, selector)
-					if err != nil {
-						return err
-					}
-					if loneDep {
-						explicitlyValid = true
-						return knowledgebase.ErrStopWalk
-					}
-				}
-				explicitlyNotValid = true
-				return knowledgebase.ErrStopWalk
+			property, err := resource.GetProperty(details.Path)
+			if err != nil {
+				return fmt.Errorf("error getting property %s for resource %s: %w", details.Path, toCheck, err)
 			}
+			if property != nil {
+				if checkIfPropertyContainsResource(property, toCheck.ID) {
+					explicitlyValid = true
+					return knowledgebase.ErrStopWalk
+				}
+			} else {
+				loneDep, err := checkIfLoneDependency(ctx, resource.ID, toCheck.ID, direction, selector)
+				if err != nil {
+					return err
+				}
+				if loneDep {
+					explicitlyValid = true
+					return knowledgebase.ErrStopWalk
+				}
+			}
+			explicitlyNotValid = true
+			return knowledgebase.ErrStopWalk
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -242,32 +244,34 @@ func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resour
 		if err != nil {
 			return false, err
 		}
-		err = template.LoopProperties(currRes, func(prop *knowledgebase.Property) error {
-			if prop.OperationalRule == nil {
+		err = template.LoopProperties(currRes, func(prop knowledgebase.Property) error {
+			details := prop.Details()
+			rule := details.OperationalRule
+			if rule == nil || len(rule.Step.Resources) == 0 {
 				return nil
 			}
-			for _, step := range prop.OperationalRule.Steps {
-				// we want the step to be the opposite of the direction passed in so we know its creating the resource in the direction of the resource
-				// since we are looking at the resources dependencies
-				if !step.Unique || step.Direction == direction {
+			step := rule.Step
+			// we want the step to be the opposite of the direction passed in so we know its creating the resource in the direction of the resource
+			// since we are looking at the resources dependencies
+			if !step.Unique || step.Direction == direction {
+				return nil
+			}
+			//check if the upstream resource is the same type as the matched resource type
+			for _, selector := range step.Resources {
+				match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: currRes.ID},
+					resource)
+				if err != nil {
+					return fmt.Errorf("error checking if resource %s matches selector %s: %w", other, selector.Selector, err)
+				}
+				// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
+				if !match {
 					continue
 				}
-				//check if the upstream resource is the same type as the matched resource type
-				for _, selector := range step.Resources {
-					match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: currRes.ID},
-						resource)
-					if err != nil {
-						return fmt.Errorf("error checking if resource %s matches selector %s: %w", other, selector, err)
-					}
-					// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
-					if !match {
-						continue
-					}
 
-					foundMatch = true
-					return knowledgebase.ErrStopWalk
-				}
+				foundMatch = true
+				return knowledgebase.ErrStopWalk
 			}
+
 			return nil
 		})
 		if err != nil {

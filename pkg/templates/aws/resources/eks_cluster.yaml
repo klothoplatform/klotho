@@ -5,51 +5,42 @@ properties:
   ClusterRole:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role:ClusterRole-{{ .Self.Name }}
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role:ClusterRole-{{ .Self.Name }}
+        unique: true
   Vpc:
     type: resource(aws:vpc)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:vpc
+      step:
+        direction: downstream
+        resources:
+          - aws:vpc
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
-      steps:
-        - direction: downstream
-          num_needed: 2
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
-        - direction: downstream
-          num_needed: 2
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: public
+      step:
+        direction: downstream
+        num_needed: 2
+        resources:
+          - selector: aws:subnet
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   KubeConfig:
     type: resource(kubernetes:kube_config)
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - kubernetes:kube_config
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - kubernetes:kube_config
+        unique: true
   Name:
     type: string
     configuration_disabled: true

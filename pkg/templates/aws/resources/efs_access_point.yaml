@@ -6,10 +6,10 @@ properties:
     type: resource(aws:efs_file_system)
     namespace: true
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:efs_file_system
+      step:
+        direction: downstream
+        resources:
+          - aws:efs_file_system
   PosixUser:
     type: map
     properties:

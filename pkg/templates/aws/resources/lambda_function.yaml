@@ -5,19 +5,19 @@ properties:
   ExecutionRole:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role:{{ .Self.Name }}-ExecutionRole
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role:{{ .Self.Name }}-ExecutionRole
+        unique: true
   Image:
     type: resource(aws:ecr_image)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:ecr_image:{{ .Self.Name }}-image
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:ecr_image:{{ .Self.Name }}-image
+        unique: true
   EnvironmentVariables:
     type: map(string,string)
   SecurityGroups:
@@ -25,42 +25,46 @@ properties:
     operational_rule:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
-      steps:
-        - direction: upstream
-          resources:
-            - aws:security_group
-          unique: true
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
       if: |
         {{ hasDownstream "aws:vpc" .Self }}
-      steps:
-        - direction: downstream
-          num_needed: 2
-          resources:
-            - selector: aws:subnet
-              properties:
-                Type: private
-            - aws:subnet
+      step:
+        direction: downstream
+        num_needed: 2
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
   Timeout:
     type: int
     default_value: 180
+    min_value: 1
+    max_value: 900
   MemorySize:
     type: int
     default_value: 512
+    min_value: 128
+    max_value: 10240
   EfsAccessPoint:
     type: resource(aws:efs_access_point)
   LogGroup:
     type: resource(aws:log_group)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - selector: aws:log_group:{{ .Self.Name }}-log-group
-              properties:
-                LogGroupName: /aws/lambda/{{ .Self.Name }}
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - selector: aws:log_group:{{ .Self.Name }}-log-group
+            properties:
+              LogGroupName: /aws/lambda/{{ .Self.Name }}
+        unique: true
   LambdaIntegrationUri:
     type: string
     configuration_disabled: true
@@ -76,7 +80,7 @@ path_satisfaction:
     - permissions
   as_source:
     - network#Subnets
-    - network    # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 steps
+    - network    # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 step
 
 consumption:
   consumed:

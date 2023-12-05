@@ -5,11 +5,11 @@ properties:
   Image:
     type: resource(aws:ecr_image)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:ecr_image:{{ .Self.Name }}-image
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:ecr_image:{{ .Self.Name }}-image
+        unique: true
   MountPoints:
     type: set
     properties:
@@ -30,29 +30,29 @@ properties:
   LogGroup:
     type: resource(aws:log_group)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:log_group:{{ .Self.Name }}-log-group
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:log_group:{{ .Self.Name }}-log-group
+        unique: true
   ExecutionRole:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role:{{ .Self.Name }}-execution-role
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role:{{ .Self.Name }}-execution-role
+        unique: true
   TaskRole:
     type: resource(aws:iam_role)
     default_value: '{{ fieldValue "ExecutionRole" .Self }}'
   Region:
     type: resource(aws:region)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:region
+      step:
+        direction: downstream
+        resources:
+          - aws:region
   NetworkMode:
     type: string
     default_value: awsvpc

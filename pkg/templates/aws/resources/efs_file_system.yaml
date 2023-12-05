@@ -25,10 +25,10 @@ properties:
   AvailabilityZone:
     type: resource(aws:availability_zone)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:availability_zone
+      step:
+        direction: downstream
+        resources:
+          - aws:availability_zone
   CreationToken: 
     type: string
   Id:

@@ -195,55 +195,54 @@ func handleProperties(
 		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 			return err
 		}
-		handleProp := func(prop *knowledgebase.Property) error {
+		handleProp := func(prop knowledgebase.Property) error {
 			oldId := res.ID
 			opRuleCtx := operational_rule.OperationalRuleContext{
 				Solution: ctx,
 				Property: prop,
 				Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 			}
-			if prop.OperationalRule == nil {
+			details := prop.Details()
+			if details.OperationalRule == nil || len(details.OperationalRule.Step.Resources) == 0 {
 				return nil
 			}
-			for _, step := range prop.OperationalRule.Steps {
-				for _, selector := range step.Resources {
-					if step.Direction == knowledgebase.DirectionDownstream && i < len(resultResources)-1 {
-						downstreamRes := resultResources[i+1]
-						canUse, err := selector.CanUse(
-							solution_context.DynamicCtx(ctx),
-							knowledgebase.DynamicValueData{Resource: res.ID},
-							downstreamRes,
-						)
-						if canUse && err == nil {
-							err = opRuleCtx.SetField(res, downstreamRes, step)
-							if err != nil {
-								errs = errors.Join(errs, err)
-							}
-							if prop.Namespace && exists != nil {
-								errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), oldId))
-							}
+			step := details.OperationalRule.Step
+			for _, selector := range step.Resources {
+				if step.Direction == knowledgebase.DirectionDownstream && i < len(resultResources)-1 {
+					downstreamRes := resultResources[i+1]
+					canUse, err := selector.CanUse(
+						solution_context.DynamicCtx(ctx),
+						knowledgebase.DynamicValueData{Resource: res.ID},
+						downstreamRes,
+					)
+					if canUse && err == nil {
+						err = opRuleCtx.SetField(res, downstreamRes, step)
+						if err != nil {
+							errs = errors.Join(errs, err)
 						}
-					} else if i > 0 {
-						upstreamRes := resultResources[i-1]
-						canUse, err := selector.CanUse(
-							solution_context.DynamicCtx(ctx),
-							knowledgebase.DynamicValueData{Resource: res.ID},
-							upstreamRes,
-						)
-						if canUse && err == nil {
-							err = opRuleCtx.SetField(res, upstreamRes, step)
-							if err != nil {
-								errs = errors.Join(errs, err)
-							}
-							if prop.Namespace && exists != nil {
-								errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), id))
-							}
+						if details.Namespace && exists != nil {
+							errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), oldId))
 						}
-
 					}
+				} else if i > 0 {
+					upstreamRes := resultResources[i-1]
+					if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
+						knowledgebase.DynamicValueData{Resource: res.ID}, upstreamRes); canUse && err == nil {
+						err = opRuleCtx.SetField(res, upstreamRes, step)
+						if err != nil {
+							errs = errors.Join(errs, err)
+						}
+						if details.Namespace && exists != nil {
+							err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
+							if err != nil {
+								errs = errors.Join(errs, err)
+							}
+						}
+					}
+
 				}
 			}
-			if prop.Namespace && oldId != res.ID {
+			if details.Namespace && oldId != res.ID {
 				errs = errors.Join(errs, graph_addons.ReplaceVertex(g, oldId, res, construct.ResourceHasher))
 				_, props, err := tempGraph.VertexWithProperties(oldId)
 				if err == nil && props.Attributes != nil {

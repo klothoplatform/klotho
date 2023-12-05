@@ -5,19 +5,19 @@ properties:
   Function:
     type: resource(aws:lambda_function)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:lambda_function
+      step:
+        direction: downstream
+        resources:
+          - aws:lambda_function
   #          fail_if_missing: true
   EventSource:
     type: resource
     operational_rule:
-      steps:
-        - direction: upstream
-          resources:
-            - aws:sqs_queue
-  #          fail_if_missing: true
+      step:
+        direction: upstream
+        resources:
+          - aws:sqs_queue
+  #        fail_if_missing: true
 
   FilterCriteria:
     type: list

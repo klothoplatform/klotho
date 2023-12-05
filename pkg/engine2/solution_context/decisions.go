@@ -1,6 +1,9 @@
 package solution_context
 
-import construct "github.com/klothoplatform/klotho/pkg/construct2"
+import (
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+)
 
 type (
 	KV struct {
@@ -45,6 +48,11 @@ type (
 		Resource construct.ResourceId
 		Property string
 		Value    any
+	}
+
+	ResourceConfigurationError struct {
+		Resource construct.ResourceId
+		Property knowledgebase.Property
 	}
 )
 

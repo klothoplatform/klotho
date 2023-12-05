@@ -10,10 +10,10 @@ properties:
   Region:
     type: resource(aws:region)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:region
+      step:
+        direction: downstream
+        resources:
+          - aws:region
   Arn:
     type: string
     configuration_disabled: true

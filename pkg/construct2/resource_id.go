@@ -67,6 +67,15 @@ func (l *ResourceList) UnmarshalText(b []byte) error {
 	return fmt.Errorf("could not unmarshal resource list: %s", string(b))
 }
 
+func (l ResourceList) MatchesAny(id ResourceId) bool {
+	for _, rid := range l {
+		if rid.Matches(id) {
+			return true
+		}
+	}
+	return false
+}
+
 var zeroId = ResourceId{}
 
 func (id ResourceId) IsZero() bool {

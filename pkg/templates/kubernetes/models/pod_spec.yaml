@@ -24,11 +24,11 @@ properties:
   serviceAccountName:
     type: resource(kubernetes:service_account)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - kubernetes:service_account:{{ .Self.Name }}
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - kubernetes:service_account:{{ .Self.Name }}
+        unique: true
   automountServiceAccountToken:
     type: bool
     default_value: true

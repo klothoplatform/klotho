@@ -1,4 +1,4 @@
-package knowledgebase2
+package reader
 
 import (
 	"errors"
@@ -6,18 +6,31 @@ import (
 	"io/fs"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
-func NewKBFromFs(resources, edges, models fs.FS) (*KnowledgeBase, error) {
-	kb := NewKB()
-	kbModels, err := ModelsFromFS(models)
+func NewKBFromFs(resources, edges, models fs.FS) (*knowledgebase.KnowledgeBase, error) {
+	var errs error
+	kb := knowledgebase.NewKB()
+	readerModels, err := ModelsFromFS(models)
 	if err != nil {
 		return nil, err
 	}
-	kb.models = kbModels
-	templates, err := TemplatesFromFs(resources, kbModels)
+	kbModels := map[string]*knowledgebase.Model{}
+	for name, model := range readerModels {
+		kbModel, err := model.Convert()
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error converting model %s: %w", name, err))
+		}
+		kbModels[name] = kbModel
+	}
+	if errs != nil {
+		return nil, errs
+	}
+	kb.Models = kbModels
+	templates, err := TemplatesFromFs(resources, readerModels)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +39,6 @@ func NewKBFromFs(resources, edges, models fs.FS) (*KnowledgeBase, error) {
 		return nil, err
 	}
 
-	var errs error
 	for _, template := range templates {
 		err = kb.AddResourceTemplate(template)
 		if err != nil {
@@ -48,7 +60,7 @@ func NewKBFromFs(resources, edges, models fs.FS) (*KnowledgeBase, error) {
 }
 
 func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
-	models := map[string]*Model{}
+	inputModels := map[string]*Model{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
 		zap.S().Debug("Loading model: ", path)
 		if d.IsDir() {
@@ -59,26 +71,28 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 			return errors.Join(nerr, fmt.Errorf("error opening model file %s: %w", path, err))
 		}
 
-		model := &Model{}
-		err = yaml.NewDecoder(f).Decode(model)
+		model := Model{}
+		err = yaml.NewDecoder(f).Decode(&model)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error decoding model file %s: %w", path, err))
 		}
-		models[model.Name] = model
+
+		inputModels[model.Name] = &model
 		return nil
 	})
 
-	for _, model := range models {
-		uerr := updateModels(nil, model.Properties, models)
+	// Update models to only reference properties and not other models and then convert property/properties to internal types
+	for _, model := range inputModels {
+		uerr := updateModels(nil, model.Properties, inputModels)
 		if uerr != nil {
 			err = errors.Join(err, uerr)
 		}
 	}
-	return models, err
+	return inputModels, err
 }
 
-func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.ResourceId]*ResourceTemplate, error) {
-	templates := map[construct.ResourceId]*ResourceTemplate{}
+func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.ResourceId]*knowledgebase.ResourceTemplate, error) {
+	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
 		zap.S().Debug("Loading resource template: ", path)
 		if d.IsDir() {
@@ -105,14 +119,18 @@ func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.Resourc
 		if templates[id] != nil {
 			return errors.Join(nerr, fmt.Errorf("duplicate template for %s in %s", id, path))
 		}
-		templates[id] = resTemplate
+		rt, err := resTemplate.Convert()
+		if err != nil {
+			return errors.Join(nerr, fmt.Errorf("error converting resource template %s: %w", path, err))
+		}
+		templates[id] = rt
 		return nil
 	})
 	return templates, err
 }
 
-func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
-	templates := map[string]*EdgeTemplate{}
+func EdgeTemplatesFromFs(dir fs.FS) (map[string]*knowledgebase.EdgeTemplate, error) {
+	templates := map[string]*knowledgebase.EdgeTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
 		zap.S().Debug("Loading edge template: ", path)
 		if d.IsDir() {
@@ -123,7 +141,7 @@ func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 			return errors.Join(nerr, fmt.Errorf("error opening edge template %s: %w", path, err))
 		}
 
-		edgeTemplate := &EdgeTemplate{}
+		edgeTemplate := &knowledgebase.EdgeTemplate{}
 		err = yaml.NewDecoder(f).Decode(edgeTemplate)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error decoding edge template %s: %w", path, err))
@@ -133,13 +151,13 @@ func EdgeTemplatesFromFs(dir fs.FS) (map[string]*EdgeTemplate, error) {
 			if err != nil {
 				return errors.Join(nerr, fmt.Errorf("error opening edge template %s: %w", path, err))
 			}
-			multiEdgeTemplate := &MultiEdgeTemplate{}
+			multiEdgeTemplate := &knowledgebase.MultiEdgeTemplate{}
 			err = yaml.NewDecoder(f).Decode(multiEdgeTemplate)
 			if err != nil {
 				return errors.Join(nerr, fmt.Errorf("error decoding edge template %s: %w", path, err))
 			}
 			if !multiEdgeTemplate.Resource.IsZero() && (len(multiEdgeTemplate.Sources) > 0 || len(multiEdgeTemplate.Targets) > 0) {
-				edgeTemplates := EdgeTemplatesFromMulti(*multiEdgeTemplate)
+				edgeTemplates := knowledgebase.EdgeTemplatesFromMulti(*multiEdgeTemplate)
 				for _, edgeTemplate := range edgeTemplates {
 					id := edgeTemplate.Source.QualifiedTypeName() + "->" + edgeTemplate.Target.QualifiedTypeName()
 					if templates[id] != nil {

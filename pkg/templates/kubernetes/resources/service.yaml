@@ -15,12 +15,12 @@ properties:
   Cluster:
     type: resource
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - classifications:
-                - cluster
-                - kubernetes
+      step:
+        direction: downstream
+        resources:
+          - classifications:
+              - cluster
+              - kubernetes
   Object:
     type: map
     properties:

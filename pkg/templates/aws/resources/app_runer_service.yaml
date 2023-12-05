@@ -14,19 +14,19 @@ properties:
   Image:
     type: resource(aws:ecr_image)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:ecr_image:{{ .Self.Name }}-image
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:ecr_image:{{ .Self.Name }}-image
+        unique: true
   InstanceRole:
     type: resource(aws:iam_role)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:iam_role:{{ .Self.Name }}-instance-role
-          unique: true
+      step:
+        direction: downstream
+        resources:
+          - aws:iam_role:{{ .Self.Name }}-instance-role
+        unique: true
   EnvironmentVariables:
     type: map(string,string)
   Port:

@@ -5,10 +5,10 @@ properties:
   Vpc:
     type: resource(aws:vpc)
     operational_rule:
-      steps:
-        - direction: downstream
-          resources:
-            - aws:vpc
+      step:
+        direction: downstream
+        resources:
+          - aws:vpc
   Routes:
     type: list
     properties:

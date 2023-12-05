@@ -246,37 +246,15 @@ func (v *pathExpandVertex) addDepsFromProps(
 	}
 	var errs error
 	for k, prop := range tmpl.Properties {
-		pt, err := prop.PropertyType()
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		if prop.OperationalRule == nil {
+		details := prop.Details()
+		if details.OperationalRule == nil {
 			// If the property can't create resources, skip it.
 			continue
 		}
-		ready, err := operational_rule.EvaluateIfCondition(*prop.OperationalRule,
+		ready, err := operational_rule.EvaluateIfCondition(details.OperationalRule.If,
 			eval.Solution, knowledgebase.DynamicValueData{Resource: res})
 		if err != nil || !ready {
 			continue
-		}
-
-		resType, ok := pt.(*knowledgebase.ResourcePropertyType)
-		if !ok {
-			listType, ok := pt.(*knowledgebase.ListPropertyType)
-			if !ok || listType.Value == "" {
-				continue
-			}
-			pType := knowledgebase.Property{Type: listType.Value}
-			pt, err = pType.PropertyType()
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			resType, ok = pt.(*knowledgebase.ResourcePropertyType)
-			if !ok {
-				continue
-			}
 		}
 
 		ref := construct.PropertyRef{Resource: res, Property: k}
@@ -284,7 +262,13 @@ func (v *pathExpandVertex) addDepsFromProps(
 			if dep == v.Edge.Source || dep == v.Edge.Target {
 				continue
 			}
-			if resType.Value.Matches(dep) {
+			resource, err := eval.Solution.RawView().Vertex(res)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			// if this dependency could pass validation for the resources property, consider it as a dependent vertex
+			if err := prop.Validate(resource, dep); err == nil {
 				changes.addEdge(v.Key(), Key{Ref: ref})
 			}
 		}
