@@ -120,8 +120,8 @@ resources:
     aws:load_balancer:rest-api-4-integbcc77100:
         Scheme: internal
         Subnets:
-            - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
+            - aws:subnet:vpc-0:subnet-0
         Type: network
     aws:load_balancer_listener:rest_api_4_integration_0-pod2:
         DefaultActions:
