@@ -230,22 +230,23 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				if edgeTmpl == nil {
 					continue
 				}
-				if edgeTmpl.Unique == (knowledgebase.Unique{}) {
+
+				if !edgeTmpl.Unique.Target || !edgeTmpl.Unique.Source {
 					// many-to-many is okay
 					availableResources.Add(res)
 					continue
 				}
 				switch action.Step.Direction {
 				case knowledgebase.DirectionDownstream:
-					if !edgeTmpl.Unique.Target {
-						// one-to-many is okay
+					if !edgeTmpl.Unique.Source {
+						// many-to-one is okay
 						availableResources.Add(res)
 						continue
 					}
 
 				case knowledgebase.DirectionUpstream:
-					if !edgeTmpl.Unique.Source {
-						// many-to-one are okay
+					if !edgeTmpl.Unique.Target {
+						// one-to-many are okay
 						availableResources.Add(res)
 						continue
 					}

@@ -161,9 +161,12 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 	}
 
 	ctx := solution_context.DynamicCtx(sol)
-	defaultVal, err := v.Template.GetDefaultValue(ctx, dynData)
-	if err != nil {
-		return fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
+	var defaultVal any
+	if currentValue == nil {
+		defaultVal, err = v.Template.GetDefaultValue(ctx, dynData)
+		if err != nil {
+			return fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
+		}
 	}
 	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && defaultVal != nil {
 		err = solution_context.ConfigureResource(
@@ -298,7 +301,7 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 	// properties that have values set via edge rules dont' have default values
 	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution), knowledgebase.DynamicValueData{Resource: v.Ref.Resource})
 	if err != nil {
-		return NotReadyMid, fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
+		return NotReadyMid, nil
 	}
 	if defaultVal != nil {
 		return ReadyNow, nil

@@ -37,7 +37,7 @@ properties:
   RequestParameters:
     type: map(string,string)
     operational_rule:
-      Value: |
+      value: |
         {{ $params := split (fieldValue "Route" .Self) "/" | filterMatch "^{\\w+\\+?}$" }}
         {{ zipToMap
             ($params | mapString "{([^+}]*)\\+?}" "integration.request.path.$1")

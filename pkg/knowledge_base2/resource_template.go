@@ -292,14 +292,25 @@ FIELDS:
 			}
 			found = true
 			if len(fields) == i+1 {
-				return property
+				// use a clone resource so we can modify the name in case anywhere in the path
+				// has index strings or map keys
+				clone := property.Clone()
+				details := clone.Details()
+				details.Path = path
+				return clone
 			} else {
 				properties = property.SubProperties()
 				if len(properties) == 0 {
 					if mp, ok := property.(MapProperty); ok {
-						return mp.Value()
+						clone := mp.Value().Clone()
+						details := clone.Details()
+						details.Path = path
+						return clone
 					} else if cp, ok := property.(CollectionProperty); ok {
-						return cp.Item()
+						clone := cp.Item().Clone()
+						details := clone.Details()
+						details.Path = path
+						return clone
 					}
 				}
 			}

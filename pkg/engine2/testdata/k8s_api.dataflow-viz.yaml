@@ -8,7 +8,7 @@ resources:
     parent: vpc/vpc-0
 
   load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
-    path: aws:load_balancer_listener:rest_api_4_integration_0-pod2,aws:target_group:rest-api-4-integbcc77100,kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2,kubernetes:service:restapi4integration0-pod2
+    path: aws:load_balancer_listener:rest_api_4_integration_0-pod2,aws:target_group:rest-api-4-integbcc77100,kubernetes:target_group_binding:restapi4integration0-pod2,kubernetes:service:restapi4integration0-pod2
 
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:

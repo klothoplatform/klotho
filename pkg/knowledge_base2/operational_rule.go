@@ -68,6 +68,9 @@ type (
 	ResourceSelector struct {
 		Selector   string         `json:"selector" yaml:"selector"`
 		Properties map[string]any `json:"properties" yaml:"properties"`
+		// NumPreferred defines the amount of resources that should be preferred to satisfy the selector.
+		// This number is only used if num needed on the step is not met
+		NumPreferred int `json:"num_preferred" yaml:"num_preferred"`
 		// Classifications defines the classifications that the rule should be enforced on. Classifications must be specified if resource types is not specified
 		Classifications []string `json:"classifications" yaml:"classifications"`
 	}

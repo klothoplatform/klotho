@@ -22,16 +22,9 @@ properties:
     operational_rule:
       step:
         direction: downstream
-        num_needed: 4
+        num_needed: 2
         resources:
           - selector: aws:subnet
-            properties:
-              Type: private
-            preferred: 2
-          - selector: aws:subnet
-            properties:
-              Type: public
-            preferred: 2
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
