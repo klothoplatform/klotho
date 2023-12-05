@@ -121,19 +121,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
 	availableResources := make(set.Set[*construct.Resource])
 
-	var err error
-	var directDeps, oppositeDeps map[construct.ResourceId]map[construct.ResourceId]construct.Edge
-	if action.Step.Direction == knowledgebase.DirectionDownstream {
-		var perr error
-		directDeps, err = action.ruleCtx.Solution.DataflowGraph().AdjacencyMap()
-		oppositeDeps, perr = action.ruleCtx.Solution.DataflowGraph().PredecessorMap()
-		err = errors.Join(err, perr)
-	} else {
-		var perr error
-		directDeps, err = action.ruleCtx.Solution.DataflowGraph().PredecessorMap()
-		oppositeDeps, perr = action.ruleCtx.Solution.DataflowGraph().AdjacencyMap()
-		err = errors.Join(err, perr)
-	}
+	edges, err := action.ruleCtx.Solution.DataflowGraph().Edges()
 	if err != nil {
 		return err
 	}
@@ -230,46 +218,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 				if edgeTmpl == nil {
 					continue
 				}
-
-				if !edgeTmpl.Unique.Target || !edgeTmpl.Unique.Source {
-					// many-to-many is okay
-					availableResources.Add(res)
-					continue
-				}
-				switch action.Step.Direction {
-				case knowledgebase.DirectionDownstream:
-					if !edgeTmpl.Unique.Source {
-						// many-to-one is okay
-						availableResources.Add(res)
-						continue
-					}
-
-				case knowledgebase.DirectionUpstream:
-					if !edgeTmpl.Unique.Target {
-						// one-to-many are okay
-						availableResources.Add(res)
-						continue
-					}
-				}
-
-				// is unique, check to see if we already have one
-				// this works for both up/downstream because `directDeps` is the correct direction
-				hasType := false
-				for d := range directDeps[resource.ID] {
-					if d.QualifiedTypeName() == res.ID.QualifiedTypeName() {
-						hasType = true
-						break
-					}
-				}
-				if !hasType {
-					for d := range oppositeDeps[res.ID] {
-						if d.QualifiedTypeName() == resource.ID.QualifiedTypeName() {
-							hasType = true
-							break
-						}
-					}
-				}
-				if !hasType {
+				if edgeTmpl.Unique.CanAdd(edges, edge.Source, edge.Target) {
 					availableResources.Add(res)
 				}
 			}

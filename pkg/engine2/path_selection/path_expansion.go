@@ -362,14 +362,12 @@ func ExpandPath(
 		errs = errors.Join(errs, fmt.Errorf("error during raw view walk graph: %w", err))
 	}
 
-	predecessors, err := ctx.DataflowGraph().PredecessorMap()
+	edges, err := ctx.DataflowGraph().Edges()
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
-
-	adjacent, err := ctx.DataflowGraph().AdjacencyMap()
-	if err != nil {
-		errs = errors.Join(errs, err)
+	if errs != nil {
+		return errs
 	}
 
 	// addEdge checks whether the edge should be added according to the following rules:
@@ -389,21 +387,8 @@ func ExpandPath(
 			errs = errors.Join(errs, fmt.Errorf("could not find edge template for %s -> %s", source.id, target.id))
 			return
 		}
-		if tmpl.Unique.Target {
-			pred := predecessors[target.id]
-			for origSource := range pred {
-				if tmpl.Source.Matches(origSource) && origSource != source.id {
-					return
-				}
-			}
-		}
-		if tmpl.Unique.Source {
-			adj := adjacent[source.id]
-			for origTarget := range adj {
-				if tmpl.Target.Matches(origTarget) && origTarget != target.id {
-					return
-				}
-			}
+		if !tmpl.Unique.CanAdd(edges, source.id, target.id) {
+			return
 		}
 
 		valid, err := checkUniquenessValidity(ctx, source.id, target.id)
