@@ -95,15 +95,20 @@ func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 			return fmt.Sprintf("%v", s)
 		},
 	}
-	vals, ok := value.([]any)
-	if !ok {
+
+	var vals []any
+	if valSet, ok := value.(set.HashedSet[string, any]); ok {
+		vals = valSet.ToSlice()
+	} else if val, ok := value.([]any); ok {
+		vals = val
+	} else {
 		// before we fail, check to see if the entire value is a template
 		if strVal, ok := value.(string); ok {
-			var result []any
-			err := ctx.ExecuteDecode(strVal, data, &result)
-			return result, err
+			err := ctx.ExecuteDecode(strVal, data, &vals)
+			if err != nil {
+				return nil, err
+			}
 		}
-		return nil, fmt.Errorf("invalid list value %v", value)
 	}
 
 	for _, v := range vals {
