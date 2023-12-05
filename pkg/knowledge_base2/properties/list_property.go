@@ -207,3 +207,7 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any) error {
 func (l *ListProperty) SubProperties() knowledgebase.Properties {
 	return l.Properties
 }
+
+func (l *ListProperty) Item() knowledgebase.Property {
+	return l.ItemProperty
+}

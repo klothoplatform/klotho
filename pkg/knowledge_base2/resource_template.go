@@ -94,6 +94,20 @@ type (
 		Contains(value any, contains any) bool
 	}
 
+	// MapProperty is an interface for properties that implement map structures
+	MapProperty interface {
+		// Key returns the property representing the keys of the map
+		Key() Property
+		// Value returns the property representing the values of the map
+		Value() Property
+	}
+
+	// CollectionProperty is an interface for properties that implement collection structures
+	CollectionProperty interface {
+		// Item returns the structure of the items within the collection
+		Item() Property
+	}
+
 	// Properties is a map of properties
 	Properties map[string]Property
 
@@ -268,6 +282,7 @@ func (template ResourceTemplate) GetNamespacedProperty() Property {
 func (template ResourceTemplate) GetProperty(path string) Property {
 	fields := strings.Split(path, ".")
 	properties := template.Properties
+FIELDS:
 	for i, field := range fields {
 		currFieldName := strings.Split(field, "[")[0]
 		found := false
@@ -280,7 +295,15 @@ func (template ResourceTemplate) GetProperty(path string) Property {
 				return property
 			} else {
 				properties = property.SubProperties()
+				if len(properties) == 0 {
+					if mp, ok := property.(MapProperty); ok {
+						return mp.Value()
+					} else if cp, ok := property.(CollectionProperty); ok {
+						return cp.Item()
+					}
+				}
 			}
+			continue FIELDS
 		}
 		if !found {
 			return nil

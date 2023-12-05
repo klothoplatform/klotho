@@ -187,3 +187,7 @@ func (s *SetProperty) Validate(resource *construct.Resource, value any) error {
 func (s *SetProperty) SubProperties() knowledgebase.Properties {
 	return s.Properties
 }
+
+func (s *SetProperty) Item() knowledgebase.Property {
+	return s.ItemProperty
+}

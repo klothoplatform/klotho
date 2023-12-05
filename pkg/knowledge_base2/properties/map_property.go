@@ -217,3 +217,11 @@ func (m *MapProperty) Validate(resource *construct.Resource, value any) error {
 func (m *MapProperty) SubProperties() knowledgebase.Properties {
 	return m.Properties
 }
+
+func (m *MapProperty) Key() knowledgebase.Property {
+	return m.KeyProperty
+}
+
+func (m *MapProperty) Value() knowledgebase.Property {
+	return m.ValueProperty
+}
