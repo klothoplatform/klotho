@@ -143,6 +143,8 @@ type resourceInfo struct {
 	Views           map[string]string `json:"views"`
 }
 
+var validationFields = []string{"MinLength", "MaxLength", "MinValue", "MaxValue", "AllowedValues"}
+
 func addSubProperties(properties map[string]any, subProperties map[string]knowledgebase.Property) {
 	for _, subProperty := range subProperties {
 		details := subProperty.Details()
@@ -152,7 +154,6 @@ func addSubProperties(properties map[string]any, subProperties map[string]knowle
 			"configurationDisabled": details.ConfigurationDisabled,
 			"required":              details.Required,
 		}
-		validationFields := []string{"MinLength", "MaxLength", "MinValue", "MaxValue", "AllowedValues"}
 		for _, validationField := range validationFields {
 			valField := reflect.ValueOf(subProperty).Elem().FieldByName(validationField)
 			if valField.IsValid() && !valField.IsZero() {

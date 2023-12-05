@@ -94,9 +94,6 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.ResourceId]*knowledgebase.ResourceTemplate, error) {
 	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		if d.Name() == "lambda_function.yaml" {
-			zap.S().Debug("Skipping lambda function: ", path)
-		}
 		zap.S().Debug("Loading resource template: ", path)
 		if d.IsDir() {
 			return nil
