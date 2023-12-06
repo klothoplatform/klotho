@@ -24,7 +24,7 @@ resources:
   rest_api/rest_api_4:
 
   eks_cluster/eks_cluster-0:
-    children: aws:iam_role:ClusterRole-eks_cluster-0,aws:security_group:vpc-0:security_group-eks_cluster-0
+    children: aws:iam_role:ClusterRole-eks_cluster-0,aws:security_group:vpc-0:eks_cluster-0-security_group
     parent: vpc/vpc-0
 
 
