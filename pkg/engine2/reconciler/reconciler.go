@@ -49,6 +49,14 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 		return err
 	}
 
+	namespacedResources, err := findAllResourcesInNamespace(c, resource)
+	if err != nil {
+		return err
+	}
+	for _, res := range namespacedResources.ToSlice() {
+		// Since we are explicitly deleting the namespace resource, we will explicitly delete the resources namespaced to it
+		errs = errors.Join(errs, RemoveResource(c, res, true))
+	}
 	// try to cleanup, if the resource is removable
 	for res := range upstreams.Union(downstreams) {
 		errs = errors.Join(errs, RemoveResource(c, res, false))
@@ -71,14 +79,8 @@ func canDeleteResource(
 	log := zap.S().With(zap.String("id", resource.String()))
 	deletionCriteria := template.DeleteContext
 
-	ignoreUpstream, err := ignoreCriteria(ctx, resource, upstreamNodes)
-	if err != nil {
-		return false, err
-	}
-	ignoreDownstream, err := ignoreCriteria(ctx, resource, downstreamNodes)
-	if err != nil {
-		return false, err
-	}
+	ignoreUpstream := ignoreCriteria(ctx, resource, upstreamNodes, knowledgebase.DirectionUpstream)
+	ignoreDownstream := ignoreCriteria(ctx, resource, downstreamNodes, knowledgebase.DirectionDownstream)
 
 	// Check to see if there are upstream nodes for the resource trying to be deleted
 	// If upstream nodes exist, attempt to delete the resources upstream of the resource before deciding that the deletion process cannot continue
@@ -161,28 +163,71 @@ func canDeleteResource(
 	return true, nil
 }
 
-// ignoreCriteria determines if we can delete a resource because the knowledge base in use by the engine, shows that the initial resource is dependent on the sub resource for deletion.
-// If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather we can delete the dependent resource first.
-func ignoreCriteria(ctx solution_context.SolutionContext, resource construct.ResourceId, dependentResources set.Set[construct.ResourceId]) (bool, error) {
-	upstreams, downstreams, err := construct.Neighbors(ctx.DataflowGraph(), resource)
+// ignoreCriteria determines if we can delete a resource because the knowledge base in use by the engine,
+// shows that the initial resource is dependent on the sub resource for deletion.
+// If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather
+// we can delete the dependent resource first.
+func ignoreCriteria(
+	ctx solution_context.SolutionContext,
+	resource construct.ResourceId,
+	nodes set.Set[construct.ResourceId],
+	direction knowledgebase.Direction,
+) bool {
+	if direction == knowledgebase.DirectionDownstream {
+		for down := range nodes {
+			t := ctx.KnowledgeBase().GetEdgeTemplate(resource, down)
+			if t == nil || !t.DeletionDependent {
+				return false
+			}
+		}
+	} else {
+		for up := range nodes {
+			t := ctx.KnowledgeBase().GetEdgeTemplate(up, resource)
+			if t == nil || !t.DeletionDependent {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func findAllResourcesInNamespace(ctx solution_context.SolutionContext, namespace construct.ResourceId) (set.Set[construct.ResourceId], error) {
+	namespacedResources := make(set.Set[construct.ResourceId])
+	err := construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		if id.Namespace == "" || id.Namespace != namespace.Name {
+			return nil
+		}
+		rt, err := ctx.KnowledgeBase().GetResourceTemplate(id)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if rt == nil {
+			return errors.Join(nerr, fmt.Errorf("unable to find resource template for %s", id))
+		}
+		err = rt.LoopProperties(resource, func(p knowledgebase.Property) error {
+			if !p.Details().Namespace {
+				return nil
+			}
+			propVal, err := resource.GetProperty(p.Details().Path)
+			if err != nil {
+				return err
+			}
+			switch val := propVal.(type) {
+			case construct.ResourceId:
+				if val.Matches(namespace) {
+					namespacedResources.Add(id)
+				}
+			case construct.PropertyRef:
+				if val.Resource.Matches(namespace) {
+					namespacedResources.Add(id)
+				}
+			}
+			return nil
+		})
+		return errors.Join(nerr, err)
+	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	upstreams = upstreams.Intersection(dependentResources)
-	downstreams = downstreams.Intersection(dependentResources)
-
-	for up := range upstreams {
-		t := ctx.KnowledgeBase().GetEdgeTemplate(up, resource)
-		if t == nil || !t.DeletetionDependent {
-			return false, nil
-		}
-	}
-	for down := range downstreams {
-		t := ctx.KnowledgeBase().GetEdgeTemplate(resource, down)
-		if t == nil || !t.DeletetionDependent {
-			return false, nil
-		}
-	}
-	return true, nil
+	return namespacedResources, nil
 }

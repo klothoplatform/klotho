@@ -22,7 +22,7 @@ type (
 		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
 		// a true value specifies the target being deleted is dependent on the source and do not need to depend on
 		// satisfication of the deletion criteria to attempt to delete the true source of the edge.
-		DeletetionDependent bool `yaml:"deletion_dependent"`
+		DeletionDependent bool `yaml:"deletion_dependent"`
 
 		// Unique see type [Unique]
 		Unique Unique `yaml:"unique"`
@@ -51,7 +51,7 @@ type (
 		// DeletetionDependent is used to specify edges which should not influence the deletion criteria of a resource
 		// a true value specifies the target being deleted is dependent on the source and do not need to depend on
 		// satisfication of the deletion criteria to attempt to delete the true source of the edge.
-		DeletetionDependent bool `yaml:"deletion_dependent"`
+		DeletionDependent bool `yaml:"deletion_dependent"`
 
 		// Unique see type [Unique]
 		Unique Unique `yaml:"unique"`
@@ -90,7 +90,7 @@ func EdgeTemplatesFromMulti(multi MultiEdgeTemplate) []EdgeTemplate {
 			Target:                  multi.Resource,
 			DirectEdgeOnly:          multi.DirectEdgeOnly,
 			DeploymentOrderReversed: multi.DeploymentOrderReversed,
-			DeletetionDependent:     multi.DeletetionDependent,
+			DeletionDependent:       multi.DeletionDependent,
 			Unique:                  multi.Unique,
 			OperationalRules:        multi.OperationalRules,
 			EdgeWeightMultiplier:    multi.EdgeWeightMultiplier,
@@ -103,7 +103,7 @@ func EdgeTemplatesFromMulti(multi MultiEdgeTemplate) []EdgeTemplate {
 			Target:                  target,
 			DirectEdgeOnly:          multi.DirectEdgeOnly,
 			DeploymentOrderReversed: multi.DeploymentOrderReversed,
-			DeletetionDependent:     multi.DeletetionDependent,
+			DeletionDependent:       multi.DeletionDependent,
 			Unique:                  multi.Unique,
 			OperationalRules:        multi.OperationalRules,
 			EdgeWeightMultiplier:    multi.EdgeWeightMultiplier,
