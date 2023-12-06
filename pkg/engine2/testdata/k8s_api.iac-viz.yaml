@@ -7,8 +7,8 @@ resources:
   aws:availability_zone:region-0/availability_zone-0:
   aws:availability_zone:region-0/availability_zone-0 -> region/region-0:
 
-  aws:security_group:vpc-0/eks_cluster-eks_cluster-0:
-  aws:security_group:vpc-0/eks_cluster-eks_cluster-0 -> vpc/vpc-0:
+  aws:security_group:vpc-0/security_group-eks_cluster-0:
+  aws:security_group:vpc-0/security_group-eks_cluster-0 -> vpc/vpc-0:
 
   aws:availability_zone:region-0/availability_zone-1:
   aws:availability_zone:region-0/availability_zone-1 -> region/region-0:
@@ -17,17 +17,17 @@ resources:
 
   aws:subnet:vpc-0/subnet-0:
   aws:subnet:vpc-0/subnet-0 -> aws:availability_zone:region-0/availability_zone-0:
-  aws:subnet:vpc-0/subnet-0 -> aws:security_group:vpc-0/eks_cluster-eks_cluster-0:
+  aws:subnet:vpc-0/subnet-0 -> aws:security_group:vpc-0/security_group-eks_cluster-0:
   aws:subnet:vpc-0/subnet-0 -> vpc/vpc-0:
 
   aws:subnet:vpc-0/subnet-1:
   aws:subnet:vpc-0/subnet-1 -> aws:availability_zone:region-0/availability_zone-1:
-  aws:subnet:vpc-0/subnet-1 -> aws:security_group:vpc-0/eks_cluster-eks_cluster-0:
+  aws:subnet:vpc-0/subnet-1 -> aws:security_group:vpc-0/security_group-eks_cluster-0:
   aws:subnet:vpc-0/subnet-1 -> vpc/vpc-0:
 
   eks_cluster/eks_cluster-0:
   eks_cluster/eks_cluster-0 -> iam_role/clusterrole-eks_cluster-0:
-  eks_cluster/eks_cluster-0 -> aws:security_group:vpc-0/eks_cluster-eks_cluster-0:
+  eks_cluster/eks_cluster-0 -> aws:security_group:vpc-0/security_group-eks_cluster-0:
   eks_cluster/eks_cluster-0 -> aws:subnet:vpc-0/subnet-0:
   eks_cluster/eks_cluster-0 -> aws:subnet:vpc-0/subnet-1:
   eks_cluster/eks_cluster-0 -> vpc/vpc-0:
@@ -40,7 +40,7 @@ resources:
 
   ecr_repo/ecr_repo-0:
 
-  iam_role/eks_node_group-eks_node_group-0:
+  iam_role/iam_role-eks_node_group-0:
 
   iam_role/pod2:
   iam_role/pod2 -> iam_oidc_provider/eks_cluster-0:
@@ -55,12 +55,12 @@ resources:
   iam_role/aws-load-balancer-controller:
   iam_role/aws-load-balancer-controller -> iam_oidc_provider/eks_cluster-0:
 
-  ecr_image/pod-pod2:
-  ecr_image/pod-pod2 -> ecr_repo/ecr_repo-0:
+  ecr_image/ecr_image-pod2:
+  ecr_image/ecr_image-pod2 -> ecr_repo/ecr_repo-0:
 
   eks_node_group/eks_node_group-0:
   eks_node_group/eks_node_group-0 -> eks_cluster/eks_cluster-0:
-  eks_node_group/eks_node_group-0 -> iam_role/eks_node_group-eks_node_group-0:
+  eks_node_group/eks_node_group-0 -> iam_role/iam_role-eks_node_group-0:
   eks_node_group/eks_node_group-0 -> aws:subnet:vpc-0/subnet-0:
   eks_node_group/eks_node_group-0 -> aws:subnet:vpc-0/subnet-1:
 
@@ -68,13 +68,13 @@ resources:
   kubernetes:service_account:eks_cluster-0/pod2 -> eks_cluster/eks_cluster-0:
   kubernetes:service_account:eks_cluster-0/pod2 -> iam_role/pod2:
 
-  elastic_ip/nat_gateway-route_table-subnet-subnet-1:
+  elastic_ip/elastic_ip-nat_gateway-route_table-subnet-1:
 
   aws:subnet:vpc-0/subnet-3:
   aws:subnet:vpc-0/subnet-3 -> aws:availability_zone:region-0/availability_zone-1:
   aws:subnet:vpc-0/subnet-3 -> vpc/vpc-0:
 
-  elastic_ip/nat_gateway-route_table-subnet-subnet-0:
+  elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0:
 
   aws:subnet:vpc-0/subnet-2:
   aws:subnet:vpc-0/subnet-2 -> aws:availability_zone:region-0/availability_zone-0:
@@ -92,7 +92,7 @@ resources:
   kubernetes:service_account:eks_cluster-0/aws-load-balancer-controller -> iam_role/aws-load-balancer-controller:
 
   kubernetes:pod:eks_cluster-0/pod2:
-  kubernetes:pod:eks_cluster-0/pod2 -> ecr_image/pod-pod2:
+  kubernetes:pod:eks_cluster-0/pod2 -> ecr_image/ecr_image-pod2:
   kubernetes:pod:eks_cluster-0/pod2 -> eks_cluster/eks_cluster-0:
   kubernetes:pod:eks_cluster-0/pod2 -> eks_node_group/eks_node_group-0:
   kubernetes:pod:eks_cluster-0/pod2 -> kubernetes:service_account:eks_cluster-0/pod2:
@@ -103,13 +103,13 @@ resources:
   aws:internet_gateway:vpc-0/internet_gateway-0:
   aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
 
-  aws:nat_gateway:subnet-3/route_table-subnet-subnet-1:
-  aws:nat_gateway:subnet-3/route_table-subnet-subnet-1 -> elastic_ip/nat_gateway-route_table-subnet-subnet-1:
-  aws:nat_gateway:subnet-3/route_table-subnet-subnet-1 -> aws:subnet:vpc-0/subnet-3:
+  aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1:
+  aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-1:
+  aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1 -> aws:subnet:vpc-0/subnet-3:
 
-  aws:nat_gateway:subnet-2/route_table-subnet-subnet-0:
-  aws:nat_gateway:subnet-2/route_table-subnet-subnet-0 -> elastic_ip/nat_gateway-route_table-subnet-subnet-0:
-  aws:nat_gateway:subnet-2/route_table-subnet-subnet-0 -> aws:subnet:vpc-0/subnet-2:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0 -> elastic_ip/elastic_ip-nat_gateway-route_table-subnet-0:
+  aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0 -> aws:subnet:vpc-0/subnet-2:
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> aws:api_method:rest_api_4/rest_api_4_integration_0_method:
@@ -132,21 +132,21 @@ resources:
   kubernetes:config_map/fluent-bit-cluster-info -> eks_cluster/eks_cluster-0:
   kubernetes:config_map/fluent-bit-cluster-info -> kubernetes:namespace/amazon-cloudwatch:
 
-  route_table/subnet-subnet-3:
-  route_table/subnet-subnet-3 -> aws:internet_gateway:vpc-0/internet_gateway-0:
-  route_table/subnet-subnet-3 -> vpc/vpc-0:
+  route_table/route_table-subnet-3:
+  route_table/route_table-subnet-3 -> aws:internet_gateway:vpc-0/internet_gateway-0:
+  route_table/route_table-subnet-3 -> vpc/vpc-0:
 
-  route_table/subnet-subnet-2:
-  route_table/subnet-subnet-2 -> aws:internet_gateway:vpc-0/internet_gateway-0:
-  route_table/subnet-subnet-2 -> vpc/vpc-0:
+  route_table/route_table-subnet-2:
+  route_table/route_table-subnet-2 -> aws:internet_gateway:vpc-0/internet_gateway-0:
+  route_table/route_table-subnet-2 -> vpc/vpc-0:
 
-  route_table/subnet-subnet-1:
-  route_table/subnet-subnet-1 -> aws:nat_gateway:subnet-3/route_table-subnet-subnet-1:
-  route_table/subnet-subnet-1 -> vpc/vpc-0:
+  route_table/route_table-subnet-1:
+  route_table/route_table-subnet-1 -> aws:nat_gateway:subnet-3/nat_gateway-route_table-subnet-1:
+  route_table/route_table-subnet-1 -> vpc/vpc-0:
 
-  route_table/subnet-subnet-0:
-  route_table/subnet-subnet-0 -> aws:nat_gateway:subnet-2/route_table-subnet-subnet-0:
-  route_table/subnet-subnet-0 -> vpc/vpc-0:
+  route_table/route_table-subnet-0:
+  route_table/route_table-subnet-0 -> aws:nat_gateway:subnet-2/nat_gateway-route_table-subnet-0:
+  route_table/route_table-subnet-0 -> vpc/vpc-0:
 
   iam_policy/iam_policy-0:
 
@@ -165,8 +165,8 @@ resources:
   kubernetes:manifest/fluent-bit -> eks_cluster/eks_cluster-0:
   kubernetes:manifest/fluent-bit -> kubernetes:config_map/fluent-bit-cluster-info:
 
-  kubernetes:kube_config/eks_cluster-eks_cluster-0:
-  kubernetes:kube_config/eks_cluster-eks_cluster-0 -> eks_cluster/eks_cluster-0:
+  kubernetes:kube_config/kube_config-eks_cluster-0:
+  kubernetes:kube_config/kube_config-eks_cluster-0 -> eks_cluster/eks_cluster-0:
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:
   kubernetes:helm_chart:eks_cluster-0/metricsserver -> eks_cluster/eks_cluster-0:
@@ -175,21 +175,21 @@ resources:
   security_group_rule/security_group_rule-0:
   security_group_rule/security_group_rule-0 -> vpc/vpc-0:
 
-  route_table_association/subnet-3-subnet-subnet-3:
-  route_table_association/subnet-3-subnet-subnet-3 -> route_table/subnet-subnet-3:
-  route_table_association/subnet-3-subnet-subnet-3 -> aws:subnet:vpc-0/subnet-3:
+  route_table_association/subnet-3-route_table-subnet-3:
+  route_table_association/subnet-3-route_table-subnet-3 -> route_table/route_table-subnet-3:
+  route_table_association/subnet-3-route_table-subnet-3 -> aws:subnet:vpc-0/subnet-3:
 
-  route_table_association/subnet-2-subnet-subnet-2:
-  route_table_association/subnet-2-subnet-subnet-2 -> route_table/subnet-subnet-2:
-  route_table_association/subnet-2-subnet-subnet-2 -> aws:subnet:vpc-0/subnet-2:
+  route_table_association/subnet-2-route_table-subnet-2:
+  route_table_association/subnet-2-route_table-subnet-2 -> route_table/route_table-subnet-2:
+  route_table_association/subnet-2-route_table-subnet-2 -> aws:subnet:vpc-0/subnet-2:
 
-  route_table_association/subnet-1-subnet-subnet-1:
-  route_table_association/subnet-1-subnet-subnet-1 -> route_table/subnet-subnet-1:
-  route_table_association/subnet-1-subnet-subnet-1 -> aws:subnet:vpc-0/subnet-1:
+  route_table_association/subnet-1-route_table-subnet-1:
+  route_table_association/subnet-1-route_table-subnet-1 -> route_table/route_table-subnet-1:
+  route_table_association/subnet-1-route_table-subnet-1 -> aws:subnet:vpc-0/subnet-1:
 
-  route_table_association/subnet-0-subnet-subnet-0:
-  route_table_association/subnet-0-subnet-subnet-0 -> route_table/subnet-subnet-0:
-  route_table_association/subnet-0-subnet-subnet-0 -> aws:subnet:vpc-0/subnet-0:
+  route_table_association/subnet-0-route_table-subnet-0:
+  route_table_association/subnet-0-route_table-subnet-0 -> route_table/route_table-subnet-0:
+  route_table_association/subnet-0-route_table-subnet-0 -> aws:subnet:vpc-0/subnet-0:
 
   load_balancer_listener/rest_api_4_integration_0-pod2:
   load_balancer_listener/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:

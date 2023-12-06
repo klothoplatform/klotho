@@ -1,7 +1,7 @@
 provider: aws
 resources:
   rds_instance/rds-instance-2:
-    children: aws:rds_subnet_group:rds_subnet_group-0,aws:security_group:vpc-0:rds_instance-rds-instance-2
+    children: aws:rds_subnet_group:rds_subnet_group-0,aws:security_group:vpc-0:security_group-rds-instance-2
     parent: vpc/vpc-0
 
 
