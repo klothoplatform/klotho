@@ -176,7 +176,13 @@ func (m *MapProperty) Type() string {
 	return "map"
 }
 
-func (m *MapProperty) Validate(resource *construct.Resource, value any) error {
+func (m *MapProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if m.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, m.Path, resource.ID)
+		}
+		return nil
+	}
 	mapVal, ok := value.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid map value %v", value)
@@ -192,18 +198,13 @@ func (m *MapProperty) Validate(resource *construct.Resource, value any) error {
 		}
 	}
 	var errs error
+	// Only validate values if its a primitive map, otherwise let the sub properties handle their own validation
 	if m.KeyProperty != nil && m.ValueProperty != nil {
 		for k, v := range mapVal {
-			if err := m.KeyProperty.Validate(resource, k); err != nil {
+			if err := m.KeyProperty.Validate(resource, k, ctx); err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid key %v for map property type %s: %w", k, m.KeyProperty.Type(), err))
 			}
-			if err := m.ValueProperty.Validate(resource, v); err != nil {
-				errs = errors.Join(errs, fmt.Errorf("invalid value %v for map property type %s: %w", v, m.ValueProperty.Type(), err))
-			}
-		}
-	} else {
-		for _, v := range mapVal {
-			if err := m.ValueProperty.Validate(resource, v); err != nil {
+			if err := m.ValueProperty.Validate(resource, v, ctx); err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid value %v for map property type %s: %w", v, m.ValueProperty.Type(), err))
 			}
 		}

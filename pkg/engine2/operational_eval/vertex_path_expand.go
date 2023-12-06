@@ -268,7 +268,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 				continue
 			}
 			// if this dependency could pass validation for the resources property, consider it as a dependent vertex
-			if err := prop.Validate(resource, dep); err == nil {
+			if err := prop.Validate(resource, dep, solution_context.DynamicCtx(eval.Solution)); err == nil {
 				changes.addEdge(v.Key(), Key{Ref: ref})
 			}
 		}

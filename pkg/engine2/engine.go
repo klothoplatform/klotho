@@ -43,3 +43,16 @@ func (e *Engine) Run(context *EngineContext) error {
 	context.Solutions = append(context.Solutions, solutionCtx)
 	return err
 }
+
+func (e *Engine) getPropertyValidation(ctx solution_context.SolutionContext) []solution_context.PropertyValidationDecision {
+	decisions := ctx.GetDecisions().GetRecords()
+	validationDecisions := make([]solution_context.PropertyValidationDecision, 0)
+	for _, decision := range decisions {
+		if validation, ok := decision.(solution_context.PropertyValidationDecision); ok {
+			if validation.Error != nil {
+				validationDecisions = append(validationDecisions, validation)
+			}
+		}
+	}
+	return validationDecisions
+}

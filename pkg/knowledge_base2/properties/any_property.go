@@ -1,6 +1,8 @@
 package properties
 
 import (
+	"fmt"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
@@ -107,7 +109,10 @@ func (a *AnyProperty) Type() string {
 	return "any"
 }
 
-func (a *AnyProperty) Validate(resource *construct.Resource, value any) error {
+func (a *AnyProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if a.Required && value == nil {
+		return fmt.Errorf(knowledgebase.ErrRequiredProperty, a.Path, resource.ID)
+	}
 	return nil
 }
 

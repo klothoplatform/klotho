@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_SetSetProperty(t *testing.T) {
@@ -465,10 +467,12 @@ func Test_SetValidate(t *testing.T) {
 	minLength := 1
 	maxLength := 2
 	tests := []struct {
-		name     string
-		property *SetProperty
-		value    any
-		expected bool
+		name          string
+		property      *SetProperty
+		testResources []*construct.Resource
+		mockKBCalls   []mock.Call
+		value         any
+		expected      bool
 	}{
 		{
 			name: "set property",
@@ -570,7 +574,19 @@ func Test_SetValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			resource := &construct.Resource{}
-			actual := tt.property.Validate(resource, tt.value)
+			graph := construct.NewGraph()
+			for _, r := range tt.testResources {
+				graph.AddVertex(r)
+			}
+			mockKB := &enginetesting.MockKB{}
+			for _, call := range tt.mockKBCalls {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			ctx := knowledgebase.DynamicValueContext{
+				Graph:         graph,
+				KnowledgeBase: mockKB,
+			}
+			actual := tt.property.Validate(resource, tt.value, ctx)
 			if tt.expected {
 				assert.NoError(actual)
 			} else {

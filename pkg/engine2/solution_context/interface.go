@@ -14,6 +14,7 @@ type (
 		KnowledgeBase() knowledgebase.TemplateKB
 		Constraints() *constraints.Constraints
 		RecordDecision(d SolveDecision)
+		GetDecisions() DecisionRecords
 
 		DataflowGraph() construct.Graph
 		DeploymentGraph() construct.Graph

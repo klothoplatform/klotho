@@ -91,7 +91,13 @@ func (f *FloatProperty) Type() string {
 	return "float"
 }
 
-func (f *FloatProperty) Validate(resource *construct.Resource, value any) error {
+func (f *FloatProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if f.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, f.Path, resource.ID)
+		}
+		return nil
+	}
 	floatVal, ok := value.(float64)
 	if !ok {
 		return fmt.Errorf("invalid int value %v", value)

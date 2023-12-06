@@ -1,6 +1,8 @@
 package solution_context
 
 import (
+	"fmt"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
@@ -18,6 +20,7 @@ type (
 		// FindDecision(decision SolveDecision) []KV
 		// // FindContext returns the various decisions (the what) for a given context (the why)
 		// FindContext(key string, value any) []SolveDecision
+		GetRecords() []SolveDecision
 	}
 
 	SolveDecision interface {
@@ -50,14 +53,35 @@ type (
 		Value    any
 	}
 
-	ResourceConfigurationError struct {
+	PropertyValidationDecision struct {
 		Resource construct.ResourceId
 		Property knowledgebase.Property
+		Value    any
+		Error    error
 	}
 )
 
-func (d AddResourceDecision) internal()      {}
-func (d AddDependencyDecision) internal()    {}
-func (d RemoveResourceDecision) internal()   {}
-func (d RemoveDependencyDecision) internal() {}
-func (d SetPropertyDecision) internal()      {}
+func (d AddResourceDecision) internal()        {}
+func (d AddDependencyDecision) internal()      {}
+func (d RemoveResourceDecision) internal()     {}
+func (d RemoveDependencyDecision) internal()   {}
+func (d SetPropertyDecision) internal()        {}
+func (d PropertyValidationDecision) internal() {}
+
+func (d PropertyValidationDecision) MarshalJSON() ([]byte, error) {
+	if d.Value != nil {
+		stringVal := `{
+			"resource": "%s",
+			"property": "%s",
+			"value": "%s",
+			"error": "%s"
+		}`
+		return []byte(fmt.Sprintf(stringVal, d.Resource, d.Property.Details().Path, d.Value, d.Error)), nil
+	}
+	stringVal := `{
+		"resource": "%s",
+		"property": "%s",
+		"error": "%s"
+	}`
+	return []byte(fmt.Sprintf(stringVal, d.Resource, d.Property.Details().Path, d.Error)), nil
+}

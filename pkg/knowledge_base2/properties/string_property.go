@@ -92,15 +92,34 @@ func (s *StringProperty) Type() string {
 	return "string"
 }
 
-func (s *StringProperty) Validate(resource *construct.Resource, value any) error {
+func (s *StringProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if s.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, s.Path, resource.ID)
+		}
+		return nil
+	}
 	stringVal, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("could not validate property: invalid string value %v", value)
-	}
-	if s.AllowedValues != nil {
-		if !collectionutil.Contains(s.AllowedValues, stringVal) {
-			return fmt.Errorf("value %s is not allowed. allowed values are %s", stringVal, s.AllowedValues)
+		propertyRef, ok := value.(construct.PropertyRef)
+		if !ok {
+			return fmt.Errorf("could not validate property: invalid string value %v", value)
 		}
+		refVal, err := ValidatePropertyRef(propertyRef, s.Type(), ctx)
+		if err != nil {
+			return err
+		}
+		if refVal == nil {
+			return nil
+		}
+		stringVal, ok = refVal.(string)
+		if !ok {
+			return fmt.Errorf("could not validate property: invalid string value %v", value)
+		}
+	}
+
+	if s.AllowedValues != nil && len(s.AllowedValues) > 0 && !collectionutil.Contains(s.AllowedValues, stringVal) {
+		return fmt.Errorf("value %s is not allowed. allowed values are %s", stringVal, s.AllowedValues)
 	}
 
 	if s.SanitizeTmpl != nil {

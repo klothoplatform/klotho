@@ -3,7 +3,6 @@ package properties
 import (
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
@@ -126,12 +125,18 @@ func (r *ResourceProperty) Type() string {
 	return "resource"
 }
 
-func (r *ResourceProperty) Validate(resource *construct.Resource, value any) error {
+func (r *ResourceProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if r.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, r.Path, resource.ID)
+		}
+		return nil
+	}
 	id, ok := value.(construct.ResourceId)
 	if !ok {
 		return fmt.Errorf("invalid resource value %v", value)
 	}
-	if !collectionutil.Contains(r.AllowedTypes, id) {
+	if r.AllowedTypes != nil && len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(id) {
 		return fmt.Errorf("resource value %v does not match allowed types %s", value, r.AllowedTypes)
 	}
 	return nil

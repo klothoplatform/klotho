@@ -4,6 +4,7 @@ display_name: ECR Image
 properties:
   BaseImage:
     type: string
+    required: true
   Tag:
     type: string
   Repo:

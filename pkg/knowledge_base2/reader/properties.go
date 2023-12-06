@@ -198,6 +198,9 @@ var fieldConversion = map[string]func(val reflect.Value, p *Property, kp knowled
 		if !ok {
 			return fmt.Errorf("invalid sanitize template")
 		}
+		if sanitizeTmpl == "" {
+			return nil
+		}
 		// generate random uuid as the name of the template
 		name := uuid.New().String()
 		tmpl, err := knowledgebase.NewSanitizationTmpl(name, sanitizeTmpl)

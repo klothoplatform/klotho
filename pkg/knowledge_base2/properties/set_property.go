@@ -156,7 +156,13 @@ func (s *SetProperty) Type() string {
 	return "set"
 }
 
-func (s *SetProperty) Validate(resource *construct.Resource, value any) error {
+func (s *SetProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if s.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, s.Path, resource.ID)
+		}
+		return nil
+	}
 	setVal, ok := value.(set.HashedSet[string, any])
 	if !ok {
 		return fmt.Errorf("could not validate set property: invalid set value %v", value)
@@ -172,14 +178,17 @@ func (s *SetProperty) Validate(resource *construct.Resource, value any) error {
 		}
 	}
 
-	var errs error
-	for _, item := range setVal.ToSlice() {
-		if err := s.ItemProperty.Validate(resource, item); err != nil {
-			errs = errors.Join(errs, fmt.Errorf("invalid item %v: %v", item, err))
+	// Only validate values if its a primitive list, otherwise let the sub properties handle their own validation
+	if s.ItemProperty != nil {
+		var errs error
+		for _, item := range setVal.ToSlice() {
+			if err := s.ItemProperty.Validate(resource, item, ctx); err != nil {
+				errs = errors.Join(errs, fmt.Errorf("invalid item %v: %v", item, err))
+			}
 		}
-	}
-	if errs != nil {
-		return errs
+		if errs != nil {
+			return errs
+		}
 	}
 	return nil
 }

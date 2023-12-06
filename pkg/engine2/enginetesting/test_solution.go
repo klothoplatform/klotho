@@ -58,6 +58,10 @@ func (sol *TestSolution) Constraints() *constraints.Constraints {
 
 func (sol *TestSolution) RecordDecision(d solution_context.SolveDecision) {}
 
+func (sol *TestSolution) GetDecisions() solution_context.DecisionRecords {
+	return nil
+}
+
 func (sol *TestSolution) DataflowGraph() construct.Graph {
 	return sol.dataflow
 }

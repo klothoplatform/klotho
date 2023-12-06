@@ -81,7 +81,7 @@ type (
 		// GetDefaultValue returns the default value for the property, pertaining to the specific data being passed in for execution
 		GetDefaultValue(ctx DynamicContext, data DynamicValueData) (any, error)
 		// Validate ensures the value is valid for the property and returns an error if it is not
-		Validate(resource *construct.Resource, value any) error
+		Validate(resource *construct.Resource, value any, ctx DynamicContext) error
 		// SubProperties returns the sub properties of the property, if any. This is used for properties that are complex structures,
 		// such as lists, sets, or maps
 		SubProperties() Properties
@@ -141,6 +141,8 @@ type (
 )
 
 const (
+	ErrRequiredProperty = "required property %s is not set on resource %s"
+
 	Compute   Functionality = "compute"
 	Cluster   Functionality = "cluster"
 	Storage   Functionality = "storage"
