@@ -59,10 +59,10 @@ func Test_handleOperationalResourceAction(t *testing.T) {
 				},
 				numNeeded: 1,
 			},
-			resource:     &construct.Resource{ID: graphtest.ParseId(t, "test:step:test")},
-			initialState: []any{"test:step:test"},
+			resource:     &construct.Resource{ID: graphtest.ParseId(t, "test:step:resource")},
+			initialState: []any{"test:step:resource"},
 			want: enginetesting.ExpectedGraphs{
-				Dataflow: []any{"test:step:test", "test:test:step-test", "test:step:test -> test:test:step-test"},
+				Dataflow: []any{"test:step:resource -> test:test:test-resource"},
 			},
 		},
 		{
