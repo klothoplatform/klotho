@@ -20,7 +20,7 @@ resources:
         Cluster: aws:eks_cluster:eks_cluster-0
         Internal: true
         Repo: https://kubernetes-sigs.github.io/metrics-server/
-    kubernetes:kube_config:kube_config-eks_cluster-0-0:
+    kubernetes:kube_config:eks_cluster-eks_cluster-0:
         apiVersion: v1
         clusters:
             - cluster:
@@ -220,7 +220,7 @@ resources:
             spec:
                 automountServiceAccountToken: true
                 containers:
-                    - image: aws:ecr_image:ecr_image-pod2-0#ImageName
+                    - image: aws:ecr_image:pod-pod2#ImageName
                       name: pod2
                       ports:
                         - containerPort: 80
@@ -238,9 +238,9 @@ resources:
                     Federated:
                         - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
-    aws:ecr_image:ecr_image-pod2-0:
+    aws:ecr_image:pod-pod2:
         Context: .
-        Dockerfile: ecr_image-pod2-0.Dockerfile
+        Dockerfile: pod-pod2.Dockerfile
         Repo: aws:ecr_repo:ecr_repo-0
     aws:eks_node_group:eks_node_group-0:
         AmiType: AL2_x86_64
@@ -252,7 +252,7 @@ resources:
         MaxSize: 3
         MaxUnavailable: 1
         MinSize: 1
-        NodeRole: aws:iam_role:iam_role-eks_node_group-0-2
+        NodeRole: aws:iam_role:eks_node_group-eks_node_group-0
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
@@ -274,7 +274,7 @@ resources:
         Role: aws:iam_role:aws-load-balancer-controller
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
-    aws:iam_role:iam_role-eks_node_group-0-2:
+    aws:iam_role:eks_node_group-eks_node_group-0:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
@@ -454,9 +454,9 @@ resources:
         Region: aws:region:region-0
     aws:eks_cluster:eks_cluster-0:
         ClusterRole: aws:iam_role:ClusterRole-eks_cluster-0
-        KubeConfig: kubernetes:kube_config:kube_config-eks_cluster-0-0
+        KubeConfig: kubernetes:kube_config:eks_cluster-eks_cluster-0
         SecurityGroups:
-            - aws:security_group:vpc-0:security_group-eks_cluster-0-0
+            - aws:security_group:vpc-0:eks_cluster-eks_cluster-0
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
@@ -477,23 +477,23 @@ resources:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.128.0/18
         MapPublicIpOnLaunch: false
-        RouteTable: aws:route_table:route_table-subnet-0-0
+        RouteTable: aws:route_table:subnet-subnet-0
         Type: private
         Vpc: aws:vpc:vpc-0
     aws:subnet:vpc-0:subnet-1:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
         CidrBlock: 10.0.192.0/18
         MapPublicIpOnLaunch: false
-        RouteTable: aws:route_table:route_table-subnet-1-1
+        RouteTable: aws:route_table:subnet-subnet-1
         Type: private
         Vpc: aws:vpc:vpc-0
-    aws:route_table_association:subnet-0-route_table-subnet-0-0:
-        RouteTable: aws:route_table:route_table-subnet-0-0
+    aws:route_table_association:subnet-0-subnet-subnet-0:
+        RouteTable: aws:route_table:subnet-subnet-0
         Subnet: aws:subnet:vpc-0:subnet-0
-    aws:route_table_association:subnet-1-route_table-subnet-1-1:
-        RouteTable: aws:route_table:route_table-subnet-1-1
+    aws:route_table_association:subnet-1-subnet-subnet-1:
+        RouteTable: aws:route_table:subnet-subnet-1
         Subnet: aws:subnet:vpc-0:subnet-1
-    aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+    aws:security_group:vpc-0:eks_cluster-eks_cluster-0:
         EgressRules:
             - CidrBlocks:
                 - 0.0.0.0/0
@@ -526,57 +526,57 @@ resources:
               Protocol: "-1"
               ToPort: 0
         Vpc: aws:vpc:vpc-0
-    aws:route_table:route_table-subnet-0-0:
+    aws:route_table:subnet-subnet-0:
         Routes:
             - CidrBlock: 0.0.0.0/0
-              NatGateway: aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0
+              NatGateway: aws:nat_gateway:subnet-2:route_table-subnet-subnet-0
         Vpc: aws:vpc:vpc-0
-    aws:route_table:route_table-subnet-1-1:
+    aws:route_table:subnet-subnet-1:
         Routes:
             - CidrBlock: 0.0.0.0/0
-              NatGateway: aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1
+              NatGateway: aws:nat_gateway:subnet-3:route_table-subnet-subnet-1
         Vpc: aws:vpc:vpc-0
-    aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0:
-        ElasticIp: aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0
+    aws:nat_gateway:subnet-2:route_table-subnet-subnet-0:
+        ElasticIp: aws:elastic_ip:nat_gateway-route_table-subnet-subnet-0
         Subnet: aws:subnet:vpc-0:subnet-2
-    aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1:
-        ElasticIp: aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1
+    aws:nat_gateway:subnet-3:route_table-subnet-subnet-1:
+        ElasticIp: aws:elastic_ip:nat_gateway-route_table-subnet-subnet-1
         Subnet: aws:subnet:vpc-0:subnet-3
-    aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0:
+    aws:elastic_ip:nat_gateway-route_table-subnet-subnet-0:
     aws:subnet:vpc-0:subnet-2:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.0.0/18
         MapPublicIpOnLaunch: false
-        RouteTable: aws:route_table:route_table-subnet-2-2
+        RouteTable: aws:route_table:subnet-subnet-2
         Type: public
         Vpc: aws:vpc:vpc-0
-    aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1:
+    aws:elastic_ip:nat_gateway-route_table-subnet-subnet-1:
     aws:subnet:vpc-0:subnet-3:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
         CidrBlock: 10.0.64.0/18
         MapPublicIpOnLaunch: false
-        RouteTable: aws:route_table:route_table-subnet-3-3
+        RouteTable: aws:route_table:subnet-subnet-3
         Type: public
         Vpc: aws:vpc:vpc-0
     aws:availability_zone:region-0:availability_zone-0:
         Index: 0
         Region: aws:region:region-0
-    aws:route_table_association:subnet-2-route_table-subnet-2-2:
-        RouteTable: aws:route_table:route_table-subnet-2-2
+    aws:route_table_association:subnet-2-subnet-subnet-2:
+        RouteTable: aws:route_table:subnet-subnet-2
         Subnet: aws:subnet:vpc-0:subnet-2
     aws:availability_zone:region-0:availability_zone-1:
         Index: 1
         Region: aws:region:region-0
-    aws:route_table_association:subnet-3-route_table-subnet-3-3:
-        RouteTable: aws:route_table:route_table-subnet-3-3
+    aws:route_table_association:subnet-3-subnet-subnet-3:
+        RouteTable: aws:route_table:subnet-subnet-3
         Subnet: aws:subnet:vpc-0:subnet-3
-    aws:route_table:route_table-subnet-2-2:
+    aws:route_table:subnet-subnet-2:
         Routes:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
         Vpc: aws:vpc:vpc-0
     aws:region:region-0:
-    aws:route_table:route_table-subnet-3-3:
+    aws:route_table:subnet-subnet-3:
         Routes:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
@@ -594,7 +594,7 @@ edges:
     aws:security_group_rule:security_group_rule-0 -> aws:vpc:vpc-0:
     kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_cluster:eks_cluster-0:
     kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_node_group:eks_node_group-0:
-    kubernetes:kube_config:kube_config-eks_cluster-0-0 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:kube_config:eks_cluster-eks_cluster-0 -> aws:eks_cluster:eks_cluster-0:
     kubernetes:manifest:fluent-bit -> aws:eks_cluster:eks_cluster-0:
     kubernetes:manifest:fluent-bit -> kubernetes:config_map:fluent-bit-cluster-info:
     aws:api_deployment:rest_api_4:api_deployment-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
@@ -627,15 +627,15 @@ edges:
     kubernetes:service:restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0:pod2:
     kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
     kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:iam_role:aws-load-balancer-controller:
-    kubernetes:pod:eks_cluster-0:pod2 -> aws:ecr_image:ecr_image-pod2-0:
+    kubernetes:pod:eks_cluster-0:pod2 -> aws:ecr_image:pod-pod2:
     kubernetes:pod:eks_cluster-0:pod2 -> aws:eks_cluster:eks_cluster-0:
     kubernetes:pod:eks_cluster-0:pod2 -> aws:eks_node_group:eks_node_group-0:
     kubernetes:pod:eks_cluster-0:pod2 -> kubernetes:service_account:eks_cluster-0:pod2:
     aws:iam_role:aws-load-balancer-controller -> aws:iam_oidc_provider:eks_cluster-0:
     aws:iam_role:aws-load-balancer-controller -> aws:iam_role_policy_attachment:aws-load-balancer-controller-iam_policy-0:
-    aws:ecr_image:ecr_image-pod2-0 -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:pod-pod2 -> aws:ecr_repo:ecr_repo-0:
     aws:eks_node_group:eks_node_group-0 -> aws:eks_cluster:eks_cluster-0:
-    aws:eks_node_group:eks_node_group-0 -> aws:iam_role:iam_role-eks_node_group-0-2:
+    aws:eks_node_group:eks_node_group-0 -> aws:iam_role:eks_node_group-eks_node_group-0:
     aws:eks_node_group:eks_node_group-0 -> aws:subnet:vpc-0:subnet-0:
     aws:eks_node_group:eks_node_group-0 -> aws:subnet:vpc-0:subnet-1:
     kubernetes:service_account:eks_cluster-0:pod2 -> aws:eks_cluster:eks_cluster-0:
@@ -649,39 +649,37 @@ edges:
     aws:eks_cluster:eks_cluster-0 -> aws:subnet:vpc-0:subnet-1:
     aws:eks_cluster:eks_cluster-0 -> aws:vpc:vpc-0:
     aws:subnet:vpc-0:subnet-0 -> aws:availability_zone:region-0:availability_zone-0:
-    aws:subnet:vpc-0:subnet-0 -> aws:route_table_association:subnet-0-route_table-subnet-0-0:
-    aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:route_table_association:subnet-0-subnet-subnet-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:eks_cluster-eks_cluster-0:
     aws:subnet:vpc-0:subnet-0 -> aws:vpc:vpc-0:
     aws:subnet:vpc-0:subnet-1 -> aws:availability_zone:region-0:availability_zone-1:
-    aws:subnet:vpc-0:subnet-1 -> aws:route_table_association:subnet-1-route_table-subnet-1-1:
-    aws:subnet:vpc-0:subnet-1 -> aws:security_group:vpc-0:security_group-eks_cluster-0-0:
+    aws:subnet:vpc-0:subnet-1 -> aws:route_table_association:subnet-1-subnet-subnet-1:
+    aws:subnet:vpc-0:subnet-1 -> aws:security_group:vpc-0:eks_cluster-eks_cluster-0:
     aws:subnet:vpc-0:subnet-1 -> aws:vpc:vpc-0:
-    aws:route_table_association:subnet-0-route_table-subnet-0-0 -> aws:route_table:route_table-subnet-0-0:
-    aws:route_table_association:subnet-1-route_table-subnet-1-1 -> aws:route_table:route_table-subnet-1-1:
-    aws:security_group:vpc-0:security_group-eks_cluster-0-0 -> aws:eks_cluster:eks_cluster-0:
-    aws:security_group:vpc-0:security_group-eks_cluster-0-0 -> aws:vpc:vpc-0:
-    aws:route_table:route_table-subnet-0-0 -> aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0:
-    aws:route_table:route_table-subnet-0-0 -> aws:vpc:vpc-0:
-    aws:route_table:route_table-subnet-1-1 -> aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1:
-    aws:route_table:route_table-subnet-1-1 -> aws:vpc:vpc-0:
-    ? aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0 -> aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-0-0-0-0
-    :
-    aws:nat_gateway:subnet-2:nat_gateway-route_table-subnet-0-0-0 -> aws:subnet:vpc-0:subnet-2:
-    ? aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1 -> aws:elastic_ip:elastic_ip-nat_gateway-route_table-subnet-1-1-1-1
-    :
-    aws:nat_gateway:subnet-3:nat_gateway-route_table-subnet-1-1-1 -> aws:subnet:vpc-0:subnet-3:
+    aws:route_table_association:subnet-0-subnet-subnet-0 -> aws:route_table:subnet-subnet-0:
+    aws:route_table_association:subnet-1-subnet-subnet-1 -> aws:route_table:subnet-subnet-1:
+    aws:security_group:vpc-0:eks_cluster-eks_cluster-0 -> aws:eks_cluster:eks_cluster-0:
+    aws:security_group:vpc-0:eks_cluster-eks_cluster-0 -> aws:vpc:vpc-0:
+    aws:route_table:subnet-subnet-0 -> aws:nat_gateway:subnet-2:route_table-subnet-subnet-0:
+    aws:route_table:subnet-subnet-0 -> aws:vpc:vpc-0:
+    aws:route_table:subnet-subnet-1 -> aws:nat_gateway:subnet-3:route_table-subnet-subnet-1:
+    aws:route_table:subnet-subnet-1 -> aws:vpc:vpc-0:
+    aws:nat_gateway:subnet-2:route_table-subnet-subnet-0 -> aws:elastic_ip:nat_gateway-route_table-subnet-subnet-0:
+    aws:nat_gateway:subnet-2:route_table-subnet-subnet-0 -> aws:subnet:vpc-0:subnet-2:
+    aws:nat_gateway:subnet-3:route_table-subnet-subnet-1 -> aws:elastic_ip:nat_gateway-route_table-subnet-subnet-1:
+    aws:nat_gateway:subnet-3:route_table-subnet-subnet-1 -> aws:subnet:vpc-0:subnet-3:
     aws:subnet:vpc-0:subnet-2 -> aws:availability_zone:region-0:availability_zone-0:
-    aws:subnet:vpc-0:subnet-2 -> aws:route_table_association:subnet-2-route_table-subnet-2-2:
+    aws:subnet:vpc-0:subnet-2 -> aws:route_table_association:subnet-2-subnet-subnet-2:
     aws:subnet:vpc-0:subnet-2 -> aws:vpc:vpc-0:
     aws:subnet:vpc-0:subnet-3 -> aws:availability_zone:region-0:availability_zone-1:
-    aws:subnet:vpc-0:subnet-3 -> aws:route_table_association:subnet-3-route_table-subnet-3-3:
+    aws:subnet:vpc-0:subnet-3 -> aws:route_table_association:subnet-3-subnet-subnet-3:
     aws:subnet:vpc-0:subnet-3 -> aws:vpc:vpc-0:
     aws:availability_zone:region-0:availability_zone-0 -> aws:region:region-0:
-    aws:route_table_association:subnet-2-route_table-subnet-2-2 -> aws:route_table:route_table-subnet-2-2:
+    aws:route_table_association:subnet-2-subnet-subnet-2 -> aws:route_table:subnet-subnet-2:
     aws:availability_zone:region-0:availability_zone-1 -> aws:region:region-0:
-    aws:route_table_association:subnet-3-route_table-subnet-3-3 -> aws:route_table:route_table-subnet-3-3:
-    aws:route_table:route_table-subnet-2-2 -> aws:internet_gateway:vpc-0:internet_gateway-0:
-    aws:route_table:route_table-subnet-2-2 -> aws:vpc:vpc-0:
-    aws:route_table:route_table-subnet-3-3 -> aws:internet_gateway:vpc-0:internet_gateway-0:
-    aws:route_table:route_table-subnet-3-3 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-3-subnet-subnet-3 -> aws:route_table:subnet-subnet-3:
+    aws:route_table:subnet-subnet-2 -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:subnet-subnet-2 -> aws:vpc:vpc-0:
+    aws:route_table:subnet-subnet-3 -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:subnet-subnet-3 -> aws:vpc:vpc-0:
     aws:internet_gateway:vpc-0:internet_gateway-0 -> aws:vpc:vpc-0:
