@@ -400,7 +400,7 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 			// so that the names are unique.
 			suffix = fmt.Sprintf("-%d", action.Step.NumNeeded-action.numNeeded)
 		}
-		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resourceToSet.Type, resource.Name, suffix)
+		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resource.Name, resourceToSet.Type, suffix)
 		return nil
 	}
 	numResources := 0
