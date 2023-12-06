@@ -390,6 +390,19 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 	if resourceToSet.Name != "" {
 		return nil
 	}
+	if action.Step.Unique {
+		// If creating unique resources, don't need to count the total resources because the owner's name is added
+		// which adds enough uniqueness against other resources in the graph. Just need to handle when the owner
+		// creates multiple resources of the same type.
+		suffix := ""
+		if action.Step.NumNeeded > 1 {
+			// If we are creating multiple resources, we want to append the number of resources we have created so far
+			// so that the names are unique.
+			suffix = fmt.Sprintf("-%d", action.Step.NumNeeded-action.numNeeded)
+		}
+		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resource.Type, resource.Name, suffix)
+		return nil
+	}
 	numResources := 0
 	ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
 	if err != nil {
@@ -401,11 +414,7 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 			numResources++
 		}
 	}
-	if action.Step.Unique {
-		resourceToSet.Name = fmt.Sprintf("%s-%s-%d", resourceToSet.Type, resource.Name, numResources)
-	} else {
-		resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
-	}
+	resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
 
 	return nil
 }
