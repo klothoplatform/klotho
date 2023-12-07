@@ -9,7 +9,6 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -79,7 +78,6 @@ func expandEdge(
 
 	resultResources, err := renameAndReplaceInTempGraph(ctx, input, g, path)
 	errs = errors.Join(errs, err)
-	errs = errors.Join(errs, handleProperties(ctx, resultResources, input.TempGraph, g))
 	edges, err := findSubExpansionsToRun(resultResources, ctx)
 	return edges, errors.Join(errs, err)
 }
@@ -199,20 +197,19 @@ func handleProperties(
 	ctx solution_context.SolutionContext,
 	resultResources []*construct.Resource,
 	tempGraph construct.Graph,
-	g construct.Graph,
 ) error {
 	var errs error
-	for i, res := range resultResources {
+	// Go in reverse order so that IDs are set correctly before a previous resource's property is set to its ID.
+	// For example, set Subnet#VPC (namespace property) before Lambda#Subnets
+	for i := len(resultResources) - 1; i >= 0; i-- {
+		res := resultResources[i]
+
 		rt, err := ctx.KnowledgeBase().GetResourceTemplate(res.ID)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		id := res.ID
-		exists, err := ctx.RawView().Vertex(id)
-		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-			return err
-		}
+
 		handleProp := func(prop knowledgebase.Property) error {
 			oldId := res.ID
 			opRuleCtx := operational_rule.OperationalRuleContext{
@@ -238,9 +235,6 @@ func handleProperties(
 						if err != nil {
 							errs = errors.Join(errs, err)
 						}
-						if details.Namespace && exists != nil {
-							errs = errors.Join(errs, construct.PropagateUpdatedId(ctx.OperationalView(), oldId))
-						}
 					}
 				} else if i > 0 {
 					upstreamRes := resultResources[i-1]
@@ -250,18 +244,12 @@ func handleProperties(
 						if err != nil {
 							errs = errors.Join(errs, err)
 						}
-						if details.Namespace && exists != nil {
-							err = construct.PropagateUpdatedId(ctx.OperationalView(), id)
-							if err != nil {
-								errs = errors.Join(errs, err)
-							}
-						}
 					}
 
 				}
 			}
 			if details.Namespace && oldId != res.ID {
-				errs = errors.Join(errs, graph_addons.ReplaceVertex(g, oldId, res, construct.ResourceHasher))
+				// add a marker for where to find the new id in the result graph
 				_, props, err := tempGraph.VertexWithProperties(oldId)
 				if err == nil && props.Attributes != nil {
 					props.Attributes["new_id"] = res.ID.String()
@@ -508,9 +496,8 @@ func addPathToGraph(ctx solution_context.SolutionContext, g construct.Graph, pat
 	[]*construct.Resource,
 	error,
 ) {
-	var result []*construct.Resource
 	var errs error
-	var prevRes construct.ResourceId
+	result := make([]*construct.Resource, len(path))
 	for i, resource := range path {
 		r, err := ctx.RawView().Vertex(resource)
 		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
@@ -524,11 +511,22 @@ func addPathToGraph(ctx solution_context.SolutionContext, g construct.Graph, pat
 				continue
 			}
 		}
+		result[i] = r
+	}
+	if errs != nil {
+		return nil, errs
+	}
+	// handle the properties before adding to the graph to make sure the IDs are set correctly
+	err := handleProperties(ctx, result, g)
+	if err != nil {
+		return nil, err
+	}
+	var prevRes construct.ResourceId
+	for i, r := range result {
 		err = g.AddVertex(r)
 		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 			errs = errors.Join(errs, err)
 		}
-		result = append(result, r)
 		if i == 0 {
 			prevRes = r.ID
 			continue
