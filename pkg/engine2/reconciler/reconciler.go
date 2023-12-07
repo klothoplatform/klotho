@@ -55,7 +55,7 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 	}
 	for _, res := range namespacedResources.ToSlice() {
 		// Since we are explicitly deleting the namespace resource, we will explicitly delete the resources namespaced to it
-		errs = errors.Join(errs, RemoveResource(c, res, true))
+		errs = errors.Join(errs, RemoveResource(c, res, explicit))
 	}
 	// try to cleanup, if the resource is removable
 	for res := range upstreams.Union(downstreams) {
@@ -195,7 +195,7 @@ func findAllResourcesInNamespace(ctx solution_context.SolutionContext, namespace
 	namespacedResources := make(set.Set[construct.ResourceId])
 	err := construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		if id.Namespace == "" || id.Namespace != namespace.Name {
-			return nil
+			return nerr
 		}
 		rt, err := ctx.KnowledgeBase().GetResourceTemplate(id)
 		if err != nil {
