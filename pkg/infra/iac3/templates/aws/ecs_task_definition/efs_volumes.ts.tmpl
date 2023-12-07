@@ -1,5 +1,5 @@
 [
-    {{- range $i, $volume := . }}
+    {{- range $i, $volume := .M }}
     { 
         name: "{{ $volume.Name }}",
         efsVolumeConfiguration: {

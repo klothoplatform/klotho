@@ -77,6 +77,20 @@ func expandEdge(
 		return nil, errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
 	}
 
+	resultResources, err := renameAndReplaceInTempGraph(ctx, input, g, path)
+	errs = errors.Join(errs, err)
+	errs = errors.Join(errs, handleProperties(ctx, resultResources, input.TempGraph, g))
+	edges, err := findSubExpansionsToRun(resultResources, ctx)
+	return edges, errors.Join(errs, err)
+}
+
+func renameAndReplaceInTempGraph(
+	ctx solution_context.SolutionContext,
+	input ExpansionInput,
+	g construct.Graph,
+	path construct.Path,
+) ([]*construct.Resource, error) {
+	var errs error
 	name := fmt.Sprintf("%s-%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
 	// rename phantom nodes
 	result := make(construct.Path, len(path))
@@ -89,7 +103,8 @@ func expandEdge(
 				if err != nil && errors.Is(err, graph.ErrVertexNotFound) {
 					break
 				} else if err != nil {
-					return nil, err
+					errs = errors.Join(errs, err)
+					continue
 				}
 				id.Name = fmt.Sprintf("%s-%d", name, suffix)
 			}
@@ -100,13 +115,16 @@ func expandEdge(
 		}
 		result[i] = id
 	}
-	resultResources, errs := addPathToGraph(ctx, g, result)
-	if errs != nil {
+	resultResources, err := addPathToGraph(ctx, g, result)
+	if err != nil {
 		return nil, errors.Join(errs, err)
 	}
-	errs = errors.Join(errs, handleProperties(ctx, resultResources, input.TempGraph, g))
-	edges, err := findSubExpansionsToRun(resultResources, ctx)
-	return edges, errors.Join(errs, err)
+
+	// We need to replace the phantom nodes in the temp graph in case we reuse the temp graph for sub expansions
+	for i, res := range resultResources {
+		errs = errors.Join(errs, construct.ReplaceResource(input.TempGraph, path[i], res))
+	}
+	return resultResources, errs
 }
 
 func findSubExpansionsToRun(
