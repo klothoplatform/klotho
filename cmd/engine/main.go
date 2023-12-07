@@ -14,7 +14,13 @@ func main() {
 	em.AddEngineCli(root)
 	err := root.Execute()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		switch err.(type) {
+		case engine.ConfigValidationError:
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(2)
+		default:
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

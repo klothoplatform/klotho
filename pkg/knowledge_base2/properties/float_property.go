@@ -100,13 +100,13 @@ func (f *FloatProperty) Validate(resource *construct.Resource, value any, ctx kn
 	}
 	floatVal, ok := value.(float64)
 	if !ok {
-		return fmt.Errorf("invalid int value %v", value)
+		return fmt.Errorf("invalid float value %v", value)
 	}
 	if f.MinValue != nil && floatVal < *f.MinValue {
-		return fmt.Errorf("int value %f is less than lower bound %f", value, *f.MinValue)
+		return fmt.Errorf("float value %f is less than lower bound %f", value, *f.MinValue)
 	}
 	if f.MaxValue != nil && floatVal > *f.MaxValue {
-		return fmt.Errorf("int value %f is greater than upper bound %f", value, *f.MaxValue)
+		return fmt.Errorf("float value %f is greater than upper bound %f", value, *f.MaxValue)
 	}
 	return nil
 }

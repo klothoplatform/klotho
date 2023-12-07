@@ -129,7 +129,7 @@ func (s *StringProperty) Validate(resource *construct.Resource, value any, ctx k
 			return err
 		}
 		if oldVal != stringVal {
-			return fmt.Errorf("value %s was sanitized to %s", oldVal, stringVal)
+			return fmt.Errorf("value %s did not pass sanitization rules. suggested value: %s", oldVal, stringVal)
 		}
 	}
 	return nil

@@ -287,14 +287,14 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	},
 	)
 
-	configErrors := em.Engine.getPropertyValidation(context.Solutions[0])
+	configErrors, configErr := em.Engine.getPropertyValidation(context.Solutions[0])
 	if len(configErrors) > 0 {
 		configErrorData, err := json.Marshal(configErrors)
 		if err != nil {
 			return errors.Errorf("failed to marshal config errors: %s", err.Error())
 		}
 		files = append(files, &io.RawFile{
-			FPath:   "config-errors.json",
+			FPath:   "config_errors.json",
 			Content: configErrorData,
 		})
 	}
@@ -302,6 +302,9 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	err = io.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {
 		return errors.Errorf("failed to write output files: %s", err.Error())
+	}
+	if configErr != nil {
+		return ConfigValidationError{Err: configErr}
 	}
 	return nil
 }
