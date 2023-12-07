@@ -43,7 +43,7 @@ func (eval *Evaluator) AddResources(rs ...*construct.Resource) error {
 		}
 		rvs, err := eval.resourceVertices(res, tmpl)
 		if err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("could not add resource eval vertices %s: %w", res.ID, err))
 			continue
 		}
 		changes.Merge(rvs)
@@ -67,7 +67,7 @@ func (eval *Evaluator) AddEdges(es ...construct.Edge) error {
 			evs, err = eval.edgeVertices(e, tmpl)
 		}
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("could not add edge %s -> %s: %w", e.Source, e.Target, err))
+			errs = errors.Join(errs, fmt.Errorf("could not add edge eval vertex %s -> %s: %w", e.Source, e.Target, err))
 			continue
 		}
 		changes.Merge(evs)

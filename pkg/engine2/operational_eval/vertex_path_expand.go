@@ -80,7 +80,6 @@ func expansionResultString(result construct.Graph, dep construct.ResourceEdge) (
 }
 
 func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selection.ExpansionInput) error {
-	var errs error
 	result, err := path_selection.ExpandEdge(eval.Solution, expansion)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate path expand vertex. could not expand edge %s: %w", v.Edge, err)
@@ -110,6 +109,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 	}
 
 	// Once the path is selected & expanded, first add all the resources to the graph
+	var errs error
 	resources := []*construct.Resource{}
 	for pathId := range adj {
 		res, err := eval.Solution.OperationalView().Vertex(pathId)
@@ -132,22 +132,25 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 		return errs
 	}
 
-	resultStr, err := expansionResultString(result.Graph, expansion.Dep)
-	if err != nil {
-		return err
-	}
-
 	// After all the resources, then add all the dependencies
 	edges := []construct.Edge{}
 	for _, edgeMap := range adj {
 		for _, edge := range edgeMap {
-			errs = errors.Join(errs, eval.Solution.RawView().AddEdge(edge.Source, edge.Target))
+			err := eval.Solution.OperationalView().AddEdge(edge.Source, edge.Target)
+			if err != nil {
+				errs = errors.Join(errs, err)
+			}
 			edges = append(edges, edge)
 		}
 	}
 
 	if errs != nil {
 		return errs
+	}
+
+	resultStr, err := expansionResultString(result.Graph, expansion.Dep)
+	if err != nil {
+		return err
 	}
 	if v.Satisfication.Classification != "" {
 		eval.Log().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.Edge, resultStr)
