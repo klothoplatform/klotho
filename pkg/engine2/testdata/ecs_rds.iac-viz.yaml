@@ -29,15 +29,15 @@ resources:
 
   elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
 
-  aws:subnet:vpc-0/subnet-3:
-  aws:subnet:vpc-0/subnet-3 -> aws:availability_zone:region-0/availability_zone-1:
-  aws:subnet:vpc-0/subnet-3 -> vpc/vpc-0:
-
-  elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
-
   aws:subnet:vpc-0/subnet-2:
   aws:subnet:vpc-0/subnet-2 -> aws:availability_zone:region-0/availability_zone-0:
   aws:subnet:vpc-0/subnet-2 -> vpc/vpc-0:
+
+  elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
+
+  aws:subnet:vpc-0/subnet-3:
+  aws:subnet:vpc-0/subnet-3 -> aws:availability_zone:region-0/availability_zone-1:
+  aws:subnet:vpc-0/subnet-3 -> vpc/vpc-0:
 
   ecr_repo/ecr_repo-0:
 
@@ -48,13 +48,13 @@ resources:
   aws:internet_gateway:vpc-0/internet_gateway-0:
   aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
 
-  aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway:
-  aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway -> elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
-  aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-3:
+  aws:nat_gateway:subnet-2/subnet-1-route_table-nat_gateway:
+  aws:nat_gateway:subnet-2/subnet-1-route_table-nat_gateway -> elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
+  aws:nat_gateway:subnet-2/subnet-1-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-2:
 
-  aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway:
-  aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway -> elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
-  aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-2:
+  aws:nat_gateway:subnet-3/subnet-0-route_table-nat_gateway:
+  aws:nat_gateway:subnet-3/subnet-0-route_table-nat_gateway -> elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
+  aws:nat_gateway:subnet-3/subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-3:
 
   ecr_image/ecs_service_0-image:
   ecr_image/ecs_service_0-image -> ecr_repo/ecr_repo-0:
@@ -73,11 +73,11 @@ resources:
   route_table/subnet-2-route_table -> vpc/vpc-0:
 
   route_table/subnet-1-route_table:
-  route_table/subnet-1-route_table -> aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway:
+  route_table/subnet-1-route_table -> aws:nat_gateway:subnet-2/subnet-1-route_table-nat_gateway:
   route_table/subnet-1-route_table -> vpc/vpc-0:
 
   route_table/subnet-0-route_table:
-  route_table/subnet-0-route_table -> aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway:
+  route_table/subnet-0-route_table -> aws:nat_gateway:subnet-3/subnet-0-route_table-nat_gateway:
   route_table/subnet-0-route_table -> vpc/vpc-0:
 
   ecs_cluster/ecs_cluster-0:
