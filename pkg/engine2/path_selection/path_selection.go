@@ -81,9 +81,9 @@ func BuildPathSelectionGraph(
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
 	for _, path := range paths {
-		resourcePath := []construct.ResourceId{}
-		for _, res := range path {
-			resourcePath = append(resourcePath, res.Id())
+		resourcePath := make([]construct.ResourceId, len(path))
+		for i, res := range path {
+			resourcePath[i] = res.Id()
 		}
 		if !PathSatisfiesClassification(kb, resourcePath, classification) {
 			continue
