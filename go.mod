@@ -41,6 +41,7 @@ require (
 )
 
 require (
+	github.com/alitto/pond v1.8.3 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/kr/pretty v0.3.0 // indirect

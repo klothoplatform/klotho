@@ -47,6 +47,14 @@ var architectureEngineCfg struct {
 	verbose     bool
 }
 
+var getValidEdgeTargetsCfg struct {
+	guardrails string
+	inputGraph string
+	configFile string
+	outputDir  string
+	verbose    bool
+}
+
 var hadWarnings = atomic.NewBool(false)
 var hadErrors = atomic.NewBool(false)
 
@@ -121,10 +129,27 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
+	getPossibleEdgesCmd := &cobra.Command{
+		Use:     "GetValidEdgeTargets",
+		Short:   "Get the valid topological edge targets for the supplied configuration and input graph",
+		GroupID: engineGroup.ID,
+		RunE:    em.GetValidEdgeTargets,
+	}
+
+	flags = getPossibleEdgesCmd.Flags()
+	flags.StringVar(&getValidEdgeTargetsCfg.guardrails, "guardrails", "", "Guardrails file")
+	flags.StringVarP(&getValidEdgeTargetsCfg.inputGraph, "input-graph", "i", "", "Input graph file")
+	flags.StringVarP(&getValidEdgeTargetsCfg.configFile, "config", "c", "", "config file")
+	flags.StringVarP(&getValidEdgeTargetsCfg.outputDir, "output-dir", "o", "", "Output directory")
+	flags.BoolVarP(&getValidEdgeTargetsCfg.verbose, "verbose", "v", false, "Verbose flag")
+	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
+
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
 	root.AddCommand(listAttributesCmd)
 	root.AddCommand(runCmd)
+	root.AddCommand(getPossibleEdgesCmd)
 }
 
 func (em *EngineMain) AddEngine() error {
@@ -305,6 +330,80 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	}
 	if configErr != nil {
 		return ConfigValidationError{Err: configErr}
+	}
+	return nil
+}
+
+func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
+	if engineCfg.profileTo != "" {
+		err := os.MkdirAll(filepath.Dir(engineCfg.profileTo), 0755)
+		if err != nil {
+			return fmt.Errorf("failed to create profile directory: %w", err)
+		}
+		profileF, err := os.OpenFile(engineCfg.profileTo, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open profile file: %w", err)
+		}
+		defer func() {
+			pprof.StopCPUProfile()
+			profileF.Close()
+		}()
+		err = pprof.StartCPUProfile(profileF)
+		if err != nil {
+			return fmt.Errorf("failed to start profile: %w", err)
+		}
+	}
+
+	// Set up analytics, and hook them up to the logs
+	analyticsClient := analytics.NewClient()
+	analyticsClient.AppendProperties(map[string]any{})
+	z, err := setupLogger(analyticsClient)
+	if err != nil {
+		return err
+	}
+	defer closenicely.FuncOrDebug(z.Sync)
+	zap.ReplaceGlobals(z)
+
+	err = em.AddEngine()
+	if err != nil {
+		return err
+	}
+	zap.S().Info("loading config")
+
+	inputF, err := os.ReadFile(getValidEdgeTargetsCfg.inputGraph)
+	if err != nil {
+		return err
+	}
+
+	config, err := ReadGetValidEdgeTargetsConfig(getValidEdgeTargetsCfg.configFile)
+	if err != nil {
+		return errors.Errorf("failed to load constraints: %s", err.Error())
+	}
+	context := &GetPossibleEdgesContext{
+		InputGraph:                inputF,
+		GetValidEdgeTargetsConfig: config,
+	}
+
+	zap.S().Info("getting valid edge targets")
+	validTargets, err := em.Engine.GetValidEdgeTargets(context)
+	if err != nil {
+		return errors.Errorf("failed to run engine: %s", err.Error())
+	}
+
+	zap.S().Info("writing output files")
+	b, err := yaml.Marshal(validTargets)
+	if err != nil {
+		return errors.Errorf("failed to marshal possible edges: %s", err.Error())
+	}
+	var files []io.File
+	files = append(files, &io.RawFile{
+		FPath:   "valid_edge_targets.yaml",
+		Content: b,
+	})
+
+	err = io.OutputTo(files, getValidEdgeTargetsCfg.outputDir)
+	if err != nil {
+		return errors.Errorf("failed to write output files: %s", err.Error())
 	}
 	return nil
 }
