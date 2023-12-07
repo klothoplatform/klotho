@@ -34,7 +34,7 @@ resources:
             rds-instance-2_RDS_ENDPOINT: aws:rds_instance:rds-instance-2#Endpoint
             rds-instance-2_RDS_PASSWORD: aws:rds_instance:rds-instance-2#Password
             rds-instance-2_RDS_USERNAME: aws:rds_instance:rds-instance-2#Username
-        ExecutionRole: aws:iam_role:ecs_service_0-rds-instance-2
+        ExecutionRole: aws:iam_role:ecs_service_0-execution-role
         Image: aws:ecr_image:ecs_service_0-image
         LogGroup: aws:log_group:ecs_service_0-log-group
         Memory: "512"
@@ -46,12 +46,12 @@ resources:
         Region: aws:region:region-0
         RequiresCompatibilities:
             - FARGATE
-        TaskRole: aws:iam_role:ecs_service_0-rds-instance-2
+        TaskRole: aws:iam_role:ecs_service_0-execution-role
     aws:ecr_image:ecs_service_0-image:
         Context: .
         Dockerfile: ecs_service_0-image.Dockerfile
         Repo: aws:ecr_repo:ecr_repo-0
-    aws:iam_role:ecs_service_0-rds-instance-2:
+    aws:iam_role:ecs_service_0-execution-role:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
@@ -209,11 +209,11 @@ edges:
     aws:ecs_service:ecs_service_0 -> aws:subnet:vpc-0:subnet-0:
     aws:ecs_service:ecs_service_0 -> aws:subnet:vpc-0:subnet-1:
     aws:ecs_task_definition:ecs_service_0 -> aws:ecr_image:ecs_service_0-image:
-    aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-rds-instance-2:
+    aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-execution-role:
     aws:ecs_task_definition:ecs_service_0 -> aws:log_group:ecs_service_0-log-group:
     aws:ecs_task_definition:ecs_service_0 -> aws:region:region-0:
     aws:ecr_image:ecs_service_0-image -> aws:ecr_repo:ecr_repo-0:
-    aws:iam_role:ecs_service_0-rds-instance-2 -> aws:rds_instance:rds-instance-2:
+    aws:iam_role:ecs_service_0-execution-role -> aws:rds_instance:rds-instance-2:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-2:
     aws:subnet:vpc-0:subnet-2 -> aws:availability_zone:region-0:availability_zone-0:

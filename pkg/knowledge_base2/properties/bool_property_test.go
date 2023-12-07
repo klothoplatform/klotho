@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_SetBoolProperty(t *testing.T) {
@@ -268,10 +270,12 @@ func Test_BoolPropertyType(t *testing.T) {
 
 func Test_BoolPropertyValidate(t *testing.T) {
 	tests := []struct {
-		name     string
-		property *BoolProperty
-		value    any
-		wantErr  bool
+		name          string
+		property      *BoolProperty
+		testResources []*construct.Resource
+		mockKBCalls   []mock.Call
+		value         any
+		wantErr       bool
 	}{
 		{
 			name: "bool property",
@@ -298,7 +302,19 @@ func Test_BoolPropertyValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			resource := &construct.Resource{}
-			err := tt.property.Validate(resource, tt.value)
+			graph := construct.NewGraph()
+			for _, r := range tt.testResources {
+				graph.AddVertex(r)
+			}
+			mockKB := &enginetesting.MockKB{}
+			for _, call := range tt.mockKBCalls {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			ctx := knowledgebase.DynamicValueContext{
+				Graph:         graph,
+				KnowledgeBase: mockKB,
+			}
+			err := tt.property.Validate(resource, tt.value, ctx)
 			assert.Equal(tt.wantErr, err != nil)
 		})
 	}

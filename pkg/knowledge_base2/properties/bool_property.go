@@ -83,7 +83,13 @@ func (b *BoolProperty) Type() string {
 	return "bool"
 }
 
-func (b *BoolProperty) Validate(resource *construct.Resource, value any) error {
+func (b *BoolProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if b.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, b.Path, resource.ID)
+		}
+		return nil
+	}
 	if _, ok := value.(bool); !ok {
 		return fmt.Errorf("invalid bool value %v", value)
 	}

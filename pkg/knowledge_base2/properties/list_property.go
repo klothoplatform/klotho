@@ -167,7 +167,14 @@ func (l *ListProperty) Type() string {
 	return "list"
 }
 
-func (l *ListProperty) Validate(resource *construct.Resource, value any) error {
+func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if l.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, l.Path, resource.ID)
+		}
+		return nil
+	}
+
 	listVal, ok := value.([]any)
 	if !ok {
 		return fmt.Errorf("invalid map value %v", value)
@@ -183,20 +190,15 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any) error {
 		}
 	}
 	var errs error
-
-	for _, v := range listVal {
-		if len(l.Properties) != 0 {
-			m := MapProperty{Properties: l.Properties}
-			err := m.Validate(resource, v)
-			if err != nil {
-				errs = errors.New(errs.Error() + "\n" + err.Error())
-			}
-		} else {
-			err := l.ItemProperty.Validate(resource, v)
+	// Only validate values if its a primitive list, otherwise let the sub properties handle their own validation
+	if l.ItemProperty != nil {
+		for _, v := range listVal {
+			err := l.ItemProperty.Validate(resource, v, ctx)
 			if err != nil {
 				errs = errors.New(errs.Error() + "\n" + err.Error())
 			}
 		}
+
 	}
 	if errs != nil {
 		return errs

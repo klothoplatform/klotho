@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_SetStringProperty(t *testing.T) {
@@ -361,6 +363,8 @@ func Test_StringValidate(t *testing.T) {
 		name             string
 		property         *StringProperty
 		sanitizeTemplate string
+		testResources    []*construct.Resource
+		mockKBCalls      []mock.Call
 		value            any
 		expected         bool
 	}{
@@ -395,6 +399,37 @@ func Test_StringValidate(t *testing.T) {
 			sanitizeTemplate: "{{ . | upper }}",
 			value:            "TEST",
 			expected:         true,
+		},
+		{
+			name: "Valid property ref as string",
+			property: &StringProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Path: "test",
+				},
+			},
+			testResources: []*construct.Resource{
+				{
+					ID:         construct.ResourceId{Name: "blah"},
+					Properties: construct.Properties{"test": "blah"},
+				},
+			},
+			value: construct.PropertyRef{Resource: construct.ResourceId{Name: "blah"}, Property: "test"},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Name: "blah"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"test": &StringProperty{PropertyDetails: knowledgebase.PropertyDetails{Path: "test", Name: "test"}},
+							},
+						}, nil,
+					},
+				},
+			},
+			expected: true,
 		},
 		{
 			name: "string not in allowed values",
@@ -440,7 +475,19 @@ func Test_StringValidate(t *testing.T) {
 				tt.property.SanitizeTmpl = tmpl
 			}
 			resource := &construct.Resource{}
-			actual := tt.property.Validate(resource, tt.value)
+			graph := construct.NewGraph()
+			for _, r := range tt.testResources {
+				graph.AddVertex(r)
+			}
+			mockKB := &enginetesting.MockKB{}
+			for _, call := range tt.mockKBCalls {
+				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			ctx := knowledgebase.DynamicValueContext{
+				Graph:         graph,
+				KnowledgeBase: mockKB,
+			}
+			actual := tt.property.Validate(resource, tt.value, ctx)
 			if tt.expected {
 				assert.NoError(actual)
 			} else {

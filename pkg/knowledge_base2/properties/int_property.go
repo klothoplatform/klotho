@@ -84,7 +84,13 @@ func (i *IntProperty) Type() string {
 	return "int"
 }
 
-func (i *IntProperty) Validate(resource *construct.Resource, value any) error {
+func (i *IntProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if value == nil {
+		if i.Required {
+			return fmt.Errorf(knowledgebase.ErrRequiredProperty, i.Path, resource.ID)
+		}
+		return nil
+	}
 	intVal, ok := value.(int)
 	if !ok {
 		return fmt.Errorf("invalid int value %v", value)

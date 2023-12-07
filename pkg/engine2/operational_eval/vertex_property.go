@@ -137,6 +137,18 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		return eval.AddResources(res)
 	}
 
+	// Now that the vertex is evaluated, we will check it for validity and record our decision
+	val, err := res.GetProperty(v.Ref.Property)
+	if err != nil {
+		return fmt.Errorf("error while validating resource property: could not get property %s on resource %s: %w", v.Ref.Property, v.Ref.Resource, err)
+	}
+	err = v.Template.Validate(res, val, solution_context.DynamicCtx(eval.Solution))
+	eval.Solution.RecordDecision(solution_context.PropertyValidationDecision{
+		Resource: v.Ref.Resource,
+		Property: v.Template,
+		Value:    val,
+		Error:    err,
+	})
 	return nil
 }
 

@@ -35,6 +35,14 @@ properties:
   DatabaseName:
     type: string
     default_value: main
+    sanitize: |
+      {{ . 
+        | replace `^[^[:alpha:]]+` "" 
+        | replace `--+` "-" 
+        | replace `-$` ""
+        | replace `[^[:alnum:]-]+` "-"
+        | length 1 63
+      }}  
   IamDatabaseAuthenticationEnabled:
     type: bool
     default_value: true

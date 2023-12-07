@@ -31,6 +31,11 @@ func (m *MockSolution) RecordDecision(d solution_context.SolveDecision) {
 	m.Called(d)
 }
 
+func (m *MockSolution) GetDecisions() solution_context.DecisionRecords {
+	args := m.Called()
+	return args.Get(0).(solution_context.DecisionRecords)
+}
+
 func (m *MockSolution) DataflowGraph() construct.Graph {
 	args := m.Called()
 	return args.Get(0).(construct.Graph)

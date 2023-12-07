@@ -111,26 +111,26 @@ resources:
         Resource: aws:api_resource:rest_api_4:api_resource-0
         RestApi: aws:rest_api:rest_api_4
         Route: /{proxy+}
-        Target: aws:load_balancer:rest-api-4-integbcc77100
+        Target: aws:load_balancer:rest-api-4-integ6897f0b9
         Type: HTTP_PROXY
         Uri: aws:api_integration:rest_api_4:rest_api_4_integration_0#LbUri
-        VpcLink: aws:vpc_link:rest_api_4_integration_0-pod2
-    aws:vpc_link:rest_api_4_integration_0-pod2:
-        Target: aws:load_balancer:rest-api-4-integbcc77100
-    aws:load_balancer:rest-api-4-integbcc77100:
+        VpcLink: aws:vpc_link:rest_api_4_integration_0-eks_cluster-0
+    aws:vpc_link:rest_api_4_integration_0-eks_cluster-0:
+        Target: aws:load_balancer:rest-api-4-integ6897f0b9
+    aws:load_balancer:rest-api-4-integ6897f0b9:
         Scheme: internal
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
         Type: network
-    aws:load_balancer_listener:rest_api_4_integration_0-pod2:
+    aws:load_balancer_listener:rest_api_4_integration_0-eks_cluster-0:
         DefaultActions:
-            - TargetGroup: aws:target_group:rest-api-4-integbcc77100
+            - TargetGroup: aws:target_group:rest-api-4-integ6897f0b9
               Type: forward
-        LoadBalancer: aws:load_balancer:rest-api-4-integbcc77100
+        LoadBalancer: aws:load_balancer:rest-api-4-integ6897f0b9
         Port: 80
         Protocol: TCP
-    aws:target_group:rest-api-4-integbcc77100:
+    aws:target_group:rest-api-4-integ6897f0b9:
         HealthCheck:
             Enabled: true
             HealthyThreshold: 5
@@ -143,19 +143,19 @@ resources:
         Protocol: TCP
         TargetType: ip
         Vpc: aws:vpc:vpc-0
-    kubernetes:target_group_binding:restapi4integration0-pod2:
+    kubernetes:target_group_binding:restapi4integration0-ekscluster-0:
         Object:
             apiVersion: elbv2.k8s.aws/v1beta1
             kind: TargetGroupBinding
             metadata:
                 labels:
-                    KLOTHO_ID_LABEL: restapi4integration0-pod2
-                name: restapi4integration0-pod2
+                    KLOTHO_ID_LABEL: restapi4integration0-ekscluster-0
+                name: restapi4integration0-ekscluster-0
             spec:
                 serviceRef:
                     name: restapi4integration0-pod2
                     port: 80
-                targetGroupARN: aws:target_group:rest-api-4-integbcc77100#Arn
+                targetGroupARN: aws:target_group:rest-api-4-integ6897f0b9#Arn
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller:
         Chart: aws-load-balancer-controller
         Cluster: aws:eks_cluster:eks_cluster-0
@@ -285,12 +285,12 @@ resources:
                         - ec2.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
+            - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+            - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
             - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
             - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
             - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-            - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
-            - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
@@ -503,6 +503,17 @@ resources:
               ToPort: 0
         IngressRules:
             - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows ingress traffic from the EKS control plane
+              FromPort: 9443
+              Protocol: TCP
+              ToPort: 9443
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+            - CidrBlocks:
                 - 10.0.128.0/18
               Description: Allow ingress traffic from ip addresses within the subnet subnet-0
               FromPort: 0
@@ -513,17 +524,6 @@ resources:
               Description: Allow ingress traffic from ip addresses within the subnet subnet-1
               FromPort: 0
               Protocol: "-1"
-              ToPort: 0
-            - CidrBlocks:
-                - 0.0.0.0/0
-              Description: Allows ingress traffic from the EKS control plane
-              FromPort: 9443
-              Protocol: TCP
-              ToPort: 9443
-            - Description: Allow ingress traffic from within the same security group
-              FromPort: 0
-              Protocol: "-1"
-              Self: true
               ToPort: 0
         Vpc: aws:vpc:vpc-0
     aws:route_table:subnet-0-route_table:
@@ -609,16 +609,17 @@ edges:
     aws:api_resource:rest_api_4:api_resource-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
     aws:api_resource:rest_api_4:api_resource-0 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
     aws:api_method:rest_api_4:rest_api_4_integration_0_method -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
-    aws:api_integration:rest_api_4:rest_api_4_integration_0 -> aws:vpc_link:rest_api_4_integration_0-pod2:
-    aws:vpc_link:rest_api_4_integration_0-pod2 -> aws:load_balancer:rest-api-4-integbcc77100:
-    aws:load_balancer:rest-api-4-integbcc77100 -> aws:load_balancer_listener:rest_api_4_integration_0-pod2:
-    aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-0:
-    aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-1:
-    aws:load_balancer_listener:rest_api_4_integration_0-pod2 -> aws:target_group:rest-api-4-integbcc77100:
-    aws:target_group:rest-api-4-integbcc77100 -> kubernetes:target_group_binding:restapi4integration0-pod2:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> kubernetes:service:restapi4integration0-pod2:
+    aws:api_integration:rest_api_4:rest_api_4_integration_0 -> aws:vpc_link:rest_api_4_integration_0-eks_cluster-0:
+    aws:vpc_link:rest_api_4_integration_0-eks_cluster-0 -> aws:load_balancer:rest-api-4-integ6897f0b9:
+    aws:load_balancer:rest-api-4-integ6897f0b9 -> aws:load_balancer_listener:rest_api_4_integration_0-eks_cluster-0:
+    aws:load_balancer:rest-api-4-integ6897f0b9 -> aws:subnet:vpc-0:subnet-0:
+    aws:load_balancer:rest-api-4-integ6897f0b9 -> aws:subnet:vpc-0:subnet-1:
+    aws:load_balancer_listener:rest_api_4_integration_0-eks_cluster-0 -> aws:target_group:rest-api-4-integ6897f0b9:
+    aws:target_group:rest-api-4-integ6897f0b9 -> kubernetes:target_group_binding:restapi4integration0-ekscluster-0:
+    kubernetes:target_group_binding:restapi4integration0-ekscluster-0 -> aws:eks_cluster:eks_cluster-0:
+    ? kubernetes:target_group_binding:restapi4integration0-ekscluster-0 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
+    :
+    kubernetes:target_group_binding:restapi4integration0-ekscluster-0 -> kubernetes:service:restapi4integration0-pod2:
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:region:region-0:
     ? kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
