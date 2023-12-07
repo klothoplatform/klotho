@@ -4,11 +4,11 @@ resources:
     parent: eks_cluster/eks_cluster-0
 
 
-  load_balancer/rest-api-4-integbcc77100:
+  load_balancer/rest-api-4-integ6897f0b9:
     parent: vpc/vpc-0
 
-  load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
-    path: aws:load_balancer_listener:rest_api_4_integration_0-pod2,aws:target_group:rest-api-4-integbcc77100,kubernetes:target_group_binding:restapi4integration0-pod2,kubernetes:service:restapi4integration0-pod2
+  load_balancer/rest-api-4-integ6897f0b9 -> kubernetes:pod:eks_cluster-0/pod2:
+    path: aws:load_balancer_listener:rest_api_4_integration_0-eks_cluster-0,aws:target_group:rest-api-4-integ6897f0b9,kubernetes:target_group_binding:restapi4integration0-ekscluster-0,kubernetes:service:restapi4integration0-pod2
 
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:
@@ -31,7 +31,7 @@ resources:
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
     parent: rest_api/rest_api_4
 
-  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integbcc77100:
-    path: aws:vpc_link:rest_api_4_integration_0-pod2
+  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integ6897f0b9:
+    path: aws:vpc_link:rest_api_4_integration_0-eks_cluster-0
 
 

@@ -1,7 +1,7 @@
 package solution_context
 
 import (
-	"fmt"
+	"encoding/json"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -70,18 +70,16 @@ func (d PropertyValidationDecision) internal() {}
 
 func (d PropertyValidationDecision) MarshalJSON() ([]byte, error) {
 	if d.Value != nil {
-		stringVal := `{
-			"resource": "%s",
-			"property": "%s",
-			"value": "%s",
-			"error": "%s"
-		}`
-		return []byte(fmt.Sprintf(stringVal, d.Resource, d.Property.Details().Path, d.Value, d.Error)), nil
+		return json.Marshal(map[string]any{
+			"resource": d.Resource,
+			"property": d.Property.Details().Path,
+			"value":    d.Value,
+			"error":    d.Error,
+		})
 	}
-	stringVal := `{
-		"resource": "%s",
-		"property": "%s",
-		"error": "%s"
-	}`
-	return []byte(fmt.Sprintf(stringVal, d.Resource, d.Property.Details().Path, d.Error)), nil
+	return json.Marshal(map[string]any{
+		"resource": d.Resource,
+		"property": d.Property.Details().Path,
+		"error":    d.Error,
+	})
 }
