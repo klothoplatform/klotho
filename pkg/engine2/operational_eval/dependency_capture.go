@@ -249,8 +249,6 @@ func (ctx *fauxConfigContext) FieldValue(field string, resource any) (any, error
 			// Cannot depend on properties within lists, stop at the list itself
 			ref.Property = field[:bracketIdx]
 		}
-		ctx.addRef(ref)
-		return nil, err
 	}
 	ctx.addRef(ref)
 	if value != nil {

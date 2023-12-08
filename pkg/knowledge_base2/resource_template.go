@@ -289,8 +289,8 @@ FIELDS:
 	for i, field := range fields {
 		currFieldName := strings.Split(field, "[")[0]
 		found := false
-		for _, property := range properties {
-			if property.Details().Name != currFieldName {
+		for name, property := range properties {
+			if name != currFieldName {
 				continue
 			}
 			found = true

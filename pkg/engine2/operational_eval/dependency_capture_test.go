@@ -1,18 +1,31 @@
 package operational_eval
 
 import (
+	"sort"
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type expectedChanges struct {
 	nodes []Key
 	edges map[Key]set.Set[Key]
+}
+
+func keysToStrings(ks []Key) []string {
+	ss := make([]string, 0, len(ks))
+	for _, k := range ks {
+		ss = append(ss, k.String())
+	}
+	sort.Strings(ss)
+	return ss
 }
 
 func (expected expectedChanges) assert(t *testing.T, actual graphChanges) {
@@ -22,14 +35,14 @@ func (expected expectedChanges) assert(t *testing.T, actual graphChanges) {
 	for node := range actual.nodes {
 		actualNodes = append(actualNodes, node)
 	}
-	assert.ElementsMatch(expected.nodes, actualNodes)
+	assert.Equal(keysToStrings(expected.nodes), keysToStrings(actualNodes), "nodes")
 
 	for from, tos := range expected.edges {
 		actualEs := actual.edges[from]
 		if !assert.NotNil(actualEs, "missing edges from %s", from) {
 			continue
 		}
-		assert.ElementsMatch(tos.ToSlice(), actualEs.ToSlice(), "edges from %s", from)
+		assert.Equal(keysToStrings(tos.ToSlice()), keysToStrings(actualEs.ToSlice()), "edges from %s", from)
 	}
 }
 
@@ -41,7 +54,18 @@ func Test_fauxConfigContext_ExecuteDecode(t *testing.T) {
 		"mock:resource1:A -> mock:resource1:B",
 		"mock:resource1:B -> mock:resource1:C",
 	)
-	cfgCtx := knowledgebase.DynamicValueContext{Graph: testGraph}
+	kb := &enginetesting.MockKB{}
+	kb.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{
+		Properties: knowledgebase.Properties{
+			"Res2s": &properties.StringProperty{},
+			"Res4":  &properties.StringProperty{},
+			"Name":  &properties.StringProperty{},
+		},
+	}, nil)
+	cfgCtx := knowledgebase.DynamicValueContext{
+		Graph:         testGraph,
+		KnowledgeBase: kb,
+	}
 	ref := construct.PropertyRef{
 		Resource: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "B"},
 		Property: "Res4",
@@ -75,8 +99,14 @@ func Test_fauxConfigContext_ExecuteDecode(t *testing.T) {
 			name: "dep from dynamic res",
 			tmpl: `{{ downstream "mock:resource1" .Self | fieldValue "Res4" }}`,
 			want: expectedChanges{
+				nodes: []Key{
+					{GraphState: "Downstream(mock:resource1, mock:resource1:B)"},
+				},
 				edges: map[Key]set.Set[Key]{
-					srcKey: set.SetOf(Key{Ref: graphtest.ParseRef(t, "mock:resource1:C#Res4")}),
+					srcKey: set.SetOf(
+						Key{Ref: graphtest.ParseRef(t, "mock:resource1:C#Res4")},
+						Key{GraphState: "Downstream(mock:resource1, mock:resource1:B)"},
+					),
 				},
 			},
 		},
@@ -86,10 +116,18 @@ func Test_fauxConfigContext_ExecuteDecode(t *testing.T) {
 			{{ $a := upstream "mock:" .Self }}
 			mock:{{ fieldValue "Res4" $c }}:{{ fieldValue "Res2s" $a }}:{{ fieldValue "Name" $a }}`,
 			want: expectedChanges{
+				nodes: []Key{
+					{GraphState: "Downstream(mock:, mock:resource1:B)"},
+					{GraphState: "Upstream(mock:, mock:resource1:B)"},
+				},
 				edges: map[Key]set.Set[Key]{
-					srcKey: set.SetOf(Key{Ref: graphtest.ParseRef(t, "mock:resource1:A#Res2s")}),
-					srcKey: set.SetOf(Key{Ref: graphtest.ParseRef(t, "mock:resource1:A#Name")}),
-					srcKey: set.SetOf(Key{Ref: graphtest.ParseRef(t, "mock:resource1:C#Res4")}),
+					srcKey: set.SetOf(
+						Key{Ref: graphtest.ParseRef(t, "mock:resource1:A#Res2s")},
+						Key{Ref: graphtest.ParseRef(t, "mock:resource1:A#Name")},
+						Key{Ref: graphtest.ParseRef(t, "mock:resource1:C#Res4")},
+						Key{GraphState: "Downstream(mock:, mock:resource1:B)"},
+						Key{GraphState: "Upstream(mock:, mock:resource1:B)"},
+					),
 				},
 			},
 		},
