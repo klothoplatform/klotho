@@ -11,4 +11,4 @@ targets:
   - aws:sqs_queue
   - aws:secret
 
-edge_weight_multiplier: 1.5
+edge_weight_multiplier: 1.08

@@ -74,12 +74,12 @@ func (d PropertyValidationDecision) MarshalJSON() ([]byte, error) {
 			"resource": d.Resource,
 			"property": d.Property.Details().Path,
 			"value":    d.Value,
-			"error":    d.Error,
+			"error":    d.Error.Error(),
 		})
 	}
 	return json.Marshal(map[string]any{
 		"resource": d.Resource,
 		"property": d.Property.Details().Path,
-		"error":    d.Error,
+		"error":    d.Error.Error(),
 	})
 }

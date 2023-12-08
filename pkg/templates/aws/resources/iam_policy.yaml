@@ -48,6 +48,7 @@ classification:
   is:
     - policy
     - security
+    - permissions
   gives:
     - permissions
 

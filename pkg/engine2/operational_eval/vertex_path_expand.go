@@ -158,12 +158,33 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 	if err := eval.AddResources(resources...); err != nil {
 		return err
 	}
-	if err := eval.AddEdges(result.Edges...); err != nil {
-		return err
-	}
 	if err := eval.AddEdges(edges...); err != nil {
 		return err
 	}
+
+	// add sub expansions returned from the result, only for the classification of this expansion
+	changes := newChanges()
+	for _, subExpand := range result.Edges {
+		pathSatisfications, err := eval.Solution.KnowledgeBase().GetPathSatisfactionsFromEdge(subExpand.Source, subExpand.Target)
+		if err != nil {
+			return fmt.Errorf("could not get path satisfications for sub expansion %s -> %s: %w",
+				subExpand.Source, subExpand.Target, err)
+		}
+
+		for _, satisfication := range pathSatisfications {
+			if satisfication.Classification == v.Satisfication.Classification {
+				changes.addNode(&pathExpandVertex{
+					Edge:          construct.SimpleEdge{Source: subExpand.Source, Target: subExpand.Target},
+					TempGraph:     expansion.TempGraph,
+					Satisfication: satisfication,
+				})
+			}
+		}
+	}
+	if err := eval.enqueue(changes); err != nil {
+		return err
+	}
+
 	delays, err := knowledgebase.ConsumeFromResource(expansion.Dep.Source, expansion.Dep.Target, solution_context.DynamicCtx(eval.Solution))
 	if err != nil {
 		return err
