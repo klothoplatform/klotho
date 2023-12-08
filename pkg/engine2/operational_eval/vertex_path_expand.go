@@ -50,7 +50,7 @@ func expansionResultString(result construct.Graph, dep construct.ResourceEdge) (
 	sb := new(strings.Builder)
 	handled := make(set.Set[construct.SimpleEdge])
 
-	path, err := graph.ShortestPath(result, dep.Source.ID, dep.Target.ID)
+	path, err := graph.ShortestPathStable(result, dep.Source.ID, dep.Target.ID, construct.ResourceIdLess)
 	if err != nil {
 		return "", fmt.Errorf("expansion result does not contain path from %s to %s: %w", dep.Source, dep.Target, err)
 	}

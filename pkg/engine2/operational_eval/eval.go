@@ -8,6 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
 func (eval *Evaluator) Evaluate() error {
@@ -51,12 +52,12 @@ func (eval *Evaluator) Evaluate() error {
 			log.Debugf("Evaluating %s", k)
 			evaluated.Add(k)
 			eval.currentKey = &k
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
 			err = v.Evaluate(eval)
 			if err != nil {
 				eval.errored.Add(k)
 				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", k, err))
 			}
-			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
 
 		}
 		if errs != nil {
@@ -69,12 +70,60 @@ func (eval *Evaluator) Evaluate() error {
 	}
 }
 
+func (eval *Evaluator) printUnevaluated() {
+	log := eval.Log().With("op", "poll-deps")
+	if !log.Desugar().Core().Enabled(zap.DebugLevel) {
+		return
+	}
+	adj, err := eval.unevaluated.AdjacencyMap()
+	if err != nil {
+		log.Errorf("Could not get adjacency map: %s", err)
+		return
+	}
+	keys := make([]Key, 0, len(adj))
+	for k := range adj {
+		keys = append(keys, k)
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		return keys[i].Less(keys[j])
+	})
+	log.Debugf("Unevaluated vertices: %d", len(keys))
+	for _, k := range keys {
+		srcStr := fmt.Sprintf("%s (%d)", k, len(adj[k]))
+		srcV, err := eval.unevaluated.Vertex(k)
+		if err != nil {
+			srcStr += fmt.Sprintf(" [error: %s]", err)
+		} else {
+			if cond, ok := srcV.(conditionalVertex); ok {
+				vReady, err := cond.Ready(eval)
+				if err != nil {
+					srcStr += fmt.Sprintf(" [error: %s]", err)
+				} else {
+					srcStr += fmt.Sprintf(" [%s]", vReady)
+				}
+			}
+		}
+		log.Debug(srcStr)
+		ts := make([]Key, 0, len(adj[k]))
+		for t := range adj[k] {
+			ts = append(ts, t)
+		}
+		sort.SliceStable(ts, func(i, j int) bool {
+			return ts[i].Less(ts[j])
+		})
+		for _, t := range ts {
+			log.Debugf(" - %s", t)
+		}
+	}
+}
+
 func (eval *Evaluator) pollReady() ([]Vertex, error) {
 	log := eval.Log().With("op", "dequeue")
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
 		return nil, err
 	}
+	eval.printUnevaluated()
 
 	var readyKeys []Key
 
@@ -115,6 +164,10 @@ func (eval *Evaluator) pollReady() ([]Vertex, error) {
 	for i, prio := range readyPriorities {
 		if len(prio) > 0 && ready == nil {
 			ready = prio
+			sort.SliceStable(ready, func(i, j int) bool {
+				a, b := ready[i].Key(), ready[j].Key()
+				return a.Less(b)
+			})
 			log.Debugf("Dequeued [%s]: %d", ReadyPriority(i), len(ready))
 			for _, v := range ready {
 				log.Debugf(" - %s", v.Key())
@@ -123,11 +176,6 @@ func (eval *Evaluator) pollReady() ([]Vertex, error) {
 			log.Debugf("Remaining unready [%s]: %d", ReadyPriority(i), len(prio))
 		}
 	}
-
-	sort.SliceStable(ready, func(i, j int) bool {
-		a, b := ready[i].Key(), ready[j].Key()
-		return a.Less(b)
-	})
 
 	return ready, errs
 }

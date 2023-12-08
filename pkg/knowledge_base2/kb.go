@@ -176,12 +176,20 @@ func (kb *KnowledgeBase) HasFunctionalPath(from, to construct.ResourceId) bool {
 		// For resources that can reference themselves, such as aws:api_resource
 		return true
 	}
-	path, err := graph.ShortestPath(kb.underlying, from.QualifiedTypeName(), to.QualifiedTypeName())
+	path, err := graph.ShortestPathStable(
+		kb.underlying,
+		from.QualifiedTypeName(),
+		to.QualifiedTypeName(),
+		func(a, b string) bool { return a < b },
+	)
 	if errors.Is(err, graph.ErrTargetNotReachable) {
 		return false
 	}
 	if err != nil {
-		zap.S().Errorf("error in finding shortes path from %s to %s: %v", from.QualifiedTypeName(), to.QualifiedTypeName(), err)
+		zap.S().Errorf(
+			"error in finding shortes path from %s to %s: %v",
+			from.QualifiedTypeName(), to.QualifiedTypeName(), err,
+		)
 		return false
 	}
 	for _, id := range path[1 : len(path)-1] {

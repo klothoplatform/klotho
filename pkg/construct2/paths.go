@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -120,37 +119,38 @@ func bellmanFord(g Graph, source ResourceId, skipEdge func(Edge) bool) (*bellman
 	}
 	dist[source] = 0
 
-	// Sort the keys to ensure deterministic results. It adds +O(N) to the runtime, but
-	// when it's already O(N * E), it doesn't matter.
-	sortedKeys := make([]ResourceId, 0, len(adjacencyMap))
-	for key := range adjacencyMap {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Sort(SortedIds(sortedKeys))
-
 	for i := 0; i < len(adjacencyMap)-1; i++ {
-		for _, key := range sortedKeys {
-			edges := adjacencyMap[key]
+		for key, edges := range adjacencyMap {
 			for _, edge := range edges {
 				if skipEdge(edge) {
 					continue
 				}
-				newDist := dist[key] + edge.Properties.Weight
+				edgeWeight := edge.Properties.Weight
+				if !g.Traits().IsWeighted {
+					edgeWeight = 1
+				}
+
+				newDist := dist[key] + edgeWeight
 				if newDist < dist[edge.Target] {
 					dist[edge.Target] = newDist
+					prev[edge.Target] = key
+				} else if newDist == dist[edge.Target] && ResourceIdLess(key, prev[edge.Target]) {
 					prev[edge.Target] = key
 				}
 			}
 		}
 	}
 
-	for _, key := range sortedKeys {
-		edges := adjacencyMap[key]
+	for _, edges := range adjacencyMap {
 		for _, edge := range edges {
 			if skipEdge(edge) {
 				continue
 			}
-			if newDist := dist[edge.Source] + edge.Properties.Weight; newDist < dist[edge.Target] {
+			edgeWeight := edge.Properties.Weight
+			if !g.Traits().IsWeighted {
+				edgeWeight = 1
+			}
+			if newDist := dist[edge.Source] + edgeWeight; newDist < dist[edge.Target] {
 				return nil, errors.New("graph contains a negative-weight cycle")
 			}
 		}

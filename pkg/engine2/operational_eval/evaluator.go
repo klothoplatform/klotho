@@ -201,8 +201,10 @@ func (eval *Evaluator) isEvaluated(k Key) (bool, error) {
 }
 
 func (eval *Evaluator) addEdge(source, target Key) error {
+	log := eval.Log().With("op", "deps")
 	_, err := eval.graph.Edge(source, target)
 	if err == nil {
+		log.Debugf("  -> %s ✓", target)
 		return nil
 	}
 
@@ -234,8 +236,6 @@ func (eval *Evaluator) addEdge(source, target Key) error {
 			ep.Attributes[attribError] = "true"
 		})
 	}
-
-	log := eval.Log().With("op", "deps")
 
 	_, err = eval.unevaluated.Vertex(target)
 	switch {
@@ -270,6 +270,10 @@ func (eval *Evaluator) addEdge(source, target Key) error {
 }
 
 func (eval *Evaluator) enqueue(changes graphChanges) error {
+	if len(changes.nodes) == 0 && len(changes.edges) == 0 {
+		// short circuit when there's nothing to change
+		return nil
+	}
 	log := eval.Log().With("op", "enqueue")
 
 	var errs error

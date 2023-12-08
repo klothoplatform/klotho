@@ -9,7 +9,6 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"go.uber.org/zap"
 )
 
 // fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
@@ -52,18 +51,12 @@ func (ctx *fauxConfigContext) ExecuteDecode(tmpl string, data knowledgebase.Dyna
 	if err != nil {
 		return fmt.Errorf("could not parse template: %w", err)
 	}
-	err = ctx.inner.ExecuteTemplateDecode(t, data, value)
-	if err != nil {
-		zap.S().Debugf("ignoring error from ExecuteTemplateDecode during deps calculation on %s: %s", ctx.propRef, err)
-	}
+	_ = ctx.inner.ExecuteTemplateDecode(t, data, value)
 	return nil
 }
 
 func (ctx *fauxConfigContext) ExecuteValue(v any, data knowledgebase.DynamicValueData) {
-	_, err := knowledgebase.TransformToPropertyValue(ctx.propRef.Resource, ctx.propRef.Property, v, ctx, data)
-	if err != nil {
-		zap.S().Debugf("ignoring error from TransformToPropertyValue during deps calculation on %s: %s", ctx.propRef, err)
-	}
+	_, _ = knowledgebase.TransformToPropertyValue(ctx.propRef.Resource, ctx.propRef.Property, v, ctx, data)
 }
 
 func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData) error {
@@ -78,13 +71,10 @@ func (ctx *fauxConfigContext) Execute(v any, data knowledgebase.DynamicValueData
 
 	// Ignore execution errors for when the zero value is invalid due to other assumptions
 	// if there is an error with the template, this will be caught later when actually processing it.
-	err = tmpl.Execute(
+	_ = tmpl.Execute(
 		io.Discard, // we don't care about the results, just the side effect of appending to propCtx.refs
 		data,
 	)
-	if err != nil {
-		zap.S().Debugf("ignoring error from template execution during deps calculation: %s", err)
-	}
 	return nil
 }
 
@@ -284,14 +274,18 @@ func emptyValue(tmpl *knowledgebase.ResourceTemplate, property string) (any, err
 }
 
 func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.ResourceId) (bool, error) {
-	has, innerErr := ctx.inner.HasUpstream(selector, resource)
-	if innerErr == nil && has {
-		return true, nil
-	}
-
 	selId, err := knowledgebase.TemplateArgToRID(selector)
 	if err != nil {
 		return false, err
+	}
+
+	has, innerErr := ctx.inner.HasUpstream(selector, resource)
+	if innerErr == nil && has {
+		ctx.addGraphState(&graphStateVertex{
+			repr: graphStateRepr(fmt.Sprintf("hasUpstream(%s, %s)", selId, resource)),
+			Test: func(g construct.Graph) (ReadyPriority, error) { return ReadyNow, nil },
+		})
+		return true, nil
 	}
 
 	ctx.addGraphState(&graphStateVertex{
@@ -314,14 +308,18 @@ func (ctx *fauxConfigContext) HasUpstream(selector any, resource construct.Resou
 }
 
 func (ctx *fauxConfigContext) Upstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	up, innerErr := ctx.inner.Upstream(selector, resource)
-	if innerErr == nil && !up.IsZero() {
-		return up, nil
-	}
-
 	selId, err := knowledgebase.TemplateArgToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
+	}
+
+	up, innerErr := ctx.inner.Upstream(selector, resource)
+	if innerErr == nil && !up.IsZero() {
+		ctx.addGraphState(&graphStateVertex{
+			repr: graphStateRepr(fmt.Sprintf("Upstream(%s, %s)", selId, resource)),
+			Test: func(g construct.Graph) (ReadyPriority, error) { return ReadyNow, nil },
+		})
+		return up, nil
 	}
 
 	ctx.addGraphState(&graphStateVertex{
@@ -356,14 +354,18 @@ func (ctx *fauxConfigContext) AllUpstream(selector any, resource construct.Resou
 }
 
 func (ctx *fauxConfigContext) HasDownstream(selector any, resource construct.ResourceId) (bool, error) {
-	has, innerErr := ctx.inner.HasDownstream(selector, resource)
-	if innerErr == nil && has {
-		return true, nil
-	}
-
 	selId, err := knowledgebase.TemplateArgToRID(selector)
 	if err != nil {
 		return false, err
+	}
+
+	has, innerErr := ctx.inner.HasDownstream(selector, resource)
+	if innerErr == nil && has {
+		ctx.addGraphState(&graphStateVertex{
+			repr: graphStateRepr(fmt.Sprintf("hasDownstream(%s, %s)", selId, resource)),
+			Test: func(g construct.Graph) (ReadyPriority, error) { return ReadyNow, nil },
+		})
+		return true, nil
 	}
 
 	ctx.addGraphState(&graphStateVertex{
@@ -386,18 +388,22 @@ func (ctx *fauxConfigContext) HasDownstream(selector any, resource construct.Res
 }
 
 func (ctx *fauxConfigContext) Downstream(selector any, resource construct.ResourceId) (construct.ResourceId, error) {
-	down, innerErr := ctx.inner.Downstream(selector, resource)
-	if innerErr == nil && !down.IsZero() {
-		return down, nil
-	}
-
 	selId, err := knowledgebase.TemplateArgToRID(selector)
 	if err != nil {
 		return construct.ResourceId{}, err
 	}
 
+	down, innerErr := ctx.inner.Downstream(selector, resource)
+	if innerErr == nil && !down.IsZero() {
+		ctx.addGraphState(&graphStateVertex{
+			repr: graphStateRepr(fmt.Sprintf("Downstream(%s, %s)", selId, resource)),
+			Test: func(g construct.Graph) (ReadyPriority, error) { return ReadyNow, nil },
+		})
+		return down, nil
+	}
+
 	ctx.addGraphState(&graphStateVertex{
-		repr: graphStateRepr(fmt.Sprintf("downstream(%s, %s)", selId, resource)),
+		repr: graphStateRepr(fmt.Sprintf("Downstream(%s, %s)", selId, resource)),
 		Test: func(g construct.Graph) (ReadyPriority, error) {
 			downstream, err := knowledgebase.Downstream(g, ctx.KB(), resource, knowledgebase.FirstFunctionalLayer)
 			if err != nil {

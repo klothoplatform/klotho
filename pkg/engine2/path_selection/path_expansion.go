@@ -3,6 +3,7 @@ package path_selection
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/dominikbraun/graph"
@@ -62,18 +63,38 @@ func expandEdge(
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(paths, func(i, j int) bool {
+		il, jl := len(paths[i]), len(paths[j])
+		if il != jl {
+			return il < jl
+		}
+		pi, pj := paths[i], paths[j]
+		for k := 0; k < il; k++ {
+			if pi[k] != pj[k] {
+				return construct.ResourceIdLess(pi[k], pj[k])
+			}
+		}
+		return false
+	})
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
 	for _, path := range paths {
-		errs = errors.Join(errs, ExpandPath(ctx, input, path, g))
+		errs = errors.Join(errs, expandPath(ctx, input, path, g))
 	}
 	if errs != nil {
 		return nil, errs
 	}
 
-	path, err := graph.ShortestPath(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
+	path, err := graph.ShortestPathStable(
+		input.TempGraph,
+		input.Dep.Source.ID,
+		input.Dep.Target.ID,
+		construct.ResourceIdLess,
+	)
 	if err != nil {
-		return nil, errors.Join(errs, fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err))
+		return nil, errors.Join(errs,
+			fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err),
+		)
 	}
 
 	resultResources, err := renameAndReplaceInTempGraph(ctx, input, g, path)
@@ -264,7 +285,7 @@ func handleProperties(
 
 // ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
 // for creating resources, or existing resources.
-func ExpandPath(
+func expandPath(
 	ctx solution_context.SolutionContext,
 	input ExpansionInput,
 	path construct.Path,
@@ -273,7 +294,7 @@ func ExpandPath(
 	if len(path) == 2 {
 		return nil
 	}
-	zap.S().Debugf("Expanding path %s", path)
+	zap.S().Debugf("Resolving path %s", path)
 
 	type candidate struct {
 		id             construct.ResourceId
