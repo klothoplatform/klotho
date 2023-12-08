@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/dot"
@@ -19,6 +20,7 @@ import (
 // so that it can tell when to append (when already seen by this execution) or truncate
 // (to reset between executions)
 var seenFiles = make(set.Set[string])
+var seenFilesLock = new(sync.Mutex)
 
 func writeGraph(input ExpansionInput, working, result construct.Graph) {
 	dir := "selection"
@@ -42,14 +44,17 @@ func writeGraph(input ExpansionInput, working, result construct.Graph) {
 	}
 	defer f.Close()
 
+	seenFilesLock.Lock()
 	if !seenFiles.Contains(f.Name()) {
 		seenFiles.Add(f.Name())
 		err := f.Truncate(0)
 		if err != nil {
 			zap.S().Errorf("could not truncate file %s: %v", f.Name(), err)
+			seenFilesLock.Unlock()
 			return
 		}
 	}
+	seenFilesLock.Unlock()
 
 	dotContent := new(bytes.Buffer)
 	_, err = io.Copy(dotContent, f)
