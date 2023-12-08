@@ -25,7 +25,7 @@ clean_debug:
 
 .PHONY: engine_test
 engine_test:
-	go test -v -timeout 1m -run '^TestEngine$$' ./pkg/engine2
+	go test -race -timeout 5m -test.count 4 -run '^TestEngine$$' ./pkg/engine2
 
 .PHONY: regen_tests
 regen_tests:
