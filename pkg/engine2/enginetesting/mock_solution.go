@@ -18,8 +18,7 @@ func (m *MockSolution) With(key string, value interface{}) solution_context.Solu
 }
 
 func (m *MockSolution) KnowledgeBase() knowledgebase.TemplateKB {
-	args := m.Called()
-	return args.Get(0).(knowledgebase.TemplateKB)
+	return &m.KB
 }
 
 func (m *MockSolution) Constraints() *constraints.Constraints {
