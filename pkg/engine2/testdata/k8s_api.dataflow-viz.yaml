@@ -5,7 +5,7 @@ resources:
 
 
   load_balancer/rest-api-4-integ6897f0b9:
-    parent: vpc/vpc-0
+    parent: eks_cluster/eks_cluster-0
 
   load_balancer/rest-api-4-integ6897f0b9 -> kubernetes:pod:eks_cluster-0/pod2:
     path: aws:load_balancer_listener:rest_api_4_integration_0-eks_cluster-0,aws:target_group:rest-api-4-integ6897f0b9,kubernetes:target_group_binding:restapi4integration0-ekscluster-0,kubernetes:service:restapi4integration0-pod2

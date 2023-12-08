@@ -8,12 +8,14 @@ import (
 	"reflect"
 	"runtime/pprof"
 	"strings"
+	"sync"
 
 	"github.com/iancoleman/strcase"
 	"github.com/klothoplatform/klotho/pkg/analytics"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
@@ -264,8 +266,11 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	var input construct.YamlGraph
+
+	context := &EngineContext{}
+
 	if architectureEngineCfg.inputGraph != "" {
+		var input FileFormat
 		zap.S().Info("Loading input graph")
 		inputF, err := os.Open(architectureEngineCfg.inputGraph)
 		if err != nil {
@@ -276,18 +281,21 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		context.InitialState = input.Graph
+		if architectureEngineCfg.constraints == "" {
+			context.Constraints = input.Constraints
+		}
 	} else {
-		input.Graph = construct.NewGraph()
+		context.InitialState = construct.NewGraph()
 	}
 	zap.S().Info("Loading constraints")
 
-	runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
-	if err != nil {
-		return errors.Errorf("failed to load constraints: %s", err.Error())
-	}
-	context := &EngineContext{
-		InitialState: input.Graph,
-		Constraints:  runConstraints,
+	if architectureEngineCfg.constraints != "" {
+		runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
+		if err != nil {
+			return errors.Errorf("failed to load constraints: %s", err.Error())
+		}
+		context.Constraints = runConstraints
 	}
 
 	zap.S().Info("Running engine")
@@ -295,6 +303,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Errorf("failed to run engine: %s", err.Error())
 	}
+	writeDebugGraphs(context.Solutions[0])
 	zap.S().Info("Engine finished running... Generating views")
 	var files []io.File
 	files, err = em.Engine.VisualizeViews(context.Solutions[0])
@@ -406,4 +415,24 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 		return errors.Errorf("failed to write output files: %s", err.Error())
 	}
 	return nil
+}
+
+func writeDebugGraphs(sol solution_context.SolutionContext) {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		err := construct.GraphToSVG(sol.DataflowGraph(), "dataflow")
+		if err != nil {
+			zap.S().Errorf("failed to write dataflow graph: %s", err.Error())
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		err := construct.GraphToSVG(sol.DeploymentGraph(), "iac")
+		if err != nil {
+			zap.S().Errorf("failed to write iac graph: %s", err.Error())
+		}
+	}()
+	wg.Wait()
 }

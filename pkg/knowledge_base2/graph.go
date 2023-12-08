@@ -282,12 +282,12 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 		// 2. Is the property set with the resource that we are checking for
 		if ruleSatisfied {
 			if step.Direction == DirectionUpstream {
-				resources, err := graph.ShortestPath(dag, sideEffect, rid)
+				resources, err := graph.ShortestPathStable(dag, sideEffect, rid, construct.ResourceIdLess)
 				if len(resources) == 0 || err != nil {
 					continue
 				}
 			} else {
-				resources, err := graph.ShortestPath(dag, rid, sideEffect)
+				resources, err := graph.ShortestPathStable(dag, rid, sideEffect, construct.ResourceIdLess)
 				if len(resources) == 0 || err != nil {
 					continue
 				}

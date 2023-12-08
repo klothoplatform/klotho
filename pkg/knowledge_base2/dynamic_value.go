@@ -496,7 +496,7 @@ func (ctx DynamicValueContext) ShortestPath(source, destination any) (construct.
 	if err != nil {
 		return nil, err
 	}
-	return graph.ShortestPath(ctx.Graph, srcId, dstId)
+	return graph.ShortestPathStable(ctx.Graph, srcId, dstId, construct.ResourceIdLess)
 }
 
 // FieldValue returns the value of `field` on `resource` in json

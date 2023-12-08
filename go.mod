@@ -23,6 +23,7 @@ require (
 	github.com/pborman/ansi v1.0.0
 	github.com/pelletier/go-toml/v2 v2.0.8-0.20230509155657-d34104d49374
 	github.com/pkg/errors v0.9.1
+	github.com/r3labs/diff v1.1.0
 	github.com/schollz/progressbar/v3 v3.13.0
 	github.com/smacker/go-tree-sitter v0.0.0-20220209044044-0d3022e933c3
 	github.com/spf13/cobra v1.6.1
@@ -47,7 +48,6 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
-	github.com/r3labs/diff v1.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
@@ -55,7 +55,7 @@ require (
 )
 
 replace (
-	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.6
+	github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.7
 
 	// github.com/dominikbraun/graph => github.com/klothoplatform/graph v0.24.3
 	github.com/smacker/go-tree-sitter => github.com/klothoplatform/go-tree-sitter v0.1.1

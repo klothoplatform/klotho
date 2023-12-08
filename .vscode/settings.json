@@ -17,5 +17,6 @@
     "pkg/engine": true,
     "pkg/knowledge_base": true,
     "**/node_modules": true
-  }
+  },
+  "go.testTimeout": "5m"
 }

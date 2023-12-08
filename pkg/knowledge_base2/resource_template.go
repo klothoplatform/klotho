@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -342,7 +343,15 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 	var errs error
 	for len(queue) > 0 {
 		props, queue = queue[0], queue[1:]
-		for _, prop := range props {
+
+		propKeys := make([]string, 0, len(props))
+		for k := range props {
+			propKeys = append(propKeys, k)
+		}
+		sort.Strings(propKeys)
+
+		for _, key := range propKeys {
+			prop := props[key]
 			err := addProp(prop)
 			if err != nil {
 				if errors.Is(err, ErrStopWalk) {
