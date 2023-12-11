@@ -15,12 +15,17 @@ properties:
   RdsInstance:
     type: resource(aws:rds_instance)
     default_value: '{{ downstream "aws:rds_instance" .Self }}'
+    description: An identifier for the RDS instance associated with the proxy target
+      group
   RdsProxy:
     type: resource(aws:rds_proxy)
     default_value: '{{ upstream "aws:rds_proxy" .Self }}'
+    description: An identifier for the RDS proxy that the target group is associated
+      with
   TargetGroupName:
     type: string
     default_value: default
+    description: The name of the target group
   ConnectionPoolConfigurationInfo:
     type: map
     properties:
@@ -29,6 +34,8 @@ properties:
         default_value: 120
       InitQuery:
         type: string
+        description: One or more SQL statements which the proxy runs when opening
+          each new database connection
       MaxConnectionsPercent:
         type: int
         default_value: 100
@@ -38,6 +45,8 @@ properties:
       SessionPinningFilters:
         type: list(string)
 
+        description: One or more filters that specify when the database connection
+          can be reused for the proxy
 classification:
   is:
     - rds_proxy_target_group

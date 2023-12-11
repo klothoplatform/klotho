@@ -4,13 +4,17 @@ display_name: EKS AddOn
 properties:
   AddOnName:
     type: string
+    description: The name of the EKS AddOn to associate with the EKS cluster
   Cluster:
     type: resource(aws:eks_cluster)
     default_value: '{{ downstream "aws:eks_cluster" .Self }}'
+    description: An EKS Cluster resource to which the AddOn will be attached
   Role:
     type: resource(aws:iam_role)
 
 
+    description: An IAM role that provides permissions to the EKS AddOn for making
+      AWS API calls
 delete_context:
   requires_no_upstream: true
 views:

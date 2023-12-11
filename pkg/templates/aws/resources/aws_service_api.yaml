@@ -1,6 +1,6 @@
 qualified_type_name: aws:SERVICE_API
 display_name: Service Api
-            
+
 classification:
   is:
     - network

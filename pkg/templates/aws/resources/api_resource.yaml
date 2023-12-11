@@ -9,7 +9,9 @@ properties:
       step:
         direction: upstream
         resources:
-          - aws:rest_api          
+          - aws:rest_api
+    description: A reference to the specific AWS REST API object that this API resource
+      is associated with
   ParentResource:
     type: resource(aws:api_resource)
     configuration_disabled: true
@@ -30,9 +32,13 @@ properties:
                 {{ $parts := slice $parts 0 (sub (len $parts) 1) -}}
                 {{ join $parts "/" }}
               RestApi: '{{ fieldValue "RestApi" .Self }}'
+    description: The identifier of the parent API resource if this resource is not
+      at the root
   FullPath:
     type: string
     configuration_disabled: true
+    description: The complete path for the API resource, used to define the resource
+      in AWS API Gateway
   PathPart:
     type: string
     configuration_disabled: true
@@ -40,6 +46,8 @@ properties:
       {{ $parts := split (fieldValue "FullPath" .Self) "/" -}}
       {{ last $parts }}
 
+    description: A segment of the FullPath representing this resource's position in
+      the hierarchy
 classification:
 
 delete_context:

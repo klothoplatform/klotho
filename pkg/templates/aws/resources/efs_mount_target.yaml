@@ -10,6 +10,7 @@ properties:
         direction: downstream
         resources:
           - aws:efs_file_system
+    description: The file system to which the mount target is attached
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
@@ -20,6 +21,7 @@ properties:
             properties:
               Type: private
           - aws:subnet
+    description: The subnet in which to create the mount target
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -28,9 +30,12 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: One or more security groups that are associated with the mount target
   IpAddress:
     type: string
 
+    description: The IP address at which the file system may be mounted via the mount
+      target
 path_satisfaction:
   as_target:
     - classification: network

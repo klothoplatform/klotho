@@ -5,6 +5,8 @@ properties:
   Engine:
     type: string
     default_value: redis
+    description: Specifies the in-memory data store or cache engine to be used by
+      the cluster.
   CloudwatchGroup:
     type: resource(aws:log_group)
     operational_rule:
@@ -13,6 +15,7 @@ properties:
         resources:
           - aws:log_group
         unique: true
+    description: A reference to an AWS CloudWatch Log Group for logging purposes.
   SubnetGroup:
     type: resource(aws:elasticache_subnet_group)
     operational_rule:
@@ -20,6 +23,7 @@ properties:
         direction: downstream
         resources:
           - aws:elasticache_subnet_group
+    description: A subnet group to associate with the ElastiCache cluster for networking.
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -28,20 +32,26 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: A list of security group identifiers to control access to the ElastiCache
+      cluster.
   NodeType:
     type: string
     default_value: cache.t2.micro
+    description: The compute and memory capacity of the nodes in the node group (shard).
   NumCacheNodes:
     type: int
     default_value: 1
+    description: The number of cache nodes that the cache cluster should have.
   Port:
     type: int
     configuration_disabled: true
     deploy_time: true
+    description: The port number on which each of the cache nodes accepts connections.
   ClusterAddress:
     type: string
     configuration_disabled: true
     deploy_time: true
+    description: The endpoint address of the ElastiCache cluster.
 path_satisfaction:
   as_target:
     - network

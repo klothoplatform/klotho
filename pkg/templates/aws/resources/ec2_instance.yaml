@@ -9,6 +9,8 @@ properties:
         direction: downstream
         resources:
           - aws:iam_instance_profile:{{ .Self.Name }}
+    description: The IAM instance profile to associate with the EC2 instance for role-based
+      access to AWS resources
   SecurityGroup:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -17,6 +19,8 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: A list of security group resources to be associated with the EC2
+      instance for defining network access control
   Subnet:
     type: resource(aws:subnet)
     operational_rule:
@@ -27,6 +31,8 @@ properties:
             properties:
               Type: private
           - aws:subnet
+    description: The subnet in which to launch the EC2 instance, allowing for specification
+      of a private or default subnet type
   AMI:
     type: resource(aws:ami)
     operational_rule:
@@ -34,9 +40,13 @@ properties:
         direction: downstream
         resources:
           - aws:ami
+    description: The Amazon Machine Image resource to use for the EC2 instance, determining
+      the OS and initial state
   InstanceType:
     type: string
     default: t3.medium
+    description: The type of the EC2 instance, determining the CPU, memory, and other
+      resources
   Id:
     type: string
     configuration_disabled: true

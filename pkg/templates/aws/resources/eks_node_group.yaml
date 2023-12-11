@@ -9,6 +9,7 @@ properties:
         direction: downstream
         resources:
           - aws:eks_cluster
+    description: The Amazon EKS cluster associated with the node group
   NodeRole:
     type: resource(aws:iam_role)
     operational_rule:
@@ -17,6 +18,8 @@ properties:
         resources:
           - aws:iam_role
         unique: true
+    description: The IAM role associated with the EKS node group that provides AWS
+      service permissions to the nodes
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -28,31 +31,46 @@ properties:
               Type: private
           - aws:subnet
         num_needed: 2
+    description: A list of subnets where the EKS node group instances will be launched
   AmiType:
     type: string
     default_value: AL2_x86_64
+    description: The AMI type for your node group. These are either Amazon EKS-optimized
+      Amazon Linux 2 AMIs or Amazon EKS-optimized Bottlerocket AMIs
   DesiredSize:
     type: int
     default_value: 2
+    description: The desired number of worker nodes that should be running in the
+      group
   MinSize:
     type: int
     default_value: 1
+    description: The minimum number of worker nodes that the managed node group can
+      scale in to
   MaxSize:
     type: int
     default_value: 3
+    description: The maximum number of worker nodes that the managed node group can
+      scale out to
   MaxUnavailable:
     type: int
     default_value: 1
+    description: The maximum number of nodes that can be unavailable at once during
+      a version upgrade
   DiskSize:
     type: int
     default_value: 20
+    description: The size in GiB of the EBS volumes attached to the nodes
   InstanceTypes:
     type: list(string)
     default_value:
       - t3.medium
+    description: The instance types that can be used for your worker nodes
   Labels:
     type: map(string,string)
 
+    description: Key-value mapping of Kubernetes labels to be applied to the nodes
+      in the node group
 classifications:
   is:
     - kubernetes

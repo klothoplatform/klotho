@@ -5,6 +5,8 @@ properties:
   Index:
     type: int
     default_value: '{{ replace `.*(\d)$` `$1` .Self.Name }}' # This relies on how we name resources due to operational rules to be correct
+    description: Specifies the numerical index for an Availability Zone within its
+      region
   Region:
     type: resource(aws:region)
     namespace: true
@@ -14,5 +16,6 @@ properties:
         resources:
           - aws:region
 
+    description: References the AWS Region associated with the Availability Zone
 delete_context:
   requires_no_upstream: true

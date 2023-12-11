@@ -10,6 +10,8 @@ properties:
         resources:
           - aws:iam_role:ClusterRole-{{ .Self.Name }}
         unique: true
+    description: Defines an AWS IAM Role used by the EKS cluster to create AWS resources
+      like EC2 instances for worker nodes
   Vpc:
     type: resource(aws:vpc)
     operational_rule:
@@ -17,6 +19,7 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+    description: Specifies the VPC the EKS cluster is deployed to
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -25,6 +28,8 @@ properties:
         num_needed: 2
         resources:
           - selector: aws:subnet
+    description: Defines a list of subnets within the VPC where the EKS cluster should
+      be deployed
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -33,6 +38,7 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: Lists the security groups associated with the EKS cluster nodes
   KubeConfig:
     type: resource(kubernetes:kube_config)
     operational_rule:
@@ -41,6 +47,8 @@ properties:
         resources:
           - kubernetes:kube_config
         unique: true
+    description: Points to a Kubernetes kubeconfig file containing cluster access
+      information
   Name:
     type: string
     configuration_disabled: true

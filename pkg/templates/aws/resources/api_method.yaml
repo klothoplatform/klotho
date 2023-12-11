@@ -12,6 +12,8 @@ properties:
         direction: upstream
         resources:
           - aws:rest_api
+    description: The identifier of the AWS REST API resource to which this method
+      belongs
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
@@ -26,12 +28,18 @@ properties:
   HttpMethod:
     type: string
     default_value: ANY
+    description: The HTTP method type (e.g., GET, POST, PUT) for the API resource's
+      method request
   RequestParameters:
     type: map(string,bool)
+    description: A map of request parameter names to specifications on whether they
+      are required for the method
   Authorization:
     type: string
     default_value: NONE
 
+    description: The type of authorization used for the API method, such as NONE,
+      AWS_IAM, or CUSTOM
 classification:
   is:
     - api_route

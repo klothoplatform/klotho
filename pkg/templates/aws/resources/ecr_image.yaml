@@ -5,8 +5,10 @@ properties:
   BaseImage:
     type: string
     required: true
+    description: The base image to use for the Docker image
   Tag:
     type: string
+    description: The tag assigned to the Docker image in the repository
   Repo:
     type: resource(aws:ecr_repo)
     operational_rule:
@@ -14,17 +16,22 @@ properties:
         direction: downstream
         resources:
           - aws:ecr_repo
+    description: A reference to the AWS ECR repository resource where the image will
+      be stored
   Context:
     type: string
     default_value: '.'
+    description: The build context path for the Docker build, specifying where to
+      find the Dockerfile and other supporting files
   Dockerfile:
     type: string
     default_value: '{{ .Self.Name }}.Dockerfile'
+    description: The relative path to the Dockerfile within the build context
   ImageName:
     type: string
     configuration_disabled: true
     deploy_time: true
-  
+
 classification:
   is:
     - image

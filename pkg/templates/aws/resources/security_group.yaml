@@ -9,6 +9,11 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+        description: Specifies the step within the operational rule for deployment
+          or management
+      description: Defines the operational rule for the VPC associated with the security
+        group
+    description: The ID of the VPC where the security group is to be created
   IngressRules:
     type: set
     properties:
@@ -16,14 +21,22 @@ properties:
         type: string
       CidrBlocks:
         type: list(string)
+        description: Lists the IPv4 ranges in CIDR notation to which the ingress rules
+          apply
       FromPort:
         type: int
+        description: Specifies the starting port for the range of allowed inbound
+          traffic
       ToPort:
         type: int
+        description: Specifies the ending port for the range of allowed inbound traffic
       Protocol:
         type: string
+        description: Indicates the network protocol used for the ingress rule
       Self:
         type: bool
+        description: A boolean indicating whether the security group can send traffic
+          to itself
   EgressRules:
     type: set
     properties:
@@ -31,15 +44,23 @@ properties:
         type: string
       CidrBlocks:
         type: list(string)
+        description: Lists the IPv4 ranges in CIDR notation to which the egress rules
+          apply
       FromPort:
         type: int
+        description: Specifies the starting port for the range of allowed outbound
+          traffic
       ToPort:
         type: int
+        description: Specifies the ending port for the range of allowed outbound traffic
       Protocol:
         type: string
+        description: Indicates the network protocol used for the egress rule
       Self:
         type: bool
 
+        description: A boolean indicating whether the security group can send traffic
+          to itself
 classification:
   is:
     - network

@@ -10,6 +10,7 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+    description: The ID of the VPC within which the endpoint is used
   Region:
     type: resource(aws:region)
     operational_rule:
@@ -17,17 +18,25 @@ properties:
         direction: downstream
         resources:
           - aws:region
+    description: The AWS region in which to create the VPC endpoint
   ServiceName:
     type: string
+    description: The service name for the service that the VPC endpoint provides a
+      connection to
   VpcEndpointType:
     type: string
+    description: The type of the VPC endpoint (Interface, Gateway, or Gateway Load
+      Balancer)
   Subnets:
     type: list(resource(aws:subnet))
+    description: A list of subnet IDs in which to create an endpoint network interface
   RouteTables:
     type: list(resource(aws:route_table))
+    description: A list of route table IDs to which the endpoint will be associated
   SecurityGroups:
     type: list(resource(aws:security_group))
 
+    description: A list of security group IDs that are associated with the VPC Endpoint
 classification:
   is:
     - service_endpoint

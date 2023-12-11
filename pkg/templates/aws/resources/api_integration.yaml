@@ -12,6 +12,7 @@ properties:
         direction: upstream
         resources:
           - aws:rest_api
+    description: The identifier of an AWS REST API resource associated with the integration
   Resource:
     type: resource(aws:api_resource)
     operational_rule:
@@ -24,6 +25,8 @@ properties:
             properties:
               FullPath: '{{ fieldValue "Route" .Self }}'
               RestApi: '{{ fieldValue "RestApi" .Self }}'
+    description: The identifier of an API resource. This is usually set when the integration
+      needs to reference a specific resource within an API
   Method:
     type: resource(aws:api_method)
     operational_rule:
@@ -31,9 +34,11 @@ properties:
         direction: upstream
         resources:
           - selector: aws:api_method
-            properties: 
+            properties:
               RestApi: '{{ fieldValue "RestApi" .Self }}'
         unique: true # Each Integration must have its own method
+    description: The HTTP method (GET, POST, PUT, DELETE, PATCH, OPTIONS, ANY) used
+      in the integration request, associated with the resource and REST API
   RequestParameters:
     type: map(string,string)
     operational_rule:
@@ -44,28 +49,48 @@ properties:
             ($params | mapString "{([^+}]*)\\+?}" "method.request.path.$1")
           | toJson
         }}
+    description: A map of request parameters that can be passed to the backend integration.
+      The map's keys correspond to the request parameter names, and the values specify
+      where to get the values
   IntegrationHttpMethod:
     type: string
     default_value: ANY
+    description: The HTTP method for the integration. When the integration type is
+      HTTP or AWS, this field is required
   Type:
     type: string
+    description: The type of integration used, such as AWS, HTTP, MOCK, HTTP_PROXY,
+      or AWS_PROXY
   ConnectionType:
     type: string
+    description: The integration connection type, which can be INTERNET or VPC_LINK,
+      indicating how API Gateway should connect to the back end
   VpcLink:
     type: resource(aws:vpc_link)
+    description: The ID of the VpcLink used for the integration when connection type
+      is VPC_LINK
   Uri:
     type: string
     configuration_disabled: true
+    description: The Uniform Resource Identifier (URI) for the integration. When the
+      integration type is HTTP or AWS, this field is required
   Route:
     type: string
     default_value: /{proxy+}
+    description: A route for requests sent to this API. Defines the path that is matched
+      against the incoming request URI to identify the appropriate integration and
+      method
   Target:
     type: resource
+    description: A reference to an AWS resource, defining the backend target that
+      API Gateway will invoke when this route is called
   LbUri:
     type: string
     configuration_disabled: true
     deploy_time: true
 
+    description: The Load Balancer URI. Use when the integration endpoint is a Network
+      Load Balancer
 path_satisfaction:
   as_target:
     - api_route

@@ -4,9 +4,12 @@ display_name: IAM OIDC Provider
 properties:
   ClientIdLists:
     type: list(string)
+    description: A list of client IDs (also referred to as audiences) that ID tokens
+      are expected to be issued for.
   Cluster:
     type: resource(aws:eks_cluster)
     default_value: '{{ downstream "aws:eks_cluster" .Self }}'
+    description: An Amazon EKS cluster resource to associate with the IAM OIDC provider.
   Region:
     type: resource(aws:region)
     operational_rule:
@@ -14,6 +17,7 @@ properties:
         direction: downstream
         resources:
           - aws:region
+    description: The AWS region in which to establish the IAM OIDC provider.
   Arn:
     type: string
     configuration_disabled: true
