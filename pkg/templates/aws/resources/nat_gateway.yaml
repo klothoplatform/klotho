@@ -11,6 +11,8 @@ properties:
         resources:
           - aws:elastic_ip
         unique: true
+    description: The Elastic IP address to associate with the NAT Gateway. An Elastic
+      IP ensures that the NAT Gateway has a static IPv4 address.
   Subnet:
     type: resource(aws:subnet)
     required: true
@@ -24,6 +26,8 @@ properties:
               Type: public
         selection_operator: spread
 
+    description: The subnet in which to deploy the NAT Gateway. The subnet must be
+      a public subnet.
 delete_context:
   requires_no_upstream: true
 views:

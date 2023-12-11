@@ -6,12 +6,16 @@ properties:
     type: string
     required: true
     default_value: '10.0.0.0/16'
+    description: Specifies the IP address range for the VPC in CIDR notation
   EnableDnsSupport:
     type: bool
     default_value: true
+    description: Determines whether DNS resolution is supported for the VPC
   EnableDnsHostnames:
     type: bool
     default_value: true
+    description: Determines whether instances with public IP addresses get corresponding
+      public DNS hostnames
   Id:
     type: string
     configuration_disabled: true
@@ -24,7 +28,7 @@ classification:
 path_satisfaction:
   as_target:
     - network
-    
+
 delete_context:
   requires_no_upstream: true
 views:

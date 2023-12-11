@@ -4,6 +4,7 @@ display_name: CloudFront Origin Access Identity
 properties:
   Comment:
     type: string
+    description: An optional comment to describe the CloudFront Origin Access Identity
   CloudfrontAccessIdentityPath:
     type: string
     configuration_disabled: true

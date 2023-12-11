@@ -5,6 +5,8 @@ properties:
   RouteTable:
     type: resource(aws:route_table)
     default_value: '{{ downstream "aws:route_table" .Self }}'
+    description: The Route Table to be associated with the subnet
   Subnet:
     type: resource(aws:subnet)
     default_value: '{{ upstream "aws:subnet" .Self }}'
+    description: The Subnet to which the Route Table will be associated

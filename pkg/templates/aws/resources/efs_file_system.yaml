@@ -5,23 +5,36 @@ properties:
   PerformanceMode: 
     type: string
     default_value: generalPurpose
-  ThroughputMode: 
+    description: The file system's performance mode, which determines the throughput
+      and operations per second the file system is capable of
+  ThroughputMode:
     type: string
     default_value: bursting
-  ProvisionedThroughputInMibps: 
+    description: The throughput mode for the file system, which will determine the
+      speed at which the system can read and write data
+  ProvisionedThroughputInMibps:
     type: int
-  Encrypted: 
+    description: The throughput, measured in MiB/s, that the file system is provisioned
+      for
+  Encrypted:
     type: bool
     default_value: true
+    description: A flag indicating whether the file system is encrypted
   KmsKey:
     type: resource(aws:kms_key)
+    description: The AWS Key Management Service (KMS) key used for encrypting the
+      EFS file system
   LifecyclePolicies:
     type: map
     properties:
       TransitionToIA:
         type: string
+        description: Defines when files in the file system are transitioned to the
+          Infrequent Access storage class
       TransitionToPrimaryStorageClass:
         type: string
+        description: Defines when files in the file system are moved back to the primary
+          storage class
   AvailabilityZone:
     type: resource(aws:availability_zone)
     operational_rule:
@@ -29,8 +42,11 @@ properties:
         direction: downstream
         resources:
           - aws:availability_zone
-  CreationToken: 
+    description: The Availability Zone in which the file system is located
+  CreationToken:
     type: string
+    description: A unique string used to ensure the idempotency of CreateFileSystem
+      requests
   Id:
     type: string
     configuration_disabled: true

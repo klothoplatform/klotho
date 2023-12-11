@@ -8,33 +8,50 @@ properties:
       Version:
         type: string
         default_value: '2012-10-17'
+        description: Specifies the IAM Policy Language version
       Statement:
         type: list
         properties:
           Effect:
             type: string
+            description: Whether the policy allows or denies access
           Action:
             type: list(string)
+            description: Specifies the actions the policy allows or denies
           Resource:
             type: list(string)
+            description: The AWS resource(s) upon which the actions will apply
           Principal:
             type: map
             properties:
               Service:
                 type: list(string)
+                description: The AWS service(s) allowed or denied access
               Federated:
                 type: list(string)
+                description: Federated users or roles that are allowed or denied access
               AWS:
                 type: list(string)
+                description: Specifies AWS account, user, or role to which the policy
+                  is applied
+            description: The account, user, role, or service to which the policy applies
           Condition:
             type: map
             properties:
               StringEquals:
                 type: map(string,string)
+                description: Condition that tests if a specified string is equal to
+                  an expected string
               StringLike:
                 type: map(string,string)
+                description: Condition that tests if a specified string matches a
+                  string pattern
               Null:
                 type: map(string,string)
+            description: Conditions for when the policy is in effect
+        description: A list of individual statements that describe the details of
+          the permission
+    description: Defines the structure of the IAM policy in JSON format
   Arn:
     type: string
     configuration_disabled: true

@@ -18,11 +18,14 @@ sanitize_name:
 properties:
   IpAddressType:
     type: string
+    description: Specifies the type of IP addresses used by the load balancer's subnets
   LoadBalancerAttributes:
     type: map(string,string)
+    description: A map of key-value pairs defining attributes of the load balancer
   Scheme:
     type: string
     default_value: internal
+    description: Indicates whether the load balancer is internet-facing or internal
   SecurityGroups:
     # We should require an upstream security group if the LB is in a VPC
     # once we have the ability to disable inbound rule processing for PrivateLink traffic,
@@ -36,6 +39,8 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: A list of security groups for the load balancer when the scheme is
+      internet-facing
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -51,19 +56,24 @@ properties:
                   private
                 {{- end}}
         num_needed: 2
+    description: A list of subnets for the load balancer, with at least two required
   Tags:
     type: map(string,string)
+    description: A map of key-value pairs to associate with the load balancer for
+      organization and filtering resources
   Type:
     type: string
     default_value: network
     allowed_values:
       - network
       - application
+    description: "The type of load balancer: either 'network' or 'application'"
   NlbUri:
     type: string
     configuration_disabled: true
     deploy_time: true
 
+    description: A unique identifier for the load balancer, available after deployment
 path_satisfaction:
 # See comment above for why we are not solving the network path 
   as_target:

@@ -9,16 +9,24 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+    description: Specifies the Virtual Private Cloud (VPC) where the route table is
+      deployed.
   Routes:
     type: list
     properties:
       CidrBlock:
         type: string
+        description: The IP address range, in CIDR notation, applicable for the routing
+          rule.
       NatGateway:
         type: resource(aws:nat_gateway)
+        description: A reference to a NAT gateway resource to which traffic is directed.
       Gateway:
         type: resource(aws:internet_gateway)
 
+        description: A reference to an internet gateway resource to which traffic
+          is directed.
+    description: Defines a list of routing rules for directing network traffic.
 delete_context:
   requires_no_upstream: true
 views:

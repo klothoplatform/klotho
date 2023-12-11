@@ -10,23 +10,32 @@ properties:
         resources:
           - aws:ecr_image:{{ .Self.Name }}-image
         unique: true
+    description: Reference to an Amazon Elastic Container Registry (ECR) image that
+      will be used for the container within the task
   MountPoints:
     type: set
     properties:
       ContainerPath:
         type: string
+        description: The path on the container to mount the volume at
       SourceVolume:
         type: string
+        description: The name of the volume to mount
       ReadOnly:
         type: bool
+        description: Determines if the volume should be mounted as read-only
+    description: A list of mount points for data volumes in your container
   EnvironmentVariables:
     type: map(string,string)
+    description: A map of the environment variables to pass to the container
   Cpu:
     type: string
     default_value: '256'
+    description: The amount of CPU to allocate for the task
   Memory:
     type: string
     default_value: '512'
+    description: The amount of memory (in MiB) used by the task
   LogGroup:
     type: resource(aws:log_group)
     operational_rule:
@@ -35,6 +44,7 @@ properties:
         resources:
           - aws:log_group:{{ .Self.Name }}-log-group
         unique: true
+    description: Specifies the log group for the ECS task's logs
   ExecutionRole:
     type: resource(aws:iam_role)
     operational_rule:
@@ -43,9 +53,13 @@ properties:
         resources:
           - aws:iam_role:{{ .Self.Name }}-execution-role
         unique: true
+    description: The IAM role that allows Amazon ECS to make calls to AWS APIs on
+      your behalf
   TaskRole:
     type: resource(aws:iam_role)
     default_value: '{{ fieldValue "ExecutionRole" .Self }}'
+    description: The IAM role that determines the permissions for making AWS API calls
+      from within the ECS task
   Region:
     type: resource(aws:region)
     operational_rule:
@@ -53,9 +67,11 @@ properties:
         direction: downstream
         resources:
           - aws:region
+    description: The AWS region where the ECS task is deployed
   NetworkMode:
     type: string
     default_value: awsvpc
+    description: The Docker networking mode to use for the containers in the task
   PortMappings:
     type: set
     default_value:
@@ -65,40 +81,58 @@ properties:
     properties:
       ContainerPort:
         type: int
+        description: The port number on the container
       HostPort:
         type: int
+        description: The port number on the host where the container is exposed
       Protocol:
         type: string
+        description: The protocol used for the port mapping, such as TCP or UDP
+    description: A set of port mappings between the container and host
   RequiresCompatibilities:
     type: list(string)
     default_value:
       - FARGATE
+    description: A list of launch types required by the task
   EfsVolumes:
     type: set
     properties:
       Name:
         type: string
+        description: The name of the volume, used as a reference within the task definition
       FileSystem:
         type: resource(aws:efs_file_system)
+        description: The Amazon EFS file system ID to use
       RootDirectory:
         type: string
+        description: The directory within the Amazon EFS file system to mount as the
+          root directory inside the host
       TransitEncryption:
         type: string
+        description: Whether to enable in-transit encryption for the EFS volume's
+          data
       TransitEncryptionPort:
         type: int
+        description: The port to use for transit encryption of the EFS volume
       AuthorizationConfig:
         type: map
         properties:
           AccessPoint:
             type: resource(aws:efs_access_point)
+            description: The access point to use to mount the EFS file system
           Iam:
             type: string
 
+            description: Whether or not to use IAM authorization for access to the
+              EFS volume
+        description: The authorization configuration details for the EFS volume
+    description: An array of Amazon Elastic File System (EFS) volumes to be attached
+      to containers
 consumption:
   consumed:
     - model: EnvironmentVariables
       property_path: EnvironmentVariables
-      
+
 delete_context:
   requires_no_upstream: true
 views:

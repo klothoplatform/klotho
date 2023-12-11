@@ -6,10 +6,12 @@ properties:
     type: resource(aws:iam_policy)
     default_value: '{{ downstream "aws:iam_policy" .Self }}'
     required: true
+    description: The ARN of the policy to attach to the role
   Role:
     type: resource(aws:iam_role)
     default_value: '{{ upstream "aws:iam_role" .Self }}'
     required: true
 
+    description: The name of the IAM role to which the policy will be attached
 delete_context:
   requires_no_upstream_or_downstream: true

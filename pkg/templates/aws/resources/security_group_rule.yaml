@@ -6,14 +6,25 @@ properties:
     type: string
   CidrBlocks:
     type: list(string)
+    description: Specifies the CIDR blocks to allow traffic from/to, based on the
+      specified protocol and ports
   FromPort:
     type: int
+    description: Defines the starting range of the TCP/UDP port for inbound/outbound
+      traffic
   ToPort:
     type: int
+    description: Defines the ending range of the TCP/UDP port for inbound/outbound
+      traffic
   Protocol:
     type: string
+    description: Indicates the protocol type (TCP/UDP/ICMP/All) to be used with the
+      security group rule
   SecurityGroupId:
     type: string # Not resource type because we need deploy time properties to be able to exist here
     default_value: '{{ upstream "aws:security_group" .Self }}#Id'
+    description: The ID of the security group to which this rule should be attached
   Type:
     type: string
+    description: Specifies the rule type, either 'ingress' or 'egress', defining the
+      traffic direction

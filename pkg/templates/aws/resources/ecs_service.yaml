@@ -5,6 +5,8 @@ properties:
   AssignPublicIp:
     type: bool
     default_value: false
+    description: Indicates whether the task's elastic network interface receives a
+      public IP address
   Cluster:
     type: resource(aws:ecs_cluster)
     operational_rule:
@@ -12,6 +14,7 @@ properties:
         direction: downstream
         resources:
           - aws:ecs_cluster
+    description: The Amazon ECS cluster to which the service is to be deployed
   DeploymentCircuitBreaker:
     type: map
     properties:
@@ -22,12 +25,16 @@ properties:
   DesiredCount:
     type: int
     default_value: 1
+    description: The number of instantiations of the specified task definition to
+      keep running on the service
   ForceNewDeployment:
     type: bool
     default_value: true
+    description: Specifies whether to force a new deployment of the service
   LaunchType:
     type: string
     default_value: FARGATE
+    description: The launch type on which to run your service
   LoadBalancers:
     type: list(map)
     properties:
@@ -45,6 +52,7 @@ properties:
         resources:
           - aws:security_group
         unique: true
+    description: The security groups associated with the task or service
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
@@ -56,6 +64,7 @@ properties:
             properties:
               Type: private
           - aws:subnet
+    description: The subnets associated with the task or service
   TaskDefinition:
     type: resource(aws:ecs_task_definition)
     operational_rule:
@@ -65,6 +74,8 @@ properties:
           - aws:ecs_task_definition:{{ .Self.Name }}
         unique: true
 
+    description: The family and revision (family:revision) or full Amazon Resource
+      Name (ARN) of the task definition to run in the service
 consumption:
   consumed:
     - model: EnvironmentVariables

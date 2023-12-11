@@ -4,6 +4,8 @@ display_name: SES Email Identity
 properties:
   EmailIdentity:
     type: string
+    description: The email address or domain to be verified with Amazon SES for sending
+      emails
   Arn:
     type: string
     configuration_disabled: true

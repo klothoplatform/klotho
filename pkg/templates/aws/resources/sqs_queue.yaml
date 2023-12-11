@@ -8,15 +8,23 @@ properties:
     deploy_time: true
   FifoQueue:
     type: bool
+    description: Designates whether the queue is a FIFO queue
   DelaySeconds:
     type: int
+    description: The time in seconds that the delivery of all messages in the queue
+      is delayed
   MaxMessageSize:
     type: int
+    description: The limit of how many bytes a message can contain before Amazon SQS
+      rejects it
   VisibilityTimeout:
     type: int
+    description: The period during which Amazon SQS prevents other consuming components
+      from receiving and processing a message
   Tags:
     type: map(string,string)
 
+    description: A map of tags to assign to the queue
 path_satisfaction:
   as_target:
     - network

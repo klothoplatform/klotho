@@ -10,11 +10,15 @@ properties:
         resources:
           - aws:acm_certificate
     required: true
+    description: Reference to an AWS ACM certificate resource used to enable TLS on
+      a load balancer listener.
   Listener:
     type: resource(aws:load_balancer_listener)
     required: true
 
 
+    description: Reference to an AWS load balancer listener resource where the certificate
+      will be attached.
 delete_context:
   requires_no_upstream_or_downstream: true
 views:

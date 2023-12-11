@@ -15,11 +15,18 @@ properties:
     properties:
       Name:
         type: string
+        description: Name of the attribute
       Type:
         type: string
+        description: The data type for the attribute, such as String (S) or Number
+          (N)
+    description: List of attribute definitions for the table which includes attribute
+      name and type
   BillingMode:
     type: string
     default_value: PAY_PER_REQUEST
+    description: The billing mode that determines how you are charged for read and
+      write throughput and how you manage capacity
   DynamoTableStreamArn:
     type: string
     configuration_disabled: true
@@ -40,8 +47,10 @@ properties:
     type: string
     default_value: id
     required: true
+    description: The table hash key, which is the partition key for the DynamoDB table
   RangeKey:
     type: string
+    description: The table range key, which is the sort key for the DynamoDB table
   Name:
     type: string
     configuration_disabled: true
@@ -67,7 +76,7 @@ consumption:
     - model: EnvironmentVariables
       value:
         '{{ .Self.Name }}_TABLE_NAME': '{{ fieldRef "Name" .Self }}'
-    
+
 
 delete_context:
   requires_no_upstream: true

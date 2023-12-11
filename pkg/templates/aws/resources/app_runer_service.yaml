@@ -19,6 +19,8 @@ properties:
         resources:
           - aws:ecr_image:{{ .Self.Name }}-image
         unique: true
+    description: The image repository that contains the application image to be run
+      by App Runner
   InstanceRole:
     type: resource(aws:iam_role)
     operational_rule:
@@ -27,12 +29,18 @@ properties:
         resources:
           - aws:iam_role:{{ .Self.Name }}-instance-role
         unique: true
+    description: The IAM role that provides the AWS permissions that the App Runner
+      service assumes when it accesses your resources
   EnvironmentVariables:
     type: map(string,string)
+    description: Key-value pairs of environment variables that are provided to the
+      App Runner service
   Port:
     type: int
     default_value: 8080
 
+    description: The network port that the App Runner service listens to for incoming
+      traffic
 classification:
   is:
     - compute
