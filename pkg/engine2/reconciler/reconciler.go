@@ -145,7 +145,7 @@ func addAllDeploymentDependencies(
 		shouldDelete := false
 
 		// check if the dep exists as a property on the resource
-		rt.LoopProperties(res, func(p knowledgebase.Property) error {
+		err = rt.LoopProperties(res, func(p knowledgebase.Property) error {
 			propVal, err := res.GetProperty(p.Details().Path)
 			if err != nil {
 				return err
@@ -179,6 +179,9 @@ func addAllDeploymentDependencies(
 			}
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 
 		if shouldDelete {
 			queue = appendToQueue(deleteRequest{resource: dep, explicit: explicit}, queue)
