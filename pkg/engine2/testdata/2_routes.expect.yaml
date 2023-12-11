@@ -6,10 +6,10 @@ resources:
     aws:api_deployment:rest_api_1:api_deployment-0:
         RestApi: aws:rest_api:rest_api_1
         Triggers:
-            api_method-0: api_method-0
-            api_method-1: api_method-1
             integ0: integ0
+            integ0-api_method: integ0-api_method
             integ1: integ1
+            integ1-api_method: integ1-api_method
     aws:rest_api:rest_api_1:
         BinaryMediaTypes:
             - application/octet-stream
@@ -34,13 +34,13 @@ resources:
         ParentResource: aws:api_resource:rest_api_1:lambda1
         PathPart: api
         RestApi: aws:rest_api:rest_api_1
-    aws:api_method:rest_api_1:api_method-0:
+    aws:api_method:rest_api_1:integ0-api_method:
         Authorization: NONE
         HttpMethod: ANY
         RequestParameters: {}
         Resource: aws:api_resource:rest_api_1:api_resource-0
         RestApi: aws:rest_api:rest_api_1
-    aws:api_method:rest_api_1:api_method-1:
+    aws:api_method:rest_api_1:integ1-api_method:
         Authorization: NONE
         HttpMethod: ANY
         RequestParameters: {}
@@ -48,7 +48,7 @@ resources:
         RestApi: aws:rest_api:rest_api_1
     aws:api_integration:rest_api_1:integ0:
         IntegrationHttpMethod: POST
-        Method: aws:api_method:rest_api_1:api_method-0
+        Method: aws:api_method:rest_api_1:integ0-api_method
         RequestParameters: {}
         Resource: aws:api_resource:rest_api_1:api_resource-0
         RestApi: aws:rest_api:rest_api_1
@@ -58,7 +58,7 @@ resources:
         Uri: aws:lambda_function:lambda_function_0#LambdaIntegrationUri
     aws:api_integration:rest_api_1:integ1:
         IntegrationHttpMethod: POST
-        Method: aws:api_method:rest_api_1:api_method-1
+        Method: aws:api_method:rest_api_1:integ1-api_method
         RequestParameters: {}
         Resource: aws:api_resource:rest_api_1:api_resource-1
         RestApi: aws:rest_api:rest_api_1
@@ -134,13 +134,13 @@ edges:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:rest_api:rest_api_1:
     aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_integration:rest_api_1:integ0:
     aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_integration:rest_api_1:integ1:
-    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:api_method-0:
-    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:api_method-1:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:integ0-api_method:
+    aws:api_deployment:rest_api_1:api_deployment-0 -> aws:api_method:rest_api_1:integ1-api_method:
     aws:api_deployment:rest_api_1:api_deployment-0 -> aws:rest_api:rest_api_1:
     aws:rest_api:rest_api_1 -> aws:api_integration:rest_api_1:integ0:
     aws:rest_api:rest_api_1 -> aws:api_integration:rest_api_1:integ1:
-    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:api_method-0:
-    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:api_method-1:
+    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:integ0-api_method:
+    aws:rest_api:rest_api_1 -> aws:api_method:rest_api_1:integ1-api_method:
     aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:api_resource-0:
     aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:api_resource-1:
     aws:rest_api:rest_api_1 -> aws:api_resource:rest_api_1:lambda0:
@@ -148,11 +148,11 @@ edges:
     aws:api_resource:rest_api_1:lambda0 -> aws:api_resource:rest_api_1:api_resource-0:
     aws:api_resource:rest_api_1:lambda1 -> aws:api_resource:rest_api_1:api_resource-1:
     aws:api_resource:rest_api_1:api_resource-0 -> aws:api_integration:rest_api_1:integ0:
-    aws:api_resource:rest_api_1:api_resource-0 -> aws:api_method:rest_api_1:api_method-0:
+    aws:api_resource:rest_api_1:api_resource-0 -> aws:api_method:rest_api_1:integ0-api_method:
     aws:api_resource:rest_api_1:api_resource-1 -> aws:api_integration:rest_api_1:integ1:
-    aws:api_resource:rest_api_1:api_resource-1 -> aws:api_method:rest_api_1:api_method-1:
-    aws:api_method:rest_api_1:api_method-0 -> aws:api_integration:rest_api_1:integ0:
-    aws:api_method:rest_api_1:api_method-1 -> aws:api_integration:rest_api_1:integ1:
+    aws:api_resource:rest_api_1:api_resource-1 -> aws:api_method:rest_api_1:integ1-api_method:
+    aws:api_method:rest_api_1:integ0-api_method -> aws:api_integration:rest_api_1:integ0:
+    aws:api_method:rest_api_1:integ1-api_method -> aws:api_integration:rest_api_1:integ1:
     aws:api_integration:rest_api_1:integ0 -> aws:lambda_permission:integ0-lambda_function_0:
     aws:api_integration:rest_api_1:integ1 -> aws:lambda_permission:integ1-lambda_function_1:
     aws:lambda_permission:integ0-lambda_function_0 -> aws:lambda_function:lambda_function_0:

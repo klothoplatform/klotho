@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
+	"github.com/google/uuid"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -408,13 +409,21 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 	if err != nil {
 		return err
 	}
-	matcher := construct.ResourceId{Provider: resourceToSet.Provider, Type: resourceToSet.Type, Namespace: resourceToSet.Namespace}
+	currNames := make(set.Set[string])
+	// we cannot consider things only in the namespace because when creating a resource for an operational action
+	// it likely has not been namespaced yet and we dont know where it will be namespaced to
+	matcher := construct.ResourceId{Provider: resourceToSet.Provider, Type: resourceToSet.Type}
 	for _, id := range ids {
 		if matcher.Matches(id) {
+			currNames.Add(id.Name)
 			numResources++
 		}
 	}
+	// check if the current name based on the digit conflicts with an existing name and if so create a random uuid suffix
 	resourceToSet.Name = fmt.Sprintf("%s-%d", resourceToSet.Type, numResources)
-
+	if currNames.Contains(resourceToSet.Name) {
+		suffix := uuid.NewString()[:8]
+		resourceToSet.Name = fmt.Sprintf("%s-%s", resourceToSet.Type, suffix)
+	}
 	return nil
 }

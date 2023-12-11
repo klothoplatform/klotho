@@ -31,9 +31,9 @@ properties:
         direction: upstream
         resources:
           - selector: aws:api_method
-            properties:
+            properties: 
               RestApi: '{{ fieldValue "RestApi" .Self }}'
-              Resource: '{{ fieldValue "Resource" .Self }}'
+        unique: true # Each Integration must have its own method
   RequestParameters:
     type: map(string,string)
     operational_rule:

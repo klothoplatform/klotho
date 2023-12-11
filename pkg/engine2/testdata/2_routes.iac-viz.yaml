@@ -42,28 +42,28 @@ resources:
   lambda_function/lambda_function_1 -> ecr_image/lambda_function_1-image:
   lambda_function/lambda_function_1 -> iam_role/lambda_function_1-executionrole:
 
-  aws:api_method:rest_api_1/api_method-0:
-  aws:api_method:rest_api_1/api_method-0 -> aws:api_resource:rest_api_1/api_resource-0:
-  aws:api_method:rest_api_1/api_method-0 -> rest_api/rest_api_1:
+  aws:api_method:rest_api_1/integ0-api_method:
+  aws:api_method:rest_api_1/integ0-api_method -> aws:api_resource:rest_api_1/api_resource-0:
+  aws:api_method:rest_api_1/integ0-api_method -> rest_api/rest_api_1:
 
   lambda_permission/integ0-lambda_function_0:
   lambda_permission/integ0-lambda_function_0 -> lambda_function/lambda_function_0:
 
-  aws:api_method:rest_api_1/api_method-1:
-  aws:api_method:rest_api_1/api_method-1 -> aws:api_resource:rest_api_1/api_resource-1:
-  aws:api_method:rest_api_1/api_method-1 -> rest_api/rest_api_1:
+  aws:api_method:rest_api_1/integ1-api_method:
+  aws:api_method:rest_api_1/integ1-api_method -> aws:api_resource:rest_api_1/api_resource-1:
+  aws:api_method:rest_api_1/integ1-api_method -> rest_api/rest_api_1:
 
   lambda_permission/integ1-lambda_function_1:
   lambda_permission/integ1-lambda_function_1 -> lambda_function/lambda_function_1:
 
   aws:api_integration:rest_api_1/integ0:
-  aws:api_integration:rest_api_1/integ0 -> aws:api_method:rest_api_1/api_method-0:
+  aws:api_integration:rest_api_1/integ0 -> aws:api_method:rest_api_1/integ0-api_method:
   aws:api_integration:rest_api_1/integ0 -> aws:api_resource:rest_api_1/api_resource-0:
   aws:api_integration:rest_api_1/integ0 -> lambda_permission/integ0-lambda_function_0:
   aws:api_integration:rest_api_1/integ0 -> rest_api/rest_api_1:
 
   aws:api_integration:rest_api_1/integ1:
-  aws:api_integration:rest_api_1/integ1 -> aws:api_method:rest_api_1/api_method-1:
+  aws:api_integration:rest_api_1/integ1 -> aws:api_method:rest_api_1/integ1-api_method:
   aws:api_integration:rest_api_1/integ1 -> aws:api_resource:rest_api_1/api_resource-1:
   aws:api_integration:rest_api_1/integ1 -> lambda_permission/integ1-lambda_function_1:
   aws:api_integration:rest_api_1/integ1 -> rest_api/rest_api_1:
@@ -71,8 +71,8 @@ resources:
   aws:api_deployment:rest_api_1/api_deployment-0:
   aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_integration:rest_api_1/integ0:
   aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_integration:rest_api_1/integ1:
-  aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_method:rest_api_1/api_method-0:
-  aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_method:rest_api_1/api_method-1:
+  aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_method:rest_api_1/integ0-api_method:
+  aws:api_deployment:rest_api_1/api_deployment-0 -> aws:api_method:rest_api_1/integ1-api_method:
   aws:api_deployment:rest_api_1/api_deployment-0 -> rest_api/rest_api_1:
 
   aws:api_stage:rest_api_1/api_stage-0:
