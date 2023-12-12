@@ -59,7 +59,6 @@ properties:
         default_value: 2
       Matcher:
         type: string
-        default_value: 200-299
   Arn:
     type: string
     configuration_disabled: true
