@@ -437,11 +437,18 @@ func expandPath(
 			return
 		}
 
-		valid, err := checkUniquenessValidity(ctx, source.id, target.id)
-		if err != nil {
+		// if the edge doesnt exist in the actual graph we need to check uniqueness validity
+		_, err := ctx.RawView().Edge(source.id, target.id)
+		if errors.Is(err, graph.ErrEdgeNotFound) {
+			valid, err := checkUniquenessValidity(ctx, source.id, target.id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+			}
+			if !valid {
+				return
+			}
+		} else if err != nil {
 			errs = errors.Join(errs, err)
-		}
-		if !valid {
 			return
 		}
 

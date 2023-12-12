@@ -135,7 +135,6 @@ resources:
             Enabled: true
             HealthyThreshold: 5
             Interval: 30
-            Matcher: 200-299
             Protocol: TCP
             Timeout: 5
             UnhealthyThreshold: 2
