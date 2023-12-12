@@ -459,7 +459,6 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 				switch {
 				case errors.Is(err, graph.ErrVertexNotFound):
 					// do nothing
-					break
 				case err != nil:
 					errs = errors.Join(errs, err)
 				default:
