@@ -37,6 +37,24 @@ func (p Path) Contains(id ResourceId) bool {
 	return false
 }
 
+func (p Path) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
+func (p *Path) UnmarshalText(text []byte) error {
+	parts := strings.Split(string(text), " -> ")
+	*p = make(Path, len(parts))
+	for i, part := range parts {
+		var id ResourceId
+		err := id.UnmarshalText([]byte(part))
+		if err != nil {
+			return err
+		}
+		(*p)[i] = id
+	}
+	return nil
+}
+
 func (d *Dependencies) Add(p Path) {
 	d.Paths = append(d.Paths, p)
 	for _, id := range p {
@@ -125,6 +143,9 @@ func bellmanFord(g Graph, source ResourceId, skipEdge func(Edge) bool) (*bellman
 				if skipEdge(edge) {
 					continue
 				}
+				if edge.Source == edge.Target {
+					continue
+				}
 				edgeWeight := edge.Properties.Weight
 				if !g.Traits().IsWeighted {
 					edgeWeight = 1
@@ -168,6 +189,18 @@ func (b bellmanFordResult) ShortestPath(target ResourceId) (Path, error) {
 	for u != b.source {
 		if _, ok := b.prev[u]; !ok {
 			return nil, graph.ErrTargetNotReachable
+		}
+		if len(path) > 5000 {
+			// This is "slow" but if there's this many path elements, something's wrong
+			// and this debug info will be useful.
+			for i, e := range path {
+				for j := i - 1; j >= 0; j-- {
+					if path[j] == e {
+						return nil, fmt.Errorf("path contains a cycle: %s", Path(path[j:i+1]))
+					}
+				}
+			}
+			return nil, errors.New("path too long")
 		}
 		path = append([]ResourceId{u}, path...)
 		u = b.prev[u]

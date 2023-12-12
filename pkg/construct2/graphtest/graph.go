@@ -2,6 +2,7 @@ package graphtest
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/dominikbraun/graph"
@@ -56,10 +57,32 @@ func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
 	}
 }
 
+func stringToGraphElement(e string) (any, error) {
+	var id construct2.ResourceId
+	idErr := id.UnmarshalText([]byte(e))
+	if idErr == nil {
+		return id, nil
+	}
+	var edge construct2.SimpleEdge
+	edgeErr := edge.UnmarshalText([]byte(e))
+	if edgeErr == nil {
+		return edge, nil
+	}
+
+	var path construct2.Path
+	pathErr := path.UnmarshalText([]byte(e))
+	if pathErr == nil {
+		return path, nil
+	}
+
+	return nil, errors.Join(idErr, edgeErr, pathErr)
+}
+
 // MakeGraph is a utility function for creating a graph from a list of elements which can be of types:
 // - ResourceId : adds an empty resource with the given ID
 // - Resource, *Resource : adds the given resource
 // - Edge : adds the given edge
+// - Path : adds all the edges in the path
 // - string : parses the string as either a ResourceId or an Edge and add it as above
 //
 // The input graph is so it can be either via NewGraph or NewAcyclicGraph.
@@ -74,10 +97,26 @@ func MakeGraph(t *testing.T, g construct2.Graph, elements ...any) construct2.Gra
 			t.Fatal(err)
 		}
 	}
-	for _, e := range elements {
+	addIfMissing := func(res *construct2.Resource) {
+		if _, err := g.Vertex(res.ID); errors.Is(err, graph.ErrVertexNotFound) {
+			must(g.AddVertex(res))
+		} else if err != nil {
+			t.Fatal(fmt.Errorf("could check vertex %s: %w", res.ID, err))
+		}
+	}
+	failed := false
+	for i, e := range elements {
+		if estr, ok := e.(string); ok {
+			var err error
+			e, err = stringToGraphElement(estr)
+			if err != nil {
+				t.Errorf("invalid element[%d] %q (type %[2]T) Parse errors: %v", i, e, err)
+				failed = true
+			}
+		}
 		switch e := e.(type) {
 		case construct2.ResourceId:
-			must(g.AddVertex(&construct2.Resource{ID: e}))
+			addIfMissing(&construct2.Resource{ID: e})
 
 		case construct2.Resource:
 			must(g.AddVertex(&e))
@@ -86,31 +125,35 @@ func MakeGraph(t *testing.T, g construct2.Graph, elements ...any) construct2.Gra
 			must(g.AddVertex(e))
 
 		case construct2.Edge:
+			addIfMissing(&construct2.Resource{ID: e.Source})
+			addIfMissing(&construct2.Resource{ID: e.Target})
 			must(g.AddEdge(e.Source, e.Target))
 
-		case string:
-			var id construct2.ResourceId
-			idErr := id.UnmarshalText([]byte(e))
-			if idErr == nil {
-				must(g.AddVertex(&construct2.Resource{ID: id}))
-				continue
-			}
-			var edge construct2.SimpleEdge
-			edgeErr := edge.UnmarshalText([]byte(e))
-			if edgeErr == nil {
-				if _, getErr := g.Vertex(edge.Source); errors.Is(getErr, graph.ErrVertexNotFound) {
-					must(g.AddVertex(&construct2.Resource{ID: edge.Source}))
-				}
-				if _, getErr := g.Vertex(edge.Target); errors.Is(getErr, graph.ErrVertexNotFound) {
-					must(g.AddVertex(&construct2.Resource{ID: edge.Target}))
-				}
-				must(g.AddEdge(edge.Source, edge.Target))
-				continue
-			}
+		case construct2.ResourceEdge:
+			addIfMissing(e.Source)
+			addIfMissing(e.Target)
+			must(g.AddEdge(e.Source.ID, e.Target.ID))
 
-			t.Fatalf("invalid element %q (type %[1]T) Parse errors: %v", e, errors.Join(idErr, edgeErr))
+		case construct2.SimpleEdge:
+			addIfMissing(&construct2.Resource{ID: e.Source})
+			addIfMissing(&construct2.Resource{ID: e.Target})
+			must(g.AddEdge(e.Source, e.Target))
+
+		case construct2.Path:
+			for i, id := range e {
+				addIfMissing(&construct2.Resource{ID: id})
+				if i > 0 {
+					must(g.AddEdge(e[i-1], id))
+				}
+			}
 		default:
+			t.Errorf("invalid element[%d] of type %T", i, e)
+			failed = true
 		}
+	}
+	if failed {
+		// Fail now because if the graph didn't parse correctly, then the rest of the test is likely to fail
+		t.FailNow()
 	}
 
 	return g

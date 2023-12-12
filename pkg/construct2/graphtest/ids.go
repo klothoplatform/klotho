@@ -34,3 +34,12 @@ func ParseRef(t *testing.T, str string) construct.PropertyRef {
 	}
 	return ref
 }
+
+func ParsePath(t *testing.T, str string) construct.Path {
+	var path construct.Path
+	err := path.UnmarshalText([]byte(str))
+	if err != nil {
+		t.Fatalf("failed to parse path %q: %v", str, err)
+	}
+	return path
+}
