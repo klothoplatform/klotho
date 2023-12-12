@@ -12,6 +12,381 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func Test_appendToQueue(t *testing.T) {
+	type args struct {
+		queue []deleteRequest
+		req   deleteRequest
+	}
+	tests := []struct {
+		name string
+		args args
+		want []deleteRequest
+	}{
+		{
+			name: "append to empty queue",
+			args: args{
+				queue: []deleteRequest{},
+				req: deleteRequest{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "append to non empty queue",
+			args: args{
+				queue: []deleteRequest{
+					{
+						resource: construct.ResourceId{Provider: "one", Type: "one", Name: "two"},
+						explicit: true,
+					},
+				},
+				req: deleteRequest{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "two"},
+					explicit: true,
+				},
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "append explicit overwrites non explicit",
+			args: args{
+				queue: []deleteRequest{
+					{
+						resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+						explicit: false,
+					},
+				},
+				req: deleteRequest{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "append non-explicit does not overwrites non explicit",
+			args: args{
+				queue: []deleteRequest{
+					{
+						resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+						explicit: true,
+					},
+				},
+				req: deleteRequest{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: false,
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					explicit: true,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			got := appendToQueue(tt.args.req, tt.args.queue)
+			assert.Equal(tt.want, got)
+		})
+	}
+}
+
+func Test_addAllDeploymentDependencies(t *testing.T) {
+	type args struct {
+		resource construct.ResourceId
+		explicit bool
+	}
+	tests := []struct {
+		name              string
+		args              args
+		upstreamResources []*construct.Resource
+		mockKBCalls       []mock.Call
+		want              []deleteRequest
+		wantErr           bool
+	}{
+		{
+			name: "no dependencies",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+		},
+		{
+			name: "single iac dependency with property that has op rule",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+			upstreamResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					Properties: construct.Properties{
+						"one": construct.PropertyRef{
+							Resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+							Property: "name",
+						},
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"one": &properties.StringProperty{
+									PropertyDetails: knowledgebase.PropertyDetails{
+										Path:            "one",
+										Name:            "one",
+										OperationalRule: &knowledgebase.PropertyRule{},
+									},
+								},
+							},
+						},
+						nil,
+					},
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "single iac dependency with property that is required",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+			upstreamResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					Properties: construct.Properties{
+						"one": construct.PropertyRef{
+							Resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+							Property: "name",
+						},
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"one": &properties.StringProperty{
+									PropertyDetails: knowledgebase.PropertyDetails{
+										Path:     "one",
+										Name:     "one",
+										Required: true,
+									},
+								},
+							},
+						},
+						nil,
+					},
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "single iac dependency as resource with property that is required",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+			upstreamResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					Properties: construct.Properties{
+						"one": construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"one": &properties.StringProperty{
+									PropertyDetails: knowledgebase.PropertyDetails{
+										Path:     "one",
+										Name:     "one",
+										Required: true,
+									},
+								},
+							},
+						},
+						nil,
+					},
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "single iac dependency as array with property that is required",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+			upstreamResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					Properties: construct.Properties{
+						"one": []construct.ResourceId{{Provider: "one", Type: "one", Name: "one"}},
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"one": &properties.StringProperty{
+									PropertyDetails: knowledgebase.PropertyDetails{
+										Path:     "one",
+										Name:     "one",
+										Required: true,
+									},
+								},
+							},
+						},
+						nil,
+					},
+				},
+			},
+			want: []deleteRequest{
+				{
+					resource: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					explicit: true,
+				},
+			},
+		},
+		{
+			name: "single iac dependency not added with property that is not required and no op rule",
+			args: args{
+				resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+				explicit: true,
+			},
+			upstreamResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					Properties: construct.Properties{
+						"one": construct.PropertyRef{
+							Resource: construct.ResourceId{Provider: "one", Type: "one", Name: "one"},
+							Property: "name",
+						},
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Provider: "one", Type: "two", Name: "two"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"one": &properties.StringProperty{
+									PropertyDetails: knowledgebase.PropertyDetails{
+										Path: "one",
+										Name: "one",
+									},
+								},
+							},
+						},
+						nil,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			sol := enginetesting.NewTestSolution()
+			sol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+			sol.KB.On("GetEdgeTemplate", mock.Anything, mock.Anything).Return(&knowledgebase.EdgeTemplate{}, nil)
+			sol.LoadState(t, tt.args.resource.String())
+			for _, resource := range tt.upstreamResources {
+				err := sol.RawView().AddVertex(resource)
+				if !assert.NoError(err) {
+					return
+				}
+				err = sol.RawView().AddEdge(resource.ID, tt.args.resource)
+				if !assert.NoError(err) {
+					return
+				}
+			}
+			sol.KB.On("GetResourceTemplate", mock.Anything).Unset()
+			for _, call := range tt.mockKBCalls {
+				sol.KB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
+			}
+			got, err := addAllDeploymentDependencies(sol, tt.args.resource, tt.args.explicit, []deleteRequest{})
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			if !assert.NoError(err) {
+				return
+			}
+			assert.ElementsMatch(tt.want, got)
+		})
+	}
+}
+
 func Test_canDeleteResource(t *testing.T) {
 	type args struct {
 		resource    construct.ResourceId

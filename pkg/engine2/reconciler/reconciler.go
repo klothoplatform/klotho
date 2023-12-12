@@ -3,7 +3,9 @@ package reconciler
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
+	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -11,57 +13,187 @@ import (
 	"go.uber.org/zap"
 )
 
+type (
+	deleteRequest struct {
+		resource construct.ResourceId
+		explicit bool
+	}
+)
+
 func RemoveResource(c solution_context.SolutionContext, resource construct.ResourceId, explicit bool) error {
 	zap.S().Debugf("reconciling removal of resource %s ", resource)
-	upstreams, downstreams, err := construct.Neighbors(c.DataflowGraph(), resource)
-	if err != nil {
-		return err
-	}
 
-	template, err := c.KnowledgeBase().GetResourceTemplate(resource)
-	if err != nil {
-		return fmt.Errorf("unable to remove resource: error getting resource template for %s: %v", resource, err)
-	}
-	canDelete, err := canDeleteResource(c, resource, explicit, template, upstreams, downstreams)
-	if err != nil {
-		return err
-	}
-	if !canDelete {
-		return nil
-	}
-
-	op := c.OperationalView()
+	queue := []deleteRequest{{
+		resource: resource,
+		explicit: explicit,
+	}}
 
 	var errs error
-	// We must remove all edges before removing the vertex
-	for res := range upstreams {
-		errs = errors.Join(errs, op.RemoveEdge(res, resource))
+
+	for len(queue) > 0 {
+		request := queue[0]
+		queue = queue[1:]
+		resource := request.resource
+		explicit := request.explicit
+
+		upstreams, downstreams, err := construct.Neighbors(c.DataflowGraph(), resource)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+
+		template, err := c.KnowledgeBase().GetResourceTemplate(resource)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("unable to remove resource: error getting resource template for %s: %v", resource, err))
+			continue
+		}
+		canDelete, err := canDeleteResource(c, resource, explicit, template, upstreams, downstreams)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if !canDelete {
+			continue
+		}
+		// find all namespaced resources before removing edges and the initial resource, otherwise certain resources may
+		// be moved out of their original namespace
+		namespacedResources, err := findAllResourcesInNamespace(c, resource)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+
+		op := c.OperationalView()
+
+		// We must remove all edges before removing the vertex
+		for res := range upstreams {
+			errs = errors.Join(errs, op.RemoveEdge(res, resource))
+		}
+		for res := range downstreams {
+			errs = errors.Join(errs, op.RemoveEdge(resource, res))
+		}
+
+		err = construct.RemoveResource(op, resource)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+
+		for res := range namespacedResources {
+
+			// Since we may be explicitly deleting the namespace resource,
+			// we will forward the same explicit flag to the namespace resource
+			queue = appendToQueue(deleteRequest{resource: res, explicit: explicit}, queue)
+			// find deployment dependencies to ensure the resource wont get recreated
+			queue, err = addAllDeploymentDependencies(c, res, explicit, queue)
+			if err != nil {
+				errs = errors.Join(errs, err)
+			}
+
+		}
+		// try to cleanup, if the resource is removable
+		for res := range upstreams.Union(downstreams) {
+			queue = appendToQueue(deleteRequest{resource: res, explicit: false}, queue)
+		}
 	}
-	for res := range downstreams {
-		errs = errors.Join(errs, op.RemoveEdge(resource, res))
+	return errs
+}
+
+func appendToQueue(request deleteRequest, queue []deleteRequest) []deleteRequest {
+	for i, req := range queue {
+		if req.resource == request.resource && req.explicit == request.explicit {
+			return queue
+			// only update if it wasnt explicit previously and now it is
+		} else if req.resource == request.resource && !req.explicit {
+			queue[i] = request
+			return queue
+		} else if req.resource == request.resource && req.explicit {
+			return queue
+		}
 	}
-	if errs != nil {
-		return errs
+	return append(queue, request)
+}
+
+func addAllDeploymentDependencies(
+	ctx solution_context.SolutionContext,
+	resource construct.ResourceId,
+	explicit bool,
+	queue []deleteRequest,
+) ([]deleteRequest, error) {
+
+	deploymentDeps, err := knowledgebase.Upstream(
+		ctx.DeploymentGraph(),
+		ctx.KnowledgeBase(),
+		resource,
+		knowledgebase.ResourceDirectLayer,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	err = construct.RemoveResource(op, resource)
-	if err != nil {
-		return err
-	}
+	for _, dep := range deploymentDeps {
+		res, err := ctx.RawView().Vertex(dep)
+		if err != nil {
+			return nil, err
+		}
+		rt, err := ctx.KnowledgeBase().GetResourceTemplate(dep)
+		if err != nil {
+			return nil, err
+		}
+		if collectionutil.Contains(queue, deleteRequest{resource: dep, explicit: explicit}) {
+			continue
+		}
 
-	namespacedResources, err := findAllResourcesInNamespace(c, resource)
-	if err != nil {
-		return err
+		shouldDelete := false
+
+		// check if the dep exists as a property on the resource
+		err = rt.LoopProperties(res, func(p knowledgebase.Property) error {
+			propVal, err := res.GetProperty(p.Details().Path)
+			if err != nil {
+				return err
+			}
+			found := false
+			switch val := propVal.(type) {
+			case construct.ResourceId:
+				if val == resource {
+					found = true
+				}
+			case construct.PropertyRef:
+				if val.Resource == resource {
+					found = true
+				}
+			default:
+				if reflect.ValueOf(val).Kind() == reflect.Slice || reflect.ValueOf(val).Kind() == reflect.Array {
+					for i := 0; i < reflect.ValueOf(val).Len(); i++ {
+						idVal := reflect.ValueOf(val).Index(i).Interface()
+						if id, ok := idVal.(construct.ResourceId); ok && id == resource {
+							found = true
+						} else if pref, ok := idVal.(construct.PropertyRef); ok && pref.Resource == resource {
+							found = true
+						}
+					}
+				}
+			}
+			if found {
+				if p.Details().OperationalRule != nil || p.Details().Required {
+					shouldDelete = true
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if shouldDelete {
+			queue = appendToQueue(deleteRequest{resource: dep, explicit: explicit}, queue)
+			queue, err = addAllDeploymentDependencies(ctx, dep, explicit, queue)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	for _, res := range namespacedResources.ToSlice() {
-		// Since we are explicitly deleting the namespace resource, we will explicitly delete the resources namespaced to it
-		errs = errors.Join(errs, RemoveResource(c, res, explicit))
-	}
-	// try to cleanup, if the resource is removable
-	for res := range upstreams.Union(downstreams) {
-		errs = errors.Join(errs, RemoveResource(c, res, false))
-	}
-	return nil
+	return queue, nil
 }
 
 func canDeleteResource(

@@ -1,0 +1,16 @@
+provider: aws
+resources:
+  ecr_repo/ecr_repo-0:
+
+  log_group/lambda_function_2-log-group:
+
+  ecr_image/lambda_function_2-image:
+  ecr_image/lambda_function_2-image -> ecr_repo/ecr_repo-0:
+
+  iam_role/lambda_function_2-executionrole:
+  iam_role/lambda_function_2-executionrole -> log_group/lambda_function_2-log-group:
+
+  lambda_function/lambda_function_2:
+  lambda_function/lambda_function_2 -> ecr_image/lambda_function_2-image:
+  lambda_function/lambda_function_2 -> iam_role/lambda_function_2-executionrole:
+
