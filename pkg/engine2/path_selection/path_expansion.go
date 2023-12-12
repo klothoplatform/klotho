@@ -443,6 +443,7 @@ func expandPath(
 			valid, err := checkUniquenessValidity(ctx, source.id, target.id)
 			if err != nil {
 				errs = errors.Join(errs, err)
+				return
 			}
 			if !valid {
 				return
