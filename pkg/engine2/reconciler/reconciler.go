@@ -23,11 +23,10 @@ type (
 func RemoveResource(c solution_context.SolutionContext, resource construct.ResourceId, explicit bool) error {
 	zap.S().Debugf("reconciling removal of resource %s ", resource)
 
-	queue := make([]deleteRequest, 0)
-	queue = append(queue, deleteRequest{
+	queue := []deleteRequest{{
 		resource: resource,
 		explicit: explicit,
-	})
+	}}
 
 	var errs error
 
@@ -56,6 +55,8 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 		if !canDelete {
 			continue
 		}
+		// find all namespaced resources before removing edges and the initial resource, otherwise certain resources may
+		// be moved out of their original namespace
 		namespacedResources, err := findAllResourcesInNamespace(c, resource)
 		if err != nil {
 			errs = errors.Join(errs, err)
@@ -78,9 +79,10 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 			continue
 		}
 
-		for _, res := range namespacedResources.ToSlice() {
+		for res := range namespacedResources {
 
-			// Since we are explicitly deleting the namespace resource, we will explicitly delete the resources namespaced to it
+			// Since we may be explicitly deleting the namespace resource,
+			// we will forward the same explicit flag to the namespace resource
 			queue = appendToQueue(deleteRequest{resource: res, explicit: explicit}, queue)
 			// find deployment dependencies to ensure the resource wont get recreated
 			queue, err = addAllDeploymentDependencies(c, res, explicit, queue)

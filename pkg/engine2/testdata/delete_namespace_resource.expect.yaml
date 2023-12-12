@@ -1,0 +1,36 @@
+resources:
+    aws:lambda_function:lambda_function_2:
+        ExecutionRole: aws:iam_role:lambda_function_2-ExecutionRole
+        Image: aws:ecr_image:lambda_function_2-image
+        LogGroup: aws:log_group:lambda_function_2-log-group
+        MemorySize: 512
+        Timeout: 180
+    aws:SERVICE_API:lambda_function_2-lambda_function_2-log-group:
+    aws:ecr_image:lambda_function_2-image:
+        Context: .
+        Dockerfile: lambda_function_2-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function_2-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    aws:ecr_repo:ecr_repo-0:
+        ForceDelete: true
+    aws:log_group:lambda_function_2-log-group:
+        LogGroupName: /aws/lambda/lambda_function_2
+        RetentionInDays: 5
+edges:
+    aws:lambda_function:lambda_function_2 -> aws:SERVICE_API:lambda_function_2-lambda_function_2-log-group:
+    aws:lambda_function:lambda_function_2 -> aws:ecr_image:lambda_function_2-image:
+    aws:lambda_function:lambda_function_2 -> aws:iam_role:lambda_function_2-ExecutionRole:
+    aws:SERVICE_API:lambda_function_2-lambda_function_2-log-group -> aws:log_group:lambda_function_2-log-group:
+    aws:ecr_image:lambda_function_2-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function_2-ExecutionRole -> aws:log_group:lambda_function_2-log-group:

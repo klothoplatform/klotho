@@ -1,0 +1,8 @@
+provider: aws
+resources:
+  rest_api/rest_api_0:
+
+  aws:api_integration:rest_api_0/rest_api_0_integration_0:
+    parent: rest_api/rest_api_0
+
+
