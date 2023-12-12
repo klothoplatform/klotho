@@ -404,8 +404,12 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resource.Name, resourceToSet.Type, suffix)
 		return nil
 	}
+	return generateResourceName(action.ruleCtx.Solution, resourceToSet, resource)
+}
+
+func generateResourceName(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
 	numResources := 0
-	ids, err := construct.ToplogicalSort(action.ruleCtx.Solution.DataflowGraph())
+	ids, err := construct.ToplogicalSort(sol.DataflowGraph())
 	if err != nil {
 		return err
 	}

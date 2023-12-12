@@ -84,10 +84,11 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 		return err
 	}
 	op := ctx.OperationalView()
+	raw := ctx.RawView()
 	if err := op.AddVerticesFrom(graph); err != nil {
 		return err
 	}
-	return op.AddEdgesFrom(graph)
+	return raw.AddEdgesFrom(graph)
 }
 
 func (c solutionContext) GetDecisions() solution_context.DecisionRecords {

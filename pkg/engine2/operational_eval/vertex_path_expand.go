@@ -176,6 +176,7 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 
 		for _, satisfication := range pathSatisfications {
 			if satisfication.Classification == v.Satisfication.Classification {
+				// we cannot evaluate these vertices immediately because we are unsure if their dependencies have settled
 				changes.addNode(&pathExpandVertex{
 					Edge:          construct.SimpleEdge{Source: subExpand.Source, Target: subExpand.Target},
 					TempGraph:     expansion.TempGraph,

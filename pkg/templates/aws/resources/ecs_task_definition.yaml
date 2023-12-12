@@ -73,7 +73,7 @@ properties:
     default_value: awsvpc
     description: The Docker networking mode to use for the containers in the task
   PortMappings:
-    type: set
+    type: list
     default_value:
       - ContainerPort: 80
         HostPort: 80

@@ -48,9 +48,9 @@ resources:
   aws:api_resource:rest_api_4/api_resource-0:
   aws:api_resource:rest_api_4/api_resource-0 -> rest_api/rest_api_4:
 
-  load_balancer/rest-api-4-integ6897f0b9:
-  load_balancer/rest-api-4-integ6897f0b9 -> aws:subnet:vpc-0/subnet-0:
-  load_balancer/rest-api-4-integ6897f0b9 -> aws:subnet:vpc-0/subnet-1:
+  load_balancer/rest-api-4-integbcc77100:
+  load_balancer/rest-api-4-integbcc77100 -> aws:subnet:vpc-0/subnet-0:
+  load_balancer/rest-api-4-integbcc77100 -> aws:subnet:vpc-0/subnet-1:
 
   iam_role/aws-load-balancer-controller:
   iam_role/aws-load-balancer-controller -> iam_oidc_provider/eks_cluster-0:
@@ -84,8 +84,8 @@ resources:
   aws:api_method:rest_api_4/rest_api_4_integration_0_method -> aws:api_resource:rest_api_4/api_resource-0:
   aws:api_method:rest_api_4/rest_api_4_integration_0_method -> rest_api/rest_api_4:
 
-  vpc_link/rest_api_4_integration_0-eks_cluster-0:
-  vpc_link/rest_api_4_integration_0-eks_cluster-0 -> load_balancer/rest-api-4-integ6897f0b9:
+  vpc_link/rest_api_4_integration_0-pod2:
+  vpc_link/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:
 
   kubernetes:service_account:eks_cluster-0/aws-load-balancer-controller:
   kubernetes:service_account:eks_cluster-0/aws-load-balancer-controller -> eks_cluster/eks_cluster-0:
@@ -115,9 +115,9 @@ resources:
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> aws:api_method:rest_api_4/rest_api_4_integration_0_method:
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> aws:api_resource:rest_api_4/api_resource-0:
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> rest_api/rest_api_4:
-  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> vpc_link/rest_api_4_integration_0-eks_cluster-0:
+  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> vpc_link/rest_api_4_integration_0-pod2:
 
-  target_group/rest-api-4-integ6897f0b9:
+  target_group/rest-api-4-integbcc77100:
 
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller -> eks_cluster/eks_cluster-0:
@@ -155,11 +155,11 @@ resources:
   aws:api_deployment:rest_api_4/api_deployment-0 -> aws:api_method:rest_api_4/rest_api_4_integration_0_method:
   aws:api_deployment:rest_api_4/api_deployment-0 -> rest_api/rest_api_4:
 
-  kubernetes:target_group_binding/restapi4integration0-ekscluster-0:
-  kubernetes:target_group_binding/restapi4integration0-ekscluster-0 -> eks_cluster/eks_cluster-0:
-  kubernetes:target_group_binding/restapi4integration0-ekscluster-0 -> target_group/rest-api-4-integ6897f0b9:
-  kubernetes:target_group_binding/restapi4integration0-ekscluster-0 -> kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
-  kubernetes:target_group_binding/restapi4integration0-ekscluster-0 -> kubernetes:service/restapi4integration0-pod2:
+  kubernetes:target_group_binding/restapi4integration0-pod2:
+  kubernetes:target_group_binding/restapi4integration0-pod2 -> eks_cluster/eks_cluster-0:
+  kubernetes:target_group_binding/restapi4integration0-pod2 -> target_group/rest-api-4-integbcc77100:
+  kubernetes:target_group_binding/restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
+  kubernetes:target_group_binding/restapi4integration0-pod2 -> kubernetes:service/restapi4integration0-pod2:
 
   kubernetes:manifest/fluent-bit:
   kubernetes:manifest/fluent-bit -> eks_cluster/eks_cluster-0:
@@ -191,9 +191,9 @@ resources:
   route_table_association/subnet-0-subnet-0-route_table -> route_table/subnet-0-route_table:
   route_table_association/subnet-0-subnet-0-route_table -> aws:subnet:vpc-0/subnet-0:
 
-  load_balancer_listener/rest_api_4_integration_0-eks_cluster-0:
-  load_balancer_listener/rest_api_4_integration_0-eks_cluster-0 -> load_balancer/rest-api-4-integ6897f0b9:
-  load_balancer_listener/rest_api_4_integration_0-eks_cluster-0 -> target_group/rest-api-4-integ6897f0b9:
+  load_balancer_listener/rest_api_4_integration_0-pod2:
+  load_balancer_listener/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:
+  load_balancer_listener/rest_api_4_integration_0-pod2 -> target_group/rest-api-4-integbcc77100:
 
   iam_role_policy_attachment/aws-load-balancer-controller-iam_policy-0:
   iam_role_policy_attachment/aws-load-balancer-controller-iam_policy-0 -> iam_policy/iam_policy-0:
