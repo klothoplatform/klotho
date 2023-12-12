@@ -106,6 +106,9 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 		// Skip nil pointers
 		if (srcField.Kind() == reflect.Ptr || srcField.Kind() == reflect.Interface) && srcField.IsNil() {
 			continue
+			// skip empty arrays and slices
+		} else if (srcField.Kind() == reflect.Array || srcField.Kind() == reflect.Slice) && srcField.Len() == 0 {
+			continue
 		}
 		// Handle sub properties so we can recurse down the tree
 		if fieldName == "Properties" {

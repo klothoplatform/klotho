@@ -117,13 +117,15 @@ func renameAndReplaceInTempGraph(
 		if strings.HasPrefix(id.Name, PHANTOM_PREFIX) {
 			oldId := id
 			id.Name = name
+			// because certain resources may be namespaced, we will check against all resource type names
+			currNames, err := getCurrNames(ctx, &id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 			for suffix := 0; suffix < 1000; suffix++ {
-				_, err := ctx.RawView().Vertex(id)
-				if err != nil && errors.Is(err, graph.ErrVertexNotFound) {
+				if !currNames.Contains(id.Name) {
 					break
-				} else if err != nil {
-					errs = errors.Join(errs, err)
-					continue
 				}
 				id.Name = fmt.Sprintf("%s-%d", name, suffix)
 			}
@@ -144,6 +146,23 @@ func renameAndReplaceInTempGraph(
 		errs = errors.Join(errs, construct.ReplaceResource(input.TempGraph, path[i], res))
 	}
 	return resultResources, errs
+}
+
+func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) (set.Set[string], error) {
+	currNames := make(set.Set[string])
+	ids, err := construct.ToplogicalSort(sol.DataflowGraph())
+	if err != nil {
+		return currNames, err
+	}
+	// we cannot consider things only in the namespace because when creating a resource for an operational action
+	// it likely has not been namespaced yet and we dont know where it will be namespaced to
+	matcher := construct.ResourceId{Provider: resourceToSet.Provider, Type: resourceToSet.Type}
+	for _, id := range ids {
+		if matcher.Matches(id) {
+			currNames.Add(id.Name)
+		}
+	}
+	return currNames, nil
 }
 
 func findSubExpansionsToRun(

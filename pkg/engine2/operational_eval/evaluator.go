@@ -214,6 +214,7 @@ func (eval *Evaluator) addEdge(source, target Key) error {
 			ep.Attributes[attribAddedBy] = eval.currentKey.String()
 		}
 	})
+
 	if err != nil {
 		if errors.Is(err, graph.ErrEdgeCreatesCycle) {
 			path, _ := graph.ShortestPath(eval.graph, target, source)
@@ -452,12 +453,17 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
 				replaceVertex(key, vertex)
 				// because the temp graph contains the src and target as nodes, we need to update it if it exists
-				if vertex.TempGraph != nil {
-					err := construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId})
-					if err != nil {
-						errs = errors.Join(errs, err)
-						continue
-					}
+			}
+			if vertex.TempGraph != nil {
+				_, err := vertex.TempGraph.Vertex(oldId)
+				switch {
+				case errors.Is(err, graph.ErrVertexNotFound):
+					// do nothing
+					break
+				case err != nil:
+					errs = errors.Join(errs, err)
+				default:
+					errs = errors.Join(errs, construct.ReplaceResource(vertex.TempGraph, oldId, &construct.Resource{ID: newId}))
 				}
 			}
 		}
