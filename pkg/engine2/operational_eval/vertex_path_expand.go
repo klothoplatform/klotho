@@ -203,7 +203,92 @@ func (v *pathExpandVertex) runExpansion(eval *Evaluator, expansion path_selectio
 			Value:    delay.Value,
 		})
 	}
-	return nil
+
+	// do this after weve added all resources and edges to the sol ctx so that we replace the ids properly
+	return v.handleResultProperties(eval, result)
+}
+
+// handleProperties
+func (v *pathExpandVertex) handleResultProperties(
+	eval *Evaluator,
+	result path_selection.ExpansionResult,
+) error {
+	adj, err := result.Graph.AdjacencyMap()
+	if err != nil {
+		return err
+	}
+	pred, err := result.Graph.PredecessorMap()
+	if err != nil {
+		return err
+	}
+
+	handleResultProperties := func(
+		res *construct.Resource,
+		rt *knowledgebase.ResourceTemplate,
+		resources map[construct.ResourceId]graph.Edge[construct.ResourceId],
+		Direction knowledgebase.Direction,
+	) error {
+		var errs error
+		for target := range resources {
+			targetRes, err := result.Graph.Vertex(target)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			errs = errors.Join(errs, rt.LoopProperties(res, func(prop knowledgebase.Property) error {
+				opRuleCtx := operational_rule.OperationalRuleContext{
+					Solution: eval.Solution,
+					Property: prop,
+					Data:     knowledgebase.DynamicValueData{Resource: res.ID},
+				}
+				details := prop.Details()
+				if details.OperationalRule == nil || len(details.OperationalRule.Step.Resources) == 0 {
+					return nil
+				}
+				step := details.OperationalRule.Step
+				for _, selector := range step.Resources {
+					if step.Direction == Direction {
+						canUse, err := selector.CanUse(
+							solution_context.DynamicCtx(eval.Solution),
+							knowledgebase.DynamicValueData{Resource: res.ID},
+							targetRes,
+						)
+						if canUse && err == nil {
+							err = opRuleCtx.SetField(res, targetRes, step)
+							if err != nil {
+								errs = errors.Join(errs, err)
+							}
+						}
+					}
+				}
+				return nil
+			}))
+		}
+		return errs
+	}
+
+	var errs error
+	for id, downstreams := range adj {
+		oldId := id
+		rt, err := eval.Solution.KnowledgeBase().GetResourceTemplate(id)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		res, err := eval.Solution.RawView().Vertex(id)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+
+		errs = errors.Join(errs, handleResultProperties(res, rt, downstreams, knowledgebase.DirectionDownstream))
+		errs = errors.Join(errs, handleResultProperties(res, rt, pred[id], knowledgebase.DirectionUpstream))
+
+		if oldId != res.ID {
+			eval.UpdateId(oldId, res.ID)
+		}
+	}
+	return errs
 }
 
 func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection.ExpansionInput, error) {

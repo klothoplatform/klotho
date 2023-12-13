@@ -124,9 +124,9 @@ resources:
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller -> region/region-0:
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0/aws-load-balancer-controller:
 
-  kubernetes:service/restapi4integration0-pod2:
-  kubernetes:service/restapi4integration0-pod2 -> eks_cluster/eks_cluster-0:
-  kubernetes:service/restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0/pod2:
+  kubernetes:service:eks_cluster-0/restapi4integration0-pod2:
+  kubernetes:service:eks_cluster-0/restapi4integration0-pod2 -> eks_cluster/eks_cluster-0:
+  kubernetes:service:eks_cluster-0/restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0/pod2:
 
   kubernetes:config_map/fluent-bit-cluster-info:
   kubernetes:config_map/fluent-bit-cluster-info -> eks_cluster/eks_cluster-0:
@@ -155,11 +155,11 @@ resources:
   aws:api_deployment:rest_api_4/api_deployment-0 -> aws:api_method:rest_api_4/rest_api_4_integration_0_method:
   aws:api_deployment:rest_api_4/api_deployment-0 -> rest_api/rest_api_4:
 
-  kubernetes:target_group_binding/restapi4integration0-pod2:
-  kubernetes:target_group_binding/restapi4integration0-pod2 -> eks_cluster/eks_cluster-0:
-  kubernetes:target_group_binding/restapi4integration0-pod2 -> target_group/rest-api-4-integbcc77100:
-  kubernetes:target_group_binding/restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
-  kubernetes:target_group_binding/restapi4integration0-pod2 -> kubernetes:service/restapi4integration0-pod2:
+  kubernetes:target_group_binding:eks_cluster-0/restapi4integration0-pod2:
+  kubernetes:target_group_binding:eks_cluster-0/restapi4integration0-pod2 -> eks_cluster/eks_cluster-0:
+  kubernetes:target_group_binding:eks_cluster-0/restapi4integration0-pod2 -> target_group/rest-api-4-integbcc77100:
+  kubernetes:target_group_binding:eks_cluster-0/restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
+  kubernetes:target_group_binding:eks_cluster-0/restapi4integration0-pod2 -> kubernetes:service:eks_cluster-0/restapi4integration0-pod2:
 
   kubernetes:manifest/fluent-bit:
   kubernetes:manifest/fluent-bit -> eks_cluster/eks_cluster-0:

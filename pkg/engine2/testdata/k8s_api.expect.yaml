@@ -142,7 +142,7 @@ resources:
         Protocol: TCP
         TargetType: ip
         Vpc: aws:vpc:vpc-0
-    kubernetes:target_group_binding:restapi4integration0-pod2:
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
         Cluster: aws:eks_cluster:eks_cluster-0
         Object:
             apiVersion: elbv2.k8s.aws/v1beta1
@@ -176,7 +176,7 @@ resources:
             vpcId: aws:vpc:vpc-0#Id
             webhookNamespaceSelectors: null
         Version: 1.5.5
-    kubernetes:service:restapi4integration0-pod2:
+    kubernetes:service:eks_cluster-0:restapi4integration0-pod2:
         Cluster: aws:eks_cluster:eks_cluster-0
         Object:
             apiVersion: v1
@@ -285,12 +285,12 @@ resources:
                         - ec2.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
             - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
             - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
             - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
-            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
@@ -503,12 +503,6 @@ resources:
               ToPort: 0
         IngressRules:
             - CidrBlocks:
-                - 10.0.128.0/18
-              Description: Allow ingress traffic from ip addresses within the subnet subnet-0
-              FromPort: 0
-              Protocol: "-1"
-              ToPort: 0
-            - CidrBlocks:
                 - 10.0.192.0/18
               Description: Allow ingress traffic from ip addresses within the subnet subnet-1
               FromPort: 0
@@ -524,6 +518,12 @@ resources:
               FromPort: 0
               Protocol: "-1"
               Self: true
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.128.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-0
+              FromPort: 0
+              Protocol: "-1"
               ToPort: 0
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-0-route_table:
@@ -615,16 +615,18 @@ edges:
     aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-0:
     aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-1:
     aws:load_balancer_listener:rest_api_4_integration_0-pod2 -> aws:target_group:rest-api-4-integbcc77100:
-    aws:target_group:rest-api-4-integbcc77100 -> kubernetes:target_group_binding:restapi4integration0-pod2:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller:
-    kubernetes:target_group_binding:restapi4integration0-pod2 -> kubernetes:service:restapi4integration0-pod2:
+    aws:target_group:rest-api-4-integbcc77100 -> kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
+    ? kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
+    :
+    ? kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:service:eks_cluster-0:restapi4integration0-pod2
+    :
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:region:region-0:
     ? kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
     :
-    kubernetes:service:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:service:restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0:pod2:
+    kubernetes:service:eks_cluster-0:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
+    kubernetes:service:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0:pod2:
     kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
     kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:iam_role:aws-load-balancer-controller:
     kubernetes:pod:eks_cluster-0:pod2 -> aws:ecr_image:pod2-ecr_image:
