@@ -80,7 +80,7 @@ func TestToplogicalSort(t *testing.T) {
 
 			// Repeat to make sure it's fully deterministic
 			for i := 0; i < 100; i++ {
-				got, err := construct.ToplogicalSort(tt.graph)
+				got, err := construct.TopologicalSort(tt.graph)
 				require.NoError(err)
 				gotStr := make([]string, len(got))
 				for i, v := range got {

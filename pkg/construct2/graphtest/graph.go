@@ -44,7 +44,7 @@ func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
 		return v
 	}
 
-	expectVs := must(construct2.ToplogicalSort(expect)).([]construct2.ResourceId)
+	expectVs := must(construct2.TopologicalSort(expect)).([]construct2.ResourceId)
 	for _, expectV := range expectVs {
 		_, err := actual.Vertex(expectV)
 		assert.NoError(err)

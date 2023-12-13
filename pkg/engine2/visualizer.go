@@ -3,14 +3,12 @@ package engine2
 import (
 	"errors"
 	"fmt"
-	"sort"
-	"strings"
+	"math"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -33,292 +31,262 @@ const (
 	NoRenderTag   Tag = "no-render"
 )
 
-type (
-	TopologyNode struct {
-		Resource construct.ResourceId
-		Parent   construct.ResourceId
-		Children set.Set[construct.ResourceId]
-	}
-)
-type Topology struct {
-	Nodes map[string]*TopologyNode
-	Edges map[construct.SimpleEdge]construct.Path
-}
-
 func (e *Engine) VisualizeViews(ctx solution_context.SolutionContext) ([]klotho_io.File, error) {
 	iac_topo := &visualizer.File{
 		FilenamePrefix: "iac-",
 		Provider:       "aws",
-		DAG:            ctx.DeploymentGraph(),
 	}
 	dataflow_topo := &visualizer.File{
 		FilenamePrefix: "dataflow-",
 		Provider:       "aws",
 	}
 	var err error
-	dataflow_topo.DAG, err = e.GetViewsDag(DataflowView, ctx)
+	iac_topo.Graph, err = visualizer.ConstructToVis(ctx.DeploymentGraph())
+	if err != nil {
+		return nil, err
+	}
+	dataflow_topo.Graph, err = e.GetViewsDag(DataflowView, ctx)
 	return []klotho_io.File{iac_topo, dataflow_topo}, err
 }
 
-func (e *Engine) GetResourceVizTag(view string, resource construct.ResourceId) Tag {
+func (e *Engine) GetResourceVizTag(view View, resource construct.ResourceId) Tag {
 	template, err := e.Kb.GetResourceTemplate(resource)
 
 	if template == nil || err != nil {
 		return NoRenderTag
 	}
-	tag, found := template.Views[view]
+	tag, found := template.Views[string(view)]
 	if !found {
 		return NoRenderTag
 	}
 	return Tag(tag)
 }
 
-func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (construct.Graph, error) {
-	topo := Topology{
-		Nodes: make(map[string]*TopologyNode),
-		Edges: make(map[construct.SimpleEdge]construct.Path),
+func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (visualizer.VisGraph, error) {
+	viewDag := visualizer.NewVisGraph()
+	var graph construct.Graph
+	if view == IACView {
+		graph = ctx.DeploymentGraph()
+	} else {
+		graph = ctx.DataflowGraph()
 	}
-	viewDag := construct.NewGraph()
-	df := ctx.DataflowGraph()
+	connGraph, err := visualizer.NewConnectionGraph(graph, e.Kb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct weighted dag: %w", err)
+	}
+	err = errors.Join(
+		construct.GraphToSVG(connGraph.Network, "net-topo"),
+		construct.GraphToSVG(connGraph.Permissions, "perm-topo"),
+	)
+	if err != nil {
+		zap.S().Errorf("failed to construct svg: %v", err)
+	}
 
-	resources, err := construct.ReverseTopologicalSort(df)
+	ids, err := construct.ReverseTopologicalSort(graph)
 	if err != nil {
 		return nil, err
 	}
+
 	var errs error
-	for _, src := range resources {
-		node := &TopologyNode{
-			Resource: src,
-			Children: make(set.Set[construct.ResourceId]),
-			Parent:   e.getParentFromNamespace(src, resources),
-		}
 
-		tag := e.GetResourceVizTag(string(DataflowView), src)
-		switch tag {
+	// First pass gets all the vertices (groups or big icons)
+	for _, id := range ids {
+		var err error
+		switch tag := e.GetResourceVizTag(view, id); tag {
+		case NoRenderTag:
+			continue
 		case ParentIconTag, BigIconTag:
-			topo.Nodes[src.String()] = node
-		case SmallIconTag, NoRenderTag:
+			err = viewDag.AddVertex(&visualizer.VisResource{
+				ID:       id,
+				Children: make(set.Set[construct.ResourceId]),
+				Tag:      string(tag),
+			})
+		}
+		errs = errors.Join(errs, err)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	// Second pass sets up the small icons & edges between big icons
+	for _, id := range ids {
+		switch tag := e.GetResourceVizTag(view, id); tag {
+		case NoRenderTag:
 			continue
+		case ParentIconTag:
+			continue
+		case BigIconTag:
+			err := e.handleBigIcon(view, connGraph, viewDag, id)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to handle big icon %s: %w", id, err))
+			}
+		case SmallIconTag:
+			err := e.handleSmallIcon(view, connGraph.Undirected, viewDag, id)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to handle small icon %s: %w", id, err))
+			}
 		default:
-			errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", tag, src))
-			continue
-		}
-
-		deps, err := construct.DownstreamDependencies(
-			df,
-			src,
-			knowledgebase.DependenciesSkipEdgeLayer(df, e.Kb, src, knowledgebase.FirstFunctionalLayer),
-		)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		zap.S().Debugf("%s paths: %d", src, len(deps.Paths))
-		sort.Slice(deps.Paths, func(i, j int) bool {
-			li, lj := len(deps.Paths[i]), len(deps.Paths[j])
-			if li != lj {
-				return li < lj
-			}
-			for pathIdx := 0; pathIdx < li; pathIdx++ {
-				resI := deps.Paths[i][pathIdx]
-				resJ := deps.Paths[j][pathIdx]
-				if resI != resJ {
-					return construct.ResourceIdLess(resI, resJ)
-				}
-			}
-			return false
-		})
-		seenSmall := make(set.Set[construct.ResourceId])
-		for _, path := range deps.Paths {
-			dst := path[len(path)-1]
-			if dst == src {
-				continue
-			}
-			dstTag := e.GetResourceVizTag(string(DataflowView), dst)
-			switch dstTag {
-			case ParentIconTag:
-				if !node.Parent.IsZero() {
-					continue
-				}
-				template, err := e.Kb.GetResourceTemplate(dst)
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				if collectionutil.Contains(template.Classification.Is, "cluster") ||
-					collectionutil.Contains(template.Classification.Is, "network") {
-					hasPath, err := HasParent(topo, ctx, src, dst)
-					if err != nil {
-						errs = errors.Join(errs, err)
-					}
-					if node.Parent.IsZero() && hasPath {
-						node.Parent = dst
-					}
-				} else {
-					errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
-				}
-			case BigIconTag:
-				errs = errors.Join(errs, createEdgeIfPath(topo, ctx, src, dst, path))
-			case SmallIconTag:
-				if seenSmall.Contains(dst) {
-					continue
-				}
-				seenSmall.Add(dst)
-				isSideEffect, err := knowledgebase.IsOperationalResourceSideEffect(df, ctx.KnowledgeBase(), src, dst)
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				if isSideEffect {
-					node.Children.Add(dst)
-				}
-			case NoRenderTag:
-				continue
-			default:
-				errs = errors.Join(errs, fmt.Errorf("unknown tag %s, for resource %s", dstTag, dst))
-			}
-		}
-
-	}
-	if errs != nil {
-		return nil, errs
-	}
-
-	for _, node := range topo.Nodes {
-		childrenIds := make([]string, len(node.Children))
-		children := node.Children.ToSlice()
-		sort.Slice(children, func(i, j int) bool {
-			return construct.ResourceIdLess(children[i], children[j])
-		})
-		for i, child := range children {
-			childrenIds[i] = child.String()
-		}
-		properties := map[string]string{}
-		if len(node.Children) > 0 {
-			properties[string(visualizer.ChildrenKey)] = strings.Join(childrenIds, ",")
-		}
-		if !node.Parent.IsZero() {
-			properties[string(visualizer.ParentKey)] = node.Parent.String()
-		}
-		res, err := df.Vertex(node.Resource)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		errs = errors.Join(errs, viewDag.AddVertex(res, graph.VertexAttributes(properties)))
-
-	}
-	if errs != nil {
-		return nil, errs
-	}
-
-	// Remove edges between children and parents
-	for _, node := range topo.Nodes {
-		if !node.Parent.IsZero() {
-			delete(topo.Edges, construct.SimpleEdge{Source: node.Resource, Target: node.Parent})
-			delete(topo.Edges, construct.SimpleEdge{Source: node.Parent, Target: node.Resource})
-		}
-		for edge := range topo.Edges {
-			if edge.Source == node.Parent || edge.Target == node.Parent {
-				delete(topo.Edges, edge)
-				delete(topo.Edges, edge)
-			}
+			errs = errors.Join(errs, fmt.Errorf("unknown tag %s", tag))
 		}
 	}
 
-	for edge, path := range topo.Edges {
-		pathStrings := make([]string, len(path))
-		for i, res := range path {
-			pathStrings[i] = res.String()
-		}
-		data := map[string]interface{}{}
-		if len(path) > 0 {
-			data["path"] = strings.Join(pathStrings, ",")
-		}
-		errs = errors.Join(errs, viewDag.AddEdge(edge.Source, edge.Target, graph.EdgeData(data)))
-	}
-
-	if errs != nil {
-		return nil, errs
-	}
-
-	return viewDag, nil
+	return viewDag, errs
 }
 
-func createEdgeIfPath(topo Topology,
-	ctx solution_context.SolutionContext,
-	src, dst construct.ResourceId,
-	path construct.Path,
+// handleSmallIcon finds a big icon
+func (e *Engine) handleSmallIcon(
+	view View,
+	g construct.Graph,
+	viewDag visualizer.VisGraph,
+	id construct.ResourceId,
 ) error {
-	hasPath, err := HasPath(topo, ctx, src, dst)
+	ids, err := construct.TopologicalSort(viewDag)
 	if err != nil {
 		return err
 	}
-	if hasPath {
-		edge := construct.SimpleEdge{
-			Source: src,
-			Target: dst,
+	pather, err := construct.ShortestPaths(g, id, construct.DontSkipEdges)
+	if err != nil {
+		return err
+	}
+	glueIds, err := knowledgebase.Downstream(g, e.Kb, id, knowledgebase.ResourceGlueLayer)
+	if err != nil {
+		return err
+	}
+	glue := set.SetOf(glueIds...)
+	var errs error
+	var bestParent *visualizer.VisResource
+	bestParentWeight := math.MaxInt32
+	for _, candidate := range ids {
+		// If the resource is in the glue layer, add it
+		if glue.Contains(candidate) {
+			parent, err := viewDag.Vertex(candidate)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			parent.Children.Add(id)
 		}
-		topo.Edges[edge] = path[1 : len(path)-1]
+
+		// Even if it was in the glue layer, continue calculating the best parent so we don't accidentally
+		// attribute it to a worse parent.
+		path, err := pather.ShortestPath(candidate)
+		if errors.Is(err, graph.ErrTargetNotReachable) {
+			continue
+		} else if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		weight, err := graph_addons.PathWeight(g, graph_addons.Path[construct.ResourceId](path))
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if weight < bestParentWeight {
+			bestParentWeight = weight
+			bestParent, err = viewDag.Vertex(candidate)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+		}
+	}
+	if errs != nil {
+		return errs
+	}
+	if bestParent != nil {
+		bestParent.Children.Add(id)
 	}
 	return nil
 }
 
-func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources []construct.ResourceId) construct.ResourceId {
-	if resource.Namespace != "" {
-		for _, potentialParent := range resources {
-			if potentialParent.Name == resource.Namespace && e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
-				return potentialParent
+// handleBigIcon sets the parent of the big icon and adds edges to any other big icons
+func (e *Engine) handleBigIcon(
+	view View,
+	g visualizer.ConnectionGraph,
+	viewDag visualizer.VisGraph,
+	id construct.ResourceId,
+) error {
+	source, err := viewDag.Vertex(id)
+	if err != nil {
+		return err
+	}
+	parent, err := e.findParent(view, g, viewDag, id)
+	if err != nil {
+		return err
+	}
+	source.Parent = parent
+
+	err = g.ForEachTarget(id, func(target construct.ResourceId, netPath, permPath construct.Path) error {
+		if target == id {
+			return nil
+		}
+		_, inGraphErr := viewDag.Vertex(target)
+		if inGraphErr != nil {
+			if errors.Is(inGraphErr, graph.ErrVertexNotFound) {
+				// except for small icons, we don't care about anything that's not already in the graph
+				return nil
+			} else {
+				return inGraphErr
 			}
 		}
-	}
-	return construct.ResourceId{}
+		return viewDag.AddEdge(
+			id,
+			target,
+			graph.EdgeData(map[string]any{"netPath": netPath, "permPath": permPath}),
+		)
+	})
+	return err
 }
 
-func HasParent(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
-	return checkPaths(topo, sol, source, target)
-}
-
-func HasPath(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
-	srcTemplate, err := sol.KnowledgeBase().GetResourceTemplate(source)
-	if err != nil || srcTemplate == nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
-	}
-	targetTemplate, err := sol.KnowledgeBase().GetResourceTemplate(target)
-	if err != nil || targetTemplate == nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
-	}
-	if len(targetTemplate.PathSatisfaction.AsTarget) == 0 || len(srcTemplate.PathSatisfaction.AsSource) == 0 {
-		return false, nil
-	}
-	sourceRes, err := sol.RawView().Vertex(source)
+func (e *Engine) findParent(
+	view View,
+	g visualizer.ConnectionGraph,
+	viewDag visualizer.VisGraph,
+	id construct.ResourceId,
+) (bestParent construct.ResourceId, err error) {
+	ids, err := construct.TopologicalSort(viewDag)
 	if err != nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+		return
 	}
-	targetRes, err := sol.RawView().Vertex(target)
+	pather, err := construct.ShortestPaths(g.Undirected, id, construct.DontSkipEdges)
 	if err != nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+		return
 	}
-
-	consumed, err := knowledgebase.HasConsumedFromResource(sourceRes, targetRes,
-		solution_context.DynamicCtx(sol))
-	if err != nil {
-		return false, err
-	}
-	if !consumed {
-		return false, nil
-	}
-	return checkPaths(topo, sol, source, target)
-}
-
-func checkPaths(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
-	paths, err := path_selection.GetPaths(sol, source, target, func(source, target construct.ResourceId, path []construct.ResourceId) bool {
-		for i, res := range path {
-			if i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
-				return false
+	bestParentWeight := math.MaxInt32
+	var errs error
+candidateLoop:
+	for _, id := range ids {
+		if e.GetResourceVizTag(view, id) != ParentIconTag {
+			continue
+		}
+		path, err := pather.ShortestPath(id)
+		if errors.Is(err, graph.ErrTargetNotReachable) {
+			continue
+		} else if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		for _, pathElem := range path[1 : len(path)-1] {
+			pathTmpl, err := e.Kb.GetResourceTemplate(pathElem)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			// Don't cross functional boundaries for parent attribution
+			if pathTmpl.GetFunctionality() != knowledgebase.Unknown {
+				continue candidateLoop
 			}
 		}
-		return true
-	}, true)
-	return len(paths) > 0, err
+		weight, err := graph_addons.PathWeight(g.Undirected, graph_addons.Path[construct.ResourceId](path))
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if weight < bestParentWeight {
+			bestParentWeight = weight
+			bestParent = id
+		}
+	}
+	err = errs
+	return
 }

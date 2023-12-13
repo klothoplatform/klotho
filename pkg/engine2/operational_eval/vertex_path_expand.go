@@ -401,7 +401,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return nil
 	}
 
-	allRes, err := construct.ToplogicalSort(eval.Solution.RawView())
+	allRes, err := construct.TopologicalSort(eval.Solution.RawView())
 	if err != nil {
 		return err
 	}

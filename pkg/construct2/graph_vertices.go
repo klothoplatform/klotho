@@ -4,16 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/dominikbraun/graph"
 )
 
-// ToplogicalSort provides a stable topological ordering of resource IDs.
+// TopologicalSort provides a stable topological ordering of resource IDs.
 // This is a modified implementation of graph.StableTopologicalSort with the primary difference
 // being any uses of the internal function `enqueueArbitrary`.
-func ToplogicalSort(g Graph) ([]ResourceId, error) {
+func TopologicalSort[T any](g graph.Graph[ResourceId, T]) ([]ResourceId, error) {
 	return toplogicalSort(g, false)
 }
 
-func toplogicalSort(g Graph, invertLess bool) ([]ResourceId, error) {
+// ReverseTopologicalSort is like TopologicalSort, but returns the reverse order. This is primarily useful for
+// IaC graphs to determine the order in which resources should be created.
+func ReverseTopologicalSort[T any](g graph.Graph[ResourceId, T]) ([]ResourceId, error) {
+	topo, err := toplogicalSort(g, true)
+	if err != nil {
+		return nil, err
+	}
+	reverseInplace(topo)
+	return topo, nil
+}
+
+func toplogicalSort[T any](g graph.Graph[ResourceId, T], invertLess bool) ([]ResourceId, error) {
 	if !g.Traits().IsDirected {
 		return nil, fmt.Errorf("topological sort cannot be computed on undirected graph")
 	}
@@ -129,17 +142,6 @@ func reverseInplace[E any](a []E) {
 	}
 }
 
-// ReverseTopologicalSort is like TopologicalSort, but returns the reverse order. This is primarily useful for
-// IaC graphs to determine the order in which resources should be created.
-func ReverseTopologicalSort(g Graph) ([]ResourceId, error) {
-	topo, err := toplogicalSort(g, true)
-	if err != nil {
-		return nil, err
-	}
-	reverseInplace(topo)
-	return topo, nil
-}
-
 // WalkGraphFunc is much like `fs.WalkDirFunc` and is used in `WalkGraph` and `WalkGraphReverse` for the callback
 // during graph traversal. Return `StopWalk` to end the walk.
 type WalkGraphFunc func(id ResourceId, resource *Resource, nerr error) error
@@ -164,7 +166,7 @@ func walkGraph(g Graph, ids []ResourceId, fn WalkGraphFunc) (nerr error) {
 }
 
 func WalkGraph(g Graph, fn WalkGraphFunc) error {
-	topo, err := ToplogicalSort(g)
+	topo, err := TopologicalSort(g)
 	if err != nil {
 		return err
 	}
