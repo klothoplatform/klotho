@@ -285,7 +285,7 @@ func (v *pathExpandVertex) handleResultProperties(
 		errs = errors.Join(errs, handleResultProperties(res, rt, pred[id], knowledgebase.DirectionUpstream))
 
 		if oldId != res.ID {
-			eval.UpdateId(oldId, res.ID)
+			errs = errors.Join(errs, eval.UpdateId(oldId, res.ID))
 		}
 	}
 	return errs
