@@ -143,6 +143,7 @@ resources:
         TargetType: ip
         Vpc: aws:vpc:vpc-0
     kubernetes:target_group_binding:restapi4integration0-pod2:
+        Cluster: aws:eks_cluster:eks_cluster-0
         Object:
             apiVersion: elbv2.k8s.aws/v1beta1
             kind: TargetGroupBinding

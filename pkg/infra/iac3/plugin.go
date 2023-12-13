@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"regexp"
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/config"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	kio "github.com/klothoplatform/klotho/pkg/io"
@@ -20,10 +20,16 @@ import (
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
 
-type Plugin struct {
-	Config *config.Application
-	KB     *knowledgebase.KnowledgeBase
-}
+type (
+	PulumiConfig struct {
+		AppName string
+	}
+
+	Plugin struct {
+		Config *PulumiConfig
+		KB     *knowledgebase.KnowledgeBase
+	}
+)
 
 func (p Plugin) Name() string {
 	return "pulumi3"
@@ -43,6 +49,10 @@ var (
 
 func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
 
+	err := p.sanitizeConfig()
+	if err != nil {
+		return nil, err
+	}
 	// TODO We'll eventually want to split the output into different files, but we don't know exactly what that looks
 	// like yet. For now, just write to a single file, "index.ts"
 	buf := getBuffer()
@@ -130,6 +140,15 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	files = append(files, dockerfiles...)
 
 	return files, nil
+}
+
+func (p *Plugin) sanitizeConfig() error {
+	reg, err := regexp.Compile("[^a-zA-Z0-9-_]+")
+	if err != nil {
+		return fmt.Errorf("Error compiling regex: %v", err)
+	}
+	p.Config.AppName = reg.ReplaceAllString(p.Config.AppName, "")
+	return nil
 }
 
 func renderGlobals(w io.Writer) error {

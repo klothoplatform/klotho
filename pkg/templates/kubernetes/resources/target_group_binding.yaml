@@ -14,8 +14,8 @@ sanitize_name:
 properties:
   Cluster:
     type: resource
-    namespace: true
     operational_rule:
+      step:
         direction: downstream
         resources:
           - classifications:

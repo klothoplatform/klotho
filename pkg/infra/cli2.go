@@ -128,7 +128,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 	switch generateIacCfg.provider {
 	case "pulumi":
 		pulumiPlugin := iac3.Plugin{
-			Config: &config.Application{AppName: generateIacCfg.appName},
+			Config: &iac3.PulumiConfig{AppName: generateIacCfg.appName},
 			KB:     kb,
 		}
 		iacFiles, err := pulumiPlugin.Translate(solCtx)
