@@ -29,11 +29,18 @@ func dotEdgeAttributes(e ResourceEdge) map[string]string {
 		}
 		return nil
 	})
+	if e.Properties.Weight > 0 {
+		if a["label"] == "" {
+			a["label"] = fmt.Sprintf("%d", e.Properties.Weight)
+		} else {
+			a["label"] = fmt.Sprintf("%s\n%d", a["label"], e.Properties.Weight)
+		}
+	}
 	return a
 }
 
 func GraphToDOT(g Graph, out io.Writer) error {
-	ids, err := ToplogicalSort(g)
+	ids, err := TopologicalSort(g)
 	if err != nil {
 		return err
 	}

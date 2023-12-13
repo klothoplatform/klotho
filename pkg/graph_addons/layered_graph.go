@@ -13,6 +13,10 @@ import (
 // Remove and update operations are applied to all layers.
 type LayeredGraph[K comparable, T any] []graph.Graph[K, T]
 
+func LayeredGraphOf[K comparable, T any](g ...graph.Graph[K, T]) LayeredGraph[K, T] {
+	return g
+}
+
 func (g LayeredGraph[K, T]) Traits() *graph.Traits {
 	t := g[0].Traits()
 	for i := 1; i < len(g); i++ {

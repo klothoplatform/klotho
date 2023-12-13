@@ -25,7 +25,7 @@ var nullNode = &yaml.Node{
 }
 
 func (g YamlGraph) MarshalYAML() (interface{}, error) {
-	topo, err := ToplogicalSort(g.Graph)
+	topo, err := TopologicalSort(g.Graph)
 	if err != nil {
 		return nil, err
 	}

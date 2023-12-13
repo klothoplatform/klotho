@@ -347,7 +347,7 @@ func TransformToPropertyValue(
 }
 
 func TransformAllPropertyValues(ctx DynamicValueContext) error {
-	ids, err := construct.ToplogicalSort(ctx.DAG())
+	ids, err := construct.TopologicalSort(ctx.DAG())
 	if err != nil {
 		return err
 	}
