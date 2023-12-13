@@ -8,7 +8,7 @@ operational_rules:
         resources:
           - selector: aws:eks_add_on
             properties:
-              AddOnName: efs-csi-driver
+              AddOnName: aws-efs-csi-driver
               Cluster: '{{ fieldValue "Cluster" .Source }}'
       - resource: '{{ .Source }}'
         direction: downstream
