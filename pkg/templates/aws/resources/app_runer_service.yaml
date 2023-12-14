@@ -35,6 +35,13 @@ properties:
     type: map(string,string)
     description: Key-value pairs of environment variables that are provided to the
       App Runner service
+    key_property:
+      sanitize: |
+        {{ .
+          | replace `[^[:alnum:]_]+` "_"
+          | replace `^[^a-zA-Z]+` ""
+          | upper
+        }}
   Port:
     type: int
     default_value: 8080

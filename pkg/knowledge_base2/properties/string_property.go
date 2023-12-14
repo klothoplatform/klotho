@@ -123,14 +123,7 @@ func (s *StringProperty) Validate(resource *construct.Resource, value any, ctx k
 	}
 
 	if s.SanitizeTmpl != nil {
-		oldVal := stringVal
-		stringVal, err := s.SanitizeTmpl.Execute(stringVal)
-		if err != nil {
-			return err
-		}
-		if oldVal != stringVal {
-			return fmt.Errorf("value %s did not pass sanitization rules. suggested value: %s", oldVal, stringVal)
-		}
+		return s.SanitizeTmpl.Check(stringVal)
 	}
 	return nil
 }

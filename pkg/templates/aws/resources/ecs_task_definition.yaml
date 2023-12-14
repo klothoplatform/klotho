@@ -28,6 +28,13 @@ properties:
   EnvironmentVariables:
     type: map(string,string)
     description: A map of the environment variables to pass to the container
+    key_property:
+      sanitize: |
+        {{ .
+          | replace `[^[:alnum:]_]+` "_"
+          | replace `^[^a-zA-Z]+` ""
+          | upper
+        }}
   Cpu:
     type: string
     default_value: '256'

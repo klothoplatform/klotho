@@ -198,19 +198,38 @@ func (m *MapProperty) Validate(resource *construct.Resource, value any, ctx know
 		}
 	}
 	var errs error
+	hasSanitized := false
+	validMap := make(map[string]any)
 	// Only validate values if its a primitive map, otherwise let the sub properties handle their own validation
-	if m.KeyProperty != nil && m.ValueProperty != nil {
-		for k, v := range mapVal {
-			if err := m.KeyProperty.Validate(resource, k, ctx); err != nil {
+	for k, v := range mapVal {
+		if m.KeyProperty != nil {
+			var sanitizeErr *knowledgebase.SanitizeError
+			if err := m.KeyProperty.Validate(resource, k, ctx); errors.As(err, &sanitizeErr) {
+				k = sanitizeErr.Sanitized.(string)
+				hasSanitized = true
+			} else if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid key %v for map property type %s: %w", k, m.KeyProperty.Type(), err))
 			}
-			if err := m.ValueProperty.Validate(resource, v, ctx); err != nil {
+		}
+		if m.ValueProperty != nil {
+			var sanitizeErr *knowledgebase.SanitizeError
+			if err := m.ValueProperty.Validate(resource, v, ctx); errors.As(err, &sanitizeErr) {
+				v = sanitizeErr.Sanitized
+				hasSanitized = true
+			} else if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("invalid value %v for map property type %s: %w", v, m.ValueProperty.Type(), err))
 			}
 		}
+		validMap[k] = v
 	}
 	if errs != nil {
 		return errs
+	}
+	if hasSanitized {
+		return &knowledgebase.SanitizeError{
+			Input:     mapVal,
+			Sanitized: validMap,
+		}
 	}
 	return nil
 }

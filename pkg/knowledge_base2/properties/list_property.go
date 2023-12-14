@@ -189,19 +189,34 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 			return fmt.Errorf("list value %v is too long. max length is %d", value, *l.MaxLength)
 		}
 	}
-	var errs error
 	// Only validate values if its a primitive list, otherwise let the sub properties handle their own validation
 	if l.ItemProperty != nil {
-		for _, v := range listVal {
+		var errs error
+		hasSanitized := false
+		validList := make([]any, len(listVal))
+		for i, v := range listVal {
 			err := l.ItemProperty.Validate(resource, v, ctx)
 			if err != nil {
-				errs = errors.New(errs.Error() + "\n" + err.Error())
+				var sanitizeErr *knowledgebase.SanitizeError
+				if errors.As(err, &sanitizeErr) {
+					validList[i] = sanitizeErr.Sanitized
+					hasSanitized = true
+				} else {
+					errs = errors.Join(errs, err)
+				}
+			} else {
+				validList[i] = v
 			}
 		}
-
-	}
-	if errs != nil {
-		return errs
+		if errs != nil {
+			return errs
+		}
+		if hasSanitized {
+			return &knowledgebase.SanitizeError{
+				Input:     listVal,
+				Sanitized: validList,
+			}
+		}
 	}
 	return nil
 }

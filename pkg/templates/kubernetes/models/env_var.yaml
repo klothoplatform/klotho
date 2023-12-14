@@ -2,5 +2,11 @@ name: kubernetes:EnvVar
 properties:
   name:
     type: string
+    sanitize: |
+      {{ .
+        | replace `[^[:alnum:]_]+` "_"
+        | replace `^[^a-zA-Z]+` ""
+        | upper
+      }}
   value:
     type: string
