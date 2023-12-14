@@ -409,7 +409,7 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 
 func generateResourceName(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
 	numResources := 0
-	ids, err := construct.ToplogicalSort(sol.DataflowGraph())
+	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {
 		return err
 	}

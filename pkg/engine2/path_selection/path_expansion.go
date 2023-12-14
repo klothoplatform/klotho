@@ -178,7 +178,7 @@ func renameAndReplaceInTempGraph(
 
 func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) (set.Set[string], error) {
 	currNames := make(set.Set[string])
-	ids, err := construct.ToplogicalSort(sol.DataflowGraph())
+	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {
 		return currNames, err
 	}
