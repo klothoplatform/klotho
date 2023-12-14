@@ -8,13 +8,13 @@ operational_rules:
         configuration:
           field: Object.spec.volumes
           value:
-            - Name: '{{ fieldValue "Object.metadata.name" .Target }}'
-              PersistentVolumeClaim:
-                ClaimName: '{{ fieldValue "Object.metadata.name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'
+            - name: '{{ fieldValue "Object.metadata.name" .Target }}'
+              persistentVolumeClaim:
+                claimName: '{{ fieldValue "Object.metadata.name" (downstream "kubernetes:persistent_volume_claim" .Target) }}'
       - resource: '{{ .Source }}'
         configuration:
           field: Object.spec.containers[0].volumeMounts
           value:
-            - Name: '{{ fieldValue "Object.metadata.name" .Target }}'
+            - name: '{{ fieldValue "Object.metadata.name" .Target }}'
               mountPath: /mnt/efs
       

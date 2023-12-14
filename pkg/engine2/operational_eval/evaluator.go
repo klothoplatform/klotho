@@ -407,6 +407,14 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 		return err
 	}
 
+	// update all constraints that pertain to the old id
+	c := eval.Solution.Constraints()
+	for i, rc := range c.Resources {
+		if rc.Target == oldId {
+			c.Resources[i].Target = newId
+		}
+	}
+
 	var errs error
 
 	replaceVertex := func(oldKey Key, vertex Vertex) {
