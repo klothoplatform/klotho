@@ -48,10 +48,10 @@ type (
 		SanitizeTmpl  string   `yaml:"sanitize"`
 		AllowedValues []string `yaml:"allowed_values"`
 
-		KeyProperty   knowledgebase.Property `yaml:"key_property"`
-		ValueProperty knowledgebase.Property `yaml:"value_property"`
+		KeyProperty   *Property `yaml:"key_property"`
+		ValueProperty *Property `yaml:"value_property"`
 
-		ItemProperty knowledgebase.Property `yaml:"item_property"`
+		ItemProperty *Property `yaml:"item_property"`
 
 		Path string `json:"-" yaml:"-"`
 	}
@@ -93,6 +93,7 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 	if err != nil {
 		return nil, err
 	}
+	propertyType.Details().Path = p.Path
 
 	srcVal := reflect.ValueOf(p).Elem()
 	dstVal := reflect.ValueOf(propertyType).Elem()
@@ -111,11 +112,9 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 			continue
 		}
 		// Handle sub properties so we can recurse down the tree
-		if fieldName == "Properties" {
-			properties, ok := srcField.Interface().(Properties)
-			if !ok {
-				return nil, fmt.Errorf("invalid properties")
-			}
+		switch fieldName {
+		case "Properties":
+			properties := srcField.Interface().(Properties)
 			var errs error
 			props := knowledgebase.Properties{}
 			for name, prop := range properties {
@@ -127,13 +126,67 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 				props[name] = propertyType
 			}
 			if errs != nil {
-				return nil, errs
+				return nil, fmt.Errorf("could not convert sub properties: %w", errs)
 			}
 			dstField.Set(reflect.ValueOf(props))
 			continue
+
+		case "KeyProperty", "ValueProperty":
+			if !strings.HasPrefix(p.Type, "map") {
+				return nil, fmt.Errorf("property must be 'map' (was %s) for %s", p.Type, fieldName)
+			}
+			keyType, valueType, hasElementTypes := strings.Cut(
+				strings.TrimSuffix(strings.TrimPrefix(p.Type, "map("), ")"),
+				",",
+			)
+			elemProp := srcField.Interface().(*Property)
+			// Add the element's type if it is not specified but is on the parent.
+			// For example, 'map(string,string)' on the parent means the key_property doesn't need 'type: string'
+			if hasElementTypes {
+				if fieldName == "KeyProperty" {
+					if elemProp.Type != "" && elemProp.Type != keyType {
+						return nil, fmt.Errorf("key property type must be %s (was %s)", keyType, elemProp.Type)
+					} else if elemProp.Type == "" {
+						elemProp.Type = keyType
+					}
+				} else {
+					if elemProp.Type != "" && elemProp.Type != valueType {
+						return nil, fmt.Errorf("value property type must be %s (was %s)", valueType, elemProp.Type)
+					} else if elemProp.Type == "" {
+						elemProp.Type = valueType
+					}
+				}
+			}
+			converted, err := elemProp.Convert()
+			if err != nil {
+				return nil, fmt.Errorf("could not convert %s: %w", fieldName, err)
+			}
+			srcField = reflect.ValueOf(converted)
+		case "ItemProperty":
+			if !strings.HasPrefix(p.Type, "list") && !strings.HasPrefix(p.Type, "set") {
+				return nil, fmt.Errorf("property must be 'list' or 'set' (was %s) for %s", p.Type, fieldName)
+			}
+			hasItemType := strings.Contains(p.Type, "(")
+			elemProp := srcField.Interface().(*Property)
+			if hasItemType {
+				itemType := strings.TrimSuffix(
+					strings.TrimPrefix(strings.TrimPrefix(p.Type, "list("), "set("),
+					")",
+				)
+				if elemProp.Type != "" && elemProp.Type != itemType {
+					return nil, fmt.Errorf("item property type must be %s (was %s)", itemType, elemProp.Type)
+				} else if elemProp.Type == "" {
+					elemProp.Type = itemType
+				}
+			}
+			converted, err := elemProp.Convert()
+			if err != nil {
+				return nil, fmt.Errorf("could not convert %s: %w", fieldName, err)
+			}
+			srcField = reflect.ValueOf(converted)
 		}
 
-		if dstField.Type().AssignableTo(srcField.Type()) {
+		if srcField.Type().AssignableTo(dstField.Type()) {
 			dstField.Set(srcField)
 			continue
 		}
@@ -159,12 +212,13 @@ func (p *Property) Convert() (knowledgebase.Property, error) {
 			continue
 		}
 
-		return nil, fmt.Errorf("invalid field name %s, for property %s of type %s", fieldName, p.Name, p.Type)
+		return nil, fmt.Errorf(
+			"could not assign %s#%s (%s) to field in %T (%s)",
+			p.Path, fieldName, srcField.Type(), propertyType, dstField.Type(),
+		)
 
 	}
 
-	details := propertyType.Details()
-	details.Path = p.Path
 	return propertyType, nil
 }
 

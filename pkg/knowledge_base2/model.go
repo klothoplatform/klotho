@@ -13,7 +13,7 @@ type (
 )
 
 // GetObjectValue returns the value of the object as the model type
-func (m *Model) GetObjectValue(val any, ctx DynamicValueContext, data DynamicValueData) (any, error) {
+func (m *Model) GetObjectValue(val any, ctx DynamicContext, data DynamicValueData) (any, error) {
 
 	GetVal := func(p Property, val map[string]any) (any, error) {
 		propVal, found := val[p.Details().Name]

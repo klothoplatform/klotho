@@ -31,23 +31,43 @@ type (
 	}
 )
 
-func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicValueContext) ([]DelayedConsumption, error) {
-	consumerTemplate, err := ctx.KnowledgeBase.GetResourceTemplate(consumer.ID)
+func sanitizeForConsumption(ctx DynamicContext, resource *construct.Resource, propTmpl Property, val any) (any, error) {
+	err := propTmpl.Validate(resource, val, ctx)
+	var sanErr *SanitizeError
+	if errors.As(err, &sanErr) {
+		val = sanErr.Sanitized
+	} else if err != nil {
+		return val, err
+	}
+	return val, nil
+}
+
+func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicContext) ([]DelayedConsumption, error) {
+	consumerTemplate, err := ctx.KB().GetResourceTemplate(consumer.ID)
 	if err != nil {
 		return nil, err
 	}
-	emitterTemplate, err := ctx.KnowledgeBase.GetResourceTemplate(emitter.ID)
+	emitterTemplate, err := ctx.KB().GetResourceTemplate(emitter.ID)
 	if err != nil {
 		return nil, err
 	}
 	var errs error
+	addErr := func(consume ConsumptionObject, emit ConsumptionObject, err error) {
+		if err == nil {
+			return
+		}
+		errs = errors.Join(errs, fmt.Errorf(
+			"error consuming %s from emitter %s: %w",
+			consume.PropertyPath, emit.PropertyPath, err,
+		))
+	}
 	delays := []DelayedConsumption{}
 	for _, consume := range consumerTemplate.Consumption.Consumed {
 		for _, emit := range emitterTemplate.Consumption.Emitted {
 			if consume.Model == emit.Model {
 				val, err := emit.Emit(ctx, emitter.ID)
 				if err != nil {
-					errs = errors.Join(errs, err)
+					addErr(consume, emit, err)
 					continue
 				}
 				id := consumer.ID
@@ -55,21 +75,36 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicValue
 					data := DynamicValueData{Resource: consumer.ID}
 					err = ctx.ExecuteDecode(consume.Resource, data, &id)
 					if err != nil {
-						errs = errors.Join(errs, err)
+						addErr(consume, emit, err)
 						continue
 					}
 				}
-				resource, err := ctx.Graph.Vertex(id)
+				consumeTmpl, err := ctx.KB().GetResourceTemplate(id)
 				if err != nil {
-					errs = errors.Join(errs, err)
+					addErr(consume, emit, err)
 					continue
 				}
-				pval, _ := resource.GetProperty(consume.PropertyPath)
+
+				resource, err := ctx.DAG().Vertex(id)
+				if err != nil {
+					addErr(consume, emit, err)
+					continue
+				}
+				val, err = sanitizeForConsumption(ctx, resource, consumeTmpl.GetProperty(consume.PropertyPath), val)
+				if err != nil {
+					addErr(consume, emit, err)
+					continue
+				}
+				pval, err := resource.GetProperty(consume.PropertyPath)
+				if err != nil {
+					addErr(consume, emit, err)
+					continue
+				}
 				if pval == nil {
 					if consume.Converter != "" {
 						val, err = consume.Convert(val, id, ctx)
 						if err != nil {
-							errs = errors.Join(errs, err)
+							addErr(consume, emit, err)
 							continue
 						}
 					}
@@ -83,7 +118,7 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicValue
 
 				err = consume.Consume(val, ctx, resource)
 				if err != nil {
-					errs = errors.Join(errs, err)
+					addErr(consume, emit, err)
 					continue
 				}
 			}
@@ -94,12 +129,12 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicValue
 
 // HasConsumedFromResource returns true if the consumer has consumed from the emitter
 // In order to return true, only one of the emitted values has to be set correctly
-func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicValueContext) (bool, error) {
-	consumerTemplate, err := ctx.KnowledgeBase.GetResourceTemplate(consumer.ID)
+func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicContext) (bool, error) {
+	consumerTemplate, err := ctx.KB().GetResourceTemplate(consumer.ID)
 	if err != nil {
 		return false, err
 	}
-	emitterTemplate, err := ctx.KnowledgeBase.GetResourceTemplate(emitter.ID)
+	emitterTemplate, err := ctx.KB().GetResourceTemplate(emitter.ID)
 	if err != nil {
 		return false, err
 	}
@@ -124,7 +159,7 @@ func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicV
 						continue
 					}
 				}
-				resource, err := ctx.Graph.Vertex(id)
+				resource, err := ctx.DAG().Vertex(id)
 				if err != nil {
 					errs = errors.Join(errs, err)
 					continue
@@ -140,7 +175,7 @@ func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicV
 						continue
 					}
 				}
-				rt, err := ctx.KnowledgeBase.GetResourceTemplate(resource.ID)
+				rt, err := ctx.KB().GetResourceTemplate(resource.ID)
 				if err != nil {
 					errs = errors.Join(errs, err)
 					continue
@@ -159,7 +194,7 @@ func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicV
 	return noEmittedMatches, nil
 }
 
-func (c *ConsumptionObject) Convert(value any, res construct.ResourceId, ctx DynamicValueContext) (any, error) {
+func (c *ConsumptionObject) Convert(value any, res construct.ResourceId, ctx DynamicContext) (any, error) {
 	if c.Converter == "" {
 		return value, fmt.Errorf("no converter specified")
 	}
@@ -197,7 +232,7 @@ func (c *ConsumptionObject) Convert(value any, res construct.ResourceId, ctx Dyn
 	return val, nil
 }
 
-func (c *ConsumptionObject) Emit(ctx DynamicValueContext, resource construct.ResourceId) (any, error) {
+func (c *ConsumptionObject) Emit(ctx DynamicContext, resource construct.ResourceId) (any, error) {
 	if c.Value == "" {
 		return nil, fmt.Errorf("no value specified")
 	}
@@ -211,7 +246,7 @@ func (c *ConsumptionObject) Emit(ctx DynamicValueContext, resource construct.Res
 			return nil, err
 		}
 	}
-	model := ctx.KnowledgeBase.GetModel(c.Model)
+	model := ctx.KB().GetModel(c.Model)
 	data := DynamicValueData{Resource: resource}
 	val, err := model.GetObjectValue(c.Value, ctx, data)
 	if err != nil {
@@ -223,11 +258,11 @@ func (c *ConsumptionObject) Emit(ctx DynamicValueContext, resource construct.Res
 	return val, nil
 }
 
-func (c *ConsumptionObject) Consume(val any, ctx DynamicValueContext, resource *construct.Resource) error {
-	rt, err := ctx.KnowledgeBase.GetResourceTemplate(resource.ID)
+func (c *ConsumptionObject) Consume(val any, ctx DynamicContext, resource *construct.Resource) error {
+	rt, err := ctx.KB().GetResourceTemplate(resource.ID)
 	if err != nil {
 		return err
 	}
-	prop := rt.GetProperty(c.PropertyPath)
-	return prop.AppendProperty(resource, val)
+	propTmpl := rt.GetProperty(c.PropertyPath)
+	return propTmpl.AppendProperty(resource, val)
 }

@@ -181,13 +181,29 @@ func (s *SetProperty) Validate(resource *construct.Resource, value any, ctx know
 	// Only validate values if its a primitive list, otherwise let the sub properties handle their own validation
 	if s.ItemProperty != nil {
 		var errs error
+		hasSanitized := false
+		validSet := set.HashedSet[string, any]{Hasher: setVal.Hasher}
 		for _, item := range setVal.ToSlice() {
 			if err := s.ItemProperty.Validate(resource, item, ctx); err != nil {
-				errs = errors.Join(errs, fmt.Errorf("invalid item %v: %v", item, err))
+				var sanitizeErr *knowledgebase.SanitizeError
+				if errors.As(err, &sanitizeErr) {
+					validSet.Add(sanitizeErr.Sanitized)
+					hasSanitized = true
+				} else {
+					errs = errors.Join(errs, fmt.Errorf("invalid item %v: %v", item, err))
+				}
+			} else {
+				validSet.Add(item)
 			}
 		}
 		if errs != nil {
 			return errs
+		}
+		if hasSanitized {
+			return &knowledgebase.SanitizeError{
+				Input:     setVal,
+				Sanitized: validSet,
+			}
 		}
 	}
 	return nil

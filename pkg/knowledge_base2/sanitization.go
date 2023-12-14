@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 )
 
 type (
 	SanitizeTmpl struct {
 		template *template.Template
+	}
+
+	// SanitizeError is returned when a value is sanitized if the input is not valid. The Sanitized field
+	// is always the same type as the Input field.
+	SanitizeError struct {
+		Input     any
+		Sanitized any
 	}
 )
 
@@ -49,11 +57,38 @@ func NewSanitizationTmpl(name string, tmpl string) (*SanitizeTmpl, error) {
 	}, err
 }
 
-func (t SanitizeTmpl) Execute(name string) (string, error) {
-	buf := new(bytes.Buffer)
-	err := t.template.Execute(buf, name)
+var sanitizeBufs = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
+func (t SanitizeTmpl) Execute(value string) (string, error) {
+	buf := sanitizeBufs.Get().(*bytes.Buffer)
+	defer sanitizeBufs.Put(buf)
+	buf.Reset()
+
+	err := t.template.Execute(buf, value)
 	if err != nil {
-		return name, fmt.Errorf("could not execute sanitize name template on %q: %w", name, err)
+		return value, fmt.Errorf("could not execute sanitize name template on %q: %w", value, err)
 	}
 	return strings.TrimSpace(buf.String()), nil
+}
+
+func (t SanitizeTmpl) Check(value string) error {
+	sanitized, err := t.Execute(value)
+	if err != nil {
+		return err
+	}
+	if sanitized != value {
+		return &SanitizeError{
+			Input:     value,
+			Sanitized: sanitized,
+		}
+	}
+	return nil
+}
+
+func (err SanitizeError) Error() string {
+	return fmt.Sprintf("invalid value %q, suggested value: %q", err.Input, err.Sanitized)
 }

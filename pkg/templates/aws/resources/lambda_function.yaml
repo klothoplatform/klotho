@@ -20,6 +20,13 @@ properties:
         unique: true
   EnvironmentVariables:
     type: map(string,string)
+    key_property:
+      sanitize: |
+        {{ .
+          | replace `[^[:alnum:]_]+` "_"
+          | replace `^[^a-zA-Z]+` ""
+          | upper
+        }}
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -80,7 +87,7 @@ path_satisfaction:
     - permissions
   as_source:
     - network#Subnets
-    - network    # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 step
+    - network # This is required as well in case the lambda does not already exist in a vpc, we need the path evaluation done in 2 step
 
 consumption:
   consumed:

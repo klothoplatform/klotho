@@ -79,15 +79,18 @@ type (
 		Clone() Property
 		// Type returns the string representation of the type of the property, as it should appear in the resource template
 		Type() string
-		// GetDefaultValue returns the default value for the property, pertaining to the specific data being passed in for execution
+		// GetDefaultValue returns the default value for the property,
+		// pertaining to the specific data being passed in for execution
 		GetDefaultValue(ctx DynamicContext, data DynamicValueData) (any, error)
-		// Validate ensures the value is valid for the property and returns an error if it is not
+		// Validate ensures the value is valid for the property to `Set` (not `Append` for collection types)
+		// and returns an error if it is not
 		Validate(resource *construct.Resource, value any, ctx DynamicContext) error
-		// SubProperties returns the sub properties of the property, if any. This is used for properties that are complex structures,
-		// such as lists, sets, or maps
+		// SubProperties returns the sub properties of the property, if any.
+		// This is used for properties that are complex structures, such as lists, sets, or maps
 		SubProperties() Properties
-		// Parse parses a given value to ensure it is the correct type for the property. If the given value cannot be converted
-		// to the respective property type an error is returned. The returned value will always be the correct type for the property
+		// Parse parses a given value to ensure it is the correct type for the property.
+		// If the given value cannot be converted to the respective property type an error is returned.
+		// The returned value will always be the correct type for the property
 		Parse(value any, ctx DynamicContext, data DynamicValueData) (any, error)
 		// ZeroValue returns the zero value for the property type
 		ZeroValue() any
