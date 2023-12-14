@@ -2,11 +2,11 @@ constraints:
   - node: aws:ecs_service:ecs_service_0
     operator: add
     scope: application
-  - node: aws:rds_instance:rds-instance-2
+  - node: aws:rds_instance:rds_instance_2 # deliberately use underscores to run name sanitization
     operator: add
     scope: application
   - operator: must_exist
     scope: edge
     target:
       source: aws:ecs_service:ecs_service_0
-      target: aws:rds_instance:rds-instance-2
+      target: aws:rds_instance:rds_instance_2
