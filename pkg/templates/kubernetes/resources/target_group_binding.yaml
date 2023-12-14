@@ -16,6 +16,7 @@ properties:
     type: resource
     namespace: true
     operational_rule:
+      step:
         direction: downstream
         resources:
           - classifications:

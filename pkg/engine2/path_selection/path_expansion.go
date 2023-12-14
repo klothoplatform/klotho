@@ -8,7 +8,6 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -231,75 +230,6 @@ func findSubExpansionsToRun(
 		}
 	}
 	return
-}
-
-func handleProperties(
-	ctx solution_context.SolutionContext,
-	resultResources []*construct.Resource,
-	tempGraph construct.Graph,
-) error {
-	var errs error
-	// Go in reverse order so that IDs are set correctly before a previous resource's property is set to its ID.
-	// For example, set Subnet#VPC (namespace property) before Lambda#Subnets
-	for i := len(resultResources) - 1; i >= 0; i-- {
-		res := resultResources[i]
-
-		rt, err := ctx.KnowledgeBase().GetResourceTemplate(res.ID)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-
-		handleProp := func(prop knowledgebase.Property) error {
-			oldId := res.ID
-			opRuleCtx := operational_rule.OperationalRuleContext{
-				Solution: ctx,
-				Property: prop,
-				Data:     knowledgebase.DynamicValueData{Resource: res.ID},
-			}
-			details := prop.Details()
-			if details.OperationalRule == nil || len(details.OperationalRule.Step.Resources) == 0 {
-				return nil
-			}
-			step := details.OperationalRule.Step
-			for _, selector := range step.Resources {
-				if step.Direction == knowledgebase.DirectionDownstream && i < len(resultResources)-1 {
-					downstreamRes := resultResources[i+1]
-					canUse, err := selector.CanUse(
-						solution_context.DynamicCtx(ctx),
-						knowledgebase.DynamicValueData{Resource: res.ID},
-						downstreamRes,
-					)
-					if canUse && err == nil {
-						err = opRuleCtx.SetField(res, downstreamRes, step)
-						if err != nil {
-							errs = errors.Join(errs, err)
-						}
-					}
-				} else if i > 0 {
-					upstreamRes := resultResources[i-1]
-					if canUse, err := selector.CanUse(solution_context.DynamicCtx(ctx),
-						knowledgebase.DynamicValueData{Resource: res.ID}, upstreamRes); canUse && err == nil {
-						err = opRuleCtx.SetField(res, upstreamRes, step)
-						if err != nil {
-							errs = errors.Join(errs, err)
-						}
-					}
-
-				}
-			}
-			if details.Namespace && oldId != res.ID {
-				// add a marker for where to find the new id in the result graph
-				_, props, err := tempGraph.VertexWithProperties(oldId)
-				if err == nil && props.Attributes != nil {
-					props.Attributes["new_id"] = res.ID.String()
-				}
-			}
-			return nil
-		}
-		errs = errors.Join(errs, rt.LoopProperties(res, handleProp))
-	}
-	return errs
 }
 
 // ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
@@ -564,14 +494,9 @@ func addPathToGraph(ctx solution_context.SolutionContext, g construct.Graph, pat
 	if errs != nil {
 		return nil, errs
 	}
-	// handle the properties before adding to the graph to make sure the IDs are set correctly
-	err := handleProperties(ctx, result, g)
-	if err != nil {
-		return nil, err
-	}
 	var prevRes construct.ResourceId
 	for i, r := range result {
-		err = g.AddVertex(r)
+		err := g.AddVertex(r)
 		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 			errs = errors.Join(errs, err)
 		}

@@ -170,6 +170,9 @@ func (c *ConsumptionObject) Convert(value any, res construct.ResourceId, ctx Dyn
 		"sub": func(a int, b int) int {
 			return a - b
 		},
+		"add": func(a int, b int) int {
+			return a + b
+		},
 	},
 	).Parse(c.Converter)
 	if err != nil {

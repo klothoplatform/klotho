@@ -47,7 +47,7 @@ consumption:
           {
             "name": "{{ $key }}",
             "value": "{{ $value }}"
-          }{{if ne $i (sub (len $) 1)}},{{end}}
+          }{{if ne $i (sub (len $) 1)}},{{end}}{{ $i = add $i 1 }}
         {{ end }}
         ]
 

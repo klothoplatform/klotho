@@ -1,0 +1,2 @@
+source: kubernetes:storage_class
+target: aws:eks_cluster
