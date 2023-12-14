@@ -9,13 +9,6 @@ properties:
     default_value:
       - application/octet-stream
       - image/*
-  Stages:
-    type: list(resource(aws:api_stage))
-    operational_rule:
-      step:
-        direction: upstream
-        resources:
-          - aws:api_stage
   ChildResources:
     type: string
     configuration_disabled: true
