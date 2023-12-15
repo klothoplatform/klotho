@@ -2,3 +2,9 @@ source: aws:rest_api
 target: aws:api_integration
 direct_edge_only: true
 deployment_order_reversed: true
+operational_rules:
+  - steps:
+      - resource: '{{ .Source }}'
+        direction: upstream
+        resources:
+          - aws:api_stage

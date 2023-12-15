@@ -80,8 +80,6 @@ resources:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
-        Stages:
-            - aws:api_stage:rest_api_4:api_stage-0
     kubernetes:namespace:amazon-cloudwatch:
         Cluster: aws:eks_cluster:eks_cluster-0
         Object:

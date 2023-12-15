@@ -1,6 +1,8 @@
 package engine2
 
 import (
+	"errors"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	property_eval "github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
@@ -88,7 +90,18 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	if err := op.AddVerticesFrom(graph); err != nil {
 		return err
 	}
-	return raw.AddEdgesFrom(graph)
+	if err := raw.AddEdgesFrom(graph); err != nil {
+		return err
+	}
+
+	// ensure any deployment dependencies due to properties are in place
+	return construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		return errors.Join(nerr, resource.WalkProperties(func(path construct.PropertyPath, werr error) error {
+			prop := path.Get()
+			err := solution_context.AddDeploymentDependenciesFromVal(ctx, resource, prop)
+			return errors.Join(werr, err)
+		}))
+	})
 }
 
 func (c solutionContext) GetDecisions() solution_context.DecisionRecords {

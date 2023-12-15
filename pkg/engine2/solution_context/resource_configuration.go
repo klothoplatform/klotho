@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -50,10 +51,18 @@ func ConfigureResource(
 		if err != nil {
 			return fmt.Errorf("failed to set property %s on resource %s: %w", field, resource.ID, err)
 		}
+		err = AddDeploymentDependenciesFromVal(ctx, resource, val)
+		if err != nil {
+			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
+		}
 	case "add":
 		err = property.AppendProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to add property %s on resource %s: %w", field, resource.ID, err)
+		}
+		err = AddDeploymentDependenciesFromVal(ctx, resource, val)
+		if err != nil {
+			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
 		}
 	case "remove":
 		err = property.RemoveProperty(resource, val)
@@ -71,6 +80,25 @@ func ConfigureResource(
 	return nil
 }
 
+func AddDeploymentDependenciesFromVal(
+	ctx SolutionContext,
+	resource *construct.Resource,
+	val any,
+) error {
+	var errs error
+	ids := getResourcesFromValue(val)
+	for _, id := range ids {
+		if resource.ID.Matches(id) {
+			continue
+		}
+		err := ctx.DeploymentGraph().AddEdge(resource.ID, id)
+		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			errs = errors.Join(errs, fmt.Errorf("failed to add deployment dependency from %s to %s: %w", resource.ID, id, err))
+		}
+	}
+	return errs
+}
+
 func ConstraintOperatorToAction(op constraints.ConstraintOperator) (string, error) {
 	switch op {
 	case constraints.AddConstraintOperator:
@@ -82,6 +110,33 @@ func ConstraintOperatorToAction(op constraints.ConstraintOperator) (string, erro
 	default:
 		return "", fmt.Errorf("invalid operator %s", op)
 	}
+}
+
+func getResourcesFromValue(val any) (ids []construct.ResourceId) {
+	if val == nil {
+		return
+	}
+	switch v := val.(type) {
+	case construct.ResourceId:
+		ids = []construct.ResourceId{v}
+	case construct.PropertyRef:
+		ids = []construct.ResourceId{v.Resource}
+	default:
+		rval := reflect.ValueOf(val)
+		switch rval.Kind() {
+		case reflect.Slice, reflect.Array:
+			for i := 0; i < reflect.ValueOf(val).Len(); i++ {
+				idVal := rval.Index(i).Interface()
+				ids = append(ids, getResourcesFromValue(idVal)...)
+			}
+		case reflect.Map:
+			for _, key := range reflect.ValueOf(val).MapKeys() {
+				idVal := rval.MapIndex(key).Interface()
+				ids = append(ids, getResourcesFromValue(idVal)...)
+			}
+		}
+	}
+	return
 }
 
 // getResourcesFromPropertyReference takes a property reference and returns all the resources that are

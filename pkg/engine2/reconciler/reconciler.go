@@ -62,6 +62,16 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 			errs = errors.Join(errs, err)
 			continue
 		}
+		for res := range namespacedResources {
+			// Since we may be explicitly deleting the namespace resource,
+			// we will forward the same explicit flag to the namespace resource
+			queue = appendToQueue(deleteRequest{resource: res, explicit: explicit}, queue)
+			// find deployment dependencies to ensure the resource wont get recreated
+			queue, err = addAllDeploymentDependencies(c, res, explicit, queue)
+			if err != nil {
+				errs = errors.Join(errs, err)
+			}
+		}
 
 		op := c.OperationalView()
 
@@ -72,6 +82,7 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 		for res := range downstreams {
 			errs = errors.Join(errs, op.RemoveEdge(resource, res))
 		}
+		errs = errors.Join(errs, deleteRemainingDeploymentDependencies(c, resource))
 
 		err = construct.RemoveResource(op, resource)
 		if err != nil {
@@ -79,18 +90,6 @@ func RemoveResource(c solution_context.SolutionContext, resource construct.Resou
 			continue
 		}
 
-		for res := range namespacedResources {
-
-			// Since we may be explicitly deleting the namespace resource,
-			// we will forward the same explicit flag to the namespace resource
-			queue = appendToQueue(deleteRequest{resource: res, explicit: explicit}, queue)
-			// find deployment dependencies to ensure the resource wont get recreated
-			queue, err = addAllDeploymentDependencies(c, res, explicit, queue)
-			if err != nil {
-				errs = errors.Join(errs, err)
-			}
-
-		}
 		// try to cleanup, if the resource is removable
 		for res := range upstreams.Union(downstreams) {
 			queue = appendToQueue(deleteRequest{resource: res, explicit: false}, queue)
@@ -114,6 +113,42 @@ func appendToQueue(request deleteRequest, queue []deleteRequest) []deleteRequest
 	return append(queue, request)
 }
 
+// deleteRemainingDeploymentDependencies removes all deployment dependencies from the graph for the resource specified
+func deleteRemainingDeploymentDependencies(
+	ctx solution_context.SolutionContext,
+	resource construct.ResourceId,
+) error {
+	// begin by removing the dependency on resource since we know we are deleting the resource passed in at this point
+	var errs error
+	upstreamDeploymentDeps, err := construct.DirectUpstreamDependencies(ctx.DeploymentGraph(), resource)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	} else {
+		for _, res := range upstreamDeploymentDeps {
+			err = ctx.DeploymentGraph().RemoveEdge(res, resource)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+		}
+	}
+
+	downstreamDeploymentDeps, err := construct.DirectDownstreamDependencies(ctx.DeploymentGraph(), resource)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	} else {
+		for _, res := range downstreamDeploymentDeps {
+			err = ctx.DeploymentGraph().RemoveEdge(resource, res)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+		}
+	}
+	return errs
+}
+
+// addAllDeploymentDependencies adds all deployment dependencies to the queue while removing their dependency on the resource passed in
 func addAllDeploymentDependencies(
 	ctx solution_context.SolutionContext,
 	resource construct.ResourceId,
