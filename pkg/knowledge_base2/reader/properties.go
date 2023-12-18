@@ -23,6 +23,8 @@ type (
 		// Type defines the type of the property
 		Type string `json:"type" yaml:"type"`
 
+		Description string `json:"description" yaml:"description"`
+
 		Namespace bool `json:"namespace" yaml:"namespace"`
 
 		DefaultValue any `json:"default_value" yaml:"default_value"`
