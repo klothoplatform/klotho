@@ -125,10 +125,10 @@ func (key Key) String() string {
 		if key.PathSatisfication.Classification != "" {
 			args = append(args, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if propertyReferenceInfluencesEdge(key.PathSatisfication.Target) {
+		if propertyReferenceChangesBoundary(key.PathSatisfication.Target) {
 			args = append(args, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
 		}
-		if propertyReferenceInfluencesEdge(key.PathSatisfication.Source) {
+		if propertyReferenceChangesBoundary(key.PathSatisfication.Source) {
 			args = append(args, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
@@ -359,6 +359,9 @@ func (changes graphChanges) addEdge(source, target Key) {
 
 // addEdges is a convenient lower-level add for [graphChanges.edges] for multiple targets
 func (changes graphChanges) addEdges(source Key, targets set.Set[Key]) {
+	if len(targets) == 0 {
+		return
+	}
 	out, ok := changes.edges[source]
 	if !ok {
 		out = make(set.Set[Key])

@@ -1,0 +1,14 @@
+provider: aws
+resources:
+  efs_file_system/test-efs-fs:
+
+  vpc/vpc-0:
+
+  lambda_function/lambda_test_app:
+    children: aws:ecr_image:lambda_test_app-image,aws:iam_role:lambda_test_app-ExecutionRole,aws:log_group:lambda_test_app-log-group
+    parent: vpc/vpc-0
+
+  lambda_function/lambda_test_app -> efs_file_system/test-efs-fs:
+    path: aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs
+
+

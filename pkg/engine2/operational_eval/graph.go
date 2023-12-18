@@ -94,7 +94,7 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 		// We are checking to see if either of the source or target nodes will change due to property references,
 		// if there are property references we want to ensure the correct dependency ordering is in place so
 		// we cannot yet split the expansion vertex up or build the temp graph
-		if propertyReferenceInfluencesEdge(satisfication.Source) || propertyReferenceInfluencesEdge(satisfication.Target) {
+		if propertyReferenceChangesBoundary(satisfication.Source) || propertyReferenceChangesBoundary(satisfication.Target) {
 			buildTempGraph = false
 		}
 

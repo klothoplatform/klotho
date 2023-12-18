@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
+	"go.uber.org/zap"
 )
 
 type (
@@ -32,6 +33,13 @@ func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
 	expansions, err := v.getExpansionsToRun(eval)
 	if err != nil {
 		errs = errors.Join(errs, fmt.Errorf("could not get expansions to run: %w", err))
+	}
+	log := eval.Log()
+	if len(expansions) > 1 && log.Desugar().Core().Enabled(zap.DebugLevel) {
+		log.Debugf("Expansion %s subexpansions:", v.Edge)
+		for _, expansion := range expansions {
+			log.Debugf(" %s -> %s", expansion.Dep.Source.ID, expansion.Dep.Target.ID)
+		}
 	}
 
 	for _, expansion := range expansions {
@@ -292,7 +300,6 @@ func (v *pathExpandVertex) handleResultProperties(
 }
 
 func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection.ExpansionInput, error) {
-	var result []path_selection.ExpansionInput
 	var errs error
 	sourceRes, err := eval.Solution.RawView().Vertex(v.Edge.Source)
 	if err != nil {
@@ -308,7 +315,8 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection
 		errs = errors.Join(errs, err)
 	}
 
-	for _, expansion := range expansions {
+	result := make([]path_selection.ExpansionInput, len(expansions))
+	for i, expansion := range expansions {
 		input := path_selection.ExpansionInput{
 			Dep:            expansion.Dep,
 			Classification: expansion.Classification,
@@ -321,16 +329,9 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
 				continue
 			}
-			temp, err := tempGraph.Clone()
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not clone path selection graph: %w", err))
-				continue
-			}
-			input.TempGraph = temp
-			result = append(result, input)
-		} else {
-			result = append(result, input)
+			input.TempGraph = tempGraph
 		}
+		result[i] = input
 	}
 	return result, errs
 }
@@ -471,15 +472,8 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 	changes := newChanges()
 	srcKey := v.Key()
 
-	var errs error
-	if propertyReferenceInfluencesEdge(v.Satisfication.Source) {
-		keys := getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference)
-		changes.addEdges(srcKey, keys)
-	}
-	if propertyReferenceInfluencesEdge(v.Satisfication.Target) {
-		keys := getDepsForPropertyRef(eval.Solution, v.Edge.Target, v.Satisfication.Target.PropertyReference)
-		changes.addEdges(srcKey, keys)
-	}
+	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference))
+	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Target, v.Satisfication.Target.PropertyReference))
 
 	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
 	// if we dont, we should return what we currently have
@@ -489,6 +483,7 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 		return changes, nil
 	}
 
+	var errs error
 	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
 	if err != nil {
 		return changes, err
@@ -523,7 +518,7 @@ func DeterminePathSatisfactionInputs(
 	srcIds := []construct.ResourceId{edge.Source.ID}
 	targetIds := []construct.ResourceId{edge.Target.ID}
 	var err error
-	if propertyReferenceInfluencesEdge(satisfaction.Source) {
+	if propertyReferenceChangesBoundary(satisfaction.Source) {
 		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
@@ -532,7 +527,7 @@ func DeterminePathSatisfactionInputs(
 			))
 		}
 	}
-	if propertyReferenceInfluencesEdge(satisfaction.Target) {
+	if propertyReferenceChangesBoundary(satisfaction.Target) {
 		targetIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
@@ -584,6 +579,9 @@ func getDepsForPropertyRef(
 	res construct.ResourceId,
 	propertyRef string,
 ) set.Set[Key] {
+	if propertyRef == "" {
+		return nil
+	}
 	keys := make(set.Set[Key])
 	cfgCtx := solution_context.DynamicCtx(sol)
 	currResources := []construct.ResourceId{res}
@@ -591,9 +589,10 @@ func getDepsForPropertyRef(
 	for _, part := range parts {
 		var nextResources []construct.ResourceId
 		for _, currResource := range currResources {
+			keys.Add(Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}})
 			val, err := cfgCtx.FieldValue(part, currResource)
 			if err != nil {
-				keys.Add(Key{Ref: construct.PropertyRef{Resource: currResource, Property: part}})
+				// The field hasn't resolved yet. Skip it for now, future calls to dependencies will pick it up.
 				continue
 			}
 			if id, ok := val.(construct.ResourceId); ok {
@@ -607,7 +606,9 @@ func getDepsForPropertyRef(
 	return keys
 }
 
-func propertyReferenceInfluencesEdge(v knowledgebase.PathSatisfactionRoute) bool {
+// propertyReferenceChangesBoundary returns whether the [PathSatisfactionRoute] changes the boundary of the path
+// via satisfaction rules. Note: validity checks do not change the boundary, so those return false.
+func propertyReferenceChangesBoundary(v knowledgebase.PathSatisfactionRoute) bool {
 	if v.Validity != "" {
 		return false
 	}

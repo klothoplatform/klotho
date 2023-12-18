@@ -31,11 +31,6 @@ func checkCandidatesValidity(
 	if len(path) <= 3 {
 		return true, nil
 	}
-	nonBoundaryResources := path[1 : len(path)-1]
-	matchIdx := matchesNonBoundary(resource.ID, nonBoundaryResources)
-	if matchIdx < 0 {
-		return false, nil
-	}
 	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
 	if err != nil || rt == nil {
 		return false, err
@@ -43,27 +38,23 @@ func checkCandidatesValidity(
 
 	var errs error
 	// check validity of candidate being a target if not direct edge to source
-	if matchIdx >= 1 {
-		valid, err := checkAsTargetValidity(ctx, resource, path[:matchIdx+1], classification)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		}
-		if !valid {
-			zap.S().Debugf("candidate %s is not valid as target", resource.ID)
-			return false, errs
-		}
+	valid, err := checkAsTargetValidity(ctx, resource, path[0], classification)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if !valid {
+		zap.S().Debugf("candidate %s is not valid as target", resource.ID)
+		return false, errs
 	}
 
 	// check validity of candidate being a source if not direct edge to target
-	if matchIdx <= len(path)-3 {
-		valid, err := checkAsSourceValidity(ctx, resource, path[matchIdx:], classification)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		}
-		if !valid {
-			zap.S().Debugf("candidate %s is not valid as source", resource.ID)
-			return false, errs
-		}
+	valid, err = checkAsSourceValidity(ctx, resource, path[len(path)-1], classification)
+	if err != nil {
+		errs = errors.Join(errs, err)
+	}
+	if !valid {
+		zap.S().Debugf("candidate %s is not valid as source", resource.ID)
+		return false, errs
 	}
 	return true, errs
 }
@@ -102,7 +93,7 @@ func checkNamespaceValidity(
 func checkAsTargetValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
-	path []construct.ResourceId,
+	source construct.ResourceId,
 	classification string,
 ) (bool, error) {
 	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
@@ -122,15 +113,18 @@ func checkAsTargetValidity(
 				if err != nil {
 					// dont return error because it just means that the property isnt set and we can make the
 					// resource valid
-					zap.S().Debug("no resource available from resource %s from property ref %s", resource.ID, ps.PropertyReference)
+					zap.S().Debugf(
+						"no resource available from resource %s from property ref %s: %v",
+						resource.ID, ps.PropertyReference, err,
+					)
 				}
 				if len(resources) == 0 {
-					err = assignForValidity(ctx, resource, path[0], ps)
+					err = assignForValidity(ctx, resource, source, ps)
 					errs = errors.Join(errs, err)
 				}
 			}
 			for _, res := range resources {
-				valid, err := checkValidityOperation(ctx, path[0], res, ps)
+				valid, err := checkValidityOperation(ctx, source, res, ps)
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
@@ -149,7 +143,7 @@ func checkAsTargetValidity(
 func checkAsSourceValidity(
 	ctx solution_context.SolutionContext,
 	resource *construct.Resource,
-	path []construct.ResourceId,
+	target construct.ResourceId,
 	classification string,
 ) (bool, error) {
 	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
@@ -169,15 +163,18 @@ func checkAsSourceValidity(
 				if err != nil {
 					// dont return error because it just means that the property isnt set and we can make the
 					// resource valid
-					zap.S().Debug("no resource available from resource %s from property ref %s", resource.ID, ps.PropertyReference)
+					zap.S().Debugf(
+						"no resource available from resource %s from property ref %s: %v",
+						resource.ID, ps.PropertyReference, err,
+					)
 				}
 				if len(resources) == 0 {
-					err = assignForValidity(ctx, resource, path[len(path)-1], ps)
+					err = assignForValidity(ctx, resource, target, ps)
 					errs = errors.Join(errs, err)
 				}
 			}
 			for _, res := range resources {
-				valid, err := checkValidityOperation(ctx, res, path[len(path)-1], ps)
+				valid, err := checkValidityOperation(ctx, res, target, ps)
 				if err != nil {
 					errs = errors.Join(errs, err)
 				}
@@ -256,12 +253,12 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 			val, err := knowledgebase.TransformToPropertyValue(r, property, downstream, cfgCtx,
 				knowledgebase.DynamicValueData{Resource: r})
 			if err != nil || val == nil {
-				continue // Becuase this error may just mean that its not the right type of resource
+				continue // Because this error may just mean that its not the right type of resource
 			}
 			// We need to check if the current resource is what we are operating on and if so not search our raw view
 			// this is because it could be a phantom resource
 			var currRes *construct.Resource
-			if resource.ID.Matches(r) {
+			if resource.ID == r {
 				currRes = resource
 			} else {
 				currRes, err = d.ctx.RawView().Vertex(r)
@@ -297,7 +294,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 		}
 		currResources = nextResources
 	}
-	return nil
+	return errs
 }
 
 // isValid checks if the candidate is valid based on what is downstream of the resourceToCheck
