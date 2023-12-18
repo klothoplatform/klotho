@@ -59,6 +59,8 @@ type (
 		DeployTime bool `json:"deploy_time" yaml:"deploy_time"`
 		// OperationalRule defines a rule that is executed at runtime to determine the value of the property
 		OperationalRule *PropertyRule `json:"operational_rule" yaml:"operational_rule"`
+		// Description is a description of the property. This is not used in the engine solving, but is metadata returned by the `ListResourceTypes` CLI command.
+		Description string `json:"description" yaml:"description"`
 		// Path is the path to the property in the resource
 		Path string `json:"-" yaml:"-"`
 	}

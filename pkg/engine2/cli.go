@@ -180,6 +180,7 @@ func addSubProperties(properties map[string]any, subProperties map[string]knowle
 			"deployTime":            details.DeployTime,
 			"configurationDisabled": details.ConfigurationDisabled,
 			"required":              details.Required,
+			"description":           details.Description,
 		}
 		for _, validationField := range validationFields {
 			valField := reflect.ValueOf(subProperty).Elem().FieldByName(validationField)
