@@ -1,6 +1,19 @@
 qualified_type_name: aws:elasticache_subnet_group
 display_name: ElastiCache Subnet Group
-
+sanitize_name:
+  # Identifiers have these naming constraints:
+  # - Must contain 1–63 alphanumeric characters or hyphens.
+  # - First character must be a letter.
+  # - Can't end with a hyphen or contain two consecutive hyphens.
+  |
+  {{ . 
+    | replace `^[^[:alpha:]]+` "" 
+    | replace `--+` "-" 
+    | replace `-$` ""
+    | replace `[^[:alnum:]-]+` "-"
+    | length 1 63
+  }}
+  
 properties:
   Subnets:
     type: list(resource(aws:subnet))

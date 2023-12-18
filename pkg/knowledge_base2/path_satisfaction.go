@@ -94,3 +94,10 @@ func (kb *KnowledgeBase) GetPathSatisfactionsFromEdge(source, target construct.R
 	}
 	return pathSatisfications, nil
 }
+
+func (v PathSatisfactionRoute) PropertyReferenceChangesBoundary() bool {
+	if v.Validity != "" {
+		return false
+	}
+	return v.PropertyReference != ""
+}

@@ -39,10 +39,10 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		if key.PathSatisfication.Classification != "" {
 			extra = append(extra, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if propertyReferenceChangesBoundary(key.PathSatisfication.Target) {
+		if key.PathSatisfication.Target.PropertyReferenceChangesBoundary() {
 			extra = append(extra, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
 		}
-		if propertyReferenceChangesBoundary(key.PathSatisfication.Source) {
+		if key.PathSatisfication.Source.PropertyReferenceChangesBoundary() {
 			extra = append(extra, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		if len(extra) > 0 {

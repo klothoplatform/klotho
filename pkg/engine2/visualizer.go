@@ -9,7 +9,6 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
@@ -310,72 +309,16 @@ func HasPath(topo Topology, sol solution_context.SolutionContext, source, target
 		return false, nil
 	}
 	return checkPaths(topo, sol, source, target)
-
 }
 
 func checkPaths(topo Topology, sol solution_context.SolutionContext, source, target construct.ResourceId) (bool, error) {
-	var errs error
-	pathsCache := map[construct.SimpleEdge][][]construct.ResourceId{}
-	pathSatisfactions, err := sol.KnowledgeBase().GetPathSatisfactionsFromEdge(source, target)
-	if err != nil {
-		return false, err
-	}
-	sourceRes, err := sol.RawView().Vertex(source)
-	if err != nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
-	}
-	targetRes, err := sol.RawView().Vertex(target)
-	if err != nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
-	}
-	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
-	for _, satisfaction := range pathSatisfactions {
-		expansions, err := operational_eval.DeterminePathSatisfactionInputs(sol, satisfaction, edge)
-		if err != nil {
-			return false, err
-		}
-		for _, expansion := range expansions {
-			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
-			paths, found := pathsCache[simple]
-			if !found {
-				var err error
-				paths, err = graph.AllPathsBetween(sol.RawView(), expansion.Dep.Source.ID, expansion.Dep.Target.ID)
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				pathsCache[simple] = paths
-			}
-			if len(paths) == 0 {
-				return false, nil
-			}
-			containedClassification := false
-			if expansion.Classification != "" {
-			PATHS:
-				for _, path := range paths {
-					for i, res := range path {
-						if i == 0 {
-							continue
-						}
-						if et := sol.KnowledgeBase().GetEdgeTemplate(path[i-1], res); et != nil && et.DirectEdgeOnly {
-							continue PATHS
-						}
-						if i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
-							continue PATHS
-						}
-					}
-					if path_selection.PathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
-						containedClassification = true
-						break
-					}
-				}
-			} else {
-				containedClassification = true
-			}
-			if !containedClassification {
-				return false, nil
+	paths, err := path_selection.GetPaths(sol, source, target, func(source, target construct.ResourceId, path []construct.ResourceId) bool {
+		for i, res := range path {
+			if i < len(path)-1 && (topo.Nodes[res.String()] != nil && res != source && res != target) {
+				return false
 			}
 		}
-	}
-	return true, nil
+		return true
+	}, true)
+	return len(paths) > 0, err
 }

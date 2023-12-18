@@ -310,7 +310,7 @@ func (v *pathExpandVertex) getExpansionsToRun(eval *Evaluator) ([]path_selection
 		return nil, fmt.Errorf("could not find target resource %s: %w", v.Edge.Target, err)
 	}
 	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
-	expansions, err := DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication, edge)
+	expansions, err := path_selection.DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication, edge)
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
@@ -510,68 +510,6 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 	return changes, errs
 }
 
-func DeterminePathSatisfactionInputs(
-	sol solution_context.SolutionContext,
-	satisfaction knowledgebase.EdgePathSatisfaction,
-	edge construct.ResourceEdge,
-) (expansions []path_selection.ExpansionInput, errs error) {
-	srcIds := []construct.ResourceId{edge.Source.ID}
-	targetIds := []construct.ResourceId{edge.Target.ID}
-	var err error
-	if propertyReferenceChangesBoundary(satisfaction.Source) {
-		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf(
-				"failed to determine path satisfaction inputs. could not find resource %s: %w",
-				edge.Source.ID, err,
-			))
-		}
-	}
-	if propertyReferenceChangesBoundary(satisfaction.Target) {
-		targetIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf(
-				"failed to determine path satisfaction inputs. could not find resource %s: %w",
-				edge.Target.ID, err,
-			))
-
-		}
-	}
-
-	for _, srcId := range srcIds {
-		for _, targetId := range targetIds {
-			if srcId == targetId {
-				continue
-			}
-			src, err := sol.RawView().Vertex(srcId)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. could not find resource %s: %w",
-					srcId, err,
-				))
-				continue
-			}
-
-			target, err := sol.RawView().Vertex(targetId)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf(
-					"failed to determine path satisfaction inputs. could not find resource %s: %w",
-					targetId, err,
-				))
-				continue
-			}
-
-			e := construct.ResourceEdge{Source: src, Target: target}
-			exp := path_selection.ExpansionInput{
-				Dep:            e,
-				Classification: satisfaction.Classification,
-			}
-			expansions = append(expansions, exp)
-		}
-	}
-	return
-}
-
 // getDepsForPropertyRef takes a property reference and recurses down until the property is not filled in on the resource
 // When we reach resources with missing property references, we know they are the property vertex keys we must depend on
 func getDepsForPropertyRef(
@@ -604,13 +542,4 @@ func getDepsForPropertyRef(
 		currResources = nextResources
 	}
 	return keys
-}
-
-// propertyReferenceChangesBoundary returns whether the [PathSatisfactionRoute] changes the boundary of the path
-// via satisfaction rules. Note: validity checks do not change the boundary, so those return false.
-func propertyReferenceChangesBoundary(v knowledgebase.PathSatisfactionRoute) bool {
-	if v.Validity != "" {
-		return false
-	}
-	return v.PropertyReference != ""
 }

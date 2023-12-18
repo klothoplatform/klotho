@@ -125,10 +125,10 @@ func (key Key) String() string {
 		if key.PathSatisfication.Classification != "" {
 			args = append(args, fmt.Sprintf("<%s>", key.PathSatisfication.Classification))
 		}
-		if propertyReferenceChangesBoundary(key.PathSatisfication.Target) {
+		if key.PathSatisfication.Target.PropertyReferenceChangesBoundary() {
 			args = append(args, fmt.Sprintf("target#%s", key.PathSatisfication.Target.PropertyReference))
 		}
-		if propertyReferenceChangesBoundary(key.PathSatisfication.Source) {
+		if key.PathSatisfication.Source.PropertyReferenceChangesBoundary() {
 			args = append(args, fmt.Sprintf("source#%s", key.PathSatisfication.Target.PropertyReference))
 		}
 		return fmt.Sprintf("Expand(%s)", strings.Join(args, ", "))
