@@ -1,0 +1,12 @@
+constraints:
+- node: aws:lambda_function:lambda_test_app
+  operator: add
+  scope: application
+- node: aws:efs_file_system:test-efs-fs
+  operator: add
+  scope: application
+- operator: must_exist
+  scope: edge
+  target:
+    source: aws:lambda_function:lambda_test_app
+    target: aws:efs_file_system:test-efs-fs

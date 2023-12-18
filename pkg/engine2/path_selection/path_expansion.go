@@ -111,10 +111,14 @@ func renameAndReplaceInTempGraph(
 	var errs error
 	name := fmt.Sprintf("%s-%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
 	// rename phantom nodes
-	result := make(construct.Path, len(path))
+	result := make([]*construct.Resource, len(path))
 	for i, id := range path {
+		r, props, err := input.TempGraph.VertexWithProperties(id)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
 		if strings.HasPrefix(id.Name, PHANTOM_PREFIX) {
-			oldId := id
 			id.Name = name
 			// because certain resources may be namespaced, we will check against all resource type names
 			currNames, err := getCurrNames(ctx, &id)
@@ -128,23 +132,42 @@ func renameAndReplaceInTempGraph(
 				}
 				id.Name = fmt.Sprintf("%s-%d", name, suffix)
 			}
-			_, props, err := input.TempGraph.VertexWithProperties(oldId)
-			if err == nil && props.Attributes != nil {
+			if props.Attributes != nil {
 				props.Attributes["new_id"] = id.String()
 			}
+			phantomRes := r
+			r, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			r.Properties = phantomRes.Properties
+			phantomRes.Properties = make(construct.Properties)
 		}
-		result[i] = id
-	}
-	resultResources, err := addPathToGraph(ctx, g, result)
-	if err != nil {
-		return nil, errors.Join(errs, err)
+		err = g.AddVertex(r)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			errs = errors.Join(errs, err)
+		} else if errors.Is(err, graph.ErrVertexAlreadyExists) {
+			r, err = g.Vertex(id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+		}
+		result[i] = r
+		if i > 0 {
+			err = g.AddEdge(result[i-1].ID, id)
+			if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+				errs = errors.Join(errs, err)
+			}
+		}
 	}
 
 	// We need to replace the phantom nodes in the temp graph in case we reuse the temp graph for sub expansions
-	for i, res := range resultResources {
+	for i, res := range result {
 		errs = errors.Join(errs, construct.ReplaceResource(input.TempGraph, path[i], res))
 	}
-	return resultResources, errs
+	return result, errs
 }
 
 func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) (set.Set[string], error) {
@@ -384,8 +407,12 @@ func expandPath(
 		}
 
 		err = input.TempGraph.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
-		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) && !errors.Is(err, graph.ErrEdgeCreatesCycle) {
-			errs = errors.Join(errs, err)
+		if err != nil {
+			if errors.Is(err, graph.ErrEdgeAlreadyExists) {
+				errs = errors.Join(errs, input.TempGraph.UpdateEdge(source.id, target.id, graph.EdgeWeight(weight)))
+			} else if !errors.Is(err, graph.ErrEdgeCreatesCycle) {
+				errs = errors.Join(errs, err)
+			}
 		}
 	}
 
@@ -468,49 +495,6 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 	}
 
 	return
-}
-
-func addPathToGraph(ctx solution_context.SolutionContext, g construct.Graph, path construct.Path) (
-	[]*construct.Resource,
-	error,
-) {
-	var errs error
-	result := make([]*construct.Resource, len(path))
-	for i, resource := range path {
-		r, err := ctx.RawView().Vertex(resource)
-		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		if r == nil {
-			r, err = knowledgebase.CreateResource(ctx.KnowledgeBase(), resource)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-		}
-		result[i] = r
-	}
-	if errs != nil {
-		return nil, errs
-	}
-	var prevRes construct.ResourceId
-	for i, r := range result {
-		err := g.AddVertex(r)
-		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-			errs = errors.Join(errs, err)
-		}
-		if i == 0 {
-			prevRes = r.ID
-			continue
-		}
-		err = g.AddEdge(prevRes, r.ID)
-		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
-			errs = errors.Join(errs, err)
-		}
-		prevRes = r.ID
-	}
-	return result, errs
 }
 
 // NOTE(gg): if for some reason the path could contain a duplicated selector

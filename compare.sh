@@ -12,10 +12,13 @@ fi
 
 rm out.log out2.log
 export NO_COLOR=1
-export COLUMNS=80
-go run ./cmd/engine Run -i "$file" -o "./out/$(basename $file .yaml)" -v 2> out.log
+# Set columns really high so that the right-aligned fields that we grep for are on the same line as the message.
+export COLUMNS=1000
+KLOTHO_DEBUG_DIR="./out/$(basename $file .yaml)" \
+    go run ./cmd/engine Run -i "$file" -o "./out/$(basename $file .yaml)" -v 2> out.log
 sleep 2
-go run ./cmd/engine Run -i "$file" -o "./out/$(basename $file .yaml)2" -v 2> out2.log
+KLOTHO_DEBUG_DIR="./out/$(basename $file .yaml)2" \
+    go run ./cmd/engine Run -i "$file" -o "./out/$(basename $file .yaml)2" -v 2> out2.log
 
 rm out.queue.log out2.queue.log
 grep -E -e 'op: dequeue|eval|poll-deps' -e 'Satisfied' out.log > out.queue.log
