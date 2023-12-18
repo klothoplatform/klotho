@@ -78,7 +78,10 @@ func expandEdge(
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
 	for _, path := range paths {
-		errs = errors.Join(errs, expandPath(ctx, input, path, g))
+		err := expandPath(ctx, input, path, g)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error expanding path %s: %w", construct.Path(path), err))
+		}
 	}
 	if errs != nil {
 		return nil, errs
@@ -145,20 +148,23 @@ func renameAndReplaceInTempGraph(
 			phantomRes.Properties = make(construct.Properties)
 		}
 		err = g.AddVertex(r)
-		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-			errs = errors.Join(errs, err)
-		} else if errors.Is(err, graph.ErrVertexAlreadyExists) {
+		switch {
+		case errors.Is(err, graph.ErrVertexAlreadyExists):
 			r, err = g.Vertex(id)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
+
+		case err != nil:
+			errs = errors.Join(errs, err)
+			continue
 		}
 		result[i] = r
 		if i > 0 {
-			err = g.AddEdge(result[i-1].ID, id)
+			err = g.AddEdge(result[i-1].ID, r.ID)
 			if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("error adding edge for path[%d]: %w", i, err))
 			}
 		}
 	}
@@ -288,14 +294,14 @@ func expandPath(
 		candidates[i][node] = 0
 		resource, err := input.TempGraph.Vertex(node)
 		if err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("error getting vertex for path[%d]: %w", i, err))
 			continue
 		}
 		// we know phantoms are always able to be valid, so we want to ensure we make them valid based on src and target validity checks
 		// right now we dont want validity checks to be blocking, just preference so we use them to modify the weight
 		valid, err := checkCandidatesValidity(ctx, resource, path, input.Classification)
 		if err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("error checking validity of path[%d]: %w", i, err))
 			continue
 		}
 		if !valid {
@@ -314,7 +320,7 @@ func expandPath(
 		}
 		valid, err := checkNamespaceValidity(ctx, resource, input.Dep.Target.ID)
 		if err != nil {
-			return errors.Join(nerr, err)
+			return errors.Join(nerr, fmt.Errorf("error checking namespace validity of %s: %w", resource, err))
 		}
 		if !valid {
 			return nerr
@@ -402,17 +408,20 @@ func expandPath(
 				return
 			}
 		} else if err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("unexpected error from raw edge: %v", err))
 			return
 		}
 
 		err = input.TempGraph.AddEdge(source.id, target.id, graph.EdgeWeight(weight))
-		if err != nil {
-			if errors.Is(err, graph.ErrEdgeAlreadyExists) {
-				errs = errors.Join(errs, input.TempGraph.UpdateEdge(source.id, target.id, graph.EdgeWeight(weight)))
-			} else if !errors.Is(err, graph.ErrEdgeCreatesCycle) {
-				errs = errors.Join(errs, err)
-			}
+		switch {
+		case errors.Is(err, graph.ErrEdgeAlreadyExists):
+			errs = errors.Join(errs, input.TempGraph.UpdateEdge(source.id, target.id, graph.EdgeWeight(weight)))
+
+		case errors.Is(err, graph.ErrEdgeCreatesCycle):
+			// ignore cycles
+
+		case err != nil:
+			errs = errors.Join(errs, fmt.Errorf("unexpected error adding edge to temp graph: %v", err))
 		}
 	}
 
