@@ -1,0 +1,11 @@
+provider: aws
+resources:
+  dynamodb_table/dynamodb_table_1:
+
+  lambda_function/new_lambda_name:
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:new_lambda_name-log-group
+
+  lambda_function/new_lambda_name -> dynamodb_table/dynamodb_table_1:
+    path: aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group
+
+

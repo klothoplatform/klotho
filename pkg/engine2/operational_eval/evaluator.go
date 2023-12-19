@@ -400,7 +400,12 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 		return err
 	}
 	v.ID = newId
-	err = construct.PropagateUpdatedId(eval.Solution.RawView(), oldId)
+	// We have to operate on these graphs separately since the deployment graph can store edges based on property references.
+	// since these edges wont exist in the dataflow graph they would never get cleaned up if we passed in the raw view.
+	err = errors.Join(
+		construct.PropagateUpdatedId(eval.Solution.DataflowGraph(), oldId),
+		graph_addons.ReplaceVertex(eval.Solution.DeploymentGraph(), oldId, v, construct.ResourceHasher),
+	)
 	if err != nil {
 		return err
 	}
