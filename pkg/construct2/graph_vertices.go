@@ -3,6 +3,7 @@ package construct2
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/dominikbraun/graph"
@@ -22,7 +23,7 @@ func ReverseTopologicalSort[T any](g graph.Graph[ResourceId, T]) ([]ResourceId, 
 	if err != nil {
 		return nil, err
 	}
-	reverseInplace(topo)
+	slices.Reverse(topo)
 	return topo, nil
 }
 
@@ -134,12 +135,6 @@ func toplogicalSort[T any](g graph.Graph[ResourceId, T], invertLess bool) ([]Res
 	}
 
 	return order, nil
-}
-
-func reverseInplace[E any](a []E) {
-	for i := 0; i < len(a)/2; i++ {
-		a[i], a[len(a)-i-1] = a[len(a)-i-1], a[i]
-	}
 }
 
 // WalkGraphFunc is much like `fs.WalkDirFunc` and is used in `WalkGraph` and `WalkGraphReverse` for the callback
