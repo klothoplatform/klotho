@@ -112,12 +112,13 @@ func nodesUsedOutsideOfContext(
 ) (set.Set[construct.ResourceId], error) {
 	var errs error
 	used := make(set.Set[construct.ResourceId])
+	pred, err := ctx.RawView().PredecessorMap()
+	if err != nil {
+		return nil, err
+	}
 	for node := range nodes {
-		upstreams, err := construct.DirectUpstreamDependencies(ctx.DataflowGraph(), node)
-		if err != nil {
-			errs = errors.Join(errs, err)
-		}
-		for _, upstream := range upstreams {
+		upstreams := pred[node]
+		for upstream := range upstreams {
 			if !nodes.Contains(upstream) {
 				used.Add(node)
 			}

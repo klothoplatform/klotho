@@ -15,9 +15,9 @@ func GetPaths(
 	source, target construct.ResourceId,
 	pathValidityChecks func(source, target construct.ResourceId, path []construct.ResourceId) bool,
 	hasPathCheck bool,
-) ([][]construct.ResourceId, error) {
+) ([]construct.Path, error) {
 	var errs error
-	var result [][]construct.ResourceId
+	var result []construct.Path
 	pathsCache := map[construct.SimpleEdge][][]construct.ResourceId{}
 	pathSatisfactions, err := sol.KnowledgeBase().GetPathSatisfactionsFromEdge(source, target)
 	if err != nil {
@@ -81,7 +81,9 @@ func GetPaths(
 				}
 			} else {
 				expansionResult = paths[0]
-				result = append(result, paths...)
+				for _, path := range paths {
+					result = append(result, path)
+				}
 				if hasPathCheck {
 					break
 				}
