@@ -56,8 +56,9 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 		}
 		wh.Writef(indent+"%s:\n", src)
 
-		props := map[string]any{
-			"tag": res.Tag,
+		props := make(map[string]any)
+		if res.Tag != "" {
+			props["tag"] = res.Tag
 		}
 		if !res.Parent.IsZero() {
 			props["parent"] = f.KeyFor(res.Parent)

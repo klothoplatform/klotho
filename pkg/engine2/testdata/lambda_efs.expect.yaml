@@ -62,8 +62,8 @@ resources:
                         - aws:efs_file_system:test-efs-fs#Arn
                 Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
     aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs:
