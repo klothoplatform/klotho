@@ -1,0 +1,311 @@
+resources:
+    aws:security_group:vpc-0:lambda_function_0-security_group:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        IngressRules:
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+        Vpc: aws:vpc:vpc-0
+    aws:security_group:vpc-0:lambda_function_3-security_group:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        IngressRules:
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+        Vpc: aws:vpc:vpc-0
+    aws:lambda_function:lambda_function_0:
+        EnvironmentVariables:
+            RDS_INSTANCE_1_RDS_CONNECTION_ARN: aws:rds_instance:rds-instance-1#RdsConnectionArn
+            RDS_INSTANCE_1_RDS_ENDPOINT: aws:rds_instance:rds-instance-1#Endpoint
+            RDS_INSTANCE_1_RDS_PASSWORD: aws:rds_instance:rds-instance-1#Password
+            RDS_INSTANCE_1_RDS_USERNAME: aws:rds_instance:rds-instance-1#Username
+        ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
+        Image: aws:ecr_image:lambda_function_0-image
+        LogGroup: aws:log_group:lambda_function_0-log-group
+        MemorySize: 512
+        SecurityGroups:
+            - aws:security_group:vpc-0:lambda_function_0-security_group
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+        Timeout: 180
+    aws:lambda_function:lambda_function_3:
+        EnvironmentVariables:
+            RDS_INSTANCE_1_RDS_CONNECTION_ARN: aws:rds_instance:rds-instance-1#RdsConnectionArn
+            RDS_INSTANCE_1_RDS_ENDPOINT: aws:rds_instance:rds-instance-1#Endpoint
+            RDS_INSTANCE_1_RDS_PASSWORD: aws:rds_instance:rds-instance-1#Password
+            RDS_INSTANCE_1_RDS_USERNAME: aws:rds_instance:rds-instance-1#Username
+        ExecutionRole: aws:iam_role:lambda_function_3-ExecutionRole
+        Image: aws:ecr_image:lambda_function_3-image
+        LogGroup: aws:log_group:lambda_function_3-log-group
+        MemorySize: 512
+        SecurityGroups:
+            - aws:security_group:vpc-0:lambda_function_3-security_group
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+        Timeout: 180
+    aws:ecr_image:lambda_function_0-image:
+        Context: .
+        Dockerfile: lambda_function_0-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function_0-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        InlinePolicies:
+            - Name: rds-instance-1-policy
+              Policy:
+                Statement:
+                    - Action:
+                        - rds-db:connect
+                      Effect: Allow
+                      Resource:
+                        - aws:rds_instance:rds-instance-1#RdsConnectionArn
+                Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+    aws:ecr_image:lambda_function_3-image:
+        Context: .
+        Dockerfile: lambda_function_3-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function_3-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        InlinePolicies:
+            - Name: rds-instance-1-policy
+              Policy:
+                Statement:
+                    - Action:
+                        - rds-db:connect
+                      Effect: Allow
+                      Resource:
+                        - aws:rds_instance:rds-instance-1#RdsConnectionArn
+                Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    aws:ecr_repo:ecr_repo-0:
+        ForceDelete: true
+    aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
+    aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
+    aws:log_group:lambda_function_0-log-group:
+        LogGroupName: /aws/lambda/lambda_function_0
+        RetentionInDays: 5
+    aws:log_group:lambda_function_3-log-group:
+        LogGroupName: /aws/lambda/lambda_function_3
+        RetentionInDays: 5
+    aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway:
+        ElasticIp: aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
+        Subnet: aws:subnet:vpc-0:subnet-2
+    aws:subnet:vpc-0:subnet-2:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
+        CidrBlock: 10.0.0.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:vpc-0:subnet-2-route_table
+        Type: public
+        Vpc: aws:vpc:vpc-0
+    aws:route_table_association:subnet-2-subnet-2-route_table:
+        RouteTable: aws:route_table:vpc-0:subnet-2-route_table
+        Subnet: aws:subnet:vpc-0:subnet-2
+    aws:route_table:vpc-0:subnet-2-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Vpc: aws:vpc:vpc-0
+    aws:availability_zone:region-0:availability_zone-0:
+        Index: 0
+        Region: aws:region:region-0
+    aws:internet_gateway:vpc-0:internet_gateway-0:
+        Vpc: aws:vpc:vpc-0
+    aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
+        ElasticIp: aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
+        Subnet: aws:subnet:vpc-0:subnet-3
+    aws:subnet:vpc-0:subnet-3:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
+        CidrBlock: 10.0.64.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:vpc-0:subnet-3-route_table
+        Type: public
+        Vpc: aws:vpc:vpc-0
+    aws:route_table_association:subnet-3-subnet-3-route_table:
+        RouteTable: aws:route_table:vpc-0:subnet-3-route_table
+        Subnet: aws:subnet:vpc-0:subnet-3
+    aws:route_table:vpc-0:subnet-3-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Vpc: aws:vpc:vpc-0
+    aws:availability_zone:region-0:availability_zone-1:
+        Index: 1
+        Region: aws:region:region-0
+    aws:region:region-0:
+    aws:rds_instance:rds-instance-1:
+        AllocatedStorage: 20
+        DatabaseName: main
+        Engine: postgres
+        EngineVersion: "13.7"
+        IamDatabaseAuthenticationEnabled: true
+        InstanceClass: db.t3.micro
+        SecurityGroups:
+            - aws:security_group:vpc-0:rds-instance-1-security_group
+        SkipFinalSnapshot: true
+        SubnetGroup: aws:rds_subnet_group:rds_subnet_group-0
+    aws:rds_subnet_group:rds_subnet_group-0:
+        Subnets:
+            - aws:subnet:vpc-0:subnet-0
+            - aws:subnet:vpc-0:subnet-1
+    aws:subnet:vpc-0:subnet-0:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
+        CidrBlock: 10.0.128.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:vpc-0:subnet-0-route_table
+        Type: private
+        Vpc: aws:vpc:vpc-0
+    aws:subnet:vpc-0:subnet-1:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
+        CidrBlock: 10.0.192.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:vpc-0:subnet-1-route_table
+        Type: private
+        Vpc: aws:vpc:vpc-0
+    aws:route_table_association:subnet-0-subnet-0-route_table:
+        RouteTable: aws:route_table:vpc-0:subnet-0-route_table
+        Subnet: aws:subnet:vpc-0:subnet-0
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:route_table_association:subnet-1-subnet-1-route_table:
+        RouteTable: aws:route_table:vpc-0:subnet-1-route_table
+        Subnet: aws:subnet:vpc-0:subnet-1
+    aws:security_group:vpc-0:rds-instance-1-security_group:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        IngressRules:
+            - CidrBlocks:
+                - 10.0.192.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-1
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.128.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-0
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        Vpc: aws:vpc:vpc-0
+    aws:route_table:vpc-0:subnet-0-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        Vpc: aws:vpc:vpc-0
+    aws:route_table:vpc-0:subnet-1-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        Vpc: aws:vpc:vpc-0
+    aws:vpc:vpc-0:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+edges:
+    aws:security_group:vpc-0:lambda_function_0-security_group -> aws:lambda_function:lambda_function_0:
+    aws:security_group:vpc-0:lambda_function_0-security_group -> aws:vpc:vpc-0:
+    aws:security_group:vpc-0:lambda_function_3-security_group -> aws:lambda_function:lambda_function_3:
+    aws:security_group:vpc-0:lambda_function_3-security_group -> aws:vpc:vpc-0:
+    aws:lambda_function:lambda_function_0 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:lambda_function:lambda_function_0 -> aws:ecr_image:lambda_function_0-image:
+    aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole:
+    aws:lambda_function:lambda_function_0 -> aws:subnet:vpc-0:subnet-0:
+    aws:lambda_function:lambda_function_0 -> aws:subnet:vpc-0:subnet-1:
+    aws:lambda_function:lambda_function_3 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:lambda_function:lambda_function_3 -> aws:ecr_image:lambda_function_3-image:
+    aws:lambda_function:lambda_function_3 -> aws:iam_role:lambda_function_3-ExecutionRole:
+    aws:lambda_function:lambda_function_3 -> aws:subnet:vpc-0:subnet-0:
+    aws:lambda_function:lambda_function_3 -> aws:subnet:vpc-0:subnet-1:
+    aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:lambda_function_0-log-group:
+    aws:iam_role:lambda_function_0-ExecutionRole -> aws:rds_instance:rds-instance-1:
+    aws:ecr_image:lambda_function_3-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function_3-ExecutionRole -> aws:log_group:lambda_function_3-log-group:
+    aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
+    aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-2:
+    aws:subnet:vpc-0:subnet-2 -> aws:availability_zone:region-0:availability_zone-0:
+    aws:subnet:vpc-0:subnet-2 -> aws:route_table_association:subnet-2-subnet-2-route_table:
+    aws:subnet:vpc-0:subnet-2 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-2-subnet-2-route_table -> aws:route_table:vpc-0:subnet-2-route_table:
+    aws:route_table:vpc-0:subnet-2-route_table -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:vpc-0:subnet-2-route_table -> aws:vpc:vpc-0:
+    aws:availability_zone:region-0:availability_zone-0 -> aws:region:region-0:
+    aws:internet_gateway:vpc-0:internet_gateway-0 -> aws:vpc:vpc-0:
+    aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway -> aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
+    aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-3:
+    aws:subnet:vpc-0:subnet-3 -> aws:availability_zone:region-0:availability_zone-1:
+    aws:subnet:vpc-0:subnet-3 -> aws:route_table_association:subnet-3-subnet-3-route_table:
+    aws:subnet:vpc-0:subnet-3 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-3-subnet-3-route_table -> aws:route_table:vpc-0:subnet-3-route_table:
+    aws:route_table:vpc-0:subnet-3-route_table -> aws:internet_gateway:vpc-0:internet_gateway-0:
+    aws:route_table:vpc-0:subnet-3-route_table -> aws:vpc:vpc-0:
+    aws:availability_zone:region-0:availability_zone-1 -> aws:region:region-0:
+    aws:rds_instance:rds-instance-1 -> aws:rds_subnet_group:rds_subnet_group-0:
+    aws:rds_subnet_group:rds_subnet_group-0 -> aws:subnet:vpc-0:subnet-0:
+    aws:rds_subnet_group:rds_subnet_group-0 -> aws:subnet:vpc-0:subnet-1:
+    aws:subnet:vpc-0:subnet-0 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:subnet:vpc-0:subnet-0 -> aws:availability_zone:region-0:availability_zone-0:
+    aws:subnet:vpc-0:subnet-0 -> aws:route_table_association:subnet-0-subnet-0-route_table:
+    aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:rds-instance-1-security_group:
+    aws:subnet:vpc-0:subnet-0 -> aws:vpc:vpc-0:
+    aws:subnet:vpc-0:subnet-1 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
+    aws:subnet:vpc-0:subnet-1 -> aws:availability_zone:region-0:availability_zone-1:
+    aws:subnet:vpc-0:subnet-1 -> aws:route_table_association:subnet-1-subnet-1-route_table:
+    aws:subnet:vpc-0:subnet-1 -> aws:security_group:vpc-0:rds-instance-1-security_group:
+    aws:subnet:vpc-0:subnet-1 -> aws:vpc:vpc-0:
+    aws:route_table_association:subnet-0-subnet-0-route_table -> aws:route_table:vpc-0:subnet-0-route_table:
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_0-log-group:
+    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_3-log-group:
+    aws:route_table_association:subnet-1-subnet-1-route_table -> aws:route_table:vpc-0:subnet-1-route_table:
+    aws:security_group:vpc-0:rds-instance-1-security_group -> aws:rds_instance:rds-instance-1:
+    aws:security_group:vpc-0:rds-instance-1-security_group -> aws:vpc:vpc-0:
+    aws:route_table:vpc-0:subnet-0-route_table -> aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway:
+    aws:route_table:vpc-0:subnet-0-route_table -> aws:vpc:vpc-0:
+    aws:route_table:vpc-0:subnet-1-route_table -> aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
+    aws:route_table:vpc-0:subnet-1-route_table -> aws:vpc:vpc-0:

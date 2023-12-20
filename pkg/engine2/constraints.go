@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/reconciler"
@@ -120,46 +119,12 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		}
 	}
 
-	removePath := func() error {
-		paths, err := graph.AllPathsBetween(ctx.DataflowGraph(), constraint.Target.Source, constraint.Target.Target)
-		switch {
-		case errors.Is(err, graph.ErrTargetNotReachable):
-			return nil
-		case err != nil:
-			return err
-		}
-
-		var errs error
-
-		// first we will remove all dependencies that make up the paths from the constraints source to target
-		for _, path := range paths {
-			for i, res := range path {
-				if i == 0 {
-					continue
-				}
-				errs = errors.Join(errs, ctx.OperationalView().RemoveEdge(path[i-1], res))
-			}
-		}
-		if errs != nil {
-			return errs
-		}
-
-		// Next we will try to delete any node in those paths in case they no longer are required for the architecture
-		// We will pass the explicit field as false so that explicitly added resources do not get deleted
-		for _, path := range paths {
-			for _, resource := range path {
-				errs = errors.Join(errs, reconciler.RemoveResource(ctx, resource, false))
-			}
-		}
-		return errs
-	}
-
 	switch constraint.Operator {
 	case constraints.MustExistConstraintOperator:
 		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
 
 	case constraints.MustNotExistConstraintOperator:
-		return removePath()
+		return reconciler.RemovePath(constraint.Target.Source, constraint.Target.Target, ctx)
 	}
 	return nil
 }

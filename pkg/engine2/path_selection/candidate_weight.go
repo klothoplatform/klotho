@@ -3,10 +3,11 @@ package path_selection
 import (
 	"errors"
 
+	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
+	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
@@ -52,7 +53,7 @@ func determineCandidateWeight(
 		weight += 9
 	}
 
-	undirected, err := operational_rule.BuildUndirectedGraph(ctx)
+	undirected, err := BuildUndirectedGraph(ctx)
 	if err != nil {
 		errs = errors.Join(errs, err)
 		return
@@ -96,4 +97,33 @@ func determineCandidateWeight(
 
 	weight += availableWeight
 	return
+}
+
+func BuildUndirectedGraph(ctx solution_context.SolutionContext) (construct.Graph, error) {
+	undirected := graph.NewWithStore(
+		construct.ResourceHasher,
+		graph_addons.NewMemoryStore[construct.ResourceId, *construct.Resource](),
+	)
+	err := undirected.AddVerticesFrom(ctx.RawView())
+	if err != nil {
+		return nil, err
+	}
+	edges, err := ctx.RawView().Edges()
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range edges {
+		weight := 1
+		// increase weights for edges that are connected to a functional resource
+		if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), e.Source) != knowledgebase.Unknown {
+			weight = 1000
+		} else if knowledgebase.GetFunctionality(ctx.KnowledgeBase(), e.Target) != knowledgebase.Unknown {
+			weight = 1000
+		}
+		err := undirected.AddEdge(e.Source, e.Target, graph.EdgeWeight(weight))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return undirected, nil
 }
