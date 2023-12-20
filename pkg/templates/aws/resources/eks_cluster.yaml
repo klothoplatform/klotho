@@ -39,16 +39,6 @@ properties:
           - aws:security_group
         unique: true
     description: Lists the security groups associated with the EKS cluster nodes
-  KubeConfig:
-    type: resource(kubernetes:kube_config)
-    operational_rule:
-      step:
-        direction: upstream
-        resources:
-          - kubernetes:kube_config
-        unique: true
-    description: Points to a Kubernetes kubeconfig file containing cluster access
-      information
   Name:
     type: string
     configuration_disabled: true

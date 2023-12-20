@@ -452,7 +452,6 @@ resources:
         Region: aws:region:region-0
     aws:eks_cluster:eks_cluster-0:
         ClusterRole: aws:iam_role:ClusterRole-eks_cluster-0
-        KubeConfig: kubernetes:kube_config:eks_cluster-0-kube_config
         SecurityGroups:
             - aws:security_group:vpc-0:eks_cluster-0-security_group
         Subnets:

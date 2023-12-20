@@ -177,7 +177,7 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 
 	listVal, ok := value.([]any)
 	if !ok {
-		return fmt.Errorf("invalid map value %v", value)
+		return fmt.Errorf("invalid list value %v", value)
 	}
 	if l.MinLength != nil {
 		if len(listVal) < *l.MinLength {
