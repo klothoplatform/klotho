@@ -133,7 +133,8 @@ func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (v
 	return viewDag, errs
 }
 
-// handleSmallIcon finds a big icon
+// handleSmallIcon finds big icons to attach this resource to. It always adds to big icons for which it is
+// in the glue layer. It also adds to the big icon that is closest to the resource (if there is one).
 func (e *Engine) handleSmallIcon(
 	view View,
 	g construct.Graph,
@@ -199,7 +200,8 @@ func (e *Engine) handleSmallIcon(
 	return nil
 }
 
-// handleBigIcon sets the parent of the big icon and adds edges to any other big icons
+// handleBigIcon sets the parent of the big icon if there is a group it should be added to and
+// adds edges to any other big icons based on having the proper connections (network & permissions).
 func (e *Engine) handleBigIcon(
 	view View,
 	g visualizer.ConnectionGraph,
