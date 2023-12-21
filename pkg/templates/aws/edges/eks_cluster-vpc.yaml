@@ -26,3 +26,8 @@ operational_rules:
             properties:
               SecurityGroupId: '{{ fieldRef "ClusterSecurityGroup" .Source }}'
               Type: ingress
+      - resource: '{{ .Source }}' # Temporarily generate the kube_config for the cluster
+        direction: upstream
+        resources:
+          - kubernetes:kube_config
+        unique: true

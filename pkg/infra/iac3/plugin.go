@@ -145,7 +145,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 func (p *Plugin) sanitizeConfig() error {
 	reg, err := regexp.Compile("[^a-zA-Z0-9-_]+")
 	if err != nil {
-		return fmt.Errorf("Error compiling regex: %v", err)
+		return fmt.Errorf("error compiling regex: %v", err)
 	}
 	p.Config.AppName = reg.ReplaceAllString(p.Config.AppName, "")
 	return nil

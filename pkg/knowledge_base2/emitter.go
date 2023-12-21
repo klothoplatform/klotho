@@ -90,24 +90,24 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicConte
 					addErr(consume, emit, err)
 					continue
 				}
-				val, err = sanitizeForConsumption(ctx, resource, consumeTmpl.GetProperty(consume.PropertyPath), val)
-				if err != nil {
-					addErr(consume, emit, err)
-					continue
-				}
 				pval, err := resource.GetProperty(consume.PropertyPath)
 				if err != nil {
 					addErr(consume, emit, err)
 					continue
 				}
-				if pval == nil {
-					if consume.Converter != "" {
-						val, err = consume.Convert(val, id, ctx)
-						if err != nil {
-							addErr(consume, emit, err)
-							continue
-						}
+				if consume.Converter != "" {
+					val, err = consume.Convert(val, id, ctx)
+					if err != nil {
+						addErr(consume, emit, err)
+						continue
 					}
+				}
+				val, err = sanitizeForConsumption(ctx, resource, consumeTmpl.GetProperty(consume.PropertyPath), val)
+				if err != nil {
+					addErr(consume, emit, err)
+					continue
+				}
+				if pval == nil {
 					delays = append(delays, DelayedConsumption{
 						Value:        val,
 						Resource:     id,
@@ -115,7 +115,6 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicConte
 					})
 					continue
 				}
-
 				err = consume.Consume(val, ctx, resource)
 				if err != nil {
 					addErr(consume, emit, err)
