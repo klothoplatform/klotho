@@ -90,11 +90,8 @@ func ConsumeFromResource(consumer, emitter *construct.Resource, ctx DynamicConte
 					addErr(consume, emit, err)
 					continue
 				}
-				pval, err := resource.GetProperty(consume.PropertyPath)
-				if err != nil {
-					addErr(consume, emit, err)
-					continue
-				}
+				// we ignore the error here because if we cant get the property we will attempt to apply it as a constraint later on
+				pval, _ := resource.GetProperty(consume.PropertyPath)
 				if consume.Converter != "" {
 					val, err = consume.Convert(val, id, ctx)
 					if err != nil {

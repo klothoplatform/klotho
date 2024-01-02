@@ -225,15 +225,18 @@ func addPulumiKubernetesProviders(g construct.Graph) error {
 		if !ok {
 			return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have an id as cluster property (is: %T)", id, cluster))
 		}
-		clusterRes, err := g.Vertex(clusterId)
+		upstreams, err := construct.DirectUpstreamDependencies(g, clusterId)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
-		kubeconfig, err := clusterRes.GetProperty("KubeConfig")
-		if err != nil {
-			return errors.Join(nerr, err)
+		var kubeconfig construct.ResourceId
+		for _, upstream := range upstreams {
+			if kubeconfigId.Matches(upstream) {
+				kubeconfig = upstream
+				break
+			}
 		}
-		provider, ok := providers[kubeconfig.(construct.ResourceId)]
+		provider, ok := providers[kubeconfig]
 		if !ok {
 			return errors.Join(nerr, fmt.Errorf("resource %s is a kubernetes resource but does not have a provider resource for cluster %s", id, clusterId))
 		}
