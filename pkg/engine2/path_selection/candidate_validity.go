@@ -246,7 +246,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 		var errs error
 		rt, err := d.ctx.KnowledgeBase().GetResourceTemplate(r)
 		if err != nil || rt == nil {
-			return false, fmt.Errorf("error getting resource template for resource %s: %w", resource, err)
+			return false, fmt.Errorf("error getting resource template for resource %s: %w", resource.ID, err)
 		}
 		p := rt.Properties[property]
 		for _, downstream := range downstreams {
@@ -263,7 +263,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 			} else {
 				currRes, err = d.ctx.RawView().Vertex(r)
 				if err != nil {
-					errs = errors.Join(errs, fmt.Errorf("error getting resource %s: %w", resource, err))
+					errs = errors.Join(errs, fmt.Errorf("error getting resource %s: %w", resource.ID, err))
 					continue
 				}
 			}

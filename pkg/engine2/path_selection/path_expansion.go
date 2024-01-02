@@ -320,7 +320,7 @@ func expandPath(
 		}
 		valid, err := checkNamespaceValidity(ctx, resource, input.Dep.Target.ID)
 		if err != nil {
-			return errors.Join(nerr, fmt.Errorf("error checking namespace validity of %s: %w", resource, err))
+			return errors.Join(nerr, fmt.Errorf("error checking namespace validity of %s: %w", resource.ID, err))
 		}
 		if !valid {
 			return nerr

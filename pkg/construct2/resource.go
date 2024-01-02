@@ -3,6 +3,7 @@ package construct2
 type Resource struct {
 	ID         ResourceId
 	Properties Properties
+	Imported   bool
 }
 
 // Id is a temporary bridge to the old Resource interface.

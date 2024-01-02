@@ -14,11 +14,12 @@ import (
 
 func TestApplyConstraints(t *testing.T) {
 	tests := []struct {
-		name        string
-		init        []any
-		constraints constraints.Constraints
-		want        enginetesting.ExpectedGraphs
-		wantErr     bool
+		name           string
+		init           []any
+		constraints    constraints.Constraints
+		want           enginetesting.ExpectedGraphs
+		resourceChecks func(t *testing.T, ctx *enginetesting.TestSolution)
+		wantErr        bool
 	}{
 		{
 			name: "add resource",
@@ -30,6 +31,23 @@ func TestApplyConstraints(t *testing.T) {
 			want: enginetesting.ExpectedGraphs{
 				Dataflow:   []any{"p:t:test"},
 				Deployment: []any{"p:t:test"},
+			},
+		},
+		{
+			name: "import resource",
+			constraints: constraints.Constraints{
+				Application: []constraints.ApplicationConstraint{
+					{Operator: constraints.ImportConstraintOperator, Node: graphtest.ParseId(t, "p:t:test")},
+				},
+			},
+			want: enginetesting.ExpectedGraphs{
+				Dataflow:   []any{"p:t:test"},
+				Deployment: []any{"p:t:test"},
+			},
+			resourceChecks: func(t *testing.T, ctx *enginetesting.TestSolution) {
+				res, err := ctx.RawView().Vertex(graphtest.ParseId(t, "p:t:test"))
+				require.NoError(t, err)
+				require.True(t, res.Imported)
 			},
 		},
 		{
