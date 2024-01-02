@@ -48,6 +48,3 @@ resources:
     tag: big
 
   lambda_function/lambda_function_0 -> rds_instance/rds-instance-1:
-    netPath: aws:lambda_function:lambda_function_0 -> aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:rds-instance-1-security_group -> aws:rds_instance:rds-instance-1
-    permPath: aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole -> aws:rds_instance:rds-instance-1
-

@@ -1,10 +1,5 @@
 provider: aws
 resources:
-  rest_api/rest_api_1:
-    children:
-        - aws:api_stage:rest_api_1:api_stage-0
-    tag: parent
-
   lambda_function/lambda_function_0:
     children:
         - aws:ecr_image:lambda_function_0-image
@@ -13,6 +8,11 @@ resources:
         - aws:log_group:lambda_function_0-log-group
     parent: rest_api/rest_api_1
     tag: big
+
+  rest_api/rest_api_1:
+    children:
+        - aws:api_stage:rest_api_1:api_stage-0
+    tag: parent
 
   dynamodb_table/dynamodb_table_3:
     tag: big
@@ -27,3 +27,4 @@ resources:
     parent: rest_api/rest_api_1
     tag: big
 
+  aws:api_integration:rest_api_1/rest_api_1_integration_0 -> lambda_function/lambda_function_0:

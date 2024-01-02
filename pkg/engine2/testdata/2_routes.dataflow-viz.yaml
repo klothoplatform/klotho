@@ -1,12 +1,5 @@
 provider: aws
 resources:
-  rest_api/rest_api_1:
-    children:
-        - aws:api_resource:rest_api_1:lambda0
-        - aws:api_resource:rest_api_1:lambda1
-        - aws:api_stage:rest_api_1:api_stage-0
-    tag: parent
-
   lambda_function/lambda_function_1:
     children:
         - aws:ecr_image:lambda_function_1-image
@@ -24,6 +17,13 @@ resources:
     parent: rest_api/rest_api_1
     tag: big
 
+  rest_api/rest_api_1:
+    children:
+        - aws:api_resource:rest_api_1:lambda0
+        - aws:api_resource:rest_api_1:lambda1
+        - aws:api_stage:rest_api_1:api_stage-0
+    tag: parent
+
   aws:api_integration:rest_api_1/integ1:
     children:
         - aws:api_deployment:rest_api_1:api_deployment-0
@@ -39,6 +39,7 @@ resources:
     parent: rest_api/rest_api_1
     tag: big
 
+  aws:api_integration:rest_api_1/integ1 -> lambda_function/lambda_function_1:
   aws:api_integration:rest_api_1/integ0:
     children:
         - aws:api_deployment:rest_api_1:api_deployment-0
@@ -54,3 +55,4 @@ resources:
     parent: rest_api/rest_api_1
     tag: big
 
+  aws:api_integration:rest_api_1/integ0 -> lambda_function/lambda_function_0:

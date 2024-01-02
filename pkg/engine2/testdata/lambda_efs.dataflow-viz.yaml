@@ -39,6 +39,3 @@ resources:
     tag: big
 
   lambda_function/lambda_test_app -> efs_file_system/test-efs-fs:
-    netPath: aws:lambda_function:lambda_test_app -> aws:subnet:vpc-0:lambda_test_app-test-efs-fs -> aws:security_group:vpc-0:lambda_test_app-test-efs-fs -> aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs -> aws:efs_file_system:test-efs-fs
-    permPath: aws:lambda_function:lambda_test_app -> aws:iam_role:lambda_test_app-ExecutionRole -> aws:efs_file_system:test-efs-fs
-

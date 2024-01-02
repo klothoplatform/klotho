@@ -158,7 +158,7 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 		return nil, err
 	}
 	for _, id := range ids {
-		tag := e.GetResourceVizTag(DataflowView, id)
+		tag := GetResourceVizTag(e.Kb, DataflowView, id)
 		if len(context.Tags) > 0 && !slices.Contains(context.Tags, tag) {
 			continue
 		}
