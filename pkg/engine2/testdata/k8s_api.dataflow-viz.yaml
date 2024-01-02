@@ -1,26 +1,5 @@
 provider: aws
 resources:
-  eks_cluster/eks_cluster-0:
-    children:
-        - aws:eks_add_on:vpc-cni
-        - aws:eks_node_group:eks_node_group-0
-        - aws:iam_oidc_provider:eks_cluster-0
-        - aws:iam_policy:iam_policy-0
-        - aws:iam_role:ClusterRole-eks_cluster-0
-        - aws:iam_role:aws-load-balancer-controller
-        - aws:iam_role:eks_node_group-0-iam_role
-        - aws:iam_role:pod2
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:target_group:rest-api-4-integbcc77100
-        - kubernetes:config_map:fluent-bit-cluster-info
-        - kubernetes:manifest:fluent-bit
-        - kubernetes:namespace:amazon-cloudwatch
-        - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
-        - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
-        - kubernetes:service_account:eks_cluster-0:pod2
-        - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
-    tag: parent
-
   kubernetes:pod:eks_cluster-0/pod2:
     children:
         - aws:ecr_image:pod2-ecr_image
@@ -28,7 +7,7 @@ resources:
     parent: eks_cluster/eks_cluster-0
     tag: big
 
-  kubernetes:helm_chart:eks_cluster-0/metricsserver:
+  load_balancer/rest-api-4-integbcc77100:
     children:
         - aws:api_deployment:rest_api_4:api_deployment-0
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
@@ -60,9 +39,38 @@ resources:
     parent: eks_cluster/eks_cluster-0
     tag: big
 
-  kubernetes:helm_chart:eks_cluster-0/metricsserver -> eks_cluster/eks_cluster-0:
-    netPath: kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_cluster:eks_cluster-0
-    permPath: kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_cluster:eks_cluster-0
+  load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
+  kubernetes:helm_chart:eks_cluster-0/metricsserver:
+    children:
+        - aws:api_deployment:rest_api_4:api_deployment-0
+        - aws:api_method:rest_api_4:rest_api_4_integration_0_method
+        - aws:api_resource:rest_api_4:api_resource-0
+        - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_node_group:eks_node_group-0
+        - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
+        - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
+        - aws:iam_oidc_provider:eks_cluster-0
+        - aws:iam_policy:iam_policy-0
+        - aws:iam_role:aws-load-balancer-controller
+        - aws:iam_role:eks_node_group-0-iam_role
+        - aws:iam_role:pod2
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:load_balancer_listener:rest_api_4_integration_0-pod2
+        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        - aws:route_table:vpc-0:subnet-0-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:security_group:vpc-0:eks_cluster-0-security_group
+        - aws:target_group:rest-api-4-integbcc77100
+        - aws:vpc_link:rest_api_4_integration_0-pod2
+        - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
+        - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
+        - kubernetes:service_account:eks_cluster-0:pod2
+        - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
+    parent: eks_cluster/eks_cluster-0
+    tag: big
 
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
     children:
@@ -132,37 +140,26 @@ resources:
         - aws:api_stage:rest_api_4:api_stage-0
     tag: parent
 
-  load_balancer/rest-api-4-integbcc77100:
+  eks_cluster/eks_cluster-0:
     children:
-        - aws:api_deployment:rest_api_4:api_deployment-0
-        - aws:api_method:rest_api_4:rest_api_4_integration_0_method
-        - aws:api_resource:rest_api_4:api_resource-0
-        - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:vpc-cni
         - aws:eks_node_group:eks_node_group-0
-        - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
-        - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:ClusterRole-eks_cluster-0
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:load_balancer_listener:rest_api_4_integration_0-pod2
-        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
-        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
         - aws:security_group:vpc-0:eks_cluster-0-security_group
         - aws:target_group:rest-api-4-integbcc77100
-        - aws:vpc_link:rest_api_4_integration_0-pod2
+        - kubernetes:config_map:fluent-bit-cluster-info
+        - kubernetes:manifest:fluent-bit
+        - kubernetes:namespace:amazon-cloudwatch
         - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
         - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
         - kubernetes:service_account:eks_cluster-0:pod2
         - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
-    parent: eks_cluster/eks_cluster-0
-    tag: big
+    tag: parent
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
     children:
@@ -196,3 +193,4 @@ resources:
     parent: rest_api/rest_api_4
     tag: big
 
+  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integbcc77100:
