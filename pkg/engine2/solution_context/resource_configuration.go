@@ -18,9 +18,13 @@ func ConfigureResource(
 	configuration knowledgebase.Configuration,
 	data knowledgebase.DynamicValueData,
 	action string,
+	userInitiated bool,
 ) error {
 	if resource == nil {
 		return fmt.Errorf("resource does not exist")
+	}
+	if resource.Imported && !userInitiated {
+		return fmt.Errorf("cannot configure imported resource %s", resource.ID)
 	}
 	if data.Resource != resource.ID {
 		return fmt.Errorf("data resource (%s) does not match configuring resource (%s)", data.Resource, resource.ID)

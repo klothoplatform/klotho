@@ -5,10 +5,3 @@ type Resource struct {
 	Properties Properties
 	Imported   bool
 }
-
-// Id is a temporary bridge to the old Resource interface.
-//
-// Deprecated: remove in favour of direct ID field access.
-func (r *Resource) Id() ResourceId {
-	return r.ID
-}

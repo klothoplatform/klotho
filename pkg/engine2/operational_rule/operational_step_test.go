@@ -404,6 +404,7 @@ func Test_setField(t *testing.T) {
 		step          knowledgebase.OperationalStep
 		wantResource  *construct.Resource
 		wantGraph     enginetesting.ExpectedGraphs
+		wantErr       bool
 	}{
 		{
 			name: "field is being replaced",
@@ -547,6 +548,58 @@ func Test_setField(t *testing.T) {
 				Deployment: []any{"mock:resource2:test", "mock:resource1:test1", "mock:resource2:test -> mock:resource1:test1"},
 			},
 		},
+		{
+			name: "imported resource gets ignored",
+			resource: &construct.Resource{
+				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
+				Properties: map[string]interface{}{
+					"Res4": res4.ID,
+				},
+				Imported: true,
+			},
+			resourceToSet: res4,
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name:      "Res4",
+					Path:      "Res4",
+					Namespace: true,
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
+			initialState: []any{"mock:resource4:test4", "mock:resource1:test1"},
+			wantResource: &construct.Resource{
+				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Namespace: res4.ID.Name, Name: "test1"},
+				Properties: map[string]interface{}{
+					"Res4": res4.ID,
+				},
+				Imported: true,
+			},
+			wantGraph: enginetesting.ExpectedGraphs{
+				Dataflow:   []any{"mock:resource1:test1", "mock:resource4:test4"},
+				Deployment: []any{"mock:resource1:test1", "mock:resource4:test4"},
+			},
+		},
+		{
+			name: "imported resource throws error if field is changing",
+			resource: &construct.Resource{
+				ID: construct.ResourceId{Provider: "mock", Type: "resource1", Name: "test1"},
+				Properties: map[string]interface{}{
+					"Res4": res4ToReplace.ID,
+				},
+				Imported: true,
+			},
+			resourceToSet: res4,
+			property: &properties.ResourceProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Name:      "Res4",
+					Path:      "Res4",
+					Namespace: true,
+				},
+			},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
+			initialState: []any{"mock:resource4:test4", "mock:resource1:test1", "mock:resource1:test1 -> mock:resource4:thisWillBeReplaced"},
+			wantErr:      true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -560,6 +613,10 @@ func Test_setField(t *testing.T) {
 			}
 
 			err := ctx.SetField(tt.resource, tt.resourceToSet, tt.step)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
 			if !assert.NoError(err) {
 				return
 			}

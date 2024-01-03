@@ -389,7 +389,7 @@ func Test_addAllDeploymentDependencies(t *testing.T) {
 
 func Test_canDeleteResource(t *testing.T) {
 	type args struct {
-		resource    construct.ResourceId
+		resource    *construct.Resource
 		explicit    bool
 		template    *knowledgebase.ResourceTemplate
 		upstreams   []construct.ResourceId
@@ -406,7 +406,7 @@ func Test_canDeleteResource(t *testing.T) {
 		{
 			name: "can delete resource when no upstreams or downstreams",
 			args: args{
-				resource: construct.ResourceId{},
+				resource: &construct.Resource{ID: construct.ResourceId{Name: "test"}},
 				explicit: false,
 				template: &knowledgebase.ResourceTemplate{},
 			},
@@ -415,7 +415,7 @@ func Test_canDeleteResource(t *testing.T) {
 		{
 			name: "can delete if explicit",
 			args: args{
-				resource: construct.ResourceId{},
+				resource: &construct.Resource{ID: construct.ResourceId{Name: "test"}},
 				explicit: true,
 				template: &knowledgebase.ResourceTemplate{},
 				upstreams: []construct.ResourceId{
@@ -442,7 +442,18 @@ func Test_canDeleteResource(t *testing.T) {
 		{
 			name: "cannot delete if functional and not explicit",
 			args: args{
-				resource: construct.ResourceId{},
+				resource: &construct.Resource{ID: construct.ResourceId{Name: "test"}},
+				explicit: false,
+				template: &knowledgebase.ResourceTemplate{
+					Classification: knowledgebase.Classification{Is: []string{string(knowledgebase.Compute)}},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "cannot delete if imported and not explicit",
+			args: args{
+				resource: &construct.Resource{ID: construct.ResourceId{Name: "test"}, Imported: true},
 				explicit: false,
 				template: &knowledgebase.ResourceTemplate{
 					Classification: knowledgebase.Classification{Is: []string{string(knowledgebase.Compute)}},
@@ -458,13 +469,12 @@ func Test_canDeleteResource(t *testing.T) {
 			upstreamSet.Add(tt.args.upstreams...)
 			downstreamSet := set.Set[construct.ResourceId]{}
 			downstreamSet.Add(tt.args.downstreams...)
-			sol := &enginetesting.TestSolution{
-				KB: enginetesting.MockKB{},
-			}
+			sol := enginetesting.NewTestSolution()
+			sol.DataflowGraph().AddVertex(tt.args.resource)
 			for _, call := range tt.mockKBCalls {
 				sol.KB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
 			}
-			got, err := canDeleteResource(sol, tt.args.resource, tt.args.explicit, tt.args.template, upstreamSet, downstreamSet)
+			got, err := canDeleteResource(sol, tt.args.resource.ID, tt.args.explicit, tt.args.template, upstreamSet, downstreamSet)
 			if tt.wantErr {
 				assert.Error(err)
 				return
