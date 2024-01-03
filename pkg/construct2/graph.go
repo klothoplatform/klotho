@@ -17,19 +17,14 @@ type (
 	ResourceEdge = graph.Edge[*Resource]
 )
 
-func NewGraphWithOptions(options ...func(*graph.Traits)) Graph {
-	return graph.NewWithStore(
+func NewGraph(options ...func(*graph.Traits)) Graph {
+	return Graph(graph.NewWithStore(
 		ResourceHasher,
 		graph_addons.NewMemoryStore[ResourceId, *Resource](),
-		options...,
-	)
-}
-
-func NewGraph(options ...func(*graph.Traits)) Graph {
-	return NewGraphWithOptions(append(options,
-		graph.Directed(),
-	)...,
-	)
+		append(options,
+			graph.Directed(),
+		)...,
+	))
 }
 
 func NewAcyclicGraph(options ...func(*graph.Traits)) Graph {
@@ -53,7 +48,7 @@ func String(g Graph) (string, error) {
 }
 
 func stringTo(g Graph, w io.Writer) error {
-	topo, err := TopologicalSort(g)
+	topo, err := ToplogicalSort(g)
 	if err != nil {
 		return err
 	}

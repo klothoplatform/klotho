@@ -3,7 +3,6 @@ package visualizer
 import (
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -19,8 +18,15 @@ type (
 		FilenamePrefix string
 		AppName        string
 		Provider       string
-		Graph          VisGraph
+		DAG            construct.Graph
 	}
+
+	VizKey string
+)
+
+const (
+	ParentKey   VizKey = "parent"
+	ChildrenKey VizKey = "children"
 )
 
 func (f *File) Path() string {
@@ -37,59 +43,70 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	wh.Writef("provider: %s\n", f.Provider)
 	wh.Write("resources:\n")
 
-	resourceIds, err := construct.ReverseTopologicalSort(f.Graph)
+	resourceIds, err := construct.ReverseTopologicalSort(f.DAG)
 	if err != nil {
 		return
 	}
-	adj, err := f.Graph.AdjacencyMap()
-	if err != nil {
-		return
-	}
+	var resources []*construct.Resource
 	for _, id := range resourceIds {
-		res, err := f.Graph.Vertex(id)
+		res, err := f.DAG.Vertex(id)
 		if err != nil {
 			return n, err
 		}
-		src := f.KeyFor(id)
-		if src == "" {
+		resources = append(resources, res)
+	}
+	for _, resource := range resources {
+		key := f.KeyFor(resource.ID)
+		if key == "" {
 			continue
 		}
-		wh.Writef(indent+"%s:\n", src)
+		wh.Writef(indent+"%s:\n", key)
 
-		props := map[string]any{
-			"tag": res.Tag,
+		// Add any edge properties as metadata
+		_, props, err := f.DAG.VertexWithProperties(resource.ID)
+		if err != nil {
+			return n, err
 		}
-		if !res.Parent.IsZero() {
-			props["parent"] = f.KeyFor(res.Parent)
-		}
-		if len(res.Children) > 0 {
-			childrenIds := res.Children.ToSlice()
-			sort.Sort(construct.SortedIds(childrenIds))
-			children := make([]string, len(childrenIds))
-			for i, child := range childrenIds {
-				children[i] = child.String()
+		properties := props.Attributes
+
+		for key, val := range properties {
+			if _, ok := properties[key]; ok {
+				if key == string(ChildrenKey) {
+					properties[key] = val
+					continue
+				}
+				id := construct.ResourceId{}
+				err := id.UnmarshalText([]byte(val))
+				if err != nil {
+					properties[key] = val
+					continue
+				}
+				properties[key] = f.KeyFor(id)
 			}
-			props["children"] = children
 		}
 
-		if len(props) > 0 {
-			writeYaml(props, 2, wh)
-		} else {
-			wh.Write("\n")
+		if len(properties) > 0 {
+			writeYaml(properties, 2, wh)
 		}
-
-		deps := adj[id]
-		downstream := make([]construct.ResourceId, 0, len(deps))
-		for dep := range deps {
-			downstream = append(downstream, dep)
+		// Need to write edge properties here tomorrow
+		deps, err := construct.DirectDownstreamDependencies(f.DAG, resource.ID)
+		if err != nil {
+			return n, err
 		}
-		sort.Sort(construct.SortedIds(downstream))
-		for _, dep := range downstream {
-			dst := f.KeyFor(dep)
+		downstreamResources := make([]*construct.Resource, len(deps))
+		for i, dep := range deps {
+			downstreamResources[i], err = f.DAG.Vertex(dep)
+			if err != nil {
+				return n, err
+			}
+		}
+		for _, res := range downstreamResources {
+			src := f.KeyFor(resource.ID)
+			dst := f.KeyFor(res.ID)
 			if src != "" && dst != "" {
 				wh.Writef(indent+"%s -> %s:\n", src, dst)
 			}
-			dep, err := f.Graph.Edge(id, dep)
+			dep, err := f.DAG.Edge(resource.ID, res.ID)
 			if err != nil {
 				return n, err
 			}
@@ -97,6 +114,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 				writeYaml(dep.Properties.Data, 2, wh)
 			}
 		}
+		wh.Write("\n")
 	}
 
 	return

@@ -68,14 +68,10 @@ func (a *visApi) request(method string, path string, contentType string, accept 
 func (p Plugin) Translate(dag construct.Graph) ([]klotho_io.File, error) {
 	api := visApi{client: p.Client}
 
-	var err error
 	spec := &File{
 		AppName:  p.AppName,
 		Provider: p.Provider,
-	}
-	spec.Graph, err = ConstructToVis(dag)
-	if err != nil {
-		return nil, err
+		DAG:      dag,
 	}
 
 	resp, err := api.request(http.MethodPost, `generate-infra-diagram`, "application/yaml", "image/png", spec)
@@ -98,17 +94,12 @@ func (p Plugin) Translate(dag construct.Graph) ([]klotho_io.File, error) {
 func (p Plugin) Generate(dag construct.Graph, filenamePrefix string) ([]klotho_io.File, error) {
 	api := visApi{client: p.Client}
 
-	var err error
 	spec := &File{
 		FilenamePrefix: fmt.Sprintf("%s-", filenamePrefix),
 		AppName:        p.AppName,
 		Provider:       p.Provider,
+		DAG:            dag,
 	}
-	spec.Graph, err = ConstructToVis(dag)
-	if err != nil {
-		return nil, err
-	}
-
 	resp, err := api.request(http.MethodPost, `generate-infra-diagram`, "application/yaml", "image/png", spec)
 	if err != nil {
 		return nil, err

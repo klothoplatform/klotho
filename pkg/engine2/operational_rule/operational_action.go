@@ -127,7 +127,7 @@ func (action *operationalResourceAction) useAvailableResources(resource *constru
 	if err != nil {
 		return err
 	}
-	resources, err := construct.TopologicalSort(action.ruleCtx.Solution.RawView())
+	resources, err := construct.ToplogicalSort(action.ruleCtx.Solution.RawView())
 	if err != nil {
 		return err
 	}

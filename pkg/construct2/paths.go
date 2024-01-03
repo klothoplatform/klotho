@@ -7,12 +7,11 @@ import (
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
-	Path graph_addons.Path[ResourceId]
+	Path []ResourceId
 
 	Dependencies struct {
 		Resource ResourceId

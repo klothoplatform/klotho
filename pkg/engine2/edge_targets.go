@@ -1,11 +1,6 @@
 package engine2
 
 import (
-	"os"
-	"slices"
-	"sync"
-	"time"
-
 	"github.com/alitto/pond"
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -13,6 +8,10 @@ import (
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"os"
+	"slices"
+	"sync"
+	"time"
 )
 
 type (
@@ -128,6 +127,7 @@ that satisfies both source and target path satisfaction classifications.
 A partial set of valid targets can be generated using the filter criteria in the context's config.
 */
 func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[string][]string, error) {
+
 	inputGraph, err := unmarshallInputGraph(context.InputGraph)
 	if err != nil {
 		return nil, err
@@ -153,14 +153,10 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	}
 
 	// filter resources based on the context
-	ids, err := construct.TopologicalSort(topologyGraph)
-	if err != nil {
-		return nil, err
-	}
-	for _, id := range ids {
-		tag := e.GetResourceVizTag(DataflowView, id)
+	err = construct.WalkGraph(topologyGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+		tag := e.GetResourceVizTag(string(DataflowView), id)
 		if len(context.Tags) > 0 && !slices.Contains(context.Tags, tag) {
-			continue
+			return nil
 		}
 		isSource := true
 		isTarget := true
@@ -185,6 +181,11 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 		if isTarget {
 			targets = append(targets, id)
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	results := make(chan *edgeValidity)
