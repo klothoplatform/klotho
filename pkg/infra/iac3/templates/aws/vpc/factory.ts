@@ -5,6 +5,7 @@ interface Args {
     CidrBlock: string
     EnableDnsHostnames: boolean
     EnableDnsSupport: boolean
+    Id?: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -23,4 +24,8 @@ function properties(object: aws.ec2.Vpc, args: Args) {
     return {
         Id: object.id,
     }
+}
+
+function importResource(args: Args): aws.ec2.Vpc {
+    return aws.ec2.Vpc.get(args.Name, args.Id)
 }

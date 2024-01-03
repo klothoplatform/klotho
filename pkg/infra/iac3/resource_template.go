@@ -28,6 +28,7 @@ type (
 		Args              map[string]Arg
 		Path              string
 		Exports           map[string]*template.Template
+		ImportResource    *template.Template
 	}
 
 	PropertyTemplateData struct {
@@ -74,6 +75,9 @@ var (
 	//go:embed find_export_func.scm
 	findExportFunc string
 
+	//go:embed find_import_func.scm
+	findImportFunc string
+
 	curlyEscapes     = regexp.MustCompile(`~~{{`)
 	templateComments = regexp.MustCompile(`//*TMPL ?`)
 )
@@ -105,6 +109,14 @@ func (tc *TemplatesCompiler) ParseTemplate(name string, r io.Reader) (*ResourceT
 	rt.Exports, err = exportsNodeToTemplate(tc, rt, node, name)
 	if err != nil {
 		return nil, err
+	}
+	var outputType string
+	rt.ImportResource, outputType, err = importFuncNodeToTemplate(node, name)
+	if err != nil {
+		return nil, err
+	}
+	if outputType != "" && outputType != rt.OutputType {
+		return nil, fmt.Errorf("output type mismatch: %s != %s", outputType, rt.OutputType)
 	}
 
 	return rt, nil
@@ -240,6 +252,33 @@ func exportsNodeToTemplate(tc *TemplatesCompiler, tmpl *ResourceTemplate, node *
 		exportsTemplates[propName] = t
 	}
 	return exportsTemplates, errs
+}
+
+func importFuncNodeToTemplate(node *sitter.Node, name string) (*template.Template, string, error) {
+	importFunc := doQuery(node, findImportFunc)
+	imp, found := importFunc()
+	if !found {
+		return nil, "", nil
+	}
+	outputType := imp["return_type"].Content()
+	var expressionBody string
+	if outputType == "void" {
+		expressionBody = bodyContents(imp["body"])
+	} else {
+		body, found := doQuery(imp["body"], findReturn)()
+		if !found {
+			return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, imp["body"].Content())
+		}
+		expressionBody = body["return_body"].Content()
+	}
+	expressionBody = parameterizeArgs(expressionBody, "")
+	expressionBody = templateComments.ReplaceAllString(expressionBody, "")
+
+	// transform escaped double curly brace literals e.g. ~~{{ .ID }} -> {{ `{{` }} .ID }}
+	expressionBody = curlyEscapes.ReplaceAllString(expressionBody, "{{ `{{` }}")
+	tmpl, err := template.New(name).Parse(expressionBody)
+
+	return tmpl, outputType, err
 }
 
 var templateTSLang = types.SourceLanguage{
