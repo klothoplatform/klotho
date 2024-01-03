@@ -24,7 +24,6 @@ type (
 		Type string `json:"type" yaml:"type"`
 
 		Description string `json:"description" yaml:"description"`
-		IsImportant bool   `json:"important" yaml:"important"`
 
 		Namespace bool `json:"namespace" yaml:"namespace"`
 

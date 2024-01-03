@@ -28,7 +28,6 @@ properties:
   EnvironmentVariables:
     type: map(string,string)
     description: A map of the environment variables to pass to the container
-    important: true
     key_property:
       sanitize: |
         {{ .
