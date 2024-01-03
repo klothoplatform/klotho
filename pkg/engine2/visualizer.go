@@ -267,8 +267,13 @@ func createEdgeIfPath(topo Topology,
 func (e *Engine) getParentFromNamespace(resource construct.ResourceId, resources []construct.ResourceId) construct.ResourceId {
 	if resource.Namespace != "" {
 		for _, potentialParent := range resources {
-			if potentialParent.Name == resource.Namespace && e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
-				return potentialParent
+			if potentialParent.Name == resource.Namespace {
+				if e.GetResourceVizTag(string(DataflowView), potentialParent) == ParentIconTag {
+					return potentialParent
+				}
+				if potentialParent.Namespace != "" {
+					return e.getParentFromNamespace(potentialParent, resources)
+				}
 			}
 		}
 	}

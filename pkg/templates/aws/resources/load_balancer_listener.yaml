@@ -2,21 +2,39 @@ qualified_type_name: aws:load_balancer_listener
 display_name: Load Balancer Listener
 
 properties:
+  Certificate:
+    type: resource(aws:acm_certificate)
+    operational_rule:
+      if: '{{ eq (fieldValue "Protocol" .Self) "HTTPS" }}'
+      step:
+        direction: downstream
+        resources:
+          - aws:acm_certificate
   Port:
     type: int
     default_value: 80
+    min_value: 1
+    max_value: 65535
   Protocol:
     type: string
+    allowed_values:
+        - GENEVE
+        - HTTP
+        - HTTPS
+        - TCP
+        - TCP_UDP
+        - TLS
+        - UDP
   LoadBalancer:
     type: resource(aws:load_balancer)
-    default_value: '{{ upstream "aws:load_balancer" .Self }}'
+    namespace: true
+    operational_rule:
+      step:
+        direction: upstream
+        resources:
+          - aws:load_balancer
   DefaultActions:
-    type: list
-    properties:
-      TargetGroup:
-        type: resource(aws:target_group)
-      Type:
-        type: string
+    type: list(model(aws:load_balancer_listener:action))
 
 delete_context:
   requires_no_upstream_or_downstream: true

@@ -10,6 +10,7 @@ interface Args {
     Tags: Record<string, string>
     Targets: { Id: string; Port: number }[]
     HealthCheck: TemplateWrapper<Record<string, any>>
+    LambdaMultiValueHeadersEnabled?: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -24,15 +25,25 @@ function create(args: Args): aws.lb.TargetGroup {
             tags: args.Tags,
             //TMPL {{- end }}
             healthCheck: args.HealthCheck,
+            //TMPL {{- if .LambdaMultiValueHeadersEnabled }}
+            lambdaMultiValueHeadersEnabled: args.LambdaMultiValueHeadersEnabled,
+            //TMPL {{- end }}
         })
 
         //TMPL {{- if .Targets }}
         for (const target of args.Targets) {
+            //TMPL {{- if eq .TargetType "instance" }}
             new aws.lb.TargetGroupAttachment(target.Id, {
                 port: target.Port,
                 targetGroupArn: tg.arn,
                 targetId: target.Id,
             })
+            //TMPL {{- else if eq .TargetType "lambda" }}
+            new aws.lb.TargetGroupAttachment(target.Id, {
+                targetGroupArn: tg.arn,
+                targetId: target.Id,
+            })
+            //TMPL {{- end }}
         }
         //TMPL {{- end }}
         return tg

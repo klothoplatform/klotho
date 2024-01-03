@@ -5,6 +5,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -37,69 +38,125 @@ type (
 //
 // This is used to determine (on a best-effort basis) if an edge can be expanded
 // without fully solving the graph (which is expensive).
-func (e *Engine) EdgeCanBeExpanded(source construct.ResourceId, target construct.ResourceId) (bool, error) {
+func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.ResourceId, target construct.ResourceId) (bool, error) {
 
 	if source.Matches(target) {
 		return false, nil
 	}
 
-	edge := construct.SimpleEdge{
-		Source: source,
-		Target: target,
-	}
-
-	sourceTemplate, err := e.Kb.GetResourceTemplate(edge.Source)
+	satisfactions, err := e.Kb.GetPathSatisfactionsFromEdge(source, target)
 	if err != nil {
 		return false, err
 	}
-	targetTemplate, err := e.Kb.GetResourceTemplate(edge.Target)
-	if err != nil {
-		return false, err
-	}
-	classifications := make(set.Set[string])
-	sourceClassifications := sourceTemplate.PathSatisfaction.AsSource
-	if len(sourceClassifications) == 0 {
-		return false, nil
-	}
-	for _, satisfaction := range sourceClassifications {
-		if satisfaction.Classification == "" {
-			continue
-		}
-		classifications.Add(satisfaction.Classification)
-	}
-	targetClassifications := targetTemplate.PathSatisfaction.AsTarget
-	if len(targetClassifications) == 0 {
-		return false, nil
-	}
-	for _, satisfaction := range targetClassifications {
-		if satisfaction.Classification == "" {
-			continue
-		}
-		classifications.Add(satisfaction.Classification)
-	}
 
-	for classification := range classifications {
-		zap.S().Debugf("Checking for valid path between %s and %s for classification %s", source, target, classification)
-		pathSelectionGraph, err := path_selection.BuildPathSelectionGraph(edge, e.Kb, classification)
-		if err != nil {
-			return false, err
-		}
-		paths, err := graph.AllPathsBetween(pathSelectionGraph, edge.Source, edge.Target)
-		if len(paths) == 0 || err != nil {
-			return false, err
-		}
+	sourceClassifications := make(map[construct.ResourceId]set.Set[string])
+	targetClassifications := make(map[construct.ResourceId]set.Set[string])
 
-		hasValidPath := false
-		for _, path := range paths {
-			if path_selection.PathSatisfiesClassification(e.Kb, path, classification) {
-				hasValidPath = true
-				break
+	for _, satisfaction := range satisfactions {
+		if satisfaction.Source.Classification != "" {
+			if satisfaction.Source.PropertyReference == "" {
+				if _, ok := sourceClassifications[source]; !ok {
+					sourceClassifications[source] = make(set.Set[string])
+				}
+				sourceClassifications[source].Add(satisfaction.Source.Classification)
+			} else {
+				refs, err := solution_context.GetResourcesFromPropertyReference(ctx, source, satisfaction.Source.PropertyReference)
+				if err != nil {
+					return false, err
+				}
+				if len(refs) < 1 {
+					return false, nil
+				}
+				srcRef := refs[len(refs)-1]
+				if _, ok := sourceClassifications[srcRef]; !ok {
+					sourceClassifications[srcRef] = make(set.Set[string])
+				}
+				sourceClassifications[srcRef].Add(satisfaction.Source.Classification)
 			}
 		}
-		if !hasValidPath {
-			return false, nil
+		if satisfaction.Target.Classification != "" {
+			if satisfaction.Target.PropertyReference == "" {
+				if _, ok := targetClassifications[target]; !ok {
+					targetClassifications[target] = make(set.Set[string])
+				}
+				targetClassifications[target].Add(satisfaction.Target.Classification)
+			} else {
+				refs, err := solution_context.GetResourcesFromPropertyReference(ctx, target, satisfaction.Target.PropertyReference)
+				if err != nil {
+					return false, err
+				}
+				if len(refs) < 1 {
+					return false, nil
+				}
+				targetRef := refs[len(refs)-1]
+				if _, ok := targetClassifications[targetRef]; !ok {
+					targetClassifications[targetRef] = make(set.Set[string])
+				}
+				targetClassifications[targetRef].Add(satisfaction.Target.Classification)
+			}
 		}
 	}
+
+	for src, classifications := range sourceClassifications {
+		for classification := range classifications {
+			edge := construct.SimpleEdge{
+				Source: src,
+				Target: target,
+			}
+
+			zap.S().Debugf("Checking for valid path between %s and %s for classification %s", src, target, classification)
+			pathSelectionGraph, err := path_selection.BuildPathSelectionGraph(edge, e.Kb, classification)
+			if err != nil {
+				return false, err
+			}
+			paths, err := graph.AllPathsBetween(pathSelectionGraph, edge.Source, edge.Target)
+			if len(paths) == 0 || err != nil {
+				return false, err
+			}
+
+			hasValidPath := false
+			for _, path := range paths {
+				if path_selection.PathSatisfiesClassification(e.Kb, path, classification) {
+					hasValidPath = true
+					break
+				}
+			}
+			if !hasValidPath {
+				return false, nil
+			}
+		}
+	}
+
+	//for tgt, classifications := range targetClassifications {
+	//	for classification := range classifications {
+	//		edge := construct.SimpleEdge{
+	//			Source: source,
+	//			Target: tgt,
+	//		}
+	//
+	//		zap.S().Debugf("Checking for valid path between %s and %s for classification %s", source, tgt, classification)
+	//		pathSelectionGraph, err := path_selection.BuildPathSelectionGraph(edge, e.Kb, classification)
+	//		if err != nil {
+	//			return false, err
+	//		}
+	//		paths, err := graph.AllPathsBetween(pathSelectionGraph, edge.Source, edge.Target)
+	//		if len(paths) == 0 || err != nil {
+	//			return false, err
+	//		}
+	//
+	//		hasValidPath := false
+	//		for _, path := range paths {
+	//			if path_selection.PathSatisfiesClassification(e.Kb, path, classification) {
+	//				hasValidPath = true
+	//				break
+	//			}
+	//		}
+	//		if !hasValidPath {
+	//			return false, nil
+	//		}
+	//	}
+	//}
+
 	return true, nil
 }
 
@@ -193,8 +250,8 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	//var detectionGroup sync.WaitGroup
 
 	checkerPool := pond.New(5, 1000, pond.Strategy(pond.Lazy()))
-	knownTargetValidity := make(map[string]map[string]bool)
-	rwLock := &sync.RWMutex{}
+	//knownTargetValidity := make(map[string]map[string]bool)
+	//rwLock := &sync.RWMutex{}
 
 	// get all valid-edge combinations for resource types in the supplied graph
 	for _, s := range sources {
@@ -218,44 +275,44 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 			checkerPool.Submit(func() {
 
 				// check if we already know the validity of this edge
-				sourceType := source.QualifiedTypeName()
-				targetType := target.QualifiedTypeName()
+				//sourceType := source.QualifiedTypeName()
+				//targetType := target.QualifiedTypeName()
+				//
+				//isValid := false
+				//previouslyEvaluated := false
 
-				isValid := false
-				previouslyEvaluated := false
-
-				rwLock.RLock()
-				if _, ok := knownTargetValidity[sourceType]; ok {
-					if isValid, ok = knownTargetValidity[sourceType][targetType]; ok {
-						previouslyEvaluated = true
-					}
-				}
-				rwLock.RUnlock()
+				//rwLock.RLock()
+				//if _, ok := knownTargetValidity[sourceType]; ok {
+				//	if isValid, ok = knownTargetValidity[sourceType][targetType]; ok {
+				//		previouslyEvaluated = true
+				//	}
+				//}
+				//rwLock.RUnlock()
 
 				// only evaluate the edge if we haven't already done so for the same source and target types
-				if !previouslyEvaluated {
-					isValid, _ = e.EdgeCanBeExpanded(source, target)
-				} else {
-					zap.S().Debugf("Using cached result for %s -> %s: %t", source, target, isValid)
-				}
+				//if !previouslyEvaluated {
+				isValid, _ := e.EdgeCanBeExpanded(solutionCtx, source, target)
+				//} else {
+				//	zap.S().Debugf("Using cached result for %s -> %s: %t", source, target, isValid)
+				//}
 				zap.S().Debugf("valid target: %s -> %s: %t", source, target, isValid)
 				results <- &edgeValidity{
 					Source:  source,
 					Target:  target,
 					IsValid: isValid,
 				}
-				if previouslyEvaluated {
-					return
-				}
+				//if previouslyEvaluated {
+				//	return
+				//}
 
 				// cache the result, so we don't have to recompute it for the same source and target types
 				// performance benefit is unclear given potential lock contention between goroutines
-				rwLock.Lock()
-				if _, ok := knownTargetValidity[sourceType]; !ok {
-					knownTargetValidity[sourceType] = make(map[string]bool)
-				}
-				knownTargetValidity[sourceType][targetType] = isValid
-				rwLock.Unlock()
+				//rwLock.Lock()
+				//if _, ok := knownTargetValidity[sourceType]; !ok {
+				//	knownTargetValidity[sourceType] = make(map[string]bool)
+				//}
+				//knownTargetValidity[sourceType][targetType] = isValid
+				//rwLock.Unlock()
 			})
 		}
 	}

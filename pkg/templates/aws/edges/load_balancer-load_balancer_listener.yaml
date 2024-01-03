@@ -2,12 +2,6 @@ source: aws:load_balancer
 target: aws:load_balancer_listener
 deployment_order_reversed: true
 operational_rules:
-  - if: '{{eq (fieldValue "Type" .Source) "application"}}'
-    configuration_rules:
-      - resource: '{{ .Target }}'
-        configuration:
-          field: Protocol
-          value: HTTP
   - if: '{{ eq (fieldValue "Type" .Source) "network" }}'
     configuration_rules:
       - resource: '{{ .Target }}'

@@ -3,29 +3,72 @@ display_name: Listener Rule
 
 properties:
   Actions:
-    type: list
-    properties:
-      Type:
-        type: string
-        default_value: forward
-      TargetGroup:
-        type: resource(aws:target_group)
-        default_value: '{{ downstream "aws:target_group" .Self }}'
+    type: list(model(aws:load_balancer_listener:action))
   Conditions:
-    type: list
+    type: list(map)
+    max_length: 5
     properties:
-      PathPattern:
-        type: list(string)
-        default_value: path-pattern
+      HostHeader:
+        type: map
+        properties:
+          Values:
+            type: list(string)
+      HttpHeader:
+        type: map
+        properties:
+          HttpHeaderName:
+            type: string
+          Values:
+            type: list(string)
       HttpRequestMethod:
-        type: list(string)
+        type: map
+        properties:
+          Values:
+            type: list(string)
+      PathPattern:
+        type: map
+        properties:
+          Values:
+            type: list(string)
+      QueryString:
+        type: map
+        properties:
+          Values:
+            type: list(map)
+            properties:
+              Key:
+                type: string
+              Value:
+                type: string
+      SourceIp:
+        type: map
+        properties:
+          Values:
+            type: list(string)
   Listener:
     type: resource(aws:load_balancer_listener)
-    default_value: '{{ upstream "aws:load_balancer_listener" .Self }}'
+    namespace: true
+    operational_rule:
+      step:
+        direction: upstream
+        resources:
+          - aws:load_balancer_listener
   Priority:
     type: int
+    required: true
+    min_value: 1
+    max_value: 50000
+    default_value: 1
 
 delete_context:
   requires_no_upstream_or_downstream: true
 views:
-  dataflow: small
+  dataflow: big
+
+classification:
+  is:
+    - listener_rule
+
+path_satisfaction:
+  as_source:
+    - network#Listener#LoadBalancer#Subnets

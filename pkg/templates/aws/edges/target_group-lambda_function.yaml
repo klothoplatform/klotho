@@ -1,0 +1,17 @@
+source: aws:target_group
+target: aws:lambda_function
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: TargetType
+          value: lambda
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Targets
+          value:
+            - Id: '{{ .Target }}#Id'
+
+classification:
+  - network
+  - permissions
