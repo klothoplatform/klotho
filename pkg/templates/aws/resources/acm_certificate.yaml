@@ -1,6 +1,45 @@
 qualified_type_name: aws:acm_certificate
 display_name: ACM Certificate
 
+properties:
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  CertificateTransparencyLoggingPreference:
+    type: string
+    allowed_values:
+      - ENABLED
+      - DISABLED
+  DomainName:
+    type: string
+    description: Fully qualified domain name (FQDN), such as www.example.com, that you want to secure with an ACM certificate
+    min_length: 1
+    max_length: 253
+  EarlyRenewalDuration:
+    type: string
+    description: The number of days prior to the certificate expiration date when ACM starts automatic renewal
+  SubjectAlternativeNames:
+    type: list(string)
+    description: Additional FQDNs to be included in the Subject Alternative Name extension of the ACM certificate
+#    min_length: 1
+#    max_length: 253
+  Tags:
+    type: map(string,string)
+  ValidationMethod:
+    type: string
+    default_value: DNS
+    allowed_values:
+      - DNS
+      - EMAIL
+  DomainValidationOptions:
+    type: list(map)
+    properties:
+      DomainName:
+        type: string
+      ValidationDomain:
+        type: string
+
 classification:
   is:
     - certificate
