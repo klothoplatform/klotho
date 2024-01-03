@@ -11,3 +11,6 @@ resources:
     tag: big
 
   cloudfront_distribution/cloudfront_distribution_1 -> s3_bucket/s3-bucket-0:
+    netPath: aws:cloudfront_distribution:cloudfront_distribution_1 -> aws:s3_bucket:s3-bucket-0
+    permPath: aws:cloudfront_distribution:cloudfront_distribution_1 -> aws:s3_bucket:s3-bucket-0
+

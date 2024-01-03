@@ -14,3 +14,6 @@ resources:
     tag: big
 
   lambda_function/new_lambda_name -> dynamodb_table/dynamodb_table_1:
+    netPath: aws:lambda_function:new_lambda_name -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:dynamodb_table:dynamodb_table_1
+    permPath: aws:lambda_function:new_lambda_name -> aws:iam_role:lambda_function_0-ExecutionRole -> aws:dynamodb_table:dynamodb_table_1
+

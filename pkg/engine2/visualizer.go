@@ -7,13 +7,13 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
 	visualizer "github.com/klothoplatform/klotho/pkg/visualizer2"
+	"go.uber.org/zap"
 )
 
 type (
@@ -49,8 +49,8 @@ func (e *Engine) VisualizeViews(ctx solution_context.SolutionContext) ([]klotho_
 	return []klotho_io.File{iac_topo, dataflow_topo}, err
 }
 
-func GetResourceVizTag(kb knowledgebase.TemplateKB, view View, resource construct.ResourceId) Tag {
-	template, err := kb.GetResourceTemplate(resource)
+func (e *Engine) GetResourceVizTag(view View, resource construct.ResourceId) Tag {
+	template, err := e.Kb.GetResourceTemplate(resource)
 
 	if template == nil || err != nil {
 		return NoRenderTag
@@ -62,23 +62,24 @@ func GetResourceVizTag(kb knowledgebase.TemplateKB, view View, resource construc
 	return Tag(tag)
 }
 
-func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (visualizer.VisGraph, error) {
+func (e *Engine) GetViewsDag(view View, ctx solution_context.SolutionContext) (visualizer.VisGraph, error) {
 	viewDag := visualizer.NewVisGraph()
 	var graph construct.Graph
 	if view == IACView {
-		graph = sol.DeploymentGraph()
+		graph = ctx.DeploymentGraph()
 	} else {
-		graph = sol.DataflowGraph()
+		graph = ctx.DataflowGraph()
 	}
-
-	undirected := construct.NewGraphWithOptions()
-	err := undirected.AddVerticesFrom(graph)
+	connGraph, err := visualizer.NewConnectionGraph(graph, e.Kb)
 	if err != nil {
-		return nil, fmt.Errorf("could not copy vertices for undirected: %w", err)
+		return nil, fmt.Errorf("failed to construct weighted dag: %w", err)
 	}
-	err = undirected.AddEdgesFrom(graph)
+	err = errors.Join(
+		construct.GraphToSVG(connGraph.Network, "net-topo"),
+		construct.GraphToSVG(connGraph.Permissions, "perm-topo"),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("could not copy edges for undirected: %w", err)
+		zap.S().Errorf("failed to construct svg: %v", err)
 	}
 
 	ids, err := construct.ReverseTopologicalSort(graph)
@@ -91,7 +92,7 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 	// First pass gets all the vertices (groups or big icons)
 	for _, id := range ids {
 		var err error
-		switch tag := GetResourceVizTag(e.Kb, view, id); tag {
+		switch tag := e.GetResourceVizTag(view, id); tag {
 		case NoRenderTag:
 			continue
 		case ParentIconTag, BigIconTag:
@@ -109,18 +110,18 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 
 	// Second pass sets up the small icons & edges between big icons
 	for _, id := range ids {
-		switch tag := GetResourceVizTag(e.Kb, view, id); tag {
+		switch tag := e.GetResourceVizTag(view, id); tag {
 		case NoRenderTag:
 			continue
 		case ParentIconTag:
 			continue
 		case BigIconTag:
-			err := e.handleBigIcon(sol, view, undirected, viewDag, id)
+			err := e.handleBigIcon(view, connGraph, viewDag, id)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to handle big icon %s: %w", id, err))
 			}
 		case SmallIconTag:
-			err := e.handleSmallIcon(view, undirected, viewDag, id)
+			err := e.handleSmallIcon(view, connGraph.Undirected, viewDag, id)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to handle small icon %s: %w", id, err))
 			}
@@ -202,9 +203,8 @@ func (e *Engine) handleSmallIcon(
 // handleBigIcon sets the parent of the big icon if there is a group it should be added to and
 // adds edges to any other big icons based on having the proper connections (network & permissions).
 func (e *Engine) handleBigIcon(
-	sol solution_context.SolutionContext,
 	view View,
-	undirected construct.Graph,
+	g visualizer.ConnectionGraph,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) error {
@@ -212,41 +212,37 @@ func (e *Engine) handleBigIcon(
 	if err != nil {
 		return err
 	}
-	parent, err := e.findParent(view, undirected, viewDag, id)
+	parent, err := e.findParent(view, g, viewDag, id)
 	if err != nil {
 		return err
 	}
 	source.Parent = parent
 
-	targets, err := construct.TopologicalSort(viewDag)
-	if err != nil {
-		return err
-	}
-
-	var errs error
-	for _, target := range targets {
+	err = g.ForEachTarget(id, func(target construct.ResourceId, netPath, permPath construct.Path) error {
 		if target == id {
-			continue
+			return nil
 		}
-		if tag := GetResourceVizTag(e.Kb, view, target); tag != BigIconTag {
-			continue
+		_, inGraphErr := viewDag.Vertex(target)
+		if inGraphErr != nil {
+			if errors.Is(inGraphErr, graph.ErrVertexNotFound) {
+				// except for small icons, we don't care about anything that's not already in the graph
+				return nil
+			} else {
+				return inGraphErr
+			}
 		}
-
-		hasPath, err := hasVisPath(sol, view, id, target)
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		if hasPath {
-			errs = errors.Join(errs, viewDag.AddEdge(id, target))
-		}
-	}
+		return viewDag.AddEdge(
+			id,
+			target,
+			graph.EdgeData(map[string]any{"netPath": netPath, "permPath": permPath}),
+		)
+	})
 	return err
 }
 
 func (e *Engine) findParent(
 	view View,
-	undirected construct.Graph,
+	g visualizer.ConnectionGraph,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) (bestParent construct.ResourceId, err error) {
@@ -254,7 +250,7 @@ func (e *Engine) findParent(
 	if err != nil {
 		return
 	}
-	pather, err := construct.ShortestPaths(undirected, id, construct.DontSkipEdges)
+	pather, err := construct.ShortestPaths(g.Undirected, id, construct.DontSkipEdges)
 	if err != nil {
 		return
 	}
@@ -262,7 +258,7 @@ func (e *Engine) findParent(
 	var errs error
 candidateLoop:
 	for _, id := range ids {
-		if GetResourceVizTag(e.Kb, view, id) != ParentIconTag {
+		if e.GetResourceVizTag(view, id) != ParentIconTag {
 			continue
 		}
 		path, err := pather.ShortestPath(id)
@@ -283,7 +279,7 @@ candidateLoop:
 				continue candidateLoop
 			}
 		}
-		weight, err := graph_addons.PathWeight(undirected, graph_addons.Path[construct.ResourceId](path))
+		weight, err := graph_addons.PathWeight(g.Undirected, graph_addons.Path[construct.ResourceId](path))
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -295,59 +291,4 @@ candidateLoop:
 	}
 	err = errs
 	return
-}
-
-func hasVisPath(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) (bool, error) {
-	srcTemplate, err := sol.KnowledgeBase().GetResourceTemplate(source)
-	if err != nil || srcTemplate == nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
-	}
-	targetTemplate, err := sol.KnowledgeBase().GetResourceTemplate(target)
-	if err != nil || targetTemplate == nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
-	}
-	if len(targetTemplate.PathSatisfaction.AsTarget) == 0 || len(srcTemplate.PathSatisfaction.AsSource) == 0 {
-		return false, nil
-	}
-	sourceRes, err := sol.RawView().Vertex(source)
-	if err != nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
-	}
-	targetRes, err := sol.RawView().Vertex(target)
-	if err != nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
-	}
-
-	consumed, err := knowledgebase.HasConsumedFromResource(
-		sourceRes,
-		targetRes,
-		solution_context.DynamicCtx(sol),
-	)
-	if err != nil {
-		return false, err
-	}
-	if !consumed {
-		return false, nil
-	}
-	return checkPaths(sol, view, source, target)
-}
-
-func checkPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) (bool, error) {
-	paths, err := path_selection.GetPaths(
-		sol,
-		source,
-		target,
-		func(source, target construct.ResourceId, path []construct.ResourceId) bool {
-			for _, res := range path[1 : len(path)-1] {
-				switch GetResourceVizTag(sol.KnowledgeBase(), view, res) {
-				case BigIconTag, ParentIconTag:
-					// Don't consider paths that go through big/parent icons
-					return false
-				}
-			}
-			return true
-		},
-		true,
-	)
-	return len(paths) > 0, err
 }
