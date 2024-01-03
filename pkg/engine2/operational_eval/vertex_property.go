@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
@@ -140,6 +141,24 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	}
 	propertyType := v.Template.Type()
 	if strings.HasPrefix(propertyType, "list") || strings.HasPrefix(propertyType, "set") {
+		property, err := res.GetProperty(v.Ref.Property)
+		if err != nil {
+			return fmt.Errorf("could not get property %s on resource %s: %w", v.Ref.Property, v.Ref.Resource, err)
+		}
+		if property != nil {
+			if strings.HasPrefix(propertyType, "set") {
+				if set, ok := property.(set.HashedSet[string, any]); ok {
+					property = set.ToSlice()
+				} else {
+					return fmt.Errorf("could not convert property %s on resource %s to set", v.Ref.Property, v.Ref.Resource)
+				}
+			}
+
+			err = eval.cleanupPropertiesSubVertices(v.Ref, property)
+			if err != nil {
+				return fmt.Errorf("could not cleanup sub vertices for %s: %w", v.Ref, err)
+			}
+		}
 		// If we have modified a list or set we want to re add the resource to be evaluated
 		// so the nested fields are ensured to be set if required
 		return eval.AddResources(res)
