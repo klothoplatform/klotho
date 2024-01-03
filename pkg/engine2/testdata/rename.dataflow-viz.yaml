@@ -1,19 +1,11 @@
 provider: aws
 resources:
   dynamodb_table/dynamodb_table_1:
-    children:
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:log_group:lambda_function_0-log-group
-        - aws:log_group:new_lambda_name-log-group
-    tag: big
 
   lambda_function/new_lambda_name:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
-    tag: big
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:new_lambda_name-log-group
 
   lambda_function/new_lambda_name -> dynamodb_table/dynamodb_table_1:
-    netPath: aws:lambda_function:new_lambda_name -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:dynamodb_table:dynamodb_table_1
-    permPath: aws:lambda_function:new_lambda_name -> aws:iam_role:lambda_function_0-ExecutionRole -> aws:dynamodb_table:dynamodb_table_1
+    path: aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group
+
 

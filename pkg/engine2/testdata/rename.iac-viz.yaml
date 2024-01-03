@@ -9,15 +9,15 @@ resources:
   log_group/new_lambda_name-log-group:
 
   ecr_image/lambda_function_0-image:
-
   ecr_image/lambda_function_0-image -> ecr_repo/ecr_repo-0:
-  iam_role/lambda_function_0-executionrole:
 
+  iam_role/lambda_function_0-executionrole:
   iam_role/lambda_function_0-executionrole -> dynamodb_table/dynamodb_table_1:
   iam_role/lambda_function_0-executionrole -> log_group/lambda_function_0-log-group:
   iam_role/lambda_function_0-executionrole -> log_group/new_lambda_name-log-group:
-  lambda_function/new_lambda_name:
 
+  lambda_function/new_lambda_name:
   lambda_function/new_lambda_name -> dynamodb_table/dynamodb_table_1:
   lambda_function/new_lambda_name -> ecr_image/lambda_function_0-image:
   lambda_function/new_lambda_name -> iam_role/lambda_function_0-executionrole:
+

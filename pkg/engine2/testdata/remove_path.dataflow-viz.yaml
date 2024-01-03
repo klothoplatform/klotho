@@ -1,53 +1,22 @@
 provider: aws
 resources:
   rds_instance/rds-instance-1:
-    children:
-        - aws:rds_subnet_group:rds_subnet_group-0
-        - aws:security_group:vpc-0:rds-instance-1-security_group
+    children: aws:rds_subnet_group:rds_subnet_group-0,aws:security_group:vpc-0:rds-instance-1-security_group
     parent: vpc/vpc-0
-    tag: big
+
 
   vpc/vpc-0:
-    children:
-        - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
-        - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:iam_role:lambda_function_3-ExecutionRole
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:log_group:lambda_function_0-log-group
-        - aws:log_group:lambda_function_3-log-group
-        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
-        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
-        - aws:rds_subnet_group:rds_subnet_group-0
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:security_group:vpc-0:lambda_function_0-security_group
-        - aws:security_group:vpc-0:lambda_function_3-security_group
-        - aws:security_group:vpc-0:rds-instance-1-security_group
-    tag: parent
 
   lambda_function/lambda_function_3:
-    children:
-        - aws:ecr_image:lambda_function_3-image
-        - aws:iam_role:lambda_function_3-ExecutionRole
-        - aws:security_group:vpc-0:lambda_function_3-security_group
+    children: aws:ecr_image:lambda_function_3-image,aws:iam_role:lambda_function_3-ExecutionRole,aws:log_group:lambda_function_3-log-group
     parent: vpc/vpc-0
-    tag: big
+
 
   lambda_function/lambda_function_0:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:log_group:lambda_function_0-log-group
-        - aws:log_group:lambda_function_3-log-group
-        - aws:security_group:vpc-0:lambda_function_0-security_group
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:lambda_function_0-log-group
     parent: vpc/vpc-0
-    tag: big
 
   lambda_function/lambda_function_0 -> rds_instance/rds-instance-1:
-    netPath: aws:lambda_function:lambda_function_0 -> aws:subnet:vpc-0:subnet-0 -> aws:security_group:vpc-0:rds-instance-1-security_group -> aws:rds_instance:rds-instance-1
-    permPath: aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole -> aws:rds_instance:rds-instance-1
+    path: aws:iam_role:lambda_function_0-ExecutionRole
+
 
