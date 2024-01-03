@@ -40,11 +40,17 @@ type (
 
 		Properties Properties `json:"properties" yaml:"properties"`
 
+		// MinLength defines the minimum length of a string, list, set, or map (number of entries)
 		MinLength *int `yaml:"min_length"`
 		MaxLength *int `yaml:"max_length"`
 
 		MinValue *float64 `yaml:"min_value"`
 		MaxValue *float64 `yaml:"max_value"`
+
+		// UniqueItems defines whether the items in a list or set must be unique
+		UniqueItems *bool `yaml:"unique_items"`
+		// UniqueKeys defines whether the keys in a map must be unique (default true)
+		UniqueKeys *bool `yaml:"unique_keys"`
 
 		AllowedTypes construct.ResourceList `yaml:"allowed_types"`
 

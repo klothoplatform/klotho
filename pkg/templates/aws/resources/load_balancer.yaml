@@ -19,6 +19,9 @@ properties:
   IpAddressType:
     type: string
     description: Specifies the type of IP addresses used by the load balancer's subnets
+    allowed_values:
+      - ipv4
+      - dualstack
   LoadBalancerAttributes:
     type: map(string,string)
     description: A map of key-value pairs defining attributes of the load balancer
@@ -26,6 +29,9 @@ properties:
     type: string
     default_value: internal
     description: Indicates whether the load balancer is internet-facing or internal
+    allowed_values:
+      - internet-facing
+      - internal
   SecurityGroups:
     # We should require an upstream security group if the LB is in a VPC
     # once we have the ability to disable inbound rule processing for PrivateLink traffic,
@@ -68,6 +74,8 @@ properties:
       - network
       - application
     description: "The type of load balancer: either 'network' or 'application'"
+    required: true
+    important: true
   NlbUri:
     type: string
     configuration_disabled: true
@@ -91,4 +99,4 @@ classification:
 delete_context:
   requires_no_downstream: true
 views:
-  dataflow: big
+  dataflow: parent

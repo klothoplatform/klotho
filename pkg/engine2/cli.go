@@ -170,7 +170,7 @@ type resourceInfo struct {
 	Views           map[string]string `json:"views"`
 }
 
-var validationFields = []string{"MinLength", "MaxLength", "MinValue", "MaxValue", "AllowedValues"}
+var validationFields = []string{"MinLength", "MaxLength", "MinValue", "MaxValue", "AllowedValues", "UniqueItems", "UniqueKeys", "MinSize", "MaxSize"}
 
 func addSubProperties(properties map[string]any, subProperties map[string]knowledgebase.Property) {
 	for _, subProperty := range subProperties {
