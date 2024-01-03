@@ -1,38 +1,13 @@
 provider: aws
 resources:
   vpc/vpc_1:
-    children:
-        - aws:elastic_ip:lambda_function_2-vpc_1-route_table-nat_gateway-elastic_ip
-        - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:iam_role:lambda_function_2-ExecutionRole
-        - aws:internet_gateway:vpc_1:internet_gateway-0
-        - aws:log_group:lambda_function_0-log-group
-        - aws:log_group:lambda_function_2-log-group
-        - aws:nat_gateway:subnet-2:lambda_function_2-vpc_1-route_table-nat_gateway
-        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
-        - aws:route_table:vpc_1:lambda_function_2-vpc_1-route_table
-        - aws:route_table:vpc_1:subnet-1-route_table
-        - aws:route_table:vpc_1:subnet-2-route_table
-        - aws:route_table:vpc_1:subnet-3-route_table
-        - aws:security_group:vpc_1:lambda_function_2-security_group
-    tag: parent
 
   lambda_function/lambda_function_2:
-    children:
-        - aws:ecr_image:lambda_function_2-image
-        - aws:iam_role:lambda_function_2-ExecutionRole
-        - aws:security_group:vpc_1:lambda_function_2-security_group
+    children: aws:ecr_image:lambda_function_2-image,aws:iam_role:lambda_function_2-ExecutionRole,aws:log_group:lambda_function_2-log-group
     parent: vpc/vpc_1
-    tag: big
+
 
   lambda_function/lambda_function_0:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:log_group:lambda_function_0-log-group
-        - aws:log_group:lambda_function_2-log-group
-    parent: vpc/vpc_1
-    tag: big
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:lambda_function_0-log-group
+
 

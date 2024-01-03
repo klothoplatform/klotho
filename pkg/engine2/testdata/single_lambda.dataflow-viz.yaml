@@ -1,10 +1,6 @@
 provider: aws
 resources:
   lambda_function/lambda_function_0:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
-        - aws:iam_role:lambda_function_0-ExecutionRole
-        - aws:log_group:lambda_function_0-log-group
-    tag: big
+    children: aws:ecr_image:lambda_function_0-image,aws:iam_role:lambda_function_0-ExecutionRole,aws:log_group:lambda_function_0-log-group
+
 
