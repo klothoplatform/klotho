@@ -3,9 +3,12 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/dominikbraun/graph"
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -205,6 +208,31 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 			err = eval.enqueue(changes)
 		}
 		errs = errors.Join(errs, err)
+	}
+	return errs
+}
+
+func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, val any) error {
+	if reflect.ValueOf(val).Kind() != reflect.Array && reflect.ValueOf(val).Kind() != reflect.Slice {
+		return fmt.Errorf("error while cleaning up properties sub verticies: expected array or slice, got %T", val)
+	}
+	topo, err := graph.TopologicalSort(eval.unevaluated)
+	if err != nil {
+		return err
+	}
+
+	var errs error
+	for _, key := range topo {
+		if key.keyType() != keyTypeProperty {
+			continue
+		}
+		if key.Ref.Resource != ref.Resource {
+			continue
+		}
+		if strings.HasPrefix(key.Ref.Property, ref.Property) {
+			err = eval.unevaluated.RemoveVertex(key)
+			errs = errors.Join(errs, err)
+		}
 	}
 	return errs
 }
