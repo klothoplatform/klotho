@@ -1,0 +1,8 @@
+source: aws:load_balancer_listener
+target: aws:acm_certificate
+operational_rules:
+  - resource: '{{ .Source }}'
+    configuration:
+      field: Certificate
+      value: '{{ .Target }}'
+

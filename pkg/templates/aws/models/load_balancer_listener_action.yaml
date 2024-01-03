@@ -1,0 +1,47 @@
+name: aws:load_balancer_listener:action
+properties:
+  Type:
+    type: string
+    allowed_values:
+      - forward
+      - fixed-response
+      - redirect
+    default_value: forward
+  TargetGroup:
+    type: resource(aws:target_group)
+  FixedResponse:
+    type: map
+    properties:
+      ContentType:
+        type: string
+      MessageBody:
+        type: string
+        min_length: 0
+        max_length: 1024
+      StatusCode:
+        # todo: validate pattern ^(2|4|5)\d\d$
+        type: string
+  Redirect:
+    type: map
+    properties:
+      Host:
+        type: string
+        min_length: 1
+        max_length: 128
+      Path:
+        type: string
+        min_length: 1
+        max_length: 128
+      Port:
+        type: any
+        validation: '{{ or (eq "#{port}") (and (gt 0) (lt 65536)) }}'
+      Protocol:
+        type: string
+        validation: '{{ or (eq "#{protocol}") (or (eq "HTTP") ( eq "HTTPS")) }}'
+      Query:
+        type: string
+      StatusCode:
+        type: string
+        allowed_values:
+          - HTTP_301
+          - HTTP_302

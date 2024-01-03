@@ -17,13 +17,31 @@ properties:
   Port:
     type: int
     default_value: 80
+    min_value: 1
+    max_value: 65535
   Protocol:
     type: string
+    allowed_values:
+      - GENEVE
+      - HTTP
+      - HTTPS
+      - TCP
+      - TCP_UDP
+      - TLS
+      - UDP
   Vpc:
     type: resource(aws:vpc)
     default_value: '{{ closestDownstream "aws:vpc" .Self }}'
   TargetType:
     type: string
+    allowed_values:
+#      - alb # only valid for Network Load Balancers
+      - instance
+      - ip
+      - lambda # only valid for Application Load Balancers
+    description: |
+      The type of target that you must specify when registering targets with this target group.
+      'lambda` is only valid for Application Load Balancers.
   Targets:
     type: list
     properties:
@@ -32,6 +50,8 @@ properties:
       Port:
         type: int
         default_value: 80
+        min_value: 1
+        max_value: 65535
   HealthCheck:
     type: map
     properties:
@@ -43,8 +63,14 @@ properties:
       Protocol:
         type: string
         default_value: '{{ fieldValue "Protocol" .Self }}'
+        allowed_values:
+          - HTTP
+          - HTTPS
+          - TCP
       Port:
         type: int
+        min_value: 1
+        max_value: 65535
       Interval:
         type: int
         default_value: 30
@@ -59,6 +85,8 @@ properties:
         default_value: 2
       Matcher:
         type: string
+  LambdaMultiValueHeadersEnabled:
+    type: bool
   Arn:
     type: string
     configuration_disabled: true

@@ -1,0 +1,35 @@
+source: aws:load_balancer_listener_rule
+target: aws:target_group
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Protocol
+          value: '{{ fieldValue "Protocol" (fieldValue "Listener" .Source) }}'
+      - resource: '{{ .Target }}'
+        configuration:
+          field: HealthCheck.Protocol
+          value: '{{ fieldValue "Protocol" (fieldValue "Listener" .Source) }}'
+      - resource: '{{ (fieldValue "Listener" .Source) }}'
+        configuration:
+          field: DefaultActions
+          value:
+            - TargetGroup: '{{ .Target }}'
+              Type: forward
+      - resource: '{{ .Source }}'
+        configuration:
+          field: Actions
+          value:
+            - TargetGroup: '{{ .Target }}'
+              Type: forward
+
+  - if: '{{eq (fieldValue "Protocol" (fieldValue "Listener" .Source)) "HTTPS"}}'
+    steps:
+      - resource: '{{ fieldValue "Listener" .Source }}'
+        direction: downstream
+        resources:
+          - aws:listener_certificate
+
+classification:
+  - target
+  - service_endpoint

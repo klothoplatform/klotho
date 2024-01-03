@@ -1,0 +1,27 @@
+[
+{{- range $index, $action := . }}
+    {
+        type: "{{ $action.Type}}",
+        {{- if eq $action.Type "forward" }}
+        targetGroupArn: {{ getVar $action.TargetGroup}}.arn,
+        {{- else if eq $action.Type "redirect" }}
+        redirect: {
+            protocol: "{{ $action.Redirect.Protocol }}",
+            port: "{{ $action.Redirect.Port }}",
+            host: "{{ $action.Redirect.Host }}",
+            path: "{{ $action.Redirect.Path }}",
+            query: "{{ $action.Redirect.Query }}",
+            statusCode: "{{ $action.Redirect.StatusCode }}",
+        },
+        {{- else if eq $action.Type "fixed" }}
+        fixedResponse: {
+            contentType: "{{ $action.FixedResponse.ContentType }}",
+            messageBody: "{{ $action.FixedResponse.MessageBody }}",
+            statusCode: "{{ $action.FixedResponse.StatusCode }}",
+        },
+        {{- else if eq $action.Type "authenticate-oidc" }}
+        {{- end }}
+    },
+{{- end}}
+]
+
