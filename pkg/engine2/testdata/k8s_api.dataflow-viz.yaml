@@ -13,11 +13,13 @@ resources:
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
         - aws:api_resource:rest_api_4:api_resource-0
         - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_node_group:eks_node_group-0
         - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
@@ -46,11 +48,13 @@ resources:
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
         - aws:api_resource:rest_api_4:api_resource-0
         - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_node_group:eks_node_group-0
         - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
@@ -78,11 +82,13 @@ resources:
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
         - aws:api_resource:rest_api_4:api_resource-0
         - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_node_group:eks_node_group-0
         - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
@@ -110,11 +116,13 @@ resources:
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
         - aws:api_resource:rest_api_4:api_resource-0
         - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_node_group:eks_node_group-0
         - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
@@ -142,19 +150,18 @@ resources:
 
   eks_cluster/eks_cluster-0:
     children:
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_add_on:vpc-cni
         - aws:eks_node_group:eks_node_group-0
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
         - aws:iam_role:ClusterRole-eks_cluster-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2
         - aws:security_group:vpc-0:eks_cluster-0-security_group
         - aws:target_group:rest-api-4-integbcc77100
-        - kubernetes:config_map:fluent-bit-cluster-info
-        - kubernetes:manifest:fluent-bit
-        - kubernetes:namespace:amazon-cloudwatch
         - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
         - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
         - kubernetes:service_account:eks_cluster-0:pod2
@@ -167,11 +174,13 @@ resources:
         - aws:api_method:rest_api_4:rest_api_4_integration_0_method
         - aws:api_resource:rest_api_4:api_resource-0
         - aws:api_stage:rest_api_4:api_stage-0
+        - aws:eks_add_on:amazon-cloudwatch-observability
         - aws:eks_node_group:eks_node_group-0
         - aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         - aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         - aws:iam_oidc_provider:eks_cluster-0
         - aws:iam_policy:iam_policy-0
+        - aws:iam_role:amazon-cloudwatch-observability-iam_role
         - aws:iam_role:aws-load-balancer-controller
         - aws:iam_role:eks_node_group-0-iam_role
         - aws:iam_role:pod2

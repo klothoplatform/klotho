@@ -1,6 +1,7 @@
 package properties
 
 import (
+	"log"
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -286,6 +287,12 @@ func Test_ListProperty_Parse(t *testing.T) {
 func Test_ListProperty_Validate(t *testing.T) {
 	minLength := 1
 	maxLength := 2
+	sanitizeTmpl, err := knowledgebase.NewSanitizationTmpl("test", "{{ . | replace `[^[:alnum:]_]+` \"_\" | replace `^[^a-zA-Z]+` \"\" | upper }}")
+	if err != nil {
+		// handle error here
+		log.Fatalf("Failed to create sanitize template: %v", err)
+	}
+
 	tests := []struct {
 		name          string
 		property      *ListProperty
@@ -293,6 +300,7 @@ func Test_ListProperty_Validate(t *testing.T) {
 		mockKBCalls   []mock.Call
 		value         any
 		wantErr       bool
+		err           error
 	}{
 		{
 			name: "list property",
@@ -345,6 +353,89 @@ func Test_ListProperty_Validate(t *testing.T) {
 			value:   []any{"test", "test", "test"},
 			wantErr: true,
 		},
+		{
+			name: "list property checks item property validation, returns sanitization error",
+			property: &ListProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Path: "test",
+				},
+				ItemProperty: &StringProperty{SanitizeTmpl: sanitizeTmpl},
+			},
+			value:   []any{"test", "t-t", "t#$@est"},
+			wantErr: true,
+			err: &knowledgebase.SanitizeError{
+				Input:     []any{"test", "t-t", "t#$@est"},
+				Sanitized: []any{"TEST", "T_T", "T_EST"},
+			},
+		},
+		{
+			name: "list property checks sub property validation",
+			property: &ListProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Path: "test",
+				},
+				Properties: knowledgebase.Properties{
+					"test": &StringProperty{
+						AllowedValues:   []string{"val"},
+						PropertyDetails: knowledgebase.PropertyDetails{Name: "test"},
+					},
+				},
+			},
+			value: []any{map[string]any{
+				"test": "test",
+			}},
+			wantErr: true,
+		},
+		{
+			name: "list property checks item property validation, returns sanitization error",
+			property: &ListProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Path: "test",
+				},
+				Properties: knowledgebase.Properties{
+					"test": &StringProperty{
+						SanitizeTmpl:    sanitizeTmpl,
+						PropertyDetails: knowledgebase.PropertyDetails{Name: "test"},
+					},
+				},
+			},
+			value: []any{
+				map[string]any{
+					"test": "test",
+				},
+				map[string]any{
+					"test": "t-t",
+				},
+				map[string]any{
+					"test": "t#$@est",
+				},
+			},
+			wantErr: true,
+			err: &knowledgebase.SanitizeError{
+				Input: []any{
+					map[string]any{
+						"test": "test",
+					},
+					map[string]any{
+						"test": "t-t",
+					},
+					map[string]any{
+						"test": "t#$@est",
+					},
+				},
+				Sanitized: []any{
+					map[string]any{
+						"test": "TEST",
+					},
+					map[string]any{
+						"test": "T_T",
+					},
+					map[string]any{
+						"test": "T_EST",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -365,6 +456,9 @@ func Test_ListProperty_Validate(t *testing.T) {
 			err := tt.property.Validate(resource, tt.value, ctx)
 			if tt.wantErr {
 				assert.Error(err)
+				if tt.err != nil {
+					assert.Equal(tt.err, err)
+				}
 				return
 			}
 			assert.NoError(err)
