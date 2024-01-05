@@ -2,6 +2,7 @@ package visualizer
 
 import (
 	"errors"
+	"sort"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -16,6 +17,10 @@ type (
 		Tag      string
 		Parent   construct.ResourceId
 		Children set.Set[construct.ResourceId]
+	}
+
+	VisEdgeData struct {
+		PathResources set.Set[construct.ResourceId]
 	}
 
 	VisGraph graph.Graph[construct.ResourceId, *VisResource]
@@ -50,4 +55,16 @@ func ConstructToVis(g construct.Graph) (VisGraph, error) {
 		}
 	}
 	return vis, errs
+}
+
+func (d VisEdgeData) MarshalYAML() (interface{}, error) {
+	res := d.PathResources.ToSlice()
+	sort.Sort(construct.SortedIds(res))
+	return map[string]any{
+		// TODO infacopilot frontend currently just uses 'path' as the colledction of
+		// additional resources to show in the graph for that edge. We have more information
+		// we could give, but for compatibility until more is added to the frontend, just flatten
+		// everything and call it 'path'.
+		"path": res,
+	}, nil
 }

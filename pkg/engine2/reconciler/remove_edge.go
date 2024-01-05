@@ -155,7 +155,7 @@ func findEdgesUsedInOtherPathSelection(
 			continue
 		}
 		paths, err := path_selection.GetPaths(ctx, upstream, target,
-			func(source, target construct.ResourceId, path []construct.ResourceId) bool { return true }, false)
+			func(source, target construct.ResourceId, path construct.Path) bool { return true }, false)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -190,7 +190,7 @@ func findEdgesUsedInOtherPathSelection(
 		}
 
 		paths, err := path_selection.GetPaths(ctx, source, downstream,
-			func(source, target construct.ResourceId, path []construct.ResourceId) bool { return true }, false)
+			func(source, target construct.ResourceId, path construct.Path) bool { return true }, false)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue

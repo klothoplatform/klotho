@@ -23,3 +23,12 @@ func PathWeight[K comparable, V any](g graph.Graph[K, V], path Path[K]) (weight 
 	}
 	return
 }
+
+func (p Path[K]) Contains(k K) bool {
+	for _, elem := range p {
+		if elem == k {
+			return true
+		}
+	}
+	return false
+}
