@@ -43,7 +43,17 @@ func walk[K comparable, T any](
 			// Prevent loops
 			return
 		}
-		queue = append(queue, append(current, next))
+		// make a new slice because `append` won't copy if there's capacity
+		// which causes the latest `append` to overwrite the last element of any previous appends
+		// (as happens when appending in a loop as we do below).
+		//   x := make([]int, 2, 3); x[0] = 1; x[1] = 2
+		//   y := append(x, 3)
+		//   z := append(x, 4)
+		//   fmt.Println(y) // [1 2 4] !!
+		nextPath := make(Path[K], len(current)+1)
+		copy(nextPath, current)
+		nextPath[len(nextPath)-1] = next
+		queue = append(queue, nextPath)
 	}
 
 	startPath := Path[K]{start}

@@ -64,12 +64,8 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 			props["parent"] = f.KeyFor(res.Parent)
 		}
 		if len(res.Children) > 0 {
-			childrenIds := res.Children.ToSlice()
-			sort.Sort(construct.SortedIds(childrenIds))
-			children := make([]string, len(childrenIds))
-			for i, child := range childrenIds {
-				children[i] = child.String()
-			}
+			children := res.Children.ToSlice()
+			sort.Sort(construct.SortedIds(children))
 			props["children"] = children
 		}
 
