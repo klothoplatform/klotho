@@ -13,7 +13,7 @@ import (
 func GetPaths(
 	sol solution_context.SolutionContext,
 	source, target construct.ResourceId,
-	pathValidityChecks func(source, target construct.ResourceId, path []construct.ResourceId) bool,
+	pathValidityChecks func(source, target construct.ResourceId, path construct.Path) bool,
 	hasPathCheck bool,
 ) ([]construct.Path, error) {
 	var errs error

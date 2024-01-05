@@ -4,10 +4,9 @@ import (
 	"errors"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/set"
 )
 
-type WalkGraphFunc[K comparable] func(k K, nerr error) error
+type WalkGraphFunc[K comparable] func(p Path[K], nerr error) error
 
 var (
 	StopWalk = errors.New("stop walk")
@@ -38,19 +37,24 @@ func walk[K comparable, T any](
 	f WalkGraphFunc[K],
 	deps map[K]map[K]graph.Edge[K],
 ) error {
-	visited := make(set.Set[K])
-	var queue []K
-
-	for d := range deps[start] {
-		queue = append(queue, d)
+	var queue []Path[K]
+	enqueue := func(current Path[K], next K) {
+		if current.Contains(next) {
+			// Prevent loops
+			return
+		}
+		queue = append(queue, append(current, next))
 	}
-	visited.Add(start)
+
+	startPath := Path[K]{start}
+	for d := range deps[start] {
+		enqueue(startPath, d)
+	}
 
 	var err error
-	var current K
+	var current Path[K]
 	for len(queue) > 0 {
 		current, queue = queue[0], queue[1:]
-		visited.Add(current)
 
 		nerr := f(current, err)
 		if errors.Is(nerr, StopWalk) {
@@ -61,11 +65,9 @@ func walk[K comparable, T any](
 		}
 		err = nerr
 
-		for d := range deps[current] {
-			if visited.Contains(d) {
-				continue
-			}
-			queue = append(queue, d)
+		last := current[len(current)-1]
+		for d := range deps[last] {
+			enqueue(current, d)
 		}
 	}
 	return err
