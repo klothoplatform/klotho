@@ -3,6 +3,7 @@ resources:
   kubernetes:pod:eks_cluster-0/pod2:
     children:
         - aws:availability_zone:region-0:availability_zone-0
+        - aws:availability_zone:region-0:availability_zone-1
         - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
         - aws:region:region-0
@@ -33,8 +34,11 @@ resources:
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:
     children:
+        - aws:availability_zone:region-0:availability_zone-0
+        - aws:availability_zone:region-0:availability_zone-1
         - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
+        - aws:region:region-0
         - aws:subnet:vpc-0:subnet-0
         - aws:subnet:vpc-0:subnet-1
         - aws:vpc:vpc-0
@@ -44,6 +48,7 @@ resources:
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
     children:
         - aws:availability_zone:region-0:availability_zone-0
+        - aws:availability_zone:region-0:availability_zone-1
         - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
         - aws:region:region-0
