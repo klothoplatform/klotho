@@ -289,7 +289,8 @@ func (ctx DynamicValueContext) upstream(selector any, resource construct.Resourc
 	}
 
 	var match construct.ResourceId
-	err = graph_addons.WalkUp(ctx.Graph, resource, func(id construct.ResourceId, nerr error) error {
+	err = graph_addons.WalkUp(ctx.Graph, resource, func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if selId.Matches(id) {
 			match = id
 			return graph_addons.StopWalk
@@ -341,12 +342,13 @@ func (ctx DynamicValueContext) LayeredUpstream(
 		return construct.ResourceId{}, err
 	}
 	result := construct.ResourceId{}
-	wrapper := func(id construct.ResourceId, nerr error) error {
+	wrapper := func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if selId.Matches(id) {
 			result = id
 			return graph_addons.StopWalk
 		}
-		return f(id, nerr)
+		return f(path, nerr)
 	}
 	err = graph_addons.WalkUp(ctx.Graph, resource, wrapper)
 	if err != nil {
@@ -382,7 +384,8 @@ func (ctx DynamicValueContext) downstream(selector any, resource construct.Resou
 	}
 
 	var match construct.ResourceId
-	err = graph_addons.WalkDown(ctx.Graph, resource, func(id construct.ResourceId, nerr error) error {
+	err = graph_addons.WalkDown(ctx.Graph, resource, func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if selId.Matches(id) {
 			match = id
 			return graph_addons.StopWalk
@@ -413,12 +416,13 @@ func (ctx DynamicValueContext) LayeredDownstream(
 		return construct.ResourceId{}, err
 	}
 	result := construct.ResourceId{}
-	wrapper := func(id construct.ResourceId, nerr error) error {
+	wrapper := func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if selId.Matches(id) {
 			result = id
 			return graph_addons.StopWalk
 		}
-		return f(id, nerr)
+		return f(path, nerr)
 	}
 	err = graph_addons.WalkDown(ctx.Graph, resource, wrapper)
 	if err != nil {

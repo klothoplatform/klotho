@@ -1,13 +1,13 @@
 provider: aws
 resources:
   s3_bucket/s3-bucket-0:
-    children:
-        - aws:s3_bucket_policy:s3_bucket_policy-0
     tag: big
 
   cloudfront_distribution/cloudfront_distribution_1:
-    children:
-        - aws:s3_bucket_policy:s3_bucket_policy-0
     tag: big
 
   cloudfront_distribution/cloudfront_distribution_1 -> s3_bucket/s3-bucket-0:
+    path:
+        - aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0
+        - aws:s3_bucket_policy:s3_bucket_policy-0
+

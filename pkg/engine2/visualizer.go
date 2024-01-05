@@ -113,90 +113,27 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 		case NoRenderTag:
 			continue
 		case ParentIconTag:
-			continue
+			parent, err := viewDag.Vertex(id)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			if err := e.setChildren(sol, parent); err != nil {
+				errs = errors.Join(errs, err)
+			}
 		case BigIconTag:
 			err := e.handleBigIcon(sol, view, undirected, viewDag, id)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to handle big icon %s: %w", id, err))
 			}
 		case SmallIconTag:
-			err := e.handleSmallIcon(view, undirected, viewDag, id)
-			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("failed to handle small icon %s: %w", id, err))
-			}
+			// Small icons don't need special handling, handleBigIcon will look for any relevant small icons to include
 		default:
 			errs = errors.Join(errs, fmt.Errorf("unknown tag %s", tag))
 		}
 	}
 
 	return viewDag, errs
-}
-
-// handleSmallIcon finds big icons to attach this resource to. It always adds to big icons for which it is
-// in the glue layer. It also adds to the big icon that is closest to the resource (if there is one).
-func (e *Engine) handleSmallIcon(
-	view View,
-	g construct.Graph,
-	viewDag visualizer.VisGraph,
-	id construct.ResourceId,
-) error {
-	ids, err := construct.TopologicalSort(viewDag)
-	if err != nil {
-		return err
-	}
-	pather, err := construct.ShortestPaths(g, id, construct.DontSkipEdges)
-	if err != nil {
-		return err
-	}
-	glueIds, err := knowledgebase.Downstream(g, e.Kb, id, knowledgebase.ResourceGlueLayer)
-	if err != nil {
-		return err
-	}
-	glue := set.SetOf(glueIds...)
-	var errs error
-	var bestParent *visualizer.VisResource
-	bestParentWeight := math.MaxInt32
-	for _, candidate := range ids {
-		// If the resource is in the glue layer, add it
-		if glue.Contains(candidate) {
-			parent, err := viewDag.Vertex(candidate)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			parent.Children.Add(id)
-		}
-
-		// Even if it was in the glue layer, continue calculating the best parent so we don't accidentally
-		// attribute it to a worse parent.
-		path, err := pather.ShortestPath(candidate)
-		if errors.Is(err, graph.ErrTargetNotReachable) {
-			continue
-		} else if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		weight, err := graph_addons.PathWeight(g, graph_addons.Path[construct.ResourceId](path))
-		if err != nil {
-			errs = errors.Join(errs, err)
-			continue
-		}
-		if weight < bestParentWeight {
-			bestParentWeight = weight
-			bestParent, err = viewDag.Vertex(candidate)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-		}
-	}
-	if errs != nil {
-		return errs
-	}
-	if bestParent != nil {
-		bestParent.Children.Add(id)
-	}
-	return nil
 }
 
 // handleBigIcon sets the parent of the big icon if there is a group it should be added to and
@@ -212,6 +149,7 @@ func (e *Engine) handleBigIcon(
 	if err != nil {
 		return err
 	}
+
 	parent, err := e.findParent(view, undirected, viewDag, id)
 	if err != nil {
 		return err
@@ -232,16 +170,80 @@ func (e *Engine) handleBigIcon(
 			continue
 		}
 
-		hasPath, err := hasVisPath(sol, view, id, target)
+		paths, err := visPaths(sol, view, id, target)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		if hasPath {
-			errs = errors.Join(errs, viewDag.AddEdge(id, target))
+		if len(paths) > 0 {
+			allPathResources := make(set.Set[construct.ResourceId])
+			for _, path := range paths {
+				for _, pathRes := range path[1 : len(path)-1] {
+					allPathResources.Add(pathRes)
+				}
+			}
+			errs = errors.Join(errs, viewDag.AddEdge(id, target, graph.EdgeData(visualizer.VisEdgeData{
+				PathResources: allPathResources,
+			})))
 		}
 	}
-	return err
+	if errs != nil {
+		return errs
+	}
+
+	if err := e.setChildren(sol, source); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Engine) setChildren(sol solution_context.SolutionContext, v *visualizer.VisResource) error {
+	glue, err := knowledgebase.Downstream(sol.DataflowGraph(), sol.KnowledgeBase(), v.ID, knowledgebase.ResourceGlueLayer)
+	if err != nil {
+		return fmt.Errorf("failed to get glue layer for %s: %w", v.ID, err)
+	}
+	for _, glueElem := range glue {
+		v.Children.Add(glueElem)
+	}
+
+	// After glue, also include any resources whose namespace is this resource
+	ids, err := construct.TopologicalSort(sol.DataflowGraph())
+	if err != nil {
+		return err
+	}
+
+	var errs error
+	for _, id := range ids {
+		if id.Namespace == "" {
+			continue
+		}
+		tmpl, err := sol.KnowledgeBase().GetResourceTemplate(id)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		for _, p := range tmpl.Properties {
+			if p.Details().Namespace {
+				pres, err := sol.RawView().Vertex(id)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					break
+				}
+				val, err := pres.GetProperty(p.Details().Path)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					break
+				}
+				if val == v.ID {
+					v.Children.Add(id)
+					break
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (e *Engine) findParent(
@@ -297,25 +299,25 @@ candidateLoop:
 	return
 }
 
-func hasVisPath(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) (bool, error) {
+func visPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) ([]construct.Path, error) {
 	srcTemplate, err := sol.KnowledgeBase().GetResourceTemplate(source)
 	if err != nil || srcTemplate == nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+		return nil, fmt.Errorf("has path could not find source resource %s: %w", source, err)
 	}
 	targetTemplate, err := sol.KnowledgeBase().GetResourceTemplate(target)
 	if err != nil || targetTemplate == nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+		return nil, fmt.Errorf("has path could not find target resource %s: %w", target, err)
 	}
 	if len(targetTemplate.PathSatisfaction.AsTarget) == 0 || len(srcTemplate.PathSatisfaction.AsSource) == 0 {
-		return false, nil
+		return nil, nil
 	}
 	sourceRes, err := sol.RawView().Vertex(source)
 	if err != nil {
-		return false, fmt.Errorf("has path could not find source resource %s: %w", source, err)
+		return nil, fmt.Errorf("has path could not find source resource %s: %w", source, err)
 	}
 	targetRes, err := sol.RawView().Vertex(target)
 	if err != nil {
-		return false, fmt.Errorf("has path could not find target resource %s: %w", target, err)
+		return nil, fmt.Errorf("has path could not find target resource %s: %w", target, err)
 	}
 
 	consumed, err := knowledgebase.HasConsumedFromResource(
@@ -324,20 +326,20 @@ func hasVisPath(sol solution_context.SolutionContext, view View, source, target 
 		solution_context.DynamicCtx(sol),
 	)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if !consumed {
-		return false, nil
+		return nil, nil
 	}
 	return checkPaths(sol, view, source, target)
 }
 
-func checkPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) (bool, error) {
+func checkPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) ([]construct.Path, error) {
 	paths, err := path_selection.GetPaths(
 		sol,
 		source,
 		target,
-		func(source, target construct.ResourceId, path []construct.ResourceId) bool {
+		func(source, target construct.ResourceId, path construct.Path) bool {
 			for _, res := range path[1 : len(path)-1] {
 				switch GetResourceVizTag(sol.KnowledgeBase(), view, res) {
 				case BigIconTag, ParentIconTag:
@@ -347,7 +349,7 @@ func checkPaths(sol solution_context.SolutionContext, view View, source, target 
 			}
 			return true
 		},
-		true,
+		false,
 	)
-	return len(paths) > 0, err
+	return paths, err
 }

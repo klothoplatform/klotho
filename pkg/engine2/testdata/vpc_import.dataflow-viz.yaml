@@ -1,5 +1,10 @@
 provider: aws
 resources:
   vpc/vpc:
+    children:
+        - aws:subnet:vpc:subnet1
+        - aws:subnet:vpc:subnet2
+        - aws:subnet:vpc:subnet3
+        - aws:subnet:vpc:subnet4
     tag: parent
 

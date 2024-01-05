@@ -41,7 +41,8 @@ func resourceLocal(
 	rid construct.ResourceId,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	return func(id construct.ResourceId, nerr error) error {
+	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		isSideEffect, err := IsOperationalResourceSideEffect(dag, kb, rid, id)
 		if err != nil {
 			return errors.Join(nerr, err)
@@ -60,7 +61,8 @@ func resourceDirect(
 	dag construct.Graph,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	return func(id construct.ResourceId, nerr error) error {
+	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if ids != nil {
 			(*ids) = append(*ids, id)
 		}
@@ -69,17 +71,28 @@ func resourceDirect(
 }
 
 func resourceGlue(
+	dag construct.Graph,
 	kb TemplateKB,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	return func(id construct.ResourceId, nerr error) error {
-		if GetFunctionality(kb, id) == Unknown {
-			if ids != nil {
-				(*ids) = append(*ids, id)
-			}
+	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		if len(path) <= 1 {
+			// skip source, this shouldn't happen but just in case
 			return nil
 		}
-		return graph_addons.SkipPath
+		// Since we're skipping the path if it doesn't match, we only need to check the most recently added (ie, the last)
+		// resource in the path.
+		last := path[len(path)-1]
+		prevLast := path[len(path)-2]
+		sideEffect, err := IsOperationalResourceSideEffect(dag, kb, prevLast, last)
+		if err != nil {
+			return errors.Join(nerr, err)
+		}
+		if !sideEffect {
+			return graph_addons.SkipPath
+		}
+		(*ids) = append(*ids, last)
+		return nil
 	}
 }
 
@@ -87,7 +100,8 @@ func firstFunctional(
 	kb TemplateKB,
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	return func(id construct.ResourceId, nerr error) error {
+	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if ids != nil {
 			(*ids) = append(*ids, id)
 		}
@@ -101,7 +115,8 @@ func firstFunctional(
 func allDeps(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	return func(id construct.ResourceId, nerr error) error {
+	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if ids != nil {
 			(*ids) = append(*ids, id)
 		}
@@ -157,9 +172,20 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceDirectLayer:
-		f = resourceDirect(dag, &result)
+		// use a more performant implementation for direct since we can use the edges directly.
+		edges, err := dag.Edges()
+		if err != nil {
+			return nil, err
+		}
+		var ids []construct.ResourceId
+		for _, edge := range edges {
+			if edge.Source == rid {
+				ids = append(ids, edge.Target)
+			}
+		}
+		return ids, nil
 	case ResourceGlueLayer:
-		f = resourceGlue(kb, &result)
+		f = resourceGlue(dag, kb, &result)
 	case FirstFunctionalLayer:
 		f = firstFunctional(kb, &result)
 	case AllDepsLayer:
@@ -173,7 +199,8 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 
 func DownstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
 	var result []construct.ResourceId
-	err := graph_addons.WalkDown(dag, resource, func(id construct.ResourceId, nerr error) error {
+	err := graph_addons.WalkDown(dag, resource, func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if GetFunctionality(kb, id) != Unknown {
 			result = append(result, id)
 			return graph_addons.SkipPath
@@ -190,9 +217,20 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 	case ResourceLocalLayer:
 		f = resourceLocal(dag, kb, rid, &result)
 	case ResourceDirectLayer:
-		f = resourceDirect(dag, &result)
+		// use a more performant implementation for direct since we can use the edges directly.
+		edges, err := dag.Edges()
+		if err != nil {
+			return nil, err
+		}
+		var ids []construct.ResourceId
+		for _, edge := range edges {
+			if edge.Target == rid {
+				ids = append(ids, edge.Source)
+			}
+		}
+		return ids, nil
 	case ResourceGlueLayer:
-		f = resourceGlue(kb, &result)
+		f = resourceGlue(dag, kb, &result)
 	case FirstFunctionalLayer:
 		f = firstFunctional(kb, &result)
 	case AllDepsLayer:
@@ -217,7 +255,7 @@ func layerWalkFunc(
 	case ResourceDirectLayer:
 		return resourceDirect(dag, &result), nil
 	case ResourceGlueLayer:
-		return resourceGlue(kb, &result), nil
+		return resourceGlue(dag, kb, &result), nil
 	case FirstFunctionalLayer:
 		return firstFunctional(kb, &result), nil
 	case AllDepsLayer:
@@ -229,7 +267,8 @@ func layerWalkFunc(
 
 func UpstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
 	var result []construct.ResourceId
-	err := graph_addons.WalkUp(dag, resource, func(id construct.ResourceId, nerr error) error {
+	err := graph_addons.WalkUp(dag, resource, func(path graph_addons.Path[construct.ResourceId], nerr error) error {
+		id := path[len(path)-1]
 		if GetFunctionality(kb, id) != Unknown {
 			result = append(result, id)
 			return graph_addons.SkipPath

@@ -67,8 +67,8 @@ resources:
                         - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
             - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
     aws:rest_api:rest_api_4:
         BinaryMediaTypes:
             - application/octet-stream
@@ -267,12 +267,12 @@ resources:
                         - ec2.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
             - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
             - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
             - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
