@@ -262,15 +262,12 @@ func importFuncNodeToTemplate(node *sitter.Node, name string) (*template.Templat
 	}
 	outputType := imp["return_type"].Content()
 	var expressionBody string
-	if outputType == "void" {
-		expressionBody = bodyContents(imp["body"])
-	} else {
-		body, found := doQuery(imp["body"], findReturn)()
-		if !found {
-			return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, imp["body"].Content())
-		}
-		expressionBody = body["return_body"].Content()
+	body, found := doQuery(imp["body"], findReturn)()
+	if !found {
+		return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, imp["body"].Content())
 	}
+	expressionBody = body["return_body"].Content()
+
 	expressionBody = parameterizeArgs(expressionBody, "")
 	expressionBody = templateComments.ReplaceAllString(expressionBody, "")
 

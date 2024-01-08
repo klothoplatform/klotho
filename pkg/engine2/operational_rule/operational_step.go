@@ -320,7 +320,7 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 	return nil
 }
 
-func (ctx OperationalRuleContext) namespace(resource, fieldResource *construct.Resource, oldId construct.ResourceId) {
+func (ctx *OperationalRuleContext) namespace(resource, fieldResource *construct.Resource, oldId construct.ResourceId) {
 	if ctx.Property.Details().Namespace {
 		resource.ID.Namespace = fieldResource.ID.Name
 	}

@@ -5,7 +5,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -21,7 +21,7 @@ func Test_SetFloatProperty(t *testing.T) {
 			name:     "float property",
 			resource: &construct.Resource{Properties: make(map[string]any)},
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -51,7 +51,7 @@ func Test_AppendFloatProperty(t *testing.T) {
 			name:     "float property",
 			resource: &construct.Resource{Properties: make(map[string]any)},
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -65,7 +65,7 @@ func Test_AppendFloatProperty(t *testing.T) {
 				},
 			},
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -98,7 +98,7 @@ func Test_RemoveFloatProperty(t *testing.T) {
 				},
 			},
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -111,7 +111,7 @@ func Test_RemoveFloatProperty(t *testing.T) {
 				},
 			},
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test2",
 				},
 			},
@@ -140,7 +140,7 @@ func Test_ParseFloatValue(t *testing.T) {
 		{
 			name: "float value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -150,7 +150,7 @@ func Test_ParseFloatValue(t *testing.T) {
 		{
 			name: "template value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -160,7 +160,7 @@ func Test_ParseFloatValue(t *testing.T) {
 		{
 			name: "int value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -170,7 +170,7 @@ func Test_ParseFloatValue(t *testing.T) {
 		{
 			name: "invalid value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -181,8 +181,8 @@ func Test_ParseFloatValue(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := knowledgebase2.DynamicValueContext{}
-			data := knowledgebase2.DynamicValueData{}
+			ctx := knowledgebase.DynamicValueContext{}
+			data := knowledgebase.DynamicValueData{}
 			value, err := test.property.Parse(test.value, ctx, data)
 			if test.wantErr {
 				assert.Error(err)
@@ -208,7 +208,7 @@ func Test_FloatProperty_Validate(t *testing.T) {
 		{
 			name: "float value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -217,7 +217,7 @@ func Test_FloatProperty_Validate(t *testing.T) {
 		{
 			name: "int value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -237,7 +237,7 @@ func Test_FloatProperty_Validate(t *testing.T) {
 			for _, call := range test.mockKBCalls {
 				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
 			}
-			ctx := knowledgebase2.DynamicValueContext{
+			ctx := knowledgebase.DynamicValueContext{
 				Graph:         graph,
 				KnowledgeBase: mockKB,
 			}
@@ -269,7 +269,7 @@ func Test_FloatProperty_GetDefaultValue(t *testing.T) {
 		{
 			name: "no default value",
 			property: &FloatProperty{
-				PropertyDetails: knowledgebase2.PropertyDetails{
+				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
@@ -279,8 +279,8 @@ func Test_FloatProperty_GetDefaultValue(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
-			ctx := knowledgebase2.DynamicValueContext{}
-			data := knowledgebase2.DynamicValueData{}
+			ctx := knowledgebase.DynamicValueContext{}
+			data := knowledgebase.DynamicValueData{}
 			value, err := test.property.GetDefaultValue(ctx, data)
 			if !assert.NoError(err) {
 				return
@@ -293,7 +293,7 @@ func Test_FloatProperty_GetDefaultValue(t *testing.T) {
 func Test_FloatPRoperty_Clone(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}
@@ -305,7 +305,7 @@ func Test_FloatPRoperty_Clone(t *testing.T) {
 func Test_FloatProperty_Details(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}
@@ -316,7 +316,7 @@ func Test_FloatProperty_Details(t *testing.T) {
 func Test_FloatProperty_ZeroValue(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}
@@ -326,7 +326,7 @@ func Test_FloatProperty_ZeroValue(t *testing.T) {
 func Test_FloatProperty_Contains(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}
@@ -336,7 +336,7 @@ func Test_FloatProperty_Contains(t *testing.T) {
 func Test_FloatProperty_Type(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}
@@ -346,7 +346,7 @@ func Test_FloatProperty_Type(t *testing.T) {
 func Test_FloatProperty_SubProperties(t *testing.T) {
 	assert := assert.New(t)
 	property := &FloatProperty{
-		PropertyDetails: knowledgebase2.PropertyDetails{
+		PropertyDetails: knowledgebase.PropertyDetails{
 			Path: "test",
 		},
 	}

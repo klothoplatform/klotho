@@ -2,7 +2,6 @@ package iac3
 
 import (
 	"context"
-	_ "embed"
 	"testing"
 
 	sitter "github.com/smacker/go-tree-sitter"
