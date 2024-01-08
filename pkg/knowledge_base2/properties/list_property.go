@@ -193,7 +193,6 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 	validList := make([]any, len(listVal))
 	var errs error
 	hasSanitized := false
-	// validate each entry in the list
 	for i, v := range listVal {
 		if l.ItemProperty != nil {
 			err := l.ItemProperty.Validate(resource, v, ctx)
@@ -211,7 +210,7 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 		} else {
 			vmap, ok := v.(map[string]any)
 			if !ok {
-				return fmt.Errorf("invalid value for list indices in sub properties validation: %v", value)
+				return fmt.Errorf("invalid value for list index %d in sub properties validation: expected map[string]any got %T", i, v)
 			}
 			validIndex := make(map[string]any)
 			for _, prop := range l.SubProperties() {
