@@ -2,13 +2,7 @@ provider: aws
 resources:
   rds_instance/rds-instance-2:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
         - aws:rds_subnet_group:rds_subnet_group-0
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: vpc/vpc-0
     tag: big
 
@@ -29,18 +23,11 @@ resources:
 
   ecs_service/ecs_service_0:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
         - aws:ecr_image:ecs_service_0-image
         - aws:ecr_repo:ecr_repo-0
-        - aws:ecs_cluster:ecs_cluster-0
         - aws:ecs_task_definition:ecs_service_0
         - aws:iam_role:ecs_service_0-execution-role
         - aws:log_group:ecs_service_0-log-group
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: vpc/vpc-0
     tag: big
 

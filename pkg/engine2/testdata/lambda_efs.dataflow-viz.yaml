@@ -2,12 +2,9 @@ provider: aws
 resources:
   efs_file_system/test-efs-fs:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
         - aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs
         - aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs
         - aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs
-        - aws:region:region-0
-    parent: vpc/vpc-0
     tag: big
 
   vpc/vpc-0:
@@ -28,15 +25,9 @@ resources:
 
   lambda_function/lambda_test_app:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
         - aws:ecr_image:lambda_test_app-image
         - aws:ecr_repo:ecr_repo-0
         - aws:iam_role:lambda_test_app-ExecutionRole
-        - aws:region:region-0
-        - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: vpc/vpc-0
     tag: big
 

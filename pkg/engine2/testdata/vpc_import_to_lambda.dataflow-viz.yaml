@@ -11,9 +11,6 @@ resources:
         - aws:ecr_image:lambda_function-image
         - aws:ecr_repo:ecr_repo-0
         - aws:iam_role:lambda_function-ExecutionRole
-        - aws:subnet:subnet2
-        - aws:subnet:vpc:subnet1
-        - aws:vpc:vpc
     parent: vpc/vpc
     tag: big
 

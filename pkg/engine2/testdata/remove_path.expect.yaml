@@ -113,8 +113,8 @@ resources:
                         - aws:rds_instance:rds-instance-1#RdsConnectionArn
                 Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
     aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
