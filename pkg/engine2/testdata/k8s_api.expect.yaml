@@ -3,6 +3,10 @@ resources:
         Deployment: aws:api_deployment:rest_api_4:api_deployment-0
         RestApi: aws:rest_api:rest_api_4
         StageName: stage
+    aws:eks_add_on:amazon-cloudwatch-observability:
+        AddOnName: amazon-cloudwatch-observability
+        Cluster: aws:eks_cluster:eks_cluster-0
+        Role: aws:iam_role:amazon-cloudwatch-observability-iam_role
     aws:eks_add_on:vpc-cni:
         AddOnName: vpc-cni
         Cluster: aws:eks_cluster:eks_cluster-0
@@ -47,48 +51,28 @@ resources:
                         - --region
                         - aws:region:region-0#Name
                     command: aws
-    kubernetes:manifest:fluent-bit:
-        Cluster: aws:eks_cluster:eks_cluster-0
-        FilePath: https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/fluent-bit/fluent-bit.yaml
     aws:api_deployment:rest_api_4:api_deployment-0:
         RestApi: aws:rest_api:rest_api_4
         Triggers:
             rest_api_4_integration_0: rest_api_4_integration_0
             rest_api_4_integration_0_method: rest_api_4_integration_0_method
-    kubernetes:config_map:fluent-bit-cluster-info:
-        Cluster: aws:eks_cluster:eks_cluster-0
-        Object:
-            apiVersion: v1
-            data:
-                cluster:
-                    name: aws:eks_cluster:eks_cluster-0#Name
-                http:
-                    port: "2020"
-                    server: "On"
-                logs:
-                    region: aws:region:region-0#Name
-                read:
-                    head: "Off"
-                    tail: "On"
-            kind: ConfigMap
-            metadata:
-                labels:
-                    k8s-app: fluent-bit
-                name: fluent-bit-cluster-info
-                namespace: kubernetes:namespace:amazon-cloudwatch
+    aws:iam_role:amazon-cloudwatch-observability-iam_role:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRoleWithWebIdentity
+                  Effect: Allow
+                  Principal:
+                    Federated:
+                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+            - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
     aws:rest_api:rest_api_4:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
-    kubernetes:namespace:amazon-cloudwatch:
-        Cluster: aws:eks_cluster:eks_cluster-0
-        Object:
-            apiVersion: v1
-            kind: Namespace
-            metadata:
-                labels:
-                    name: amazon-cloudwatch
-                name: amazon-cloudwatch
     aws:api_resource:rest_api_4:api_resource-0:
         FullPath: /{proxy+}
         PathPart: '{proxy+}'
@@ -283,12 +267,12 @@ resources:
                         - ec2.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
+            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+            - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
             - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
             - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
-            - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
-            - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
@@ -587,22 +571,20 @@ resources:
 edges:
     aws:api_stage:rest_api_4:api_stage-0 -> aws:api_deployment:rest_api_4:api_deployment-0:
     aws:api_stage:rest_api_4:api_stage-0 -> aws:rest_api:rest_api_4:
+    aws:eks_add_on:amazon-cloudwatch-observability -> aws:eks_cluster:eks_cluster-0:
+    aws:eks_add_on:amazon-cloudwatch-observability -> aws:iam_role:amazon-cloudwatch-observability-iam_role:
     aws:eks_add_on:vpc-cni -> aws:eks_cluster:eks_cluster-0:
     aws:security_group_rule:security_group_rule-0 -> aws:vpc:vpc-0:
     kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_cluster:eks_cluster-0:
     kubernetes:helm_chart:eks_cluster-0:metricsserver -> aws:eks_node_group:eks_node_group-0:
     kubernetes:kube_config:eks_cluster-0-kube_config -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:manifest:fluent-bit -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:manifest:fluent-bit -> kubernetes:config_map:fluent-bit-cluster-info:
     aws:api_deployment:rest_api_4:api_deployment-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
     aws:api_deployment:rest_api_4:api_deployment-0 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
     aws:api_deployment:rest_api_4:api_deployment-0 -> aws:rest_api:rest_api_4:
-    kubernetes:config_map:fluent-bit-cluster-info -> aws:eks_cluster:eks_cluster-0:
-    kubernetes:config_map:fluent-bit-cluster-info -> kubernetes:namespace:amazon-cloudwatch:
+    aws:iam_role:amazon-cloudwatch-observability-iam_role -> aws:iam_oidc_provider:eks_cluster-0:
     aws:rest_api:rest_api_4 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
     aws:rest_api:rest_api_4 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
     aws:rest_api:rest_api_4 -> aws:api_resource:rest_api_4:api_resource-0:
-    kubernetes:namespace:amazon-cloudwatch -> aws:eks_cluster:eks_cluster-0:
     aws:api_resource:rest_api_4:api_resource-0 -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
     aws:api_resource:rest_api_4:api_resource-0 -> aws:api_method:rest_api_4:rest_api_4_integration_0_method:
     aws:api_method:rest_api_4:rest_api_4_integration_0_method -> aws:api_integration:rest_api_4:rest_api_4_integration_0:

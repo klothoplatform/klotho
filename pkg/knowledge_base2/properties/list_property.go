@@ -189,12 +189,12 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 			return fmt.Errorf("list value %v is too long. max length is %d", value, *l.MaxLength)
 		}
 	}
-	// Only validate values if its a primitive list, otherwise let the sub properties handle their own validation
-	if l.ItemProperty != nil {
-		var errs error
-		hasSanitized := false
-		validList := make([]any, len(listVal))
-		for i, v := range listVal {
+
+	validList := make([]any, len(listVal))
+	var errs error
+	hasSanitized := false
+	for i, v := range listVal {
+		if l.ItemProperty != nil {
 			err := l.ItemProperty.Validate(resource, v, ctx)
 			if err != nil {
 				var sanitizeErr *knowledgebase.SanitizeError
@@ -207,17 +207,43 @@ func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx kno
 			} else {
 				validList[i] = v
 			}
-		}
-		if errs != nil {
-			return errs
-		}
-		if hasSanitized {
-			return &knowledgebase.SanitizeError{
-				Input:     listVal,
-				Sanitized: validList,
+		} else {
+			vmap, ok := v.(map[string]any)
+			if !ok {
+				return fmt.Errorf("invalid value for list index %d in sub properties validation: expected map[string]any got %T", i, v)
 			}
+			validIndex := make(map[string]any)
+			for _, prop := range l.SubProperties() {
+				val, ok := vmap[prop.Details().Name]
+				if !ok {
+					continue
+				}
+				err := prop.Validate(resource, val, ctx)
+				if err != nil {
+					var sanitizeErr *knowledgebase.SanitizeError
+					if errors.As(err, &sanitizeErr) {
+						validIndex[prop.Details().Name] = sanitizeErr.Sanitized
+						hasSanitized = true
+					} else {
+						errs = errors.Join(errs, err)
+					}
+				} else {
+					validIndex[prop.Details().Name] = val
+				}
+			}
+			validList[i] = validIndex
 		}
 	}
+	if errs != nil {
+		return errs
+	}
+	if hasSanitized {
+		return &knowledgebase.SanitizeError{
+			Input:     listVal,
+			Sanitized: validList,
+		}
+	}
+
 	return nil
 }
 
