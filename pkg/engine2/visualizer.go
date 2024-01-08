@@ -64,24 +64,24 @@ func GetResourceVizTag(kb knowledgebase.TemplateKB, view View, resource construc
 
 func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (visualizer.VisGraph, error) {
 	viewDag := visualizer.NewVisGraph()
-	var graph construct.Graph
+	var resGraph construct.Graph
 	if view == IACView {
-		graph = sol.DeploymentGraph()
+		resGraph = sol.DeploymentGraph()
 	} else {
-		graph = sol.DataflowGraph()
+		resGraph = sol.DataflowGraph()
 	}
 
 	undirected := construct.NewGraphWithOptions()
-	err := undirected.AddVerticesFrom(graph)
+	err := undirected.AddVerticesFrom(resGraph)
 	if err != nil {
 		return nil, fmt.Errorf("could not copy vertices for undirected: %w", err)
 	}
-	err = undirected.AddEdgesFrom(graph)
+	err = undirected.AddEdgesFrom(resGraph)
 	if err != nil {
 		return nil, fmt.Errorf("could not copy edges for undirected: %w", err)
 	}
 
-	ids, err := construct.ReverseTopologicalSort(graph)
+	ids, err := construct.ReverseTopologicalSort(resGraph)
 	if err != nil {
 		return nil, err
 	}
@@ -113,13 +113,9 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 		case NoRenderTag:
 			continue
 		case ParentIconTag:
-			parent, err := viewDag.Vertex(id)
+			err := e.handleParentIcon(sol, view, viewDag, id)
 			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			if err := e.setChildren(sol, parent); err != nil {
-				errs = errors.Join(errs, err)
+				errs = errors.Join(errs, fmt.Errorf("failed to handle parent icon %s: %w", id, err))
 			}
 		case BigIconTag:
 			err := e.handleBigIcon(sol, view, undirected, viewDag, id)
@@ -136,6 +132,30 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 	return viewDag, errs
 }
 
+func (e *Engine) handleParentIcon(
+	sol solution_context.SolutionContext,
+	view View,
+	viewDag visualizer.VisGraph,
+	id construct.ResourceId,
+) error {
+	this, err := viewDag.Vertex(id)
+	if err != nil {
+		return err
+	}
+
+	parent, err := e.findParent(view, sol, viewDag, id)
+	if err != nil {
+		return err
+	}
+	this.Parent = parent
+
+	if err := e.setChildren(sol, view, this); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // handleBigIcon sets the parent of the big icon if there is a group it should be added to and
 // adds edges to any other big icons based on having the proper connections (network & permissions).
 func (e *Engine) handleBigIcon(
@@ -145,16 +165,16 @@ func (e *Engine) handleBigIcon(
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) error {
-	source, err := viewDag.Vertex(id)
+	this, err := viewDag.Vertex(id)
 	if err != nil {
 		return err
 	}
 
-	parent, err := e.findParent(view, undirected, viewDag, id)
+	parent, err := e.findParent(view, sol, viewDag, id)
 	if err != nil {
 		return err
 	}
-	source.Parent = parent
+	this.Parent = parent
 
 	targets, err := construct.TopologicalSort(viewDag)
 	if err != nil {
@@ -191,20 +211,27 @@ func (e *Engine) handleBigIcon(
 		return errs
 	}
 
-	if err := e.setChildren(sol, source); err != nil {
+	if err := e.setChildren(sol, view, this); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (e *Engine) setChildren(sol solution_context.SolutionContext, v *visualizer.VisResource) error {
-	glue, err := knowledgebase.Downstream(sol.DataflowGraph(), sol.KnowledgeBase(), v.ID, knowledgebase.ResourceGlueLayer)
+func (e *Engine) setChildren(sol solution_context.SolutionContext, view View, v *visualizer.VisResource) error {
+	glue, err := knowledgebase.Downstream(
+		sol.DataflowGraph(),
+		sol.KnowledgeBase(),
+		v.ID,
+		knowledgebase.ResourceLocalLayer,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to get glue layer for %s: %w", v.ID, err)
 	}
 	for _, glueElem := range glue {
-		v.Children.Add(glueElem)
+		if GetResourceVizTag(e.Kb, view, glueElem) == SmallIconTag {
+			v.Children.Add(glueElem)
+		}
 	}
 
 	// After glue, also include any resources whose namespace is this resource
@@ -248,26 +275,57 @@ func (e *Engine) setChildren(sol solution_context.SolutionContext, v *visualizer
 
 func (e *Engine) findParent(
 	view View,
-	undirected construct.Graph,
+	sol solution_context.SolutionContext,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) (bestParent construct.ResourceId, err error) {
-	ids, err := construct.TopologicalSort(viewDag)
+	if id.Namespace != "" {
+		// namespaced resources' parents is always their namespace resource
+		tmpl, err := sol.KnowledgeBase().GetResourceTemplate(id)
+		if err != nil {
+			return bestParent, err
+		}
+		thisRes, err := sol.RawView().Vertex(id)
+		if err != nil {
+			return bestParent, err
+		}
+		for _, p := range tmpl.Properties {
+			if !p.Details().Namespace {
+				continue
+			}
+			v, err := thisRes.GetProperty(p.Details().Path)
+			if err != nil {
+				return bestParent, fmt.Errorf("failed to get namespace property %s: %w", p.Details().Path, err)
+			}
+			if propId, ok := v.(construct.ResourceId); ok {
+				return propId, nil
+			} else {
+				return bestParent, fmt.Errorf("namespace property %s is not a resource id (was: %T)", p.Details().Path, v)
+			}
+		}
+	}
+
+	glue, err := knowledgebase.Downstream(
+		sol.DataflowGraph(),
+		sol.KnowledgeBase(),
+		id,
+		knowledgebase.ResourceLocalLayer,
+	)
 	if err != nil {
 		return
 	}
-	pather, err := construct.ShortestPaths(undirected, id, construct.DontSkipEdges)
+	pather, err := construct.ShortestPaths(sol.DataflowGraph(), id, construct.DontSkipEdges)
 	if err != nil {
 		return
 	}
 	bestParentWeight := math.MaxInt32
 	var errs error
 candidateLoop:
-	for _, id := range ids {
-		if GetResourceVizTag(e.Kb, view, id) != ParentIconTag {
+	for _, candidate := range glue {
+		if GetResourceVizTag(e.Kb, view, candidate) != ParentIconTag {
 			continue
 		}
-		path, err := pather.ShortestPath(id)
+		path, err := pather.ShortestPath(candidate)
 		if errors.Is(err, graph.ErrTargetNotReachable) {
 			continue
 		} else if err != nil {
@@ -285,14 +343,14 @@ candidateLoop:
 				continue candidateLoop
 			}
 		}
-		weight, err := graph_addons.PathWeight(undirected, graph_addons.Path[construct.ResourceId](path))
+		weight, err := graph_addons.PathWeight(sol.DataflowGraph(), graph_addons.Path[construct.ResourceId](path))
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
 		if weight < bestParentWeight {
 			bestParentWeight = weight
-			bestParent = id
+			bestParent = candidate
 		}
 	}
 	err = errs

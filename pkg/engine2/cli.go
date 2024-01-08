@@ -412,14 +412,14 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		err := construct.GraphToSVG(sol.DataflowGraph(), "dataflow")
+		err := GraphToSVG(sol.KnowledgeBase(), sol.DataflowGraph(), "dataflow")
 		if err != nil {
 			zap.S().Errorf("failed to write dataflow graph: %s", err.Error())
 		}
 	}()
 	go func() {
 		defer wg.Done()
-		err := construct.GraphToSVG(sol.DeploymentGraph(), "iac")
+		err := GraphToSVG(sol.KnowledgeBase(), sol.DeploymentGraph(), "iac")
 		if err != nil {
 			zap.S().Errorf("failed to write iac graph: %s", err.Error())
 		}
