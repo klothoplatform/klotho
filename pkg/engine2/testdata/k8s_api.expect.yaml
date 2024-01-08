@@ -483,12 +483,6 @@ resources:
               Protocol: "-1"
               ToPort: 0
         IngressRules:
-            - CidrBlocks:
-                - 0.0.0.0/0
-              Description: Allows ingress traffic from the EKS control plane
-              FromPort: 9443
-              Protocol: TCP
-              ToPort: 9443
             - Description: Allow ingress traffic from within the same security group
               FromPort: 0
               Protocol: "-1"
@@ -506,6 +500,12 @@ resources:
               FromPort: 0
               Protocol: "-1"
               ToPort: 0
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows ingress traffic from the EKS control plane
+              FromPort: 9443
+              Protocol: TCP
+              ToPort: 9443
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-0-route_table:
         Routes:

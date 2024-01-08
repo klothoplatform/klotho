@@ -5,7 +5,6 @@ resources:
         - aws:ecr_image:lambda_function_0-image
         - aws:ecr_repo:ecr_repo-0
         - aws:iam_role:lambda_function_0-ExecutionRole
-    parent: rest_api/rest_api_1
     tag: big
 
   rest_api/rest_api_1:
