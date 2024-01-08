@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/alitto/pond v1.8.3
 	github.com/aws/aws-cloud-map-mcs-controller-for-k8s v0.3.1
 	github.com/beevik/etree v1.1.0
 	github.com/bmatcuk/doublestar/v4 v4.2.0
@@ -30,6 +31,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	go.uber.org/atomic v1.9.0
+	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.19.1
 	golang.org/x/tools v0.7.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -42,14 +44,13 @@ require (
 )
 
 require (
-	github.com/alitto/pond v1.8.3 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20191028211022-135eb7262960 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
-	golang.org/x/mod v0.9.0 // indirect
+	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/oauth2 v0.4.0 // indirect
 	k8s.io/client-go v0.26.0 // indirect
 )

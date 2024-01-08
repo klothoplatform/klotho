@@ -30,3 +30,6 @@ engine_test:
 .PHONY: regen_tests
 regen_tests:
 	find pkg/engine2/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;
+
+mocks:
+	mockgen -source=./pkg/engine2/operational_rule/operational_rule.go --destination=./pkg/engine2/operational_eval/operational_rule_mock_test.go --package=operational_eval

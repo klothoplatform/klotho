@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/operational_rule"
@@ -118,6 +119,11 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	if err := v.evaluateConstraints(sol, res); err != nil {
 		return err
 	}
+	opCtx := operational_rule.OperationalRuleContext{
+		Solution: sol,
+		Property: v.Template,
+		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
+	}
 
 	// we know we cannot change properties of imported resources only users through constraints
 	// we still want to be able to update ids in case they are setting the property of a namespaced resource
@@ -125,14 +131,12 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	//
 	// we still need to run the resource operational rules though,
 	// to make sure dependencies exist where properties have operational rules set
-	if err := v.evaluateResourceOperational(sol, res); err != nil {
+	if err := v.evaluateResourceOperational(res, &opCtx); err != nil {
 		return err
 	}
 
-	if !res.Imported {
-		if err := v.evaluateEdgeOperational(sol, res); err != nil {
-			return err
-		}
+	if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
+		return err
 	}
 
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
@@ -252,15 +256,12 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 	return nil
 }
 
-func (v *propertyVertex) evaluateResourceOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
+func (v *propertyVertex) evaluateResourceOperational(
+	res *construct.Resource,
+	opCtx operational_rule.OpRuleHandler,
+) error {
 	if v.Template == nil || v.Template.Details().OperationalRule == nil {
 		return nil
-	}
-
-	opCtx := operational_rule.OperationalRuleContext{
-		Solution: sol,
-		Property: v.Template,
-		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
 	}
 
 	err := opCtx.HandlePropertyRule(*v.Template.Details().OperationalRule)
@@ -271,25 +272,22 @@ func (v *propertyVertex) evaluateResourceOperational(sol solution_context.Soluti
 	return nil
 }
 
-func (v *propertyVertex) evaluateEdgeOperational(sol solution_context.SolutionContext, res *construct.Resource) error {
+func (v *propertyVertex) evaluateEdgeOperational(
+	res *construct.Resource,
+	opCtx operational_rule.OpRuleHandler,
+) error {
 	oldId := v.Ref.Resource
-
-	opCtx := operational_rule.OperationalRuleContext{
-		Solution: sol,
-		Property: v.Template,
-		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
-	}
-
 	var errs error
 	for edge, rules := range v.EdgeRules {
 		for _, rule := range rules {
 			// In case one of the previous rules changed the ID, update it
 			edge = UpdateEdgeId(edge, oldId, res.ID)
 
-			opCtx.Data.Edge = &construct.Edge{
-				Source: edge.Source,
-				Target: edge.Target,
-			}
+			opCtx.SetData(knowledgebase.DynamicValueData{
+				Resource: res.ID,
+				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
+			})
+
 			err := opCtx.HandleOperationalRule(rule)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
