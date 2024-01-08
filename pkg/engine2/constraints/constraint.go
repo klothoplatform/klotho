@@ -69,6 +69,7 @@ const (
 	MustExistConstraintOperator    ConstraintOperator = "must_exist"
 	MustNotExistConstraintOperator ConstraintOperator = "must_not_exist"
 	AddConstraintOperator          ConstraintOperator = "add"
+	ImportConstraintOperator       ConstraintOperator = "import"
 	RemoveConstraintOperator       ConstraintOperator = "remove"
 	ReplaceConstraintOperator      ConstraintOperator = "replace"
 	EqualsConstraintOperator       ConstraintOperator = "equals"

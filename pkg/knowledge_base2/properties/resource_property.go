@@ -108,6 +108,11 @@ func (r *ResourceProperty) ZeroValue() any {
 }
 
 func (r *ResourceProperty) Contains(value any, contains any) bool {
+	if val, ok := value.(construct.ResourceId); ok {
+		if cont, ok := contains.(construct.ResourceId); ok {
+			return val.Matches(cont)
+		}
+	}
 	return false
 }
 

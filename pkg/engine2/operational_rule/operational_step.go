@@ -50,7 +50,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		}
 	}
 
-	if len(ids) >= step.NumNeeded && step.NumNeeded > 0 {
+	if len(ids) >= step.NumNeeded && step.NumNeeded > 0 || resource.Imported {
 		return nil
 	}
 
@@ -243,18 +243,32 @@ func (ctx OperationalRuleContext) removeDependencyForDirection(direction knowled
 }
 
 func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Resource, step knowledgebase.OperationalStep) error {
+
 	if ctx.Property == nil {
 		return nil
 	}
-	// snapshot the ID from before any field changes
-	oldId := resource.ID
 
+	path := ctx.Property.Details().Path
+	propVal, err := resource.GetProperty(path)
+	if err != nil {
+		zap.S().Debugf("property %s not found on resource %s", path, resource.ID)
+	}
 	var propertyValue any
 	propertyValue = fieldResource.ID
 	if step.UsePropertyRef != "" {
 		propertyValue = construct.PropertyRef{Resource: fieldResource.ID, Property: step.UsePropertyRef}
 	}
-	path := ctx.Property.Details().Path
+
+	if resource.Imported {
+		if ctx.Property.Contains(propVal, propertyValue) {
+			ctx.namespace(resource, fieldResource, resource.ID)
+			return nil
+		}
+		return fmt.Errorf("cannot set field on imported resource %s", resource.ID)
+	}
+
+	// snapshot the ID from before any field changes
+	oldId := resource.ID
 
 	removeResource := func(currResId construct.ResourceId) error {
 		err := ctx.removeDependencyForDirection(step.Direction, resource.ID, currResId)
@@ -270,10 +284,6 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 		return nil
 	}
 
-	propVal, err := resource.GetProperty(path)
-	if err != nil {
-		zap.S().Debugf("property %s not found on resource %s", path, resource.ID)
-	}
 	switch val := propVal.(type) {
 	case construct.ResourceId:
 		if val != fieldResource.ID {
@@ -306,6 +316,11 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 		return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, path, fieldResource.ID, err)
 	}
 	zap.S().Infof("appended field %s#%s with %s", resource.ID, path, fieldResource.ID)
+	ctx.namespace(resource, fieldResource, oldId)
+	return nil
+}
+
+func (ctx *OperationalRuleContext) namespace(resource, fieldResource *construct.Resource, oldId construct.ResourceId) {
 	if ctx.Property.Details().Namespace {
 		resource.ID.Namespace = fieldResource.ID.Name
 	}
@@ -323,5 +338,4 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 			ctx.Data.Edge.Target = resource.ID
 		}
 	}
-	return nil
 }

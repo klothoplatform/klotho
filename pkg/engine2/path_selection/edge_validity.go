@@ -87,7 +87,7 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 			match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: resource.ID},
 				toCheck)
 			if err != nil {
-				return fmt.Errorf("error checking if resource %s matches selector %s: %w", toCheck, selector.Selector, err)
+				return fmt.Errorf("error checking if resource %s matches selector %s: %w", toCheck.ID, selector.Selector, err)
 			}
 			// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
 			if !match {
@@ -95,7 +95,7 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 			}
 			property, err := resource.GetProperty(details.Path)
 			if err != nil {
-				return fmt.Errorf("error getting property %s for resource %s: %w", details.Path, toCheck, err)
+				return fmt.Errorf("error getting property %s for resource %s: %w", details.Path, toCheck.ID, err)
 			}
 			if property != nil {
 				if checkIfPropertyContainsResource(property, toCheck.ID) {
@@ -261,7 +261,7 @@ func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resour
 				match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: currRes.ID},
 					resource)
 				if err != nil {
-					return fmt.Errorf("error checking if resource %s matches selector %s: %w", other, selector.Selector, err)
+					return fmt.Errorf("error checking if resource %s matches selector %s: %w", other.ID, selector.Selector, err)
 				}
 				// if its a match for the selectors, lets ensure that it has a dependency and exists in the properties of the rul
 				if !match {

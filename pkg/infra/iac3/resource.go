@@ -41,9 +41,16 @@ func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.Resourc
 			return err
 		}
 	}
-	err = resTmpl.Template.Execute(out, inputs)
-	if err != nil {
-		return fmt.Errorf("could not render resource %s: %w", rid, err)
+	if r.Imported {
+		err = resTmpl.ImportResource.Execute(out, inputs)
+		if err != nil {
+			return fmt.Errorf("could not render resource %s: %w", rid, err)
+		}
+	} else {
+		err = resTmpl.Template.Execute(out, inputs)
+		if err != nil {
+			return fmt.Errorf("could not render resource %s: %w", rid, err)
+		}
 	}
 
 	exportData := PropertyTemplateData{

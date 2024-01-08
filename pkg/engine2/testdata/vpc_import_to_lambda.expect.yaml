@@ -1,0 +1,85 @@
+resources:
+    aws:security_group:vpc:lambda_function-security_group:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        IngressRules:
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+        Vpc: aws:vpc:vpc
+    aws:subnet:subnet3:
+        Type: public
+        Vpc: aws:vpc:vpc
+        imported: true
+    aws:subnet:subnet4:
+        Type: public
+        Vpc: aws:vpc:vpc
+        imported: true
+    aws:lambda_function:lambda_function:
+        ExecutionRole: aws:iam_role:lambda_function-ExecutionRole
+        Image: aws:ecr_image:lambda_function-image
+        LogGroup: aws:log_group:lambda_function-log-group
+        MemorySize: 512
+        SecurityGroups:
+            - aws:security_group:vpc:lambda_function-security_group
+        Subnets:
+            - aws:subnet:vpc:subnet1
+            - aws:subnet:subnet2
+        Timeout: 180
+    aws:ecr_image:lambda_function-image:
+        Context: .
+        Dockerfile: lambda_function-image.Dockerfile
+        Repo: aws:ecr_repo:ecr_repo-0
+    aws:iam_role:lambda_function-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+    aws:subnet:subnet2:
+        Type: private
+        Vpc: aws:vpc:vpc
+        imported: true
+    aws:subnet:vpc:subnet1:
+        Type: private
+        Vpc: aws:vpc:vpc
+        imported: true
+    aws:ecr_repo:ecr_repo-0:
+        ForceDelete: true
+    aws:SERVICE_API:lambda_function-lambda_function-log-group:
+    aws:vpc:vpc:
+        imported: true
+    aws:log_group:lambda_function-log-group:
+        LogGroupName: /aws/lambda/lambda_function
+        RetentionInDays: 5
+edges:
+    aws:security_group:vpc:lambda_function-security_group -> aws:lambda_function:lambda_function:
+    aws:security_group:vpc:lambda_function-security_group -> aws:vpc:vpc:
+    aws:subnet:subnet3 -> aws:vpc:vpc:
+    aws:subnet:subnet4 -> aws:vpc:vpc:
+    aws:lambda_function:lambda_function -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
+    aws:lambda_function:lambda_function -> aws:ecr_image:lambda_function-image:
+    aws:lambda_function:lambda_function -> aws:iam_role:lambda_function-ExecutionRole:
+    aws:lambda_function:lambda_function -> aws:subnet:subnet2:
+    aws:lambda_function:lambda_function -> aws:subnet:vpc:subnet1:
+    aws:ecr_image:lambda_function-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_function-ExecutionRole -> aws:log_group:lambda_function-log-group:
+    aws:subnet:subnet2 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
+    aws:subnet:subnet2 -> aws:vpc:vpc:
+    aws:subnet:vpc:subnet1 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
+    aws:subnet:vpc:subnet1 -> aws:vpc:vpc:
+    aws:SERVICE_API:lambda_function-lambda_function-log-group -> aws:log_group:lambda_function-log-group:

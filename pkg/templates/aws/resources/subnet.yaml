@@ -54,6 +54,11 @@ properties:
   MapPublicIpOnLaunch:
     type: bool
     default_value: false
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 path_satisfaction:
   as_source:

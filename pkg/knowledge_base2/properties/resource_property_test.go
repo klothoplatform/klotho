@@ -288,6 +288,28 @@ func Test_ResourcePropertyContains(t *testing.T) {
 			},
 			value:    construct.ResourceId{Provider: "test"},
 			contains: construct.ResourceId{Provider: "test"},
+			want:     true,
+		},
+		{
+			name: "resource is different",
+			property: &ResourceProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:    construct.ResourceId{Provider: "test"},
+			contains: construct.ResourceId{Provider: "test2"},
+			want:     false,
+		},
+		{
+			name: "resource property different namespace",
+			property: &ResourceProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:    construct.ResourceId{Provider: "test"},
+			contains: construct.ResourceId{Provider: "test2", Namespace: "test2"},
 			want:     false,
 		},
 	}

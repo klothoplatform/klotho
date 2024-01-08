@@ -57,6 +57,10 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 	case constraints.AddConstraintOperator:
 		return ctx.OperationalView().AddVertex(res)
 
+	case constraints.ImportConstraintOperator:
+		res.Imported = true
+		return ctx.OperationalView().AddVertex(res)
+
 	case constraints.RemoveConstraintOperator:
 		return reconciler.RemoveResource(ctx, res.ID, true)
 

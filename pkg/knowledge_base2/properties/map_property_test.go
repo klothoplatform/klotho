@@ -5,7 +5,6 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -286,7 +285,7 @@ func Test_MapProperty_Validate(t *testing.T) {
 			for _, call := range test.mockKBCalls {
 				mockKB.On(call.Method, call.Arguments...).Return(call.ReturnArguments...)
 			}
-			ctx := knowledgebase.DynamicValueContext{
+			ctx := knowledgebase2.DynamicValueContext{
 				Graph:         graph,
 				KnowledgeBase: mockKB,
 			}

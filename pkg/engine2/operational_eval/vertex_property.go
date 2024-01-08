@@ -119,12 +119,20 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		return err
 	}
 
+	// we know we cannot change properties of imported resources only users through constraints
+	// we still want to be able to update ids in case they are setting the property of a namespaced resource
+	// so we just conditionally run the edge operational rules
+	//
+	// we still need to run the resource operational rules though,
+	// to make sure dependencies exist where properties have operational rules set
 	if err := v.evaluateResourceOperational(sol, res); err != nil {
 		return err
 	}
 
-	if err := v.evaluateEdgeOperational(sol, res); err != nil {
-		return err
+	if !res.Imported {
+		if err := v.evaluateEdgeOperational(sol, res); err != nil {
+			return err
+		}
 	}
 
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
@@ -174,19 +182,20 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 
 	ctx := solution_context.DynamicCtx(sol)
 	var defaultVal any
-	if currentValue == nil {
+	if currentValue == nil && !res.Imported {
 		defaultVal, err = v.Template.GetDefaultValue(ctx, dynData)
 		if err != nil {
 			return fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
 		}
 	}
-	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && defaultVal != nil {
+	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && defaultVal != nil && !res.Imported {
 		err = solution_context.ConfigureResource(
 			sol,
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: defaultVal},
 			dynData,
 			"set",
+			false,
 		)
 		if err != nil {
 			return fmt.Errorf("could not set default value for %s: %w", v.Ref, err)
@@ -208,6 +217,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: setConstraint.Value},
 			dynData,
 			"set",
+			true,
 		)
 		if err != nil {
 			return fmt.Errorf("could not apply initial constraint for %s: %w", v.Ref, err)
@@ -231,6 +241,7 @@ func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContex
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: c.Value},
 			dynData,
 			action,
+			true,
 		))
 		dynData.Resource = res.ID
 	}

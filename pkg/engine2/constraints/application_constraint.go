@@ -87,6 +87,9 @@ func (constraint *ApplicationConstraint) Validate() error {
 	if constraint.Operator == RemoveConstraintOperator && (constraint.Node == construct.ResourceId{}) {
 		return errors.New("remove constraint must have a node defined")
 	}
+	if constraint.Operator == ImportConstraintOperator && (constraint.Node == construct.ResourceId{}) {
+		return errors.New("import constraint must have a node defined")
+	}
 	return nil
 }
 

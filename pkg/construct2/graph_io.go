@@ -46,7 +46,9 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 			errs = errors.Join(errs, err)
 			continue
 		}
-
+		if r.Imported {
+			r.Properties["imported"] = r.Imported
+		}
 		props, err := yaml_util.MarshalMap(r.Properties, func(a, b string) bool { return a < b })
 		if err != nil {
 			errs = errors.Join(errs, err)
@@ -106,8 +108,8 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 
 func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 	type graph struct {
-		Resouces map[ResourceId]Properties `yaml:"resources"`
-		Edges    map[SimpleEdge]struct{}   `yaml:"edges"`
+		Resources map[ResourceId]Properties `yaml:"resources"`
+		Edges     map[SimpleEdge]struct{}   `yaml:"edges"`
 	}
 	var y graph
 	if err := n.Decode(&y); err != nil {
@@ -119,10 +121,21 @@ func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 	}
 
 	var errs error
-	for rid, props := range y.Resouces {
+	for rid, props := range y.Resources {
+		var imported bool
+		if imp, ok := props["imported"]; ok {
+			val, ok := imp.(bool)
+			if !ok {
+				errs = errors.Join(errs, fmt.Errorf("unable to parse imported value as boolean for resource %s", rid))
+				// Don't continue here so that the vertex is still added, otherwise it could erroneously cause failures in the edge copying
+			}
+			imported = val
+			delete(props, "imported")
+		}
 		err := g.Graph.AddVertex(&Resource{
 			ID:         rid,
 			Properties: props,
+			Imported:   imported,
 		})
 		errs = errors.Join(errs, err)
 	}

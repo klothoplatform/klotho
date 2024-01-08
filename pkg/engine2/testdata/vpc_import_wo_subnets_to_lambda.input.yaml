@@ -1,0 +1,13 @@
+constraints:
+- operator: add
+  scope: application
+  node: aws:lambda_function:lambda_function
+- operator: must_exist
+  scope: edge
+  target:
+    source: aws:lambda_function:lambda_function
+    target: aws:vpc:vpc
+resources:
+    aws:vpc:vpc:
+        imported: true
+edges:

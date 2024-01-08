@@ -25,7 +25,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	}
 	config.Config.Field = resolvedField
 
-	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, "add")
+	err = solution_context.ConfigureResource(ctx.Solution, resource, config.Config, ctx.Data, "add", false)
 	if err != nil {
 		return err
 	}

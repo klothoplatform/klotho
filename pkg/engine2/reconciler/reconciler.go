@@ -239,7 +239,13 @@ func canDeleteResource(
 	upstreamNodes set.Set[construct.ResourceId],
 	downstreamNodes set.Set[construct.ResourceId],
 ) (bool, error) {
-	if template.GetFunctionality() != knowledgebase.Unknown && !explicit {
+
+	res, err := ctx.RawView().Vertex(resource)
+	if err != nil {
+		return false, err
+	}
+	// dont allow deletion of imported or functional resources unless it is explicitly stated
+	if (template.GetFunctionality() != knowledgebase.Unknown || res.Imported) && !explicit {
 		return false, nil
 	}
 

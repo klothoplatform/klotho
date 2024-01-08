@@ -1,0 +1,5 @@
+provider: aws
+resources:
+  vpc/vpc:
+    tag: parent
+

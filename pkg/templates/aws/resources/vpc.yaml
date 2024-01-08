@@ -20,6 +20,11 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 classification:
   is:
