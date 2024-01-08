@@ -1,4 +1,4 @@
-package enginetesting
+package kbtesting
 
 import (
 	"github.com/dominikbraun/graph"
@@ -14,6 +14,11 @@ type MockKB struct {
 func (m *MockKB) ListResources() []*knowledgebase.ResourceTemplate {
 	args := m.Called()
 	return args.Get(0).([]*knowledgebase.ResourceTemplate)
+}
+
+func (m *MockKB) GetModel(model string) *knowledgebase.Model {
+	args := m.Called(model)
+	return args.Get(0).(*knowledgebase.Model)
 }
 
 func (m *MockKB) Edges() ([]graph.Edge[*knowledgebase.ResourceTemplate], error) {
@@ -64,11 +69,18 @@ func (m *MockKB) GetClassification(id construct.ResourceId) knowledgebase.Classi
 	args := m.Called(id)
 	return args.Get(0).(knowledgebase.Classification)
 }
-func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) construct.ResourceId {
+func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error) {
 	args := m.Called(resource)
-	return args.Get(0).(construct.ResourceId)
+	return args.Get(0).(construct.ResourceId), args.Error(1)
 }
 func (m *MockKB) GetResourcePropertyType(resource construct.ResourceId, propertyName string) string {
 	args := m.Called(resource, propertyName)
 	return args.String(0)
+}
+
+func (m *MockKB) GetPathSatisfactionsFromEdge(
+	source, target construct.ResourceId,
+) ([]knowledgebase.EdgePathSatisfaction, error) {
+	args := m.Called(source, target)
+	return args.Get(0).([]knowledgebase.EdgePathSatisfaction), args.Error(1)
 }
