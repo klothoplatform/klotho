@@ -99,6 +99,12 @@ func TestDownstream(t *testing.T) {
 			layer: knowledgebase.ResourceDirectLayer,
 			want:  []string{"p:t:B"},
 		},
+		{
+			name:     "direct downstream B",
+			layer:    knowledgebase.ResourceDirectLayer,
+			resource: "p:t:B",
+			want:     []string{"p:t:C", "p:t:D", "p:t:X"},
+		},
 		// Glue
 		{
 			name:  "glue",
@@ -151,7 +157,7 @@ func TestDownstream(t *testing.T) {
 			}
 			var got []string
 			if gotIds != nil {
-				got = make([]string, len(tt.want))
+				got = make([]string, len(gotIds))
 				for i, w := range gotIds {
 					got[i] = w.String()
 				}

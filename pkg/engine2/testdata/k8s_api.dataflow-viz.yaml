@@ -2,26 +2,12 @@ provider: aws
 resources:
   kubernetes:pod:eks_cluster-0/pod2:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
-        - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
   load_balancer/rest-api-4-integbcc77100:
-    children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
-    parent: eks_cluster/eks_cluster-0
+    parent: vpc/vpc-0
     tag: big
 
   load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
@@ -34,27 +20,13 @@ resources:
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
-        - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
-        - aws:eks_cluster:eks_cluster-0
         - aws:iam_role:ClusterRole-eks_cluster-0
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
@@ -83,13 +55,7 @@ resources:
 
   eks_cluster/eks_cluster-0:
     children:
-        - aws:availability_zone:region-0:availability_zone-0
-        - aws:availability_zone:region-0:availability_zone-1
         - aws:iam_role:ClusterRole-eks_cluster-0
-        - aws:region:region-0
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:vpc:vpc-0
         - kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
         - kubernetes:helm_chart:eks_cluster-0:metricsserver
         - kubernetes:pod:eks_cluster-0:pod2
@@ -97,6 +63,7 @@ resources:
         - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
         - kubernetes:service_account:eks_cluster-0:pod2
         - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
+    parent: vpc/vpc-0
     tag: parent
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
