@@ -1,15 +1,16 @@
 package engine2
 
 import (
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/alitto/pond"
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/operational_eval"
 	"github.com/klothoplatform/klotho/pkg/engine2/path_selection"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -38,33 +39,29 @@ type (
 //
 // This is used to determine (on a best-effort basis) if an edge can be expanded
 // without fully solving the graph (which is expensive).
-func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.ResourceId, target construct.ResourceId) (bool, error) {
+func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
+	cacheable = true
 
 	if source.Matches(target) {
-		return false, nil
-	}
-
-	sourceResource, err := ctx.OperationalView().Vertex(source)
-	if err != nil {
-		return false, err
-	}
-	targetResource, err := ctx.OperationalView().Vertex(target)
-	if err != nil {
-		return false, err
-	}
-
-	eval := operational_eval.NewEvaluator(ctx)
-	err = eval.AddEdges(construct.Edge{
-		Source: source,
-		Target: target,
-	})
-	if err != nil {
-		return false, err
+		return false, cacheable, nil
 	}
 
 	satisfactions, err := e.Kb.GetPathSatisfactionsFromEdge(source, target)
 	if err != nil {
-		return false, err
+		return false, cacheable, err
+	}
+	sourceSatisfactionCount := 0
+	targetSatisfactionCount := 0
+	for _, satisfaction := range satisfactions {
+		if satisfaction.Source.Classification != "" {
+			sourceSatisfactionCount++
+		}
+		if satisfaction.Target.Classification != "" {
+			targetSatisfactionCount++
+		}
+	}
+	if sourceSatisfactionCount == 0 || targetSatisfactionCount == 0 {
+		return false, cacheable, nil
 	}
 
 	for _, satisfaction := range satisfactions {
@@ -72,30 +69,62 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 		if classification == "" {
 			continue
 		}
+		var sourceReferencedResources []construct.ResourceId
+		var targetReferencedResources []construct.ResourceId
+
+		if satisfaction.Source.PropertyReference != "" && strings.Contains(satisfaction.Source.PropertyReference, "#") {
+			cacheable = false
+			sourceReferencedResources, err = solution_context.GetResourcesFromPropertyReference(ctx, source, satisfaction.Source.PropertyReference)
+			if len(sourceReferencedResources) == 0 || err != nil {
+				continue // ignore satisfaction if we can't resolve the property reference
+			}
+		}
+		if satisfaction.Target.PropertyReference != "" && strings.Contains(satisfaction.Target.PropertyReference, "#") {
+			cacheable = false
+			targetReferencedResources, err = solution_context.GetResourcesFromPropertyReference(ctx, target, satisfaction.Target.PropertyReference)
+			if len(targetReferencedResources) == 0 || err != nil {
+				continue // ignore satisfaction if we can't resolve the property reference
+			}
+		}
+
+		tempSource := source
+		if len(sourceReferencedResources) > 0 {
+			tempSource = sourceReferencedResources[len(sourceReferencedResources)-1]
+		}
+		tempTarget := target
+		if len(targetReferencedResources) > 0 {
+			tempTarget = targetReferencedResources[len(targetReferencedResources)-1]
+		}
 
 		tempGraph, err := path_selection.BuildPathSelectionGraph(
 			construct.SimpleEdge{
-				Source: source,
-				Target: target,
+				Source: tempSource,
+				Target: tempTarget,
 			}, ctx.KnowledgeBase(), classification)
+
+		tempSourceResource, err := tempGraph.Vertex(tempSource)
 		if err != nil {
-			return false, err
+			continue
+		}
+		tempTargetResource, err := tempGraph.Vertex(tempTarget)
+		if err != nil {
+			continue
 		}
 
 		_, err = path_selection.ExpandEdge(ctx, path_selection.ExpansionInput{
 			Dep: construct.ResourceEdge{
-				Source: sourceResource,
-				Target: targetResource,
+				Source: tempSourceResource,
+				Target: tempTargetResource,
 			},
 			Classification: classification,
 			TempGraph:      tempGraph,
 		})
 		if err != nil {
-			return false, err
+			return false, cacheable, err
 		}
 	}
 
-	return true, nil
+	return true, cacheable, nil
 }
 
 func ReadGetValidEdgeTargetsConfig(path string) (GetValidEdgeTargetsConfig, error) {
@@ -186,8 +215,8 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	//var detectionGroup sync.WaitGroup
 
 	checkerPool := pond.New(5, 1000, pond.Strategy(pond.Lazy()))
-	//knownTargetValidity := make(map[string]map[string]bool)
-	//rwLock := &sync.RWMutex{}
+	knownTargetValidity := make(map[string]map[string]bool)
+	rwLock := &sync.RWMutex{}
 
 	// get all valid-edge combinations for resource types in the supplied graph
 	for _, s := range sources {
@@ -211,44 +240,46 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 			checkerPool.Submit(func() {
 
 				// check if we already know the validity of this edge
-				//sourceType := source.QualifiedTypeName()
-				//targetType := target.QualifiedTypeName()
+				sourceType := source.QualifiedTypeName()
+				targetType := target.QualifiedTypeName()
 				//
-				//isValid := false
-				//previouslyEvaluated := false
+				isValid := false
+				previouslCached := false
 
-				//rwLock.RLock()
-				//if _, ok := knownTargetValidity[sourceType]; ok {
-				//	if isValid, ok = knownTargetValidity[sourceType][targetType]; ok {
-				//		previouslyEvaluated = true
-				//	}
-				//}
-				//rwLock.RUnlock()
-
+				rwLock.RLock()
+				if _, ok := knownTargetValidity[sourceType]; ok {
+					if isValid, ok = knownTargetValidity[sourceType][targetType]; ok {
+						previouslCached = true
+					}
+				}
+				rwLock.RUnlock()
+				cacheable := false
 				// only evaluate the edge if we haven't already done so for the same source and target types
-				//if !previouslyEvaluated {
-				isValid, _ := e.EdgeCanBeExpanded(solutionCtx, source, target)
-				//} else {
-				//	zap.S().Debugf("Using cached result for %s -> %s: %t", source, target, isValid)
-				//}
+				if !previouslCached {
+					isValid, cacheable, _ = e.EdgeCanBeExpanded(solutionCtx, source, target)
+				} else {
+					zap.S().Debugf("Using cached result for %s -> %s: %t", source, target, isValid)
+				}
 				zap.S().Debugf("valid target: %s -> %s: %t", source, target, isValid)
 				results <- &edgeValidity{
 					Source:  source,
 					Target:  target,
 					IsValid: isValid,
 				}
-				//if previouslyEvaluated {
-				//	return
-				//}
+				if previouslCached {
+					return
+				}
 
 				// cache the result, so we don't have to recompute it for the same source and target types
 				// performance benefit is unclear given potential lock contention between goroutines
-				//rwLock.Lock()
-				//if _, ok := knownTargetValidity[sourceType]; !ok {
-				//	knownTargetValidity[sourceType] = make(map[string]bool)
-				//}
-				//knownTargetValidity[sourceType][targetType] = isValid
-				//rwLock.Unlock()
+				if cacheable {
+					rwLock.Lock()
+					if _, ok := knownTargetValidity[sourceType]; !ok {
+						knownTargetValidity[sourceType] = make(map[string]bool)
+					}
+					knownTargetValidity[sourceType][targetType] = isValid
+					rwLock.Unlock()
+				}
 			})
 		}
 	}
