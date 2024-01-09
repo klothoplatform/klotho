@@ -298,7 +298,11 @@ func (e *Engine) findParent(
 				return bestParent, fmt.Errorf("failed to get namespace property %s: %w", p.Details().Path, err)
 			}
 			if propId, ok := v.(construct.ResourceId); ok {
-				return propId, nil
+				if GetResourceVizTag(e.Kb, view, propId) == ParentIconTag {
+					return propId, nil
+				}
+				// the property isn't shown as a parent (eg. Subnet or ALB Listener), so roll it up to the next parent
+				return e.findParent(view, sol, viewDag, propId)
 			} else {
 				return bestParent, fmt.Errorf("namespace property %s is not a resource id (was: %T)", p.Details().Path, v)
 			}
