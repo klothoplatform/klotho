@@ -28,29 +28,29 @@ resources:
         apiVersion: v1
         clusters:
             - cluster:
-                certificateAuthorityData: aws:eks_cluster:eks_cluster-0#CertificateAuthorityData
-                server: aws:eks_cluster:eks_cluster-0#ClusterEndpoint
+                  certificateAuthorityData: aws:eks_cluster:eks_cluster-0#CertificateAuthorityData
+                  server: aws:eks_cluster:eks_cluster-0#ClusterEndpoint
               name: aws:eks_cluster:eks_cluster-0#Name
         contexts:
             - context:
-                cluster: aws:eks_cluster:eks_cluster-0#Name
-                user: aws:eks_cluster:eks_cluster-0#Name
+                  cluster: aws:eks_cluster:eks_cluster-0#Name
+                  user: aws:eks_cluster:eks_cluster-0#Name
               name: aws:eks_cluster:eks_cluster-0#Name
         currentContext: aws:eks_cluster:eks_cluster-0#Name
         kind: Config
         users:
             - name: aws:eks_cluster:eks_cluster-0#Name
               user:
-                exec:
-                    apiVersion: client.authentication.k8s.io/v1beta1
-                    args:
-                        - eks
-                        - get-token
-                        - --cluster-name
-                        - aws:eks_cluster:eks_cluster-0#Name
-                        - --region
-                        - aws:region:region-0#Name
-                    command: aws
+                  exec:
+                      apiVersion: client.authentication.k8s.io/v1beta1
+                      args:
+                          - eks
+                          - get-token
+                          - --cluster-name
+                          - aws:eks_cluster:eks_cluster-0#Name
+                          - --region
+                          - aws:region:region-0#Name
+                      command: aws
     aws:api_deployment:rest_api_4:api_deployment-0:
         RestApi: aws:rest_api:rest_api_4
         Triggers:
@@ -60,15 +60,15 @@ resources:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
-                    - sts:AssumeRoleWithWebIdentity
+                      - sts:AssumeRoleWithWebIdentity
                   Effect: Allow
                   Principal:
-                    Federated:
-                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+                      Federated:
+                          - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
             - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+            - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
     aws:rest_api:rest_api_4:
         BinaryMediaTypes:
             - application/octet-stream
@@ -105,7 +105,7 @@ resources:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
         Type: network
-    aws:load_balancer_listener:rest_api_4_integration_0-pod2:
+    aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2:
         DefaultActions:
             - TargetGroup: aws:target_group:rest-api-4-integbcc77100
               Type: forward
@@ -205,20 +205,20 @@ resources:
                     - image: aws:ecr_image:pod2-ecr_image#ImageName
                       name: pod2
                       ports:
-                        - containerPort: 80
-                          hostPort: 80
-                          name: default-tcp
-                          protocol: TCP
+                          - containerPort: 80
+                            hostPort: 80
+                            name: default-tcp
+                            protocol: TCP
                 serviceAccountName: kubernetes:service_account:eks_cluster-0:pod2
     aws:iam_role:aws-load-balancer-controller:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
-                    - sts:AssumeRoleWithWebIdentity
+                      - sts:AssumeRoleWithWebIdentity
                   Effect: Allow
                   Principal:
-                    Federated:
-                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+                      Federated:
+                          - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
     aws:ecr_image:pod2-ecr_image:
         Context: .
@@ -260,174 +260,174 @@ resources:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
-                    - sts:AssumeRole
+                      - sts:AssumeRole
                   Effect: Allow
                   Principal:
-                    Service:
-                        - ec2.amazonaws.com
+                      Service:
+                          - ec2.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
             - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
             - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
             - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+            - arn:aws:iam::aws:policy/AWSCloudMapFullAccess
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
-                    - sts:AssumeRoleWithWebIdentity
+                      - sts:AssumeRoleWithWebIdentity
                   Effect: Allow
                   Principal:
-                    Federated:
-                        - aws:iam_oidc_provider:eks_cluster-0#Arn
+                      Federated:
+                          - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
     aws:iam_policy:iam_policy-0:
         Policy:
             Statement:
                 - Action:
-                    - ec2:DescribeAccountAttributes
-                    - ec2:DescribeAddresses
-                    - ec2:DescribeAvailabilityZones
-                    - ec2:DescribeInternetGateways
-                    - ec2:DescribeVpcs
-                    - ec2:DescribeVpcPeeringConnections
-                    - ec2:DescribeSubnets
-                    - ec2:DescribeSecurityGroups
-                    - ec2:DescribeInstances
-                    - ec2:DescribeNetworkInterfaces
-                    - ec2:DescribeTags
-                    - ec2:GetCoipPoolUsage
-                    - ec2:DescribeCoipPools
-                    - elasticloadbalancing:DescribeLoadBalancers
-                    - elasticloadbalancing:DescribeLoadBalancerAttributes
-                    - elasticloadbalancing:DescribeListeners
-                    - elasticloadbalancing:DescribeListenerCertificates
-                    - elasticloadbalancing:DescribeSSLPolicies
-                    - elasticloadbalancing:DescribeRules
-                    - elasticloadbalancing:DescribeTargetGroups
-                    - elasticloadbalancing:DescribeTargetGroupAttributes
-                    - elasticloadbalancing:DescribeTargetHealth
-                    - elasticloadbalancing:DescribeTags
-                    - elasticloadbalancing:CreateListener
-                    - elasticloadbalancing:DeleteListener
-                    - elasticloadbalancing:CreateRule
-                    - elasticloadbalancing:DeleteRule
+                      - ec2:DescribeAccountAttributes
+                      - ec2:DescribeAddresses
+                      - ec2:DescribeAvailabilityZones
+                      - ec2:DescribeInternetGateways
+                      - ec2:DescribeVpcs
+                      - ec2:DescribeVpcPeeringConnections
+                      - ec2:DescribeSubnets
+                      - ec2:DescribeSecurityGroups
+                      - ec2:DescribeInstances
+                      - ec2:DescribeNetworkInterfaces
+                      - ec2:DescribeTags
+                      - ec2:GetCoipPoolUsage
+                      - ec2:DescribeCoipPools
+                      - elasticloadbalancing:DescribeLoadBalancers
+                      - elasticloadbalancing:DescribeLoadBalancerAttributes
+                      - elasticloadbalancing:DescribeListeners
+                      - elasticloadbalancing:DescribeListenerCertificates
+                      - elasticloadbalancing:DescribeSSLPolicies
+                      - elasticloadbalancing:DescribeRules
+                      - elasticloadbalancing:DescribeTargetGroups
+                      - elasticloadbalancing:DescribeTargetGroupAttributes
+                      - elasticloadbalancing:DescribeTargetHealth
+                      - elasticloadbalancing:DescribeTags
+                      - elasticloadbalancing:CreateListener
+                      - elasticloadbalancing:DeleteListener
+                      - elasticloadbalancing:CreateRule
+                      - elasticloadbalancing:DeleteRule
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - cognito-idp:DescribeUserPoolClient
-                    - acm:ListCertificates
-                    - acm:DescribeCertificate
-                    - iam:ListServerCertificates
-                    - iam:GetServerCertificate
-                    - waf-regional:GetWebACL
-                    - waf-regional:GetWebACLForResource
-                    - waf-regional:AssociateWebACL
-                    - waf-regional:DisassociateWebACL
-                    - wafv2:GetWebACL
-                    - wafv2:GetWebACLForResource
-                    - wafv2:AssociateWebACL
-                    - wafv2:DisassociateWebACL
-                    - shield:GetSubscriptionState
-                    - shield:DescribeProtection
-                    - shield:CreateProtection
-                    - shield:DeleteProtection
+                      - cognito-idp:DescribeUserPoolClient
+                      - acm:ListCertificates
+                      - acm:DescribeCertificate
+                      - iam:ListServerCertificates
+                      - iam:GetServerCertificate
+                      - waf-regional:GetWebACL
+                      - waf-regional:GetWebACLForResource
+                      - waf-regional:AssociateWebACL
+                      - waf-regional:DisassociateWebACL
+                      - wafv2:GetWebACL
+                      - wafv2:GetWebACLForResource
+                      - wafv2:AssociateWebACL
+                      - wafv2:DisassociateWebACL
+                      - shield:GetSubscriptionState
+                      - shield:DescribeProtection
+                      - shield:CreateProtection
+                      - shield:DeleteProtection
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - iam:CreateServiceLinkedRole
+                      - iam:CreateServiceLinkedRole
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - ec2:AuthorizeSecurityGroupIngress
-                    - ec2:RevokeSecurityGroupIngress
+                      - ec2:AuthorizeSecurityGroupIngress
+                      - ec2:RevokeSecurityGroupIngress
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - ec2:CreateSecurityGroup
+                      - ec2:CreateSecurityGroup
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - ec2:CreateTags
+                      - ec2:CreateTags
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - arn:aws:ec2:*:*:security-group/*
+                      - arn:aws:ec2:*:*:security-group/*
                 - Action:
-                    - ec2:CreateTags
-                    - ec2:DeleteTags
+                      - ec2:CreateTags
+                      - ec2:DeleteTags
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - arn:aws:ec2:*:*:security-group/*
+                      - arn:aws:ec2:*:*:security-group/*
                 - Action:
-                    - ec2:AuthorizeSecurityGroupIngress
-                    - ec2:RevokeSecurityGroupIngress
-                    - ec2:DeleteSecurityGroup
+                      - ec2:AuthorizeSecurityGroupIngress
+                      - ec2:RevokeSecurityGroupIngress
+                      - ec2:DeleteSecurityGroup
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - arn:aws:ec2:*:*:security-group/*
+                      - arn:aws:ec2:*:*:security-group/*
                 - Action:
-                    - elasticloadbalancing:CreateLoadBalancer
-                    - elasticloadbalancing:CreateTargetGroup
+                      - elasticloadbalancing:CreateLoadBalancer
+                      - elasticloadbalancing:CreateTargetGroup
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - arn:aws:ec2:*:*:security-group/*
+                      - arn:aws:ec2:*:*:security-group/*
                 - Action:
-                    - elasticloadbalancing:AddTags
-                    - elasticloadbalancing:RemoveTags
+                      - elasticloadbalancing:AddTags
+                      - elasticloadbalancing:RemoveTags
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
-                    - arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*
-                    - arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*
+                      - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+                      - arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*
+                      - arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*
                 - Action:
-                    - elasticloadbalancing:AddTags
-                    - elasticloadbalancing:RemoveTags
+                      - elasticloadbalancing:AddTags
+                      - elasticloadbalancing:RemoveTags
                   Effect: Allow
                   Resource:
-                    - arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*
-                    - arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*
-                    - arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*
-                    - arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*
+                      - arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*
+                      - arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*
+                      - arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*
+                      - arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*
                 - Action:
-                    - elasticloadbalancing:ModifyLoadBalancerAttributes
-                    - elasticloadbalancing:SetIpAddressType
-                    - elasticloadbalancing:SetSecurityGroups
-                    - elasticloadbalancing:SetSubnets
-                    - elasticloadbalancing:DeleteLoadBalancer
-                    - elasticloadbalancing:ModifyTargetGroup
-                    - elasticloadbalancing:ModifyTargetGroupAttributes
-                    - elasticloadbalancing:DeleteTargetGroup
+                      - elasticloadbalancing:ModifyLoadBalancerAttributes
+                      - elasticloadbalancing:SetIpAddressType
+                      - elasticloadbalancing:SetSecurityGroups
+                      - elasticloadbalancing:SetSubnets
+                      - elasticloadbalancing:DeleteLoadBalancer
+                      - elasticloadbalancing:ModifyTargetGroup
+                      - elasticloadbalancing:ModifyTargetGroupAttributes
+                      - elasticloadbalancing:DeleteTargetGroup
                   Condition: {}
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
                 - Action:
-                    - elasticloadbalancing:RegisterTargets
-                    - elasticloadbalancing:DeregisterTargets
+                      - elasticloadbalancing:RegisterTargets
+                      - elasticloadbalancing:DeregisterTargets
                   Effect: Allow
                   Resource:
-                    - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+                      - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
                 - Action:
-                    - elasticloadbalancing:SetWebAcl
-                    - elasticloadbalancing:ModifyListener
-                    - elasticloadbalancing:AddListenerCertificates
-                    - elasticloadbalancing:RemoveListenerCertificates
-                    - elasticloadbalancing:ModifyRule
+                      - elasticloadbalancing:SetWebAcl
+                      - elasticloadbalancing:ModifyListener
+                      - elasticloadbalancing:AddListenerCertificates
+                      - elasticloadbalancing:RemoveListenerCertificates
+                      - elasticloadbalancing:ModifyRule
                   Effect: Allow
                   Resource:
-                    - '*'
+                      - '*'
             Version: "2012-10-17"
     aws:iam_oidc_provider:eks_cluster-0:
         ClientIdLists:
@@ -441,17 +441,17 @@ resources:
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
-        Version: "1.28"   
+        Version: "1.28"
         Vpc: aws:vpc:vpc-0
     aws:iam_role:ClusterRole-eks_cluster-0:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
-                    - sts:AssumeRole
+                      - sts:AssumeRole
                   Effect: Allow
                   Principal:
-                    Service:
-                        - eks.amazonaws.com
+                      Service:
+                          - eks.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
@@ -478,14 +478,14 @@ resources:
     aws:security_group:vpc-0:eks_cluster-0-security_group:
         EgressRules:
             - CidrBlocks:
-                - 0.0.0.0/0
+                  - 0.0.0.0/0
               Description: Allows all outbound IPv4 traffic
               FromPort: 0
               Protocol: "-1"
               ToPort: 0
         IngressRules:
             - CidrBlocks:
-                - 0.0.0.0/0
+                  - 0.0.0.0/0
               Description: Allows ingress traffic from the EKS control plane
               FromPort: 9443
               Protocol: TCP
@@ -496,13 +496,13 @@ resources:
               Self: true
               ToPort: 0
             - CidrBlocks:
-                - 10.0.128.0/18
+                  - 10.0.128.0/18
               Description: Allow ingress traffic from ip addresses within the subnet subnet-0
               FromPort: 0
               Protocol: "-1"
               ToPort: 0
             - CidrBlocks:
-                - 10.0.192.0/18
+                  - 10.0.192.0/18
               Description: Allow ingress traffic from ip addresses within the subnet subnet-1
               FromPort: 0
               Protocol: "-1"
@@ -591,20 +591,17 @@ edges:
     aws:api_method:rest_api_4:rest_api_4_integration_0_method -> aws:api_integration:rest_api_4:rest_api_4_integration_0:
     aws:api_integration:rest_api_4:rest_api_4_integration_0 -> aws:vpc_link:rest_api_4_integration_0-pod2:
     aws:vpc_link:rest_api_4_integration_0-pod2 -> aws:load_balancer:rest-api-4-integbcc77100:
-    aws:load_balancer:rest-api-4-integbcc77100 -> aws:load_balancer_listener:rest_api_4_integration_0-pod2:
+    aws:load_balancer:rest-api-4-integbcc77100 -> aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2:
     aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-0:
     aws:load_balancer:rest-api-4-integbcc77100 -> aws:subnet:vpc-0:subnet-1:
-    aws:load_balancer_listener:rest_api_4_integration_0-pod2 -> aws:target_group:rest-api-4-integbcc77100:
+    aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2 -> aws:target_group:rest-api-4-integbcc77100:
     aws:target_group:rest-api-4-integbcc77100 -> kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
     kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
-    ? kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
-    :
-    ? kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:service:eks_cluster-0:restapi4integration0-pod2
-    :
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller:
+    kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:service:eks_cluster-0:restapi4integration0-pod2:
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:
     kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> aws:region:region-0:
-    ? kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
-    :
+    kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller -> kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller:
     kubernetes:service:eks_cluster-0:restapi4integration0-pod2 -> aws:eks_cluster:eks_cluster-0:
     kubernetes:service:eks_cluster-0:restapi4integration0-pod2 -> kubernetes:pod:eks_cluster-0:pod2:
     kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller -> aws:eks_cluster:eks_cluster-0:

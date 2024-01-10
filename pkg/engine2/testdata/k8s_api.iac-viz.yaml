@@ -186,10 +186,10 @@ resources:
 
   route_table_association/subnet-0-subnet-0-route_table -> aws:route_table:vpc-0/subnet-0-route_table:
   route_table_association/subnet-0-subnet-0-route_table -> aws:subnet:vpc-0/subnet-0:
-  load_balancer_listener/rest_api_4_integration_0-pod2:
+  aws:load_balancer_listener:rest-api-4-integbcc77100/rest_api_4_integration_0-pod2:
 
-  load_balancer_listener/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:
-  load_balancer_listener/rest_api_4_integration_0-pod2 -> target_group/rest-api-4-integbcc77100:
+  aws:load_balancer_listener:rest-api-4-integbcc77100/rest_api_4_integration_0-pod2 -> load_balancer/rest-api-4-integbcc77100:
+  aws:load_balancer_listener:rest-api-4-integbcc77100/rest_api_4_integration_0-pod2 -> target_group/rest-api-4-integbcc77100:
   iam_role_policy_attachment/aws-load-balancer-controller-iam_policy-0:
 
   iam_role_policy_attachment/aws-load-balancer-controller-iam_policy-0 -> iam_policy/iam_policy-0:
