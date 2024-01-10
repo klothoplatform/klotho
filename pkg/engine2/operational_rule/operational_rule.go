@@ -13,6 +13,8 @@ import (
 	"go.uber.org/zap"
 )
 
+//go:generate 	mockgen -source=./operational_rule.go --destination=../operational_eval/operational_rule_mock_test.go --package=operational_eval
+
 type (
 	OperationalRuleContext struct {
 		Solution solution_context.SolutionContext

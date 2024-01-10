@@ -7,6 +7,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
+	"github.com/stretchr/testify/assert"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -43,12 +44,16 @@ func Test_propertyVertex_evaluateResourceOperational(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			ctrl := gomock.NewController(t)
 			opctx := NewMockOpRuleHandler(ctrl)
 			opctx.EXPECT().HandlePropertyRule(*rule).Return(nil).Times(1)
-			if err := tt.args.v.evaluateResourceOperational(tt.args.res, opctx); (err != nil) != tt.wantErr {
-				t.Errorf("propertyVertex.evaluateResourceOperational() error = %v, wantErr %v", err, tt.wantErr)
+			err := tt.args.v.evaluateResourceOperational(tt.args.res, opctx)
+			if tt.wantErr {
+				assert.Error(err)
+				return
 			}
+			assert.NoError(err)
 			ctrl.Finish()
 		})
 	}
@@ -90,6 +95,7 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
 			ctrl := gomock.NewController(t)
 			opctx := NewMockOpRuleHandler(ctrl)
 			opctx.EXPECT().SetData(knowledgebase.DynamicValueData{
@@ -97,9 +103,12 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 				Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
 			}).Times(1)
 			opctx.EXPECT().HandleOperationalRule(rule).Return(nil).Times(1)
-			if err := tt.args.v.evaluateEdgeOperational(tt.args.res, opctx); (err != nil) != tt.wantErr {
-				t.Errorf("propertyVertex.evaluateEdgeOperational() error = %v, wantErr %v", err, tt.wantErr)
+			err := tt.args.v.evaluateEdgeOperational(tt.args.res, opctx)
+			if tt.wantErr {
+				assert.Error(err)
+				return
 			}
+			assert.NoError(err)
 			ctrl.Finish()
 		})
 	}
