@@ -1,11 +1,5 @@
 provider: aws
 resources:
-  rds_instance/rds-instance-1:
-    children:
-        - aws:rds_subnet_group:rds_subnet_group-0
-    parent: vpc/vpc-0
-    tag: big
-
   vpc/vpc-0:
     children:
         - aws:internet_gateway:vpc-0:internet_gateway-0
@@ -22,6 +16,12 @@ resources:
         - aws:subnet:vpc-0:subnet-3
     tag: parent
 
+  rds_instance/rds-instance-1:
+    children:
+        - aws:rds_subnet_group:rds_subnet_group-0
+    parent: vpc/vpc-0
+    tag: big
+
   lambda_function/lambda_function_3:
     children:
         - aws:ecr_image:lambda_function_3-image
@@ -29,6 +29,25 @@ resources:
         - aws:iam_role:lambda_function_3-ExecutionRole
     parent: vpc/vpc-0
     tag: big
+
+  lambda_function/lambda_function_3 -> vpc/vpc-0:
+    path:
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        - aws:route_table:vpc-0:subnet-0-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:route_table_association:subnet-0-subnet-0-route_table
+        - aws:route_table_association:subnet-1-subnet-1-route_table
+        - aws:route_table_association:subnet-2-subnet-2-route_table
+        - aws:route_table_association:subnet-3-subnet-3-route_table
+        - aws:security_group:vpc-0:rds-instance-1-security_group
+        - aws:subnet:vpc-0:subnet-0
+        - aws:subnet:vpc-0:subnet-1
+        - aws:subnet:vpc-0:subnet-2
+        - aws:subnet:vpc-0:subnet-3
 
   lambda_function/lambda_function_0:
     children:
@@ -44,4 +63,23 @@ resources:
         - aws:security_group:vpc-0:rds-instance-1-security_group
         - aws:subnet:vpc-0:subnet-0
         - aws:subnet:vpc-0:subnet-1
+
+  lambda_function/lambda_function_0 -> vpc/vpc-0:
+    path:
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        - aws:route_table:vpc-0:subnet-0-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:route_table_association:subnet-0-subnet-0-route_table
+        - aws:route_table_association:subnet-1-subnet-1-route_table
+        - aws:route_table_association:subnet-2-subnet-2-route_table
+        - aws:route_table_association:subnet-3-subnet-3-route_table
+        - aws:security_group:vpc-0:rds-instance-1-security_group
+        - aws:subnet:vpc-0:subnet-0
+        - aws:subnet:vpc-0:subnet-1
+        - aws:subnet:vpc-0:subnet-2
+        - aws:subnet:vpc-0:subnet-3
 

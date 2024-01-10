@@ -37,3 +37,20 @@ resources:
         - aws:iam_role:ecs_service_0-execution-role
         - aws:security_group:vpc-0:rds-instance-2-security_group
 
+  ecs_service/ecs_service_0 -> vpc/vpc-0:
+    path:
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        - aws:route_table:vpc-0:subnet-0-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:route_table_association:subnet-0-subnet-0-route_table
+        - aws:route_table_association:subnet-1-subnet-1-route_table
+        - aws:route_table_association:subnet-2-subnet-2-route_table
+        - aws:route_table_association:subnet-3-subnet-3-route_table
+        - aws:security_group:vpc-0:rds-instance-2-security_group
+        - aws:subnet:vpc-0:subnet-2
+        - aws:subnet:vpc-0:subnet-3
+
