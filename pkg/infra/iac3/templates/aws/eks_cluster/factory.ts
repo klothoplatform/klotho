@@ -5,11 +5,13 @@ interface Args {
     Subnets: aws.ec2.Subnet[]
     SecurityGroups: aws.ec2.SecurityGroup[]
     ClusterRole: aws.iam.Role
+    Version: string
 }
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.eks.Cluster {
     return new aws.eks.Cluster(args.Name, {
+        version: args.Version,
         vpcConfig: {
             subnetIds: args.Subnets.map((subnet) => subnet.id),
             //TMPL {{- if .SecurityGroups }}
