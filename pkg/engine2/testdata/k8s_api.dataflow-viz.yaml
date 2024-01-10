@@ -2,21 +2,23 @@ provider: aws
 resources:
   kubernetes:pod:eks_cluster-0/pod2:
     children:
-        - aws:iam_role:ClusterRole-eks_cluster-0
+      - aws:iam_role:ClusterRole-eks_cluster-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
   load_balancer/rest-api-4-integbcc77100:
+    children:
+      - aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2
     parent: vpc/vpc-0
-    tag: big
+    tag: parent
 
   load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
     path:
-        - aws:load_balancer_listener:rest_api_4_integration_0-pod2
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:target_group:rest-api-4-integbcc77100
-        - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
-        - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
+      - aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2
+      - aws:security_group:vpc-0:eks_cluster-0-security_group
+      - aws:target_group:rest-api-4-integbcc77100
+      - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
+      - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0:
     parent: rest_api/rest_api_4
@@ -24,58 +26,58 @@ resources:
 
   aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integbcc77100:
     path:
-        - aws:vpc_link:rest_api_4_integration_0-pod2
+      - aws:vpc_link:rest_api_4_integration_0-pod2
 
   kubernetes:helm_chart:eks_cluster-0/metricsserver:
     children:
-        - aws:iam_role:ClusterRole-eks_cluster-0
+      - aws:iam_role:ClusterRole-eks_cluster-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
   kubernetes:helm_chart:eks_cluster-0/aws-load-balancer-controller:
     children:
-        - aws:iam_role:ClusterRole-eks_cluster-0
+      - aws:iam_role:ClusterRole-eks_cluster-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
   vpc/vpc-0:
     children:
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:subnet:vpc-0:subnet-2
-        - aws:subnet:vpc-0:subnet-3
+      - aws:internet_gateway:vpc-0:internet_gateway-0
+      - aws:route_table:vpc-0:subnet-0-route_table
+      - aws:route_table:vpc-0:subnet-1-route_table
+      - aws:route_table:vpc-0:subnet-2-route_table
+      - aws:route_table:vpc-0:subnet-3-route_table
+      - aws:security_group:vpc-0:eks_cluster-0-security_group
+      - aws:subnet:vpc-0:subnet-0
+      - aws:subnet:vpc-0:subnet-1
+      - aws:subnet:vpc-0:subnet-2
+      - aws:subnet:vpc-0:subnet-3
     tag: parent
 
   rest_api/rest_api_4:
     children:
-        - aws:api_deployment:rest_api_4:api_deployment-0
-        - aws:api_integration:rest_api_4:rest_api_4_integration_0
-        - aws:api_method:rest_api_4:rest_api_4_integration_0_method
-        - aws:api_resource:rest_api_4:api_resource-0
-        - aws:api_stage:rest_api_4:api_stage-0
+      - aws:api_deployment:rest_api_4:api_deployment-0
+      - aws:api_integration:rest_api_4:rest_api_4_integration_0
+      - aws:api_method:rest_api_4:rest_api_4_integration_0_method
+      - aws:api_resource:rest_api_4:api_resource-0
+      - aws:api_stage:rest_api_4:api_stage-0
     tag: parent
 
   rest_api/rest_api_4 -> aws:api_integration:rest_api_4/rest_api_4_integration_0:
     path:
-        - aws:api_method:rest_api_4:rest_api_4_integration_0_method
-        - aws:api_resource:rest_api_4:api_resource-0
+      - aws:api_method:rest_api_4:rest_api_4_integration_0_method
+      - aws:api_resource:rest_api_4:api_resource-0
 
   eks_cluster/eks_cluster-0:
     children:
-        - aws:iam_role:ClusterRole-eks_cluster-0
-        - kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
-        - kubernetes:helm_chart:eks_cluster-0:metricsserver
-        - kubernetes:pod:eks_cluster-0:pod2
-        - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
-        - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
-        - kubernetes:service_account:eks_cluster-0:pod2
-        - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
+      - aws:iam_role:ClusterRole-eks_cluster-0
+      - kubernetes:helm_chart:eks_cluster-0:aws-load-balancer-controller
+      - kubernetes:helm_chart:eks_cluster-0:metricsserver
+      - kubernetes:pod:eks_cluster-0:pod2
+      - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
+      - kubernetes:service_account:eks_cluster-0:aws-load-balancer-controller
+      - kubernetes:service_account:eks_cluster-0:pod2
+      - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
     parent: vpc/vpc-0
     tag: parent
 
