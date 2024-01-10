@@ -1,0 +1,20 @@
+constraints:
+  - node: aws:cloudfront_distribution:cloudfront_distribution_2
+    operator: add
+    scope: application
+  - node: aws:rest_api:rest_api_1
+    operator: add
+    scope: application
+  - node: aws:s3_bucket:s3-bucket-3
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:cloudfront_distribution:cloudfront_distribution_2
+      target: aws:rest_api:rest_api_1
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:cloudfront_distribution:cloudfront_distribution_2
+      target: aws:s3_bucket:s3-bucket-3
