@@ -48,8 +48,8 @@ resources:
                         - lambda.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
     aws:subnet:subnet2:
         Type: private
         Vpc: aws:vpc:vpc

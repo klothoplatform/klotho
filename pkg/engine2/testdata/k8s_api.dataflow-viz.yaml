@@ -1,64 +1,14 @@
 provider: aws
 resources:
-  vpc/vpc-0:
-    children:
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:subnet:vpc-0:subnet-2
-        - aws:subnet:vpc-0:subnet-3
-    tag: parent
-
   kubernetes:pod:eks_cluster-0/pod2:
     children:
         - aws:iam_role:ClusterRole-eks_cluster-0
     parent: eks_cluster/eks_cluster-0
     tag: big
 
-  kubernetes:pod:eks_cluster-0/pod2 -> vpc/vpc-0:
-    path:
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
-        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:route_table_association:subnet-0-subnet-0-route_table
-        - aws:route_table_association:subnet-1-subnet-1-route_table
-        - aws:route_table_association:subnet-2-subnet-2-route_table
-        - aws:route_table_association:subnet-3-subnet-3-route_table
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:subnet:vpc-0:subnet-2
-        - aws:subnet:vpc-0:subnet-3
-
   load_balancer/rest-api-4-integbcc77100:
     parent: vpc/vpc-0
     tag: big
-
-  load_balancer/rest-api-4-integbcc77100 -> vpc/vpc-0:
-    path:
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
-        - aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
-        - aws:route_table:vpc-0:subnet-0-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:route_table_association:subnet-0-subnet-0-route_table
-        - aws:route_table_association:subnet-1-subnet-1-route_table
-        - aws:route_table_association:subnet-2-subnet-2-route_table
-        - aws:route_table_association:subnet-3-subnet-3-route_table
-        - aws:security_group:vpc-0:eks_cluster-0-security_group
-        - aws:subnet:vpc-0:subnet-0
-        - aws:subnet:vpc-0:subnet-1
-        - aws:subnet:vpc-0:subnet-2
-        - aws:subnet:vpc-0:subnet-3
 
   load_balancer/rest-api-4-integbcc77100 -> kubernetes:pod:eks_cluster-0/pod2:
     path:
@@ -87,6 +37,20 @@ resources:
         - aws:iam_role:ClusterRole-eks_cluster-0
     parent: eks_cluster/eks_cluster-0
     tag: big
+
+  vpc/vpc-0:
+    children:
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:route_table:vpc-0:subnet-0-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:security_group:vpc-0:eks_cluster-0-security_group
+        - aws:subnet:vpc-0:subnet-0
+        - aws:subnet:vpc-0:subnet-1
+        - aws:subnet:vpc-0:subnet-2
+        - aws:subnet:vpc-0:subnet-3
+    tag: parent
 
   rest_api/rest_api_4:
     children:
