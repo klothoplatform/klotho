@@ -92,7 +92,7 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 	for _, id := range ids {
 		var err error
 		switch tag := GetResourceVizTag(e.Kb, view, id); tag {
-		case NoRenderTag:
+		case NoRenderTag, SmallIconTag:
 			continue
 		case ParentIconTag, BigIconTag:
 			err = viewDag.AddVertex(&visualizer.VisResource{
