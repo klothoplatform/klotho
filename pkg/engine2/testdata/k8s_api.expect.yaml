@@ -441,6 +441,7 @@ resources:
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
+        Version: "1.28"   
         Vpc: aws:vpc:vpc-0
     aws:iam_role:ClusterRole-eks_cluster-0:
         AssumeRolePolicyDoc:

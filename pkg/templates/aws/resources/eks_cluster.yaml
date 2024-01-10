@@ -2,6 +2,10 @@ qualified_type_name: aws:eks_cluster
 display_name: EKS Cluster
 
 properties:
+  Version:
+    type: string
+    default_value: "1.28"
+    description: The Kubernetes version to use for the EKS cluster
   ClusterRole:
     type: resource(aws:iam_role)
     operational_rule:
