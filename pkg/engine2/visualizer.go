@@ -153,6 +153,20 @@ func (e *Engine) handleBigIcon(
 	}
 	this.Parent = parent
 
+	ancestors := make(set.Set[construct.ResourceId])
+	for ancestor := id; !ancestor.IsZero() && err == nil; {
+		ancestors.Add(ancestor)
+
+		var ancestorVert *visualizer.VisResource
+		ancestorVert, err = viewDag.Vertex(ancestor)
+		if ancestorVert != nil {
+			ancestor = ancestorVert.Parent
+		}
+	}
+	if err != nil {
+		return err
+	}
+
 	targets, err := construct.TopologicalSort(viewDag)
 	if err != nil {
 		return err
@@ -160,9 +174,11 @@ func (e *Engine) handleBigIcon(
 
 	var errs error
 	for _, target := range targets {
-		if target == id {
+		if ancestors.Contains(target) {
+			// Don't draw edges from a node to its ancestors, since it already lives inside of them
 			continue
 		}
+
 		_, targetErr := viewDag.Vertex(target)
 		if errors.Is(targetErr, graph.ErrVertexNotFound) {
 			continue

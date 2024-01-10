@@ -14,8 +14,3 @@ resources:
     parent: vpc/vpc
     tag: big
 
-  lambda_function/lambda_function -> vpc/vpc:
-    path:
-        - aws:subnet:subnet2
-        - aws:subnet:vpc:subnet1
-

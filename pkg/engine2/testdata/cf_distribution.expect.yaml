@@ -24,6 +24,10 @@ resources:
             ViewerProtocolPolicy: allow-all
         Enabled: true
         Origins:
+            - DomainName: aws:s3_bucket:s3-bucket-3#BucketRegionalDomainName
+              OriginId: s3-bucket-3
+              S3OriginConfig:
+                OriginAccessIdentity: aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0#CloudfrontAccessIdentityPath
             - CustomOriginConfig:
                 HttpPort: 80
                 HttpsPort: 443
@@ -36,10 +40,6 @@ resources:
               DomainName: aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1#StageInvokeUrl
               OriginId: cloudfront_distribution_2-rest_api_1
               OriginPath: /stage
-            - DomainName: aws:s3_bucket:s3-bucket-3#BucketRegionalDomainName
-              OriginId: s3-bucket-3
-              S3OriginConfig:
-                OriginAccessIdentity: aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0#CloudfrontAccessIdentityPath
         Restrictions:
             GeoRestriction:
                 RestrictionType: none
