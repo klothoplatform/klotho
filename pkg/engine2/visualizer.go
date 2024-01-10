@@ -163,7 +163,11 @@ func (e *Engine) handleBigIcon(
 		if target == id {
 			continue
 		}
-		if tag := GetResourceVizTag(e.Kb, view, target); tag != BigIconTag {
+		_, targetErr := viewDag.Vertex(target)
+		if errors.Is(targetErr, graph.ErrVertexNotFound) {
+			continue
+		} else if targetErr != nil {
+			errs = errors.Join(errs, targetErr)
 			continue
 		}
 
