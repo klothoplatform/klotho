@@ -100,6 +100,8 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 				Children: make(set.Set[construct.ResourceId]),
 				Tag:      string(tag),
 			})
+		default:
+			errs = errors.Join(errs, fmt.Errorf("unknown tag %s", tag))
 		}
 		errs = errors.Join(errs, err)
 	}
@@ -107,52 +109,37 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 		return nil, errs
 	}
 
-	// Second pass sets up the small icons & edges between big icons
+	// Second pass sets up the small icons & parents
 	for _, id := range ids {
 		switch tag := GetResourceVizTag(e.Kb, view, id); tag {
-		case NoRenderTag:
-			continue
-		case ParentIconTag:
-			// Parent icons, for the purposes of handling calculating other parents, children
-			// and edges, are treated as big icons
-			err := e.handleBigIcon(sol, view, viewDag, id)
+		case ParentIconTag, BigIconTag:
+			err := e.setupAncestry(sol, view, viewDag, id)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("failed to handle parent icon %s: %w", id, err))
+				errs = errors.Join(errs, fmt.Errorf("failed to handle %s icon %s: %w", tag, id, err))
 			}
-		case BigIconTag:
-			err := e.handleBigIcon(sol, view, viewDag, id)
+		}
+	}
+
+	// Third pass for the edges. Needs to happen after parents to exclude edges to a node's ancestry
+	for _, id := range ids {
+		switch tag := GetResourceVizTag(e.Kb, view, id); tag {
+		case ParentIconTag, BigIconTag:
+			err := e.makeEdges(sol, view, viewDag, id)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("failed to handle big icon %s: %w", id, err))
+				errs = errors.Join(errs, fmt.Errorf("failed to handle %s icon %s: %w", tag, id, err))
 			}
-		case SmallIconTag:
-			// Small icons don't need special handling, handleBigIcon will look for any relevant small icons to include
-		default:
-			errs = errors.Join(errs, fmt.Errorf("unknown tag %s", tag))
 		}
 	}
 
 	return viewDag, errs
 }
 
-// handleBigIcon sets the parent of the big icon if there is a group it should be added to and
-// adds edges to any other big icons based on having the proper connections (network & permissions).
-func (e *Engine) handleBigIcon(
+func (e *Engine) makeEdges(
 	sol solution_context.SolutionContext,
 	view View,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
-) error {
-	this, err := viewDag.Vertex(id)
-	if err != nil {
-		return err
-	}
-
-	parent, err := e.findParent(view, sol, viewDag, id)
-	if err != nil {
-		return err
-	}
-	this.Parent = parent
-
+) (err error) {
 	ancestors := make(set.Set[construct.ResourceId])
 	for ancestor := id; !ancestor.IsZero() && err == nil; {
 		ancestors.Add(ancestor)
@@ -204,9 +191,27 @@ func (e *Engine) handleBigIcon(
 			})))
 		}
 	}
-	if errs != nil {
-		return errs
+	return errs
+}
+
+// setupAncestry sets the parent of the big icon if there is a group it should be added to and
+// adds edges to any other big icons based on having the proper connections (network & permissions).
+func (e *Engine) setupAncestry(
+	sol solution_context.SolutionContext,
+	view View,
+	viewDag visualizer.VisGraph,
+	id construct.ResourceId,
+) error {
+	this, err := viewDag.Vertex(id)
+	if err != nil {
+		return err
 	}
+
+	parent, err := e.findParent(view, sol, viewDag, id)
+	if err != nil {
+		return err
+	}
+	this.Parent = parent
 
 	if err := e.setChildren(sol, view, this); err != nil {
 		return err
