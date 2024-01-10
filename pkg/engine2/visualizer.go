@@ -113,12 +113,14 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 		case NoRenderTag:
 			continue
 		case ParentIconTag:
-			err := e.handleParentIcon(sol, view, viewDag, id)
+			// Parent icons, for the purposes of handling calculating other parents, children
+			// and edges, are treated as big icons
+			err := e.handleBigIcon(sol, view, viewDag, id)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to handle parent icon %s: %w", id, err))
 			}
 		case BigIconTag:
-			err := e.handleBigIcon(sol, view, undirected, viewDag, id)
+			err := e.handleBigIcon(sol, view, viewDag, id)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to handle big icon %s: %w", id, err))
 			}
@@ -132,36 +134,11 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 	return viewDag, errs
 }
 
-func (e *Engine) handleParentIcon(
-	sol solution_context.SolutionContext,
-	view View,
-	viewDag visualizer.VisGraph,
-	id construct.ResourceId,
-) error {
-	this, err := viewDag.Vertex(id)
-	if err != nil {
-		return err
-	}
-
-	parent, err := e.findParent(view, sol, viewDag, id)
-	if err != nil {
-		return err
-	}
-	this.Parent = parent
-
-	if err := e.setChildren(sol, view, this); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // handleBigIcon sets the parent of the big icon if there is a group it should be added to and
 // adds edges to any other big icons based on having the proper connections (network & permissions).
 func (e *Engine) handleBigIcon(
 	sol solution_context.SolutionContext,
 	view View,
-	undirected construct.Graph,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) error {
