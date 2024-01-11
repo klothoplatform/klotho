@@ -47,11 +47,16 @@ properties:
     configuration_disabled: true
     deploy_time: true
     description: The port number on which each of the cache nodes accepts connections.
+  CacheNodeAddress:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    description: The endpoint address of a single node in the ElastiCache cluster.
   ClusterAddress:
     type: string
     configuration_disabled: true
     deploy_time: true
-    description: The endpoint address of the ElastiCache cluster.
+    description: The endpoint address of the ElastiCache cluster (memcached only).
 path_satisfaction:
   as_target:
     - network
