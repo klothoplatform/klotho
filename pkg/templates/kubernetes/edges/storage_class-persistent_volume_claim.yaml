@@ -1,2 +1,3 @@
 source: kubernetes:storage_class
 target: kubernetes:persistent_volume_claim
+deployment_order_reversed: true
