@@ -158,7 +158,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 				}
 			}
 
-			err = eval.cleanupPropertiesSubVertices(v.Ref, property)
+			err = eval.cleanupPropertiesSubVertices(v.Ref, res, property)
 			if err != nil {
 				return fmt.Errorf("could not cleanup sub vertices for %s: %w", v.Ref, err)
 			}

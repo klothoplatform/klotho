@@ -211,7 +211,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 	return errs
 }
 
-func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, val any) error {
+func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, resource *construct.Resource, val any) error {
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
 		return err
@@ -226,6 +226,28 @@ func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, v
 			continue
 		}
 		if strings.HasPrefix(key.Ref.Property, ref.Property) {
+
+			path, err := resource.PropertyPath(key.Ref.Property)
+			// an error would mean that the path no longer exists so we know we should remove the vertex
+			if err == nil {
+				// if the paths parent still exists then we know we will end up evaluating the vertex and should not remove it
+				parentIndex := len(path) - 2
+				if parentIndex < 0 || path[parentIndex].Get() != nil {
+					continue
+				}
+			}
+
+			edges, err := eval.unevaluated.Edges()
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+			for _, edge := range edges {
+				if edge.Source == key || edge.Target == key {
+					err = eval.unevaluated.RemoveEdge(edge.Source, edge.Target)
+					errs = errors.Join(errs, err)
+				}
+			}
 			err = eval.unevaluated.RemoveVertex(key)
 			errs = errors.Join(errs, err)
 		}
