@@ -221,18 +221,18 @@ func (e *Engine) setupAncestry(
 }
 
 func (e *Engine) setChildren(sol solution_context.SolutionContext, view View, v *visualizer.VisResource) error {
-	glue, err := knowledgebase.Downstream(
+	local, err := knowledgebase.Downstream(
 		sol.DataflowGraph(),
 		sol.KnowledgeBase(),
 		v.ID,
 		knowledgebase.ResourceLocalLayer,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get glue layer for %s: %w", v.ID, err)
+		return fmt.Errorf("failed to get local layer for %s: %w", v.ID, err)
 	}
-	for _, glueElem := range glue {
-		if GetResourceVizTag(e.Kb, view, glueElem) == SmallIconTag {
-			v.Children.Add(glueElem)
+	for _, localElem := range local {
+		if GetResourceVizTag(e.Kb, view, localElem) == SmallIconTag {
+			v.Children.Add(localElem)
 		}
 	}
 

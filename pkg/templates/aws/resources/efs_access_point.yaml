@@ -16,9 +16,11 @@ properties:
       Gid:
         type: int
         default_value: 1000
+        important: true
       Uid:
         type: int
         default_value: 1000
+        important: true
   RootDirectory:
     type: map
     properties:
@@ -28,15 +30,18 @@ properties:
           OwnerGid:
             type: int
             default_value: 1000
+            important: true
           OwnerUid:
             type: int
             default_value: 1000
+            important: true
           Permissions:
             type: string
             default_value: '777'
       Path:
         type: string
         default_value: /mnt/efs
+        important: true
 
 classification:
   is:

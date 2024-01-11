@@ -18,6 +18,7 @@ properties:
       ContainerPath:
         type: string
         description: The path on the container to mount the volume at
+        important: true
       SourceVolume:
         type: string
         description: The name of the volume to mount
