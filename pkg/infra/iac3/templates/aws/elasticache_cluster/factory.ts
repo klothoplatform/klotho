@@ -38,5 +38,6 @@ function properties(object: aws.elasticache.Cluster, args: Args) {
     return {
         Port: object.port,
         ClusterAddress: object.clusterAddress,
+        CacheNodeAddress: object.cacheNodes.apply((nodes) => nodes[0].address),
     }
 }

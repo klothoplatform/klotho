@@ -1,5 +1,6 @@
 source: kubernetes:persistent_volume
 target: kubernetes:persistent_volume_claim
+deployment_order_reversed: true
 operational_rules:
   - configuration_rules:
       - resource: '{{ .Target }}'
