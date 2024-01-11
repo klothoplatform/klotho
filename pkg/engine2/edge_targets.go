@@ -1,11 +1,12 @@
 package engine2
 
 import (
-	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	"os"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 
 	"github.com/alitto/pond"
 	"github.com/dominikbraun/graph"
@@ -100,6 +101,9 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 				Source: tempSource,
 				Target: tempTarget,
 			}, ctx.KnowledgeBase(), classification)
+		if err != nil {
+			return false, cacheable, err
+		}
 
 		tempSourceResource, err := tempGraph.Vertex(tempSource)
 		if err != nil {
