@@ -13,15 +13,23 @@ import (
 	"go.uber.org/zap"
 )
 
+//go:generate 	mockgen -source=./operational_rule.go --destination=../operational_eval/operational_rule_mock_test.go --package=operational_eval
+
 type (
 	OperationalRuleContext struct {
 		Solution solution_context.SolutionContext
 		Property knowledgebase.Property
 		Data     knowledgebase.DynamicValueData
 	}
+
+	OpRuleHandler interface {
+		HandleOperationalRule(rule knowledgebase.OperationalRule) error
+		HandlePropertyRule(rule knowledgebase.PropertyRule) error
+		SetData(data knowledgebase.DynamicValueData)
+	}
 )
 
-func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
+func (ctx *OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
 	shouldRun, err := EvaluateIfCondition(rule.If, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
@@ -49,7 +57,7 @@ func (ctx OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Opera
 	return errs
 }
 
-func (ctx OperationalRuleContext) HandlePropertyRule(rule knowledgebase.PropertyRule) error {
+func (ctx *OperationalRuleContext) HandlePropertyRule(rule knowledgebase.PropertyRule) error {
 	if ctx.Property == nil {
 		return fmt.Errorf("property rule has no property")
 	}
@@ -97,6 +105,10 @@ func (ctx OperationalRuleContext) HandlePropertyRule(rule knowledgebase.Property
 		}
 	}
 	return errs
+}
+
+func (ctx *OperationalRuleContext) SetData(data knowledgebase.DynamicValueData) {
+	ctx.Data = data
 }
 
 // CleanProperty clears the property associated with the rule if it no longer matches the rule.

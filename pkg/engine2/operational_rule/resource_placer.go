@@ -23,7 +23,6 @@ type (
 
 		SetCtx(ctx OperationalRuleContext)
 	}
-
 	SpreadPlacer struct {
 		ctx OperationalRuleContext
 	}
