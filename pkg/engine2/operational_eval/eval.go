@@ -3,7 +3,6 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -213,9 +212,6 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 }
 
 func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, val any) error {
-	if reflect.ValueOf(val).Kind() != reflect.Array && reflect.ValueOf(val).Kind() != reflect.Slice {
-		return fmt.Errorf("error while cleaning up properties sub verticies: expected array or slice, got %T", val)
-	}
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
 		return err
