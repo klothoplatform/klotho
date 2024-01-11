@@ -11,21 +11,21 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/dot"
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-func dotAttributes(kb knowledgebase2.TemplateKB, r *construct.Resource) map[string]string {
+func dotAttributes(kb knowledgebase.TemplateKB, r *construct.Resource) map[string]string {
 	a := make(map[string]string)
 	a["label"] = r.ID.String()
 	a["shape"] = "box"
 	tmpl, _ := kb.GetResourceTemplate(r.ID)
-	if tmpl != nil {
+	if tmpl != nil && len(tmpl.Classification.Is) > 0 {
 		a["label"] += fmt.Sprintf("\n%v", tmpl.Classification.Is)
 	}
 	return a
 }
 
-func dotEdgeAttributes(e construct.ResourceEdge) map[string]string {
+func dotEdgeAttributes(kb knowledgebase.TemplateKB, g construct.Graph, e construct.ResourceEdge) map[string]string {
 	a := make(map[string]string)
 	_ = e.Source.WalkProperties(func(path construct.PropertyPath, nerr error) error {
 		v := path.Get()
@@ -42,10 +42,14 @@ func dotEdgeAttributes(e construct.ResourceEdge) map[string]string {
 			a["label"] = fmt.Sprintf("%s\n%d", a["label"], e.Properties.Weight)
 		}
 	}
+	sideEffect, err := knowledgebase.IsOperationalResourceSideEffect(g, kb, e.Source.ID, e.Target.ID)
+	if err == nil && sideEffect {
+		a["color"] = "green"
+	}
 	return a
 }
 
-func GraphToDOT(kb knowledgebase2.TemplateKB, g construct.Graph, out io.Writer) error {
+func GraphToDOT(kb knowledgebase.TemplateKB, g construct.Graph, out io.Writer) error {
 	ids, err := construct.TopologicalSort(g)
 	if err != nil {
 		return err
@@ -92,13 +96,13 @@ func GraphToDOT(kb knowledgebase2.TemplateKB, g construct.Graph, out io.Writer) 
 			errs = errors.Join(errs, err)
 			continue
 		}
-		printf("  %q -> %q%s\n", e.Source, e.Target, dot.AttributesToString(dotEdgeAttributes(edge)))
+		printf("  %q -> %q%s\n", e.Source, e.Target, dot.AttributesToString(dotEdgeAttributes(kb, g, edge)))
 	}
 	printf("}\n")
 	return errs
 }
 
-func GraphToSVG(kb knowledgebase2.TemplateKB, g construct.Graph, prefix string) error {
+func GraphToSVG(kb knowledgebase.TemplateKB, g construct.Graph, prefix string) error {
 	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
 		prefix = filepath.Join(debugDir, prefix)
 	}
