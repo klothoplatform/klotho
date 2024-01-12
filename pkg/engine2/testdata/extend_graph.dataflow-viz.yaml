@@ -7,14 +7,6 @@ resources:
         - aws:iam_role:lambda_function_0-ExecutionRole
     tag: big
 
-  aws:api_integration:rest_api_1/rest_api_1_integration_0:
-    parent: rest_api/rest_api_1
-    tag: big
-
-  aws:api_integration:rest_api_1/rest_api_1_integration_0 -> lambda_function/lambda_function_0:
-    path:
-        - aws:lambda_permission:rest_api_1_integration_0_lambda_function_0
-
   rest_api/rest_api_1:
     children:
         - aws:api_deployment:rest_api_1:api_deployment-0
@@ -24,11 +16,14 @@ resources:
         - aws:api_stage:rest_api_1:api_stage-0
     tag: parent
 
-  rest_api/rest_api_1 -> aws:api_integration:rest_api_1/rest_api_1_integration_0:
-    path:
-        - aws:api_method:rest_api_1:rest_api_1_integration_0_method
-        - aws:api_resource:rest_api_1:api_resource-0
-
   dynamodb_table/dynamodb_table_3:
     tag: big
+
+  aws:api_integration:rest_api_1/rest_api_1_integration_0:
+    parent: rest_api/rest_api_1
+    tag: big
+
+  aws:api_integration:rest_api_1/rest_api_1_integration_0 -> lambda_function/lambda_function_0:
+    path:
+        - aws:lambda_permission:rest_api_1_integration_0_lambda_function_0
 
