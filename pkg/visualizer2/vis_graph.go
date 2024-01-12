@@ -68,3 +68,18 @@ func (d VisEdgeData) MarshalYAML() (interface{}, error) {
 		"path": res,
 	}, nil
 }
+
+func VertexAncestors(g VisGraph, id construct.ResourceId) (set.Set[construct.ResourceId], error) {
+	ancestors := make(set.Set[construct.ResourceId])
+	var err error
+	for ancestor := id; !ancestor.IsZero() && err == nil; {
+		ancestors.Add(ancestor)
+
+		var ancestorVert *VisResource
+		ancestorVert, err = g.Vertex(ancestor)
+		if ancestorVert != nil {
+			ancestor = ancestorVert.Parent
+		}
+	}
+	return ancestors, err
+}
