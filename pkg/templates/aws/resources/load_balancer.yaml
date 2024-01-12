@@ -29,6 +29,7 @@ properties:
     type: string
     default_value: internal
     description: Indicates whether the load balancer is internet-facing or internal
+    important: true
     allowed_values:
       - internet-facing
       - internal
@@ -80,10 +81,10 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-
     description: A unique identifier for the load balancer, available after deployment
+
 path_satisfaction:
-# See comment above for why we are not solving the network path 
+  # See comment above for why we are not solving the network path
   as_target:
     - network
   as_source:
