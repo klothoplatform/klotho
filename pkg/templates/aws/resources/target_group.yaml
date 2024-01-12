@@ -35,7 +35,7 @@ properties:
   TargetType:
     type: string
     allowed_values:
-#      - alb # only valid for Network Load Balancers
+      #      - alb # only valid for Network Load Balancers
       - instance
       - ip
       - lambda # only valid for Application Load Balancers
@@ -58,8 +58,10 @@ properties:
       Enabled:
         type: bool
         default_value: true
+        important: true
       Path:
         type: string
+        important: true
       Protocol:
         type: string
         default_value: '{{ fieldValue "Protocol" .Self }}'
