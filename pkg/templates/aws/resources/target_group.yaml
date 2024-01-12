@@ -54,14 +54,13 @@ properties:
         max_value: 65535
   HealthCheck:
     type: map
+    important: true
     properties:
       Enabled:
         type: bool
         default_value: true
-        important: true
       Path:
         type: string
-        important: true
       Protocol:
         type: string
         default_value: '{{ fieldValue "Protocol" .Self }}'
