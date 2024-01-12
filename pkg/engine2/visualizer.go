@@ -139,17 +139,8 @@ func (e *Engine) makeEdges(
 	view View,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
-) (err error) {
-	ancestors := make(set.Set[construct.ResourceId])
-	for ancestor := id; !ancestor.IsZero() && err == nil; {
-		ancestors.Add(ancestor)
-
-		var ancestorVert *visualizer.VisResource
-		ancestorVert, err = viewDag.Vertex(ancestor)
-		if ancestorVert != nil {
-			ancestor = ancestorVert.Parent
-		}
-	}
+) error {
+	ancestors, err := visualizer.VertexAncestors(viewDag, id)
 	if err != nil {
 		return err
 	}
@@ -163,6 +154,15 @@ func (e *Engine) makeEdges(
 	for _, target := range targets {
 		if ancestors.Contains(target) {
 			// Don't draw edges from a node to its ancestors, since it already lives inside of them
+			continue
+		}
+		targetAncestors, err := visualizer.VertexAncestors(viewDag, target)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		if targetAncestors.Contains(id) {
+			// Don't draw edges from a node to its descendants
 			continue
 		}
 
