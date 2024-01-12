@@ -16,7 +16,11 @@ function create(args: Args): aws.lb.ListenerRule {
     return new aws.lb.ListenerRule(args.Name, {
         listenerArn: args.Listener.arn,
         priority: args.Priority,
+        //TMPL {{- if .Conditions }}
         conditions: args.Conditions,
+        //TMPL {{- else }}
+        conditions: [],
+        //TMPL {{- end }}
         actions: args.Actions,
         //TMPL {{- if .Tags }}
         tags: args.Tags,
