@@ -248,8 +248,7 @@ func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, r
 					errs = errors.Join(errs, err)
 				}
 			}
-			err = eval.unevaluated.RemoveVertex(key)
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, key))
 		}
 	}
 	return errs
