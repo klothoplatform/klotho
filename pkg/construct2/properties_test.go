@@ -357,6 +357,13 @@ func TestResource_WalkProperties(t *testing.T) {
 			}},
 			want: []string{"A", "A.foo", "A.bar", "A.baz"},
 		},
+		{
+			name: "properties with dot",
+			res: &Resource{Properties: Properties{
+				"A.b": set.HashedSetOf(func(v any) string { return v.(string) }, "foo.a"),
+			}},
+			want: []string{"[A.b]", "[A.b][foo.a]"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
