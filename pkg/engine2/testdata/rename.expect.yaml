@@ -1,18 +1,18 @@
 resources:
-    aws:lambda_function:new_lambda_name:
+    aws:lambda_function:lambda_test_app:
         EnvironmentVariables:
-            DYNAMODB_TABLE_1_TABLE_NAME: aws:dynamodb_table:dynamodb_table_1#Name
-        ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
-        Image: aws:ecr_image:lambda_function_0-image
-        LogGroup: aws:log_group:new_lambda_name-log-group
+            ORIGINAL_BUCKET_BUCKET_NAME: aws:s3_bucket:new-bucket#BucketName
+        ExecutionRole: aws:iam_role:lambda_test_app-ExecutionRole
+        Image: aws:ecr_image:lambda_test_app-image
+        LogGroup: aws:log_group:lambda_test_app-log-group
         MemorySize: 512
         Timeout: 180
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
-    aws:ecr_image:lambda_function_0-image:
+    aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
+    aws:ecr_image:lambda_test_app-image:
         Context: .
-        Dockerfile: lambda_function_0-image.Dockerfile
+        Dockerfile: lambda_test_app-image.Dockerfile
         Repo: aws:ecr_repo:ecr_repo-0
-    aws:iam_role:lambda_function_0-ExecutionRole:
+    aws:iam_role:lambda_test_app-ExecutionRole:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
@@ -23,43 +23,32 @@ resources:
                         - lambda.amazonaws.com
             Version: "2012-10-17"
         InlinePolicies:
-            - Name: dynamodb_table_1-policy
+            - Name: original-bucket-policy
               Policy:
                 Statement:
                     - Action:
-                        - dynamodb:*
+                        - s3:*
                       Effect: Allow
                       Resource:
-                        - aws:dynamodb_table:dynamodb_table_1#Arn
-                        - aws:dynamodb_table:dynamodb_table_1#DynamoTableStreamArn
-                        - aws:dynamodb_table:dynamodb_table_1#DynamoTableBackupArn
-                        - aws:dynamodb_table:dynamodb_table_1#DynamoTableExportArn
-                        - aws:dynamodb_table:dynamodb_table_1#DynamoTableIndexArn
+                        - aws:s3_bucket:new-bucket#Arn
+                        - aws:s3_bucket:new-bucket#AllBucketDirectory
                 Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
-    aws:dynamodb_table:dynamodb_table_1:
-        Attributes:
-            - Name: id
-              Type: S
-        BillingMode: PAY_PER_REQUEST
-        HashKey: id
-    aws:log_group:lambda_function_0-log-group:
-        LogGroupName: /aws/lambda/lambda_function_0
+    aws:log_group:lambda_test_app-log-group:
+        LogGroupName: /aws/lambda/lambda_test_app
         RetentionInDays: 5
-    aws:log_group:new_lambda_name-log-group:
-        LogGroupName: /aws/lambda/new_lambda_name
-        RetentionInDays: 5
+    aws:s3_bucket:new-bucket:
+        ForceDestroy: true
+        SSEAlgorithm: aws:kms
 edges:
-    aws:lambda_function:new_lambda_name -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
-    aws:lambda_function:new_lambda_name -> aws:ecr_image:lambda_function_0-image:
-    aws:lambda_function:new_lambda_name -> aws:iam_role:lambda_function_0-ExecutionRole:
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:dynamodb_table:dynamodb_table_1:
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_0-log-group:
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:new_lambda_name-log-group:
-    aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:ecr_repo-0:
-    aws:iam_role:lambda_function_0-ExecutionRole -> aws:dynamodb_table:dynamodb_table_1:
-    aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:lambda_function_0-log-group:
-    aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:new_lambda_name-log-group:
+    aws:lambda_function:lambda_test_app -> aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
+    aws:lambda_function:lambda_test_app -> aws:ecr_image:lambda_test_app-image:
+    aws:lambda_function:lambda_test_app -> aws:iam_role:lambda_test_app-ExecutionRole:
+    aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group -> aws:log_group:lambda_test_app-log-group:
+    aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group -> aws:s3_bucket:new-bucket:
+    aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:ecr_repo-0:
+    aws:iam_role:lambda_test_app-ExecutionRole -> aws:log_group:lambda_test_app-log-group:
+    aws:iam_role:lambda_test_app-ExecutionRole -> aws:s3_bucket:new-bucket:

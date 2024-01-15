@@ -140,7 +140,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 		}
 		if value.IsValid() {
 			if value.Kind() == reflect.Struct {
-				_, ok := value.Interface().(set.HashedSet[string, any])
+				hs, ok := value.Interface().(set.HashedSet[string, any])
 				if !ok {
 					return &PropertyPathError{
 						Path:  pathParts[:i],
@@ -148,7 +148,7 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 					}
 				}
 				// NOTE: this depends on the internals of set.HashedSet
-				value = value.FieldByName("M")
+				value = reflect.ValueOf(hs.M)
 			} else if value.Kind() != reflect.Map {
 				return &PropertyPathError{
 					Path:  pathParts[:i-1],
@@ -658,11 +658,18 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 	}
 
 	var err error
-	var item PropertyPath
+	var current PropertyPath
 	for len(queue) > 0 {
-		item, queue = queue[0], queue[1:]
+		current, queue = queue[0], queue[1:]
 
-		err = fn(item, err)
+		appendPath := func(item PropertyPathItem) PropertyPath {
+			n := make(PropertyPath, len(current)+1)
+			copy(n, current)
+			n[len(n)-1] = item
+			return n
+		}
+
+		err = fn(current, err)
 		if err == StopWalk {
 			return nil
 		}
@@ -671,7 +678,8 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 			continue
 		}
 
-		v := reflect.ValueOf(item.Get())
+		added := make(set.Set[string])
+		v := reflect.ValueOf(current.Get())
 		switch v.Kind() {
 		case reflect.Map:
 			keys, err := mapKeys(v)
@@ -679,21 +687,42 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 				return err
 			}
 			for _, k := range keys {
-				queue = append(queue, append(item, &mapValuePathItem{
-					_parent: item.Last(),
+				queue = append(queue, appendPath(&mapValuePathItem{
+					_parent: current.Last(),
 					m:       v,
 					key:     k,
 				}))
+				added.Add(queue[len(queue)-1].String())
 			}
 
 		case reflect.Array, reflect.Slice:
 			// Go backwards so that if the walk function removes an item, we don't skip items (or cause a panic)
 			// due to items shifting down.
 			for i := v.Len() - 1; i >= 0; i-- {
-				queue = append(queue, append(item, &arrayIndexPathItem{
-					_parent: item.Last(),
+				queue = append(queue, appendPath(&arrayIndexPathItem{
+					_parent: current.Last(),
 					a:       v,
 					index:   i,
+				}))
+				added.Add(queue[len(queue)-1].String())
+			}
+
+		case reflect.Struct:
+			// Only support HashedSet[string, any]
+			hs, ok := v.Interface().(set.HashedSet[string, any])
+			if !ok {
+				continue
+			}
+			v = reflect.ValueOf(hs.M)
+			keys, err := mapKeys(v)
+			if err != nil {
+				return err
+			}
+			for _, k := range keys {
+				queue = append(queue, appendPath(&mapValuePathItem{
+					_parent: current.Last(),
+					m:       v,
+					key:     k,
 				}))
 			}
 		}
