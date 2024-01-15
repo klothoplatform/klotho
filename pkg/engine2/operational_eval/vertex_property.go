@@ -144,7 +144,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		return err
 	}
 	propertyType := v.Template.Type()
-	if strings.HasPrefix(propertyType, "list") || strings.HasPrefix(propertyType, "set") {
+	if strings.HasPrefix(propertyType, "list") || strings.HasPrefix(propertyType, "set") || strings.HasPrefix(propertyType, "map") {
 		property, err := res.GetProperty(v.Ref.Property)
 		if err != nil {
 			return fmt.Errorf("could not get property %s on resource %s: %w", v.Ref.Property, v.Ref.Resource, err)
@@ -158,7 +158,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 				}
 			}
 
-			err = eval.cleanupPropertiesSubVertices(v.Ref, property)
+			err = eval.cleanupPropertiesSubVertices(v.Ref, res, property)
 			if err != nil {
 				return fmt.Errorf("could not cleanup sub vertices for %s: %w", v.Ref, err)
 			}

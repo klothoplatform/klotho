@@ -50,7 +50,7 @@ func GetPaths(
 				pathsCache[simple] = paths
 			}
 			if len(paths) == 0 {
-				return result, nil
+				return nil, nil
 			}
 			// we have to track the result of each expansion because if we cant find a path for a single expansion
 			// we denote that we dont have an actual path from src -> target

@@ -181,6 +181,12 @@ func HasConsumedFromResource(consumer, emitter *construct.Resource, ctx DynamicC
 					errs = errors.Join(errs, fmt.Errorf("property %s not found", consume.PropertyPath))
 					continue
 				}
+				val, err = sanitizeForConsumption(ctx, resource, prop, val)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+
 				if prop.Contains(pval, val) {
 					return true, nil
 				}

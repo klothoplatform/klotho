@@ -3,7 +3,6 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -212,10 +211,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 	return errs
 }
 
-func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, val any) error {
-	if reflect.ValueOf(val).Kind() != reflect.Array && reflect.ValueOf(val).Kind() != reflect.Slice {
-		return fmt.Errorf("error while cleaning up properties sub verticies: expected array or slice, got %T", val)
-	}
+func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, resource *construct.Resource, val any) error {
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
 		return err
@@ -230,8 +226,18 @@ func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, v
 			continue
 		}
 		if strings.HasPrefix(key.Ref.Property, ref.Property) {
-			err = eval.unevaluated.RemoveVertex(key)
-			errs = errors.Join(errs, err)
+
+			path, err := resource.PropertyPath(key.Ref.Property)
+			// an error would mean that the path no longer exists so we know we should remove the vertex
+			if err == nil {
+				// if the paths parent still exists then we know we will end up evaluating the vertex and should not remove it
+				parentIndex := len(path) - 2
+				if parentIndex < 0 || path[parentIndex].Get() != nil {
+					continue
+				}
+			}
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.graph, key))
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, key))
 		}
 	}
 	return errs
