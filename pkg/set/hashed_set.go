@@ -1,10 +1,18 @@
 package set
 
-import "gopkg.in/yaml.v3"
+import (
+	"gopkg.in/yaml.v3"
+)
 
 type HashedSet[K comparable, T any] struct {
 	Hasher func(T) K
 	M      map[K]T
+}
+
+func HashedSetOf[K comparable, T any](hasher func(T) K, vs ...T) HashedSet[K, T] {
+	s := HashedSet[K, T]{Hasher: hasher}
+	s.Add(vs...)
+	return s
 }
 
 func (s *HashedSet[K, T]) initialize() {

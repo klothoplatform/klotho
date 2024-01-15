@@ -4,7 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_splitPath(t *testing.T) {
@@ -323,5 +325,58 @@ func TestResource_Properties_ops(t *testing.T) {
 			"x":     "y",
 			"hello": "world",
 		}, get("C"))
+	}
+}
+
+func TestResource_WalkProperties(t *testing.T) {
+	tests := []struct {
+		name    string
+		res     *Resource
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "primitives",
+			res:  &Resource{Properties: Properties{"A": "foo", "B": 1, "C": true}},
+			want: []string{"A", "B", "C"},
+		},
+		{
+			name: "list",
+			res:  &Resource{Properties: Properties{"A": []any{"foo", "bar", "baz"}}},
+			want: []string{"A", "A[0]", "A[1]", "A[2]"},
+		},
+		{
+			name: "map",
+			res:  &Resource{Properties: Properties{"A": map[string]any{"foo": "bar", "baz": "qux"}}},
+			want: []string{"A", "A.foo", "A.baz"},
+		},
+		{
+			name: "set",
+			res: &Resource{Properties: Properties{
+				"A": set.HashedSetOf(func(v any) string { return v.(string) }, "foo", "bar", "baz"),
+			}},
+			want: []string{"A", "A.foo", "A.bar", "A.baz"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert, require := assert.New(t), require.New(t)
+
+			walked := make(map[string]int)
+			err := tt.res.WalkProperties(func(path PropertyPath, err error) error {
+				walked[path.String()]++
+				return nil
+			})
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			require.NoError(err)
+			expect := make(map[string]int)
+			for _, k := range tt.want {
+				expect[k] = 1
+			}
+			assert.Equal(expect, walked)
+		})
 	}
 }
