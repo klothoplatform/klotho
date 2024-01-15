@@ -236,18 +236,7 @@ func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, r
 					continue
 				}
 			}
-
-			edges, err := eval.unevaluated.Edges()
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			}
-			for _, edge := range edges {
-				if edge.Source == key || edge.Target == key {
-					err = eval.unevaluated.RemoveEdge(edge.Source, edge.Target)
-					errs = errors.Join(errs, err)
-				}
-			}
+			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.graph, key))
 			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, key))
 		}
 	}
