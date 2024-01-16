@@ -1,5 +1,5 @@
 {
-    "name": "load_balancer",
+    "name": "listener_certificate",
     "dependencies": {
         "@pulumi/aws": "^5.37.0"
     }
