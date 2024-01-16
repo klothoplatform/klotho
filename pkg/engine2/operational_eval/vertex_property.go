@@ -402,7 +402,10 @@ func addConfigurationRuleToPropertyVertex(
 			))
 			continue
 		}
+<<<<<<< HEAD
 
+=======
+>>>>>>> f58c3acf (add resource rule vertices)
 		key := Key{Ref: ref}
 		vertex, err := eval.graph.Vertex(key)
 		if err != nil {
@@ -454,7 +457,6 @@ func addConfigurationRuleToPropertyVertex(
 				fmt.Errorf("existing vertex for %s is not able to add configuration rules to property vertex", ref),
 			)
 		}
-
 	}
 	return configuration, errs
 }
