@@ -1,0 +1,85 @@
+resources:
+    aws:api_stage:rest_api_0:api_stage-0:
+        Deployment: aws:api_deployment:rest_api_0:api_deployment-0
+        RestApi: aws:rest_api:rest_api_0
+        StageName: stage
+    aws:api_deployment:rest_api_0:api_deployment-0:
+        RestApi: aws:rest_api:rest_api_0
+        Triggers:
+            rest_api_0_integration_0: rest_api_0_integration_0
+            rest_api_0_integration_0_method: rest_api_0_integration_0_method
+    aws:rest_api:rest_api_0:
+        BinaryMediaTypes:
+            - application/octet-stream
+            - image/*
+    aws:api_resource:rest_api_0:api_resource-1:
+        FullPath: /html
+        PathPart: html
+        RestApi: aws:rest_api:rest_api_0
+    aws:api_resource:rest_api_0:api_resource-2:
+        FullPath: /items
+        PathPart: items
+        RestApi: aws:rest_api:rest_api_0
+    aws:api_method:rest_api_0:rest_api_0_integration_0_method:
+        Authorization: NONE
+        HttpMethod: GET
+        RequestParameters:
+            method.request.path.proxy: true
+        Resource: aws:api_resource:rest_api_0:api_resource-1
+        RestApi: aws:rest_api:rest_api_0
+    aws:api_method:rest_api_0:rest_api_0_integration_1_method:
+        Authorization: NONE
+        HttpMethod: GET
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_0:api_resource-2
+        RestApi: aws:rest_api:rest_api_0
+    aws:api_method:rest_api_0:rest_api_0_integration_2_method:
+        Authorization: NONE
+        HttpMethod: PUT
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_0:api_resource-2
+        RestApi: aws:rest_api:rest_api_0
+    aws:api_integration:rest_api_0:rest_api_0_integration_0:
+        IntegrationHttpMethod: ANY
+        Method: aws:api_method:rest_api_0:rest_api_0_integration_0_method
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_0:api_resource-1
+        RestApi: aws:rest_api:rest_api_0
+        Route: /html
+    aws:api_integration:rest_api_0:rest_api_0_integration_1:
+        IntegrationHttpMethod: ANY
+        Method: aws:api_method:rest_api_0:rest_api_0_integration_1_method
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_0:api_resource-2
+        RestApi: aws:rest_api:rest_api_0
+        Route: /items
+    aws:api_integration:rest_api_0:rest_api_0_integration_2:
+        IntegrationHttpMethod: ANY
+        Method: aws:api_method:rest_api_0:rest_api_0_integration_2_method
+        RequestParameters: {}
+        Resource: aws:api_resource:rest_api_0:api_resource-2
+        RestApi: aws:rest_api:rest_api_0
+        Route: /items
+edges:
+    aws:api_stage:rest_api_0:api_stage-0 -> aws:api_deployment:rest_api_0:api_deployment-0:
+    aws:api_stage:rest_api_0:api_stage-0 -> aws:rest_api:rest_api_0:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:rest_api:rest_api_0:
+    aws:rest_api:rest_api_0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+    aws:rest_api:rest_api_0 -> aws:api_integration:rest_api_0:rest_api_0_integration_1:
+    aws:rest_api:rest_api_0 -> aws:api_integration:rest_api_0:rest_api_0_integration_2:
+    aws:rest_api:rest_api_0 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
+    aws:rest_api:rest_api_0 -> aws:api_method:rest_api_0:rest_api_0_integration_1_method:
+    aws:rest_api:rest_api_0 -> aws:api_method:rest_api_0:rest_api_0_integration_2_method:
+    aws:rest_api:rest_api_0 -> aws:api_resource:rest_api_0:api_resource-1:
+    aws:rest_api:rest_api_0 -> aws:api_resource:rest_api_0:api_resource-2:
+    aws:api_resource:rest_api_0:api_resource-1 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+    aws:api_resource:rest_api_0:api_resource-1 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
+    aws:api_resource:rest_api_0:api_resource-2 -> aws:api_integration:rest_api_0:rest_api_0_integration_1:
+    aws:api_resource:rest_api_0:api_resource-2 -> aws:api_integration:rest_api_0:rest_api_0_integration_2:
+    aws:api_resource:rest_api_0:api_resource-2 -> aws:api_method:rest_api_0:rest_api_0_integration_1_method:
+    aws:api_resource:rest_api_0:api_resource-2 -> aws:api_method:rest_api_0:rest_api_0_integration_2_method:
+    aws:api_method:rest_api_0:rest_api_0_integration_0_method -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+    aws:api_method:rest_api_0:rest_api_0_integration_1_method -> aws:api_integration:rest_api_0:rest_api_0_integration_1:
+    aws:api_method:rest_api_0:rest_api_0_integration_2_method -> aws:api_integration:rest_api_0:rest_api_0_integration_2:

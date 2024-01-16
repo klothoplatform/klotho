@@ -1,4 +1,4 @@
 source: aws:api_resource
 target: aws:api_method
 deployment_order_reversed: true
-unique: one-to-one
+unique: one-to-many
