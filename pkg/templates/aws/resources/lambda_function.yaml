@@ -20,6 +20,7 @@ properties:
         unique: true
   EnvironmentVariables:
     type: map(string,string)
+    important: true
     key_property:
       sanitize: |
         {{ .
