@@ -453,7 +453,6 @@ func addConfigurationRuleToPropertyVertex(
 				fmt.Errorf("existing vertex for %s is not able to add configuration rules to property vertex", ref),
 			)
 		}
-
 	}
 	return configuration, errs
 }
