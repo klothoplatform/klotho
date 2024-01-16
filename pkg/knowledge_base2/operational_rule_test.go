@@ -58,3 +58,43 @@ properties:
 	}
 
 }
+
+func TestAdditionalRule_Hash(t *testing.T) {
+	tests := []struct {
+		name string
+		rule AdditionalRule
+		want string
+	}{
+		{
+			name: "simple rule",
+			rule: AdditionalRule{
+				If: "string",
+				Steps: []OperationalStep{
+					{
+						Resource: "string",
+					},
+				},
+			},
+			want: "02c61dd3cd718a1cb28439705f2291018dbffe8aaa110f4e5eb72b67f0963b4f",
+		},
+		{
+			name: "simple rule 2",
+			rule: AdditionalRule{
+				If: "string",
+				Steps: []OperationalStep{
+					{
+						Resource: "string2",
+					},
+				},
+			},
+			want: "ec11f23efba8646d56563e96ddf8d7963d09cede7290b6242efe49bb68e91c40",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			got := tt.rule.Hash()
+			assert.Equal(tt.want, got)
+		})
+	}
+}

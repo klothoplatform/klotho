@@ -155,6 +155,15 @@ func (eval *Evaluator) resourceVertices(
 		return nil
 	}
 	errs = errors.Join(errs, tmpl.LoopProperties(res, addProp))
+
+	for _, rule := range tmpl.AdditionalRules {
+		vertex := &resourceRuleVertex{
+			Resource: res.ID,
+			Rule:     rule,
+		}
+		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
+	}
+
 	return changes, errs
 }
 
