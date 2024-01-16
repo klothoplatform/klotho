@@ -1,0 +1,28 @@
+provider: aws
+resources:
+  rest_api/rest_api_0:
+    children:
+        - aws:api_deployment:rest_api_0:api_deployment-0
+        - aws:api_integration:rest_api_0:rest_api_0_integration_0
+        - aws:api_integration:rest_api_0:rest_api_0_integration_1
+        - aws:api_integration:rest_api_0:rest_api_0_integration_2
+        - aws:api_method:rest_api_0:rest_api_0_integration_0_method
+        - aws:api_method:rest_api_0:rest_api_0_integration_1_method
+        - aws:api_method:rest_api_0:rest_api_0_integration_2_method
+        - aws:api_resource:rest_api_0:api_resource-1
+        - aws:api_resource:rest_api_0:api_resource-2
+        - aws:api_stage:rest_api_0:api_stage-0
+    tag: parent
+
+  aws:api_integration:rest_api_0/rest_api_0_integration_2:
+    parent: rest_api/rest_api_0
+    tag: big
+
+  aws:api_integration:rest_api_0/rest_api_0_integration_1:
+    parent: rest_api/rest_api_0
+    tag: big
+
+  aws:api_integration:rest_api_0/rest_api_0_integration_0:
+    parent: rest_api/rest_api_0
+    tag: big
+
