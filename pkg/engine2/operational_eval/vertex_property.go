@@ -18,8 +18,9 @@ type (
 	propertyVertex struct {
 		Ref construct.PropertyRef
 
-		Template  knowledgebase.Property
-		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
+		Template      knowledgebase.Property
+		EdgeRules     map[construct.SimpleEdge][]knowledgebase.OperationalRule
+		ResourceRules map[string][]knowledgebase.OperationalRule
 	}
 )
 
@@ -53,6 +54,17 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 		}
 	}
 
+<<<<<<< HEAD
+=======
+	for _, rule := range prop.ResourceRules {
+		for _, opRule := range rule {
+			if err := propCtx.ExecuteOpRule(resData, opRule); err != nil {
+				return fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
+			}
+		}
+	}
+
+>>>>>>> f58c3acf (add resource rule vertices)
 	return nil
 }
 
