@@ -37,6 +37,12 @@ properties:
   Internal:
     type: bool
 
+classification:
+  is:
+    - kubernetes
+    - helm
+    - chart
+
 delete_context:
   requires_no_upstream: true
 views:

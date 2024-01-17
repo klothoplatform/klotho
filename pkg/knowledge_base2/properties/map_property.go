@@ -114,6 +114,9 @@ func (m *MapProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 				result[key] = val
 			}
 		}
+	}
+
+	if m.KeyProperty == nil || m.ValueProperty == nil {
 		return result, nil
 	}
 

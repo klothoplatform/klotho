@@ -15,6 +15,8 @@ type (
 
 		PathSatisfaction knowledgebase.PathSatisfaction `json:"path_satisfaction" yaml:"path_satisfaction"`
 
+		AdditionalRules []knowledgebase.AdditionalRule `json:"additional_rules" yaml:"additional_rules"`
+
 		Consumption knowledgebase.Consumption `json:"consumption" yaml:"consumption"`
 
 		// DeleteContext defines the context in which a resource can be deleted
@@ -44,6 +46,7 @@ func (r *ResourceTemplate) Convert() (*knowledgebase.ResourceTemplate, error) {
 		QualifiedTypeName: r.QualifiedTypeName,
 		DisplayName:       r.DisplayName,
 		Properties:        kbProperties,
+		AdditionalRules:   r.AdditionalRules,
 		Classification:    r.Classification,
 		PathSatisfaction:  r.PathSatisfaction,
 		Consumption:       r.Consumption,

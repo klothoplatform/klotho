@@ -29,7 +29,18 @@ func (prop propertyVertex) Key() Key {
 }
 
 func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
-	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
+
+	res, err := eval.Solution.RawView().Vertex(prop.Ref.Resource)
+	if err != nil {
+		return fmt.Errorf("could not get resource for property vertex dependency calculation %s: %w", prop.Ref, err)
+	}
+	path, err := res.PropertyPath(prop.Ref.Property)
+
+	if err != nil {
+		return fmt.Errorf("could not get property path for %s: %w", prop.Ref, err)
+	}
+
+	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource, Path: path}
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
 	if prop.Template != nil {
@@ -54,17 +65,6 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 		}
 	}
 
-<<<<<<< HEAD
-=======
-	for _, rule := range prop.ResourceRules {
-		for _, opRule := range rule {
-			if err := propCtx.ExecuteOpRule(resData, opRule); err != nil {
-				return fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
-			}
-		}
-	}
-
->>>>>>> f58c3acf (add resource rule vertices)
 	return nil
 }
 
@@ -102,14 +102,20 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	if err != nil {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
 	}
+	path, err := res.PropertyPath(v.Ref.Property)
 
-	if err := v.evaluateConstraints(sol, res); err != nil {
+	if err != nil {
+		return fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
+	}
+
+	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path}
+	if err := v.evaluateConstraints(sol, res, dynData); err != nil {
 		return err
 	}
 	opCtx := operational_rule.OperationalRuleContext{
 		Solution: sol,
 		Property: v.Template,
-		Data:     knowledgebase.DynamicValueData{Resource: res.ID},
+		Data:     dynData,
 	}
 
 	// we know we cannot change properties of imported resources only users through constraints
@@ -172,9 +178,11 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	return nil
 }
 
-func (v *propertyVertex) evaluateConstraints(sol solution_context.SolutionContext, res *construct.Resource) error {
-	dynData := knowledgebase.DynamicValueData{Resource: res.ID}
-
+func (v *propertyVertex) evaluateConstraints(
+	sol solution_context.SolutionContext,
+	res *construct.Resource,
+	dynData knowledgebase.DynamicValueData,
+) error {
 	var setConstraint constraints.ResourceConstraint
 	var addConstraints []constraints.ResourceConstraint
 	for _, c := range sol.Constraints().Resources {
@@ -328,7 +336,18 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		return NotReadyHigh, nil
 	}
 	// properties that have values set via edge rules dont' have default values
-	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution), knowledgebase.DynamicValueData{Resource: v.Ref.Resource})
+	res, err := eval.Solution.RawView().Vertex(v.Ref.Resource)
+	if err != nil {
+		return NotReadyHigh, fmt.Errorf("could not get resource for property vertex dependency calculation %s: %w", v.Ref, err)
+	}
+	path, err := res.PropertyPath(v.Ref.Property)
+
+	if err != nil {
+		return NotReadyHigh, fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
+	}
+
+	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution),
+		knowledgebase.DynamicValueData{Resource: v.Ref.Resource, Path: path})
 	if err != nil {
 		return NotReadyMid, nil
 	}
@@ -383,6 +402,7 @@ func addConfigurationRuleToPropertyVertex(
 			))
 			continue
 		}
+
 		key := Key{Ref: ref}
 		vertex, err := eval.graph.Vertex(key)
 		if err != nil {
@@ -434,6 +454,7 @@ func addConfigurationRuleToPropertyVertex(
 				fmt.Errorf("existing vertex for %s is not able to add configuration rules to property vertex", ref),
 			)
 		}
+
 	}
 	return configuration, errs
 }

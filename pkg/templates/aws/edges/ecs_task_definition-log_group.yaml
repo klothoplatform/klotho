@@ -1,9 +1,7 @@
 source: aws:ecs_task_definition
 target: aws:log_group
 operational_rules:
-  - if: |
-      {{ eq .Target (fieldValue "LogGroup" .Source)}}
-    configuration_rules:
+  - configuration_rules:
       - resource: '{{ .Target }}'
         configuration:
           field: LogGroupName

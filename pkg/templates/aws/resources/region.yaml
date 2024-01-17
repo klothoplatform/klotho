@@ -1,5 +1,12 @@
 qualified_type_name: aws:region
 display_name: Region
 
+properties:
+  RegionName:
+    description: The name of the region
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+
 delete_context:
   requires_no_upstream: true
