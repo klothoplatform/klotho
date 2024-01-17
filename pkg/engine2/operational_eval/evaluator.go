@@ -382,6 +382,7 @@ func (changes graphChanges) AddVertexAndDeps(eval *Evaluator, v Vertex) error {
 		return fmt.Errorf("could not get dependencies for %s: %w", v.Key(), err)
 	}
 	changes.Merge(depCaptureChanges)
+
 	return nil
 }
 
