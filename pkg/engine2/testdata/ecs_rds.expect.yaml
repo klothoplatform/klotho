@@ -29,26 +29,33 @@ resources:
     aws:ecs_cluster:ecs_cluster-0:
     aws:ecs_task_definition:ecs_service_0:
         ContainerDefinitions:
-            - Cpu: "256"
+            - Cpu: 256
               Environment:
-                - {}
-                - {}
-                - {}
-                - {}
+                - Name: RDS_INSTANCE_2_RDS_CONNECTION_ARN
+                  Value: aws:rds_instance:rds-instance-2#RdsConnectionArn
+                - Name: RDS_INSTANCE_2_RDS_ENDPOINT
+                  Value: aws:rds_instance:rds-instance-2#Endpoint
+                - Name: RDS_INSTANCE_2_RDS_PASSWORD
+                  Value: aws:rds_instance:rds-instance-2#Password
+                - Name: RDS_INSTANCE_2_RDS_USERNAME
+                  Value: aws:rds_instance:rds-instance-2#Username
+              Essential: true
               Image: aws:ecr_image:ecs_service_0-ecs_service_0
               LogConfiguration:
                 LogDriver: awslogs
                 Options:
                     awslogs-group: aws:log_group:ecs_service_0-log-group#LogGroupName
-                    awslogs-region: aws:region:region-0#RegionName
+                    awslogs-region: aws:region:region-0#Name
                     awslogs-stream-prefix: ecs_service_0-ecs_service_0
-              Memory: "512"
+              Memory: 512
               Name: ecs_service_0
               PortMappings:
                 - ContainerPort: 80
                   HostPort: 80
                   Protocol: TCP
+        Cpu: "256"
         ExecutionRole: aws:iam_role:ecs_service_0-execution-role
+        Memory: "512"
         NetworkMode: awsvpc
         RequiresCompatibilities:
             - FARGATE

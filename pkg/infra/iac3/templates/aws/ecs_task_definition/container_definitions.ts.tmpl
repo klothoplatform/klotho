@@ -1,0 +1,103 @@
+[
+    {{- range $i, $cd := . }}
+    {
+        {{- if $cd.Command }}
+        command: [
+        {{ range $i, $cmd := $cd.Command }}
+            "{{ $cmd }}",
+        {{- end }}
+        ],
+        {{- end }}
+        {{- if $cd.Cpu }}
+        cpu: {{ $cd.Cpu }},
+        {{- end }}
+        {{- if $cd.Environment }}
+        environment: [
+            {{- range $key, $value := $cd.Environment }}
+            {
+                name: "{{ $value.Name }}",
+                value: {{ modelCase $value.Value }},
+            },
+            {{- end }}
+        ],
+        {{- end }}
+        {{- if $cd.DependsOn }}
+        dependsOn: [
+            {{- range $cd.DependsOn }}
+            {{- if $i }}
+            ,
+            {{- end }}
+            {
+                containerName: "{{ .ContainerName }}",
+                condition: "{{ .Condition }}",
+            }
+            {{- end }}
+        ],
+        {{- end }}
+        {{- if $cd.EntryPoint }}
+        entryPoint: {{ $cd.EntryPoint }},
+        {{- end }}
+        essential: {{ $cd.Essential }},
+        {{- if $cd.Image }}
+        image: {{ getVar $cd.Image }}.imageName,
+        {{- end }}
+        {{- if $cd.LogConfiguration }}
+        logConfiguration: {
+            logDriver: "{{ $cd.LogConfiguration.LogDriver }}",
+            options: {
+                {{- range $key, $value := $cd.LogConfiguration.Options }}
+                "{{ $key }}": {{ modelCase $value }},
+                {{- end }}
+            },
+            {{- if $cd.LogConfiguration.SecretOptions }}}
+            secretOptions: [
+                {{- range $key, $value := $cd.LogConfiguration.SecretOptions }}
+                {{- if $key }}
+                ,
+                {{- end }}
+                {
+                    name: "{{ $value.Name }}",
+                    valueFrom: "{{ $value.ValueFrom }}",
+                }
+                {{- end }}
+            ]
+            {{- end }}
+        },
+        {{- end }}
+        {{- if $cd.Memory }}
+        memory: {{ $cd.Memory }},
+        {{- end }}
+        {{- if $cd.MountPoints }}
+        mountPoints: [
+            {{- range $key, $value := $cd.MountPoints.M }}
+            {{- if $key }}
+            ,
+            {{- end }}
+            {
+                containerPath: "{{ $value.ContainerPath }}",
+                readOnly: {{ $value.ReadOnly }},
+                sourceVolume: "{{ $value.SourceVolume }}",
+            }
+            {{- end }}
+        ],
+        {{- end }}
+        {{- if $cd.Name }}
+        name: "{{ $cd.Name }}",
+        {{- end }}
+        {{- if $cd.PortMappings }}
+        portMappings: [
+            {{- range $key, $value := $cd.PortMappings }}
+            {{- if $key }}
+            ,
+            {{- end }}
+            {
+                containerPort: {{ $value.ContainerPort }},
+                hostPort: {{ $value.HostPort }},
+                protocol: "{{ $value.Protocol }}",
+            }
+            {{- end }}
+        ],
+        {{- end }}        
+    },
+    {{- end }}
+]

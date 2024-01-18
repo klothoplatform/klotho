@@ -49,7 +49,7 @@ function properties(object: aws.rds.Instance, args: Args) {
         }),
         RdsConnectionArn: pulumi.interpolate`arn:aws:rds-db:${region.name}:${accountId.accountId}:dbuser:${object.resourceId}/${object.username}`,
         Endpoint: object.endpoint,
-        ConnectionString: pulumi.interpolate`${args.Engine}://${object.username}:${object.password}@${object.endpoint.address}:${object.endpoint.port}/${args.DatabaseName}`,
+        ConnectionString: pulumi.interpolate`${args.Engine}://${object.username}:${object.password}@${object.endpoint}/${args.DatabaseName}`,
     }
 }
 

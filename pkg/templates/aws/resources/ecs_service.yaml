@@ -86,8 +86,8 @@ consumption:
         {{ $i := 0}}
         {{ range $key, $value := . }}
           {
-            "name": "{{ $key }}",
-            "value": "{{ $value }}"
+            "Name": "{{ $key }}",
+            "Value": "{{ $value }}"
           }{{if ne $i (sub (len $) 1)}},{{end}}{{ $i = add $i 1 }}
         {{ end }}
         ]

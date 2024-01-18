@@ -2,6 +2,14 @@ qualified_type_name: aws:ecs_task_definition
 display_name: ECS Task Definition
 
 properties:
+  Cpu:
+    type: string
+    default_value: '256'
+    description: The number of CPU units reserved for the task
+  Memory:
+    type: string
+    default_value: '512'
+    description: The hard limit (in MiB) of memory to present to the task
   ContainerDefinitions:
     default_value:
       - Name: '{{ .Self.Name }}'
@@ -11,8 +19,8 @@ properties:
         type: list(string)
         description: The command that is passed to the container
       Cpu:
-        type: string
-        default_value: '256'
+        type: int
+        default_value: 256
         description: The number of CPU units reserved for the container
       DependsOn:
         type: list
@@ -20,6 +28,11 @@ properties:
           Condition:
             type: string
             description: The dependency condition of the container
+            allowed_values:
+              - START
+              - COMPLETE
+              - SUCCESS
+              - HEALTHY
           ContainerName:
             type: string
             description: The name of the container to depend on
@@ -43,6 +56,12 @@ properties:
             type: string
             description: The value of the environment variable
         description: The environment variables to pass to a container
+      Essential:
+        type: bool
+        default_value: true
+        description: If the essential parameter of a container is marked as true, and
+          that container fails or stops for any reason, all other containers that
+          are part of the task are stopped
       Image:
         type: resource(aws:ecr_image)
         required: true
@@ -78,7 +97,7 @@ properties:
               awslogs-region:
                 type: string
                 description: The region which your log group will exist in
-                default_value: '{{ fieldRef "RegionName" (downstream "aws:region" (upstream "aws:ecs_service" .Self)) }}'
+                default_value: '{{ fieldRef "Name" (downstream "aws:region" (upstream "aws:ecs_service" .Self)) }}'
               awslogs-stream-prefix:
                 type: string
                 description: The prefix to use when creating the log stream
@@ -95,8 +114,8 @@ properties:
             description: The secrets to pass to the log configuration
         description: The log configuration specification for the container
       Memory:
-        type: string
-        default_value: '512'
+        type: int
+        default_value: 512
         description: The hard limit (in MiB) of memory to present to the container
       MountPoints:
         type: set
@@ -204,8 +223,8 @@ consumption:
         {{ $i := 0}}
         {{ range $key, $value := . }}
           {
-            "name": "{{ $key }}",
-            "value": "{{ $value }}"
+            "Name": "{{ $key }}",
+            "Value": "{{ $value }}"
           }{{if ne $i (sub (len $) 1)}},{{end}}{{ $i = add $i 1 }}
         {{ end }}
         ]
