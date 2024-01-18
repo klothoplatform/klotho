@@ -45,6 +45,7 @@ properties:
         description: The environment variables to pass to a container
       Image:
         type: resource(aws:ecr_image)
+        required: true
         operational_rule:
           step:
             direction: downstream

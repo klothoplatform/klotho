@@ -2,7 +2,10 @@ provider: aws
 resources:
   kubernetes:pod:eks_cluster-0/pod2:
     children:
+        - aws:ecr_image:pod2-ecr_image
+        - aws:ecr_repo:ecr_repo-0
         - aws:iam_role:ClusterRole-eks_cluster-0
+        - kubernetes:service_account:eks_cluster-0:pod2
     parent: eks_cluster/eks_cluster-0
     tag: big
 

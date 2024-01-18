@@ -102,10 +102,6 @@ func Test_resourceRuleVertex_UpdateFrom(t *testing.T) {
 		initial *resourceRuleVertex
 		other   Vertex
 		want    resourceRuleVertex
-<<<<<<< HEAD
-=======
-		wantErr bool
->>>>>>> f58c3acf (add resource rule vertices)
 	}{
 		{
 			name: "empty resource rule vertex",

@@ -293,23 +293,35 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 	}
 
 	dynCtx := DynamicValueContext{Graph: dag, KnowledgeBase: kb}
-	for _, property := range template.Properties {
+
+	isSideEffect := false
+
+	err = template.LoopProperties(resource, func(property Property) error {
 		ruleSatisfied := false
 		rule := property.Details().OperationalRule
 		if rule == nil || len(rule.Step.Resources) == 0 {
-			continue
+			return nil
+
 		}
+		path, err := resource.PropertyPath(property.Details().Path)
+		if err != nil {
+			return fmt.Errorf(
+				"error checking if %s is side effect of %s in property %s: %w",
+				sideEffect, rid, property.Details().Name, err,
+			)
+		}
+		data := DynamicValueData{Resource: rid, Path: path}
 		step := rule.Step
 		// We only check if the resource selector is a match in terms of properties and classifications (not the actual id)
 		// We do this because if we have explicit ids in the selector and someone changes the id of a side effect resource
 		// we would no longer think it is a side effect since the id would no longer match.
 		// To combat this we just check against type
 		for j, resourceSelector := range step.Resources {
-			if match, err := resourceSelector.IsMatch(dynCtx, DynamicValueData{Resource: rid}, sideEffectResource); match {
+			if match, err := resourceSelector.IsMatch(dynCtx, data, sideEffectResource); match {
 				ruleSatisfied = true
 				break
 			} else if err != nil {
-				return false, fmt.Errorf(
+				return fmt.Errorf(
 					"error checking if %s is side effect of %s in property %s, resource %d: %w",
 					sideEffect, rid, property.Details().Name, j, err,
 				)
@@ -317,7 +329,8 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 		}
 
 		if !ruleSatisfied {
-			continue
+			return nil
+
 		}
 
 		// If the side effect resource fits the rule we then perform 2 more checks
@@ -326,35 +339,46 @@ func IsOperationalResourceSideEffect(dag construct.Graph, kb TemplateKB, rid, si
 		if step.Direction == DirectionUpstream {
 			resources, err := graph.ShortestPathStable(dag, sideEffect, rid, construct.ResourceIdLess)
 			if len(resources) == 0 || err != nil {
-				continue
+				return nil
+
 			}
 		} else {
 			resources, err := graph.ShortestPathStable(dag, rid, sideEffect, construct.ResourceIdLess)
 			if len(resources) == 0 || err != nil {
-				continue
+				return nil
+
 			}
 		}
 
 		propertyVal, err := resource.GetProperty(property.Details().Path)
 		if err != nil || propertyVal == nil {
-			continue
+			return nil
+
 		}
 		val := reflect.ValueOf(propertyVal)
 		if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
 			for i := 0; i < val.Len(); i++ {
 				if arrId, ok := val.Index(i).Interface().(construct.ResourceId); ok && arrId == sideEffect {
-					return true, nil
+					isSideEffect = true
+					return ErrStopWalk
+				} else if ref, ok := val.Index(i).Interface().(construct.PropertyRef); ok && ref.Resource == sideEffect {
+					isSideEffect = true
+					return ErrStopWalk
 				}
 			}
 		} else {
 			if val.IsZero() {
-				continue
+				return nil
 			}
 			if valId, ok := val.Interface().(construct.ResourceId); ok && valId == sideEffect {
-				return true, nil
+				isSideEffect = true
+				return ErrStopWalk
+			} else if ref, ok := val.Interface().(construct.PropertyRef); ok && ref.Resource == sideEffect {
+				isSideEffect = true
+				return ErrStopWalk
 			}
 		}
-
-	}
-	return false, nil
+		return nil
+	})
+	return isSideEffect, err
 }

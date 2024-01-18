@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
-	"github.com/pulumi/pulumi/sdk/v3/go/common/resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	gomock "go.uber.org/mock/gomock"
@@ -137,6 +136,7 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 }
 
 func Test_propertyVertex_Dependencies(t *testing.T) {
+
 	tests := []struct {
 		name    string
 		v       *propertyVertex
@@ -148,7 +148,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			v: &propertyVertex{
 				Ref: construct.PropertyRef{
 					Property: "test",
-					Resource: resource.ID,
+					Resource: construct.ResourceId{Name: "test"},
 				},
 				Template: &properties.StringProperty{
 					PropertyDetails: knowledgebase.PropertyDetails{
@@ -176,7 +176,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			v: &propertyVertex{
 				Ref: construct.PropertyRef{
 					Property: "test",
-					Resource: resource.ID,
+					Resource: construct.ResourceId{Name: "test"},
 				},
 				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
 					{

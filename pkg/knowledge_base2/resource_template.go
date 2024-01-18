@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+//go:generate 	mockgen -source=./resource_template.go --destination=./resource_template_mock_test.go --package=knowledgebase2
+
 type (
 	// ResourceTemplate defines how rules are handled by the engine in terms of making sure they are functional in the graph
 	ResourceTemplate struct {
