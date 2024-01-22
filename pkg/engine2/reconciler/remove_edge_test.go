@@ -139,6 +139,46 @@ func Test_findEdgesUsedInOtherPathSelection(t *testing.T) {
 				{Source: construct.ResourceId{Provider: "p", Type: "t", Name: "t"}, Target: construct.ResourceId{Provider: "p", Type: "t", Name: "b"}},
 			},
 		},
+		{
+			name:         "path is superset of deletion path",
+			source:       construct.ResourceId{Provider: "p", Type: "t", Name: "s"},
+			target:       construct.ResourceId{Provider: "p", Type: "t", Name: "b"},
+			initialState: []any{"p:t:s", "p:t:t", "p:t:t -> p:t:s", "p:t:a", "p:t:b", "p:t:a -> p:t:t", "p:t:s -> p:t:b", "p:t:l", "p:t:l -> p:t:b"},
+			want: []construct.SimpleEdge{
+				{Source: construct.ResourceId{Provider: "p", Type: "t", Name: "l"}, Target: construct.ResourceId{Provider: "p", Type: "t", Name: "b"}},
+			},
+			mockKB: []mock.Call{
+				{
+					Method:    "GetResourceTemplate",
+					Arguments: []any{mock.Anything},
+					ReturnArguments: []any{&knowledgebase.ResourceTemplate{
+						Classification: knowledgebase.Classification{Is: []string{string(knowledgebase.Compute)}},
+						PathSatisfaction: knowledgebase.PathSatisfaction{
+							AsSource: []knowledgebase.PathSatisfactionRoute{
+								{Classification: ""},
+							},
+							AsTarget: []knowledgebase.PathSatisfactionRoute{
+								{Classification: ""},
+							},
+						},
+					}, nil},
+				},
+				{
+					Method:          "GetEdgeTemplate",
+					Arguments:       []any{mock.Anything, mock.Anything},
+					ReturnArguments: []any{&knowledgebase.EdgeTemplate{}},
+				},
+				{
+					Method:    "GetPathSatisfactionsFromEdge",
+					Arguments: []any{mock.Anything, mock.Anything},
+					ReturnArguments: []any{
+						[]knowledgebase.EdgePathSatisfaction{
+							{Classification: ""},
+						}, nil,
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
