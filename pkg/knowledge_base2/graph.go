@@ -8,6 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
@@ -111,11 +112,13 @@ func firstFunctional(
 func allDeps(
 	ids *[]construct.ResourceId,
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
+	resourceSet := set.Set[construct.ResourceId]{}
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		id := path[len(path)-1]
-		if ids != nil {
+		if ids != nil && !resourceSet.Contains(id) {
 			(*ids) = append(*ids, id)
 		}
+		resourceSet.Add(id)
 		return nil
 	}
 }
