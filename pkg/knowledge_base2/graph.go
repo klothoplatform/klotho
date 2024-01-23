@@ -41,7 +41,7 @@ func resourceLocal(
 	dag construct.Graph,
 	kb TemplateKB,
 	rid construct.ResourceId,
-	ids *[]construct.ResourceId,
+	ids *set.Set[construct.ResourceId],
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		if len(path) <= 1 {
@@ -59,19 +59,19 @@ func resourceLocal(
 		if !sideEffect {
 			return graph_addons.SkipPath
 		}
-		(*ids) = append(*ids, last)
+		ids.Add(last)
 		return nil
 	}
 }
 
 func resourceDirect(
 	dag construct.Graph,
-	ids *[]construct.ResourceId,
+	ids *set.Set[construct.ResourceId],
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		id := path[len(path)-1]
 		if ids != nil {
-			(*ids) = append(*ids, id)
+			ids.Add(id)
 		}
 		return graph_addons.SkipPath
 	}
@@ -79,13 +79,13 @@ func resourceDirect(
 
 func resourceGlue(
 	kb TemplateKB,
-	ids *[]construct.ResourceId,
+	ids *set.Set[construct.ResourceId],
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		id := path[len(path)-1]
 		if GetFunctionality(kb, id) == Unknown {
 			if ids != nil {
-				(*ids) = append(*ids, id)
+				ids.Add(id)
 			}
 			return nil
 		}
@@ -95,12 +95,12 @@ func resourceGlue(
 
 func firstFunctional(
 	kb TemplateKB,
-	ids *[]construct.ResourceId,
+	ids *set.Set[construct.ResourceId],
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		id := path[len(path)-1]
 		if ids != nil {
-			(*ids) = append(*ids, id)
+			ids.Add(id)
 		}
 		if GetFunctionality(kb, id) == Unknown {
 			return nil
@@ -110,15 +110,13 @@ func firstFunctional(
 }
 
 func allDeps(
-	ids *[]construct.ResourceId,
+	ids *set.Set[construct.ResourceId],
 ) graph_addons.WalkGraphFunc[construct.ResourceId] {
-	resourceSet := set.Set[construct.ResourceId]{}
 	return func(path graph_addons.Path[construct.ResourceId], nerr error) error {
 		id := path[len(path)-1]
-		if ids != nil && !resourceSet.Contains(id) {
-			(*ids) = append(*ids, id)
+		if ids != nil {
+			ids.Add(id)
 		}
-		resourceSet.Add(id)
 		return nil
 	}
 }
@@ -165,7 +163,7 @@ func DependenciesSkipEdgeLayer(
 }
 
 func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
-	var result []construct.ResourceId
+	result := set.Set[construct.ResourceId]{}
 	var f graph_addons.WalkGraphFunc[construct.ResourceId]
 	switch layer {
 	case ResourceLocalLayer:
@@ -193,7 +191,7 @@ func Downstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, la
 		return nil, fmt.Errorf("unknown layer %s", layer)
 	}
 	err := graph_addons.WalkDown(dag, rid, f)
-	return result, err
+	return result.ToSlice(), err
 }
 
 func DownstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct.ResourceId) ([]construct.ResourceId, error) {
@@ -210,7 +208,7 @@ func DownstreamFunctional(dag construct.Graph, kb TemplateKB, resource construct
 }
 
 func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, layer DependencyLayer) ([]construct.ResourceId, error) {
-	var result []construct.ResourceId
+	result := set.Set[construct.ResourceId]{}
 	var f graph_addons.WalkGraphFunc[construct.ResourceId]
 	switch layer {
 	case ResourceLocalLayer:
@@ -238,7 +236,7 @@ func Upstream(dag construct.Graph, kb TemplateKB, rid construct.ResourceId, laye
 		return nil, fmt.Errorf("unknown layer %s", layer)
 	}
 	err := graph_addons.WalkUp(dag, rid, f)
-	return result, err
+	return result.ToSlice(), err
 }
 
 func layerWalkFunc(
@@ -246,8 +244,11 @@ func layerWalkFunc(
 	kb TemplateKB,
 	rid construct.ResourceId,
 	layer DependencyLayer,
-	result []construct.ResourceId,
+	result set.Set[construct.ResourceId],
 ) (graph_addons.WalkGraphFunc[construct.ResourceId], error) {
+	if result == nil {
+		result = set.Set[construct.ResourceId]{}
+	}
 	switch layer {
 	case ResourceLocalLayer:
 		return resourceLocal(dag, kb, rid, &result), nil
