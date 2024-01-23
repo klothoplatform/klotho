@@ -88,6 +88,7 @@ func TestDownstream(t *testing.T) {
 			layer: knowledgebase.ResourceLocalLayer,
 			want:  []string{"p:t:B", "p:t:C"},
 		},
+
 		// Direct
 		{
 			name:     "no downstream",
@@ -122,6 +123,32 @@ func TestDownstream(t *testing.T) {
 			name:  "all",
 			layer: knowledgebase.AllDepsLayer,
 			want:  []string{"p:t:B", "p:t:C", "p:t:D", "p:t:X", "p:t:Y"},
+		},
+		{
+			name: "all downstream, simple",
+			graph: []any{
+				"a:a:a", "a:a:b", "a:a:c", "a:b:a", "a:b:b", "a:b:c",
+				"a:a:a -> a:a:b", "a:a:b -> a:a:c",
+			},
+			resource: "a:a:a",
+			layer:    knowledgebase.AllDepsLayer,
+			want: []string{
+				"a:a:b", "a:a:c",
+			},
+		},
+		{
+			name: "all downstream, multiple paths for same resources",
+			graph: []any{
+				"a:a:a", "a:a:b", "a:a:c", "a:b:a", "a:b:b", "a:b:c",
+				"a:a:a -> a:a:b", "a:a:b -> a:a:c",
+				"a:a:b -> a:b:b", "a:b:b -> a:b:c",
+				"a:a:c -> a:b:b", "a:b:b -> a:b:c",
+			},
+			resource: "a:a:a",
+			layer:    knowledgebase.AllDepsLayer,
+			want: []string{
+				"a:a:b", "a:a:c", "a:b:b", "a:b:c",
+			},
 		},
 	}
 	for _, tt := range tests {
