@@ -47,6 +47,8 @@ func RemovePath(
 	// We will pass the explicit field as false so that explicitly added resources do not get deleted
 	for _, path := range paths {
 		for _, resource := range path {
+			// by this point its possible the resource no longer exists due to being deleted by the removeSinglePath call
+			// since this is ensuring we dont orphan resources we can ignore the error if we do not find the resource
 			err := RemoveResource(ctx, resource, false)
 			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 				errs = errors.Join(errs, err)
