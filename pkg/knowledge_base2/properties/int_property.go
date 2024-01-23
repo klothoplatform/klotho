@@ -2,6 +2,7 @@ package properties
 
 import (
 	"fmt"
+	"math"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -66,9 +67,15 @@ func (i *IntProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 		return val, nil
 	}
 	if val, ok := value.(float32); ok {
-		return int(val), nil
+		if float64(val) == math.Trunc(float64(val)) {
+			return int(val), nil
+		}
+		return nil, fmt.Errorf("invalid int value %v, of type %T", value, value)
 	} else if val, ok := value.(float64); ok {
-		return int(val), nil
+		if val == math.Trunc(val) {
+			return int(val), nil
+		}
+		return nil, fmt.Errorf("invalid int value %v, of type %T", value, value)
 	}
 	val, err := ParsePropertyRef(value, ctx, data)
 	if err == nil {
