@@ -1,5 +1,6 @@
 source: aws:api_deployment
 target: aws:rest_api
+always_process: true
 operational_rules:
   - if: '{{ hasDownstream "aws:api_integration" .Target }}'
     steps:

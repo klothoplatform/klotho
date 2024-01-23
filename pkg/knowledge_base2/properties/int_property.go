@@ -65,6 +65,11 @@ func (i *IntProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 	if val, ok := value.(int); ok {
 		return val, nil
 	}
+	if val, ok := value.(float32); ok {
+		return int(val), nil
+	} else if val, ok := value.(float64); ok {
+		return int(val), nil
+	}
 	val, err := ParsePropertyRef(value, ctx, data)
 	if err == nil {
 		return val, nil

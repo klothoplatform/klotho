@@ -12,6 +12,8 @@ type (
 		Source construct.ResourceId `yaml:"source"`
 		Target construct.ResourceId `yaml:"target"`
 
+		AlwaysProcess bool `yaml:"always_process"`
+
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths
 		// and can only be used as a direct edge
 		DirectEdgeOnly bool `yaml:"direct_edge_only"`

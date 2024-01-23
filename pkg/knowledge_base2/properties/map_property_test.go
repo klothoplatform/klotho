@@ -399,6 +399,43 @@ func Test_MapProperty_Parse(t *testing.T) {
 				"value": "Name",
 			},
 		},
+		{
+			name: "parses sub properties",
+			property: &MapProperty{
+				Properties: knowledgebase2.Properties{
+					"key":   &StringProperty{},
+					"value": &StringProperty{},
+				},
+			},
+			value: map[string]interface{}{
+				"key":   "test",
+				"value": "test",
+			},
+			want: map[string]interface{}{
+				"key":   "test",
+				"value": "test",
+			},
+		},
+		{
+			name: "parses sub properties with default values if they dont exist",
+			property: &MapProperty{
+				Properties: knowledgebase2.Properties{
+					"key": &StringProperty{},
+					"value": &StringProperty{
+						SharedPropertyFields: SharedPropertyFields{
+							DefaultValue: "test",
+						},
+					},
+				},
+			},
+			value: map[string]interface{}{
+				"key": "test",
+			},
+			want: map[string]interface{}{
+				"key":   "test",
+				"value": "test",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
