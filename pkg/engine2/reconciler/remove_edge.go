@@ -47,7 +47,12 @@ func RemovePath(
 	// We will pass the explicit field as false so that explicitly added resources do not get deleted
 	for _, path := range paths {
 		for _, resource := range path {
-			errs = errors.Join(errs, RemoveResource(ctx, resource, false))
+			// by this point its possible the resource no longer exists due to being deleted by the removeSinglePath call
+			// since this is ensuring we dont orphan resources we can ignore the error if we do not find the resource
+			err := RemoveResource(ctx, resource, false)
+			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+				errs = errors.Join(errs, err)
+			}
 		}
 	}
 	return errs
@@ -161,6 +166,10 @@ func findEdgesUsedInOtherPathSelection(
 			continue
 		}
 		for _, path := range paths {
+			// if the source is in the path then the path is just a superset of the path we are trying to delete
+			if path.Contains(source) {
+				continue
+			}
 			for i, res := range path {
 				if i == 0 {
 					continue
@@ -197,6 +206,10 @@ func findEdgesUsedInOtherPathSelection(
 		}
 
 		for _, path := range paths {
+			// if the target is in the path then the path is just a superset of the path we are trying to delete
+			if path.Contains(target) {
+				continue
+			}
 			for i, res := range path {
 				if i == 0 {
 					continue

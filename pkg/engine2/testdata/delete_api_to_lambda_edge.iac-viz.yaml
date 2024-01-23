@@ -1,0 +1,41 @@
+provider: aws
+resources:
+  rest_api/rest_api_0:
+
+  ecr_repo/ecr_repo-0:
+
+  log_group/lambda_function_2-log-group:
+
+  aws:api_resource:rest_api_0/api_resource-0:
+
+  aws:api_resource:rest_api_0/api_resource-0 -> rest_api/rest_api_0:
+  ecr_image/lambda_function_2-image:
+
+  ecr_image/lambda_function_2-image -> ecr_repo/ecr_repo-0:
+  iam_role/lambda_function_2-executionrole:
+
+  iam_role/lambda_function_2-executionrole -> log_group/lambda_function_2-log-group:
+  aws:api_method:rest_api_0/rest_api_0_integration_0_method:
+
+  aws:api_method:rest_api_0/rest_api_0_integration_0_method -> aws:api_resource:rest_api_0/api_resource-0:
+  aws:api_method:rest_api_0/rest_api_0_integration_0_method -> rest_api/rest_api_0:
+  lambda_function/lambda_function_2:
+
+  lambda_function/lambda_function_2 -> ecr_image/lambda_function_2-image:
+  lambda_function/lambda_function_2 -> iam_role/lambda_function_2-executionrole:
+  lambda_function/lambda_function_2 -> log_group/lambda_function_2-log-group:
+  aws:api_integration:rest_api_0/rest_api_0_integration_0:
+
+  aws:api_integration:rest_api_0/rest_api_0_integration_0 -> aws:api_method:rest_api_0/rest_api_0_integration_0_method:
+  aws:api_integration:rest_api_0/rest_api_0_integration_0 -> aws:api_resource:rest_api_0/api_resource-0:
+  aws:api_integration:rest_api_0/rest_api_0_integration_0 -> lambda_function/lambda_function_2:
+  aws:api_integration:rest_api_0/rest_api_0_integration_0 -> rest_api/rest_api_0:
+  aws:api_deployment:rest_api_0/api_deployment-0:
+
+  aws:api_deployment:rest_api_0/api_deployment-0 -> aws:api_integration:rest_api_0/rest_api_0_integration_0:
+  aws:api_deployment:rest_api_0/api_deployment-0 -> aws:api_method:rest_api_0/rest_api_0_integration_0_method:
+  aws:api_deployment:rest_api_0/api_deployment-0 -> rest_api/rest_api_0:
+  aws:api_stage:rest_api_0/api_stage-0:
+
+  aws:api_stage:rest_api_0/api_stage-0 -> aws:api_deployment:rest_api_0/api_deployment-0:
+  aws:api_stage:rest_api_0/api_stage-0 -> rest_api/rest_api_0:
