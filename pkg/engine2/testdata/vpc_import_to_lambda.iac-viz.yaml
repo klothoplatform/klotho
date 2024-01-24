@@ -15,12 +15,12 @@ resources:
   aws:security_group:vpc/lambda_function-security_group:
 
   aws:security_group:vpc/lambda_function-security_group -> vpc/vpc:
-  subnet/subnet2:
-
-  subnet/subnet2 -> vpc/vpc:
   aws:subnet:vpc/subnet1:
 
   aws:subnet:vpc/subnet1 -> vpc/vpc:
+  aws:subnet:vpc/subnet2:
+
+  aws:subnet:vpc/subnet2 -> vpc/vpc:
   subnet/subnet4:
 
   subnet/subnet4 -> vpc/vpc:
@@ -32,5 +32,5 @@ resources:
   lambda_function/lambda_function -> ecr_image/lambda_function-image:
   lambda_function/lambda_function -> iam_role/lambda_function-executionrole:
   lambda_function/lambda_function -> aws:security_group:vpc/lambda_function-security_group:
-  lambda_function/lambda_function -> subnet/subnet2:
   lambda_function/lambda_function -> aws:subnet:vpc/subnet1:
+  lambda_function/lambda_function -> aws:subnet:vpc/subnet2:

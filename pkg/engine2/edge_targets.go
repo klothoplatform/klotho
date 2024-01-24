@@ -41,6 +41,7 @@ type (
 // without fully solving the graph (which is expensive).
 func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
 	cacheable = true
+	edgeExpander := path_selection.EdgeExpand{Ctx: ctx}
 
 	if source.Matches(target) {
 		return false, cacheable, nil
@@ -114,7 +115,7 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 			continue
 		}
 
-		_, err = path_selection.ExpandEdge(ctx, path_selection.ExpansionInput{
+		_, err = edgeExpander.ExpandEdge(path_selection.ExpansionInput{
 			Dep: construct.ResourceEdge{
 				Source: tempSourceResource,
 				Target: tempTargetResource,
