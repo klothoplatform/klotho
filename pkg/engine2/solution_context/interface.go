@@ -6,6 +6,8 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
+//go:generate mockgen -source=./interface.go --destination=../operational_eval/solution_context_mock_test.go --package=operational_eval
+
 type (
 	SolutionContext interface {
 		// With returns a new context with a new key/value pair pushed onto the context stack.
