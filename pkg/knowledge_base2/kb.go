@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
+//go:generate mockgen --source=./kb.go -destination=./template_kb_mock_test.go -package=knowledgebase2
+
 type (
 	TemplateKB interface {
 		ListResources() []*ResourceTemplate

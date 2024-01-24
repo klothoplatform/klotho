@@ -20,5 +20,6 @@ function create(args: Args): aws.secretsmanager.Secret {
 function properties(object: aws.secretsmanager.Secret, args: Args) {
     return {
         Arn: object.arn,
+        Id: object.id,
     }
 }
