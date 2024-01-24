@@ -24,13 +24,10 @@
         {{- if $cd.DependsOn }}
         dependsOn: [
             {{- range $cd.DependsOn }}
-            {{- if $i }}
-            ,
-            {{- end }}
             {
                 containerName: "{{ .ContainerName }}",
                 condition: "{{ .Condition }}",
-            }
+            },
             {{- end }}
         ],
         {{- end }}
@@ -49,16 +46,13 @@
                 "{{ $key }}": {{ modelCase $value }},
                 {{- end }}
             },
-            {{- if $cd.LogConfiguration.SecretOptions }}}
+            {{- if $cd.LogConfiguration.SecretOptions }}
             secretOptions: [
                 {{- range $key, $value := $cd.LogConfiguration.SecretOptions }}
-                {{- if $key }}
-                ,
-                {{- end }}
                 {
                     name: "{{ $value.Name }}",
                     valueFrom: "{{ $value.ValueFrom }}",
-                }
+                },
                 {{- end }}
             ]
             {{- end }}
@@ -70,14 +64,11 @@
         {{- if $cd.MountPoints }}
         mountPoints: [
             {{- range $key, $value := $cd.MountPoints.M }}
-            {{- if $key }}
-            ,
-            {{- end }}
             {
                 containerPath: "{{ $value.ContainerPath }}",
                 readOnly: {{ $value.ReadOnly }},
                 sourceVolume: "{{ $value.SourceVolume }}",
-            }
+            },
             {{- end }}
         ],
         {{- end }}
@@ -87,14 +78,11 @@
         {{- if $cd.PortMappings }}
         portMappings: [
             {{- range $key, $value := $cd.PortMappings }}
-            {{- if $key }}
-            ,
-            {{- end }}
             {
                 containerPort: {{ $value.ContainerPort }},
                 hostPort: {{ $value.HostPort }},
                 protocol: "{{ $value.Protocol }}",
-            }
+            },
             {{- end }}
         ],
         {{- end }}        

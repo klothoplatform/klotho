@@ -69,7 +69,7 @@ properties:
           step:
             direction: downstream
             resources:
-              - aws:ecr_image:{{ .Self.Name }}-{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}
+              - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}
             unique: true
         description: Reference to an Amazon Elastic Container Registry (ECR) image that
           will be used for the container within the task

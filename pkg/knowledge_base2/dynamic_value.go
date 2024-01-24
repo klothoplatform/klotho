@@ -52,20 +52,21 @@ func (ctx DynamicValueContext) KB() TemplateKB {
 
 func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 	return template.FuncMap{
-		"hasUpstream":       ctx.HasUpstream,
-		"upstream":          ctx.Upstream,
-		"layeredUpstream":   ctx.LayeredUpstream,
-		"allUpstream":       ctx.AllUpstream,
-		"hasDownstream":     ctx.HasDownstream,
-		"layeredDownstream": ctx.LayeredDownstream,
-		"downstream":        ctx.Downstream,
-		"closestDownstream": ctx.ClosestDownstream,
-		"allDownstream":     ctx.AllDownstream,
-		"shortestPath":      ctx.ShortestPath,
-		"fieldValue":        ctx.FieldValue,
-		"hasField":          ctx.HasField,
-		"fieldRef":          ctx.FieldRef,
-		"pathAncestor":      ctx.PathAncestor,
+		"hasUpstream":        ctx.HasUpstream,
+		"upstream":           ctx.Upstream,
+		"layeredUpstream":    ctx.LayeredUpstream,
+		"allUpstream":        ctx.AllUpstream,
+		"hasDownstream":      ctx.HasDownstream,
+		"layeredDownstream":  ctx.LayeredDownstream,
+		"downstream":         ctx.Downstream,
+		"closestDownstream":  ctx.ClosestDownstream,
+		"allDownstream":      ctx.AllDownstream,
+		"shortestPath":       ctx.ShortestPath,
+		"fieldValue":         ctx.FieldValue,
+		"hasField":           ctx.HasField,
+		"fieldRef":           ctx.FieldRef,
+		"pathAncestor":       ctx.PathAncestor,
+		"pathAncestorExists": ctx.PathAncestorExists,
 
 		"toJson": ctx.toJson,
 
@@ -573,6 +574,10 @@ func (ctx DynamicValueContext) PathAncestor(path construct.PropertyPath, depth i
 		return "", fmt.Errorf("depth %d is greater than path length %d", depth, len(path))
 	}
 	return path[:len(path)-depth].String(), nil
+}
+
+func (ctx DynamicValueContext) PathAncestorExists(path construct.PropertyPath, depth int) bool {
+	return len(path) > depth
 }
 
 // filterMatch returns a json array by filtering the values array with the regex pattern
