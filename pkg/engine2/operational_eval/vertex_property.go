@@ -165,7 +165,10 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		}
 		// If we have modified a list or set we want to re add the resource to be evaluated
 		// so the nested fields are ensured to be set if required
-		return eval.AddResources(res)
+		err = eval.AddResources(res)
+		if err != nil {
+			return fmt.Errorf("could not add resource %s to be re-evaluated: %w", res.ID, err)
+		}
 	}
 
 	// Now that the vertex is evaluated, we will check it for validity and record our decision
