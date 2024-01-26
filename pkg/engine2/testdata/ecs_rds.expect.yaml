@@ -28,28 +28,34 @@ resources:
         TaskDefinition: aws:ecs_task_definition:ecs_service_0
     aws:ecs_cluster:ecs_cluster-0:
     aws:ecs_task_definition:ecs_service_0:
-        Cpu: "256"
-        EnvironmentVariables:
-            RDS_INSTANCE_2_RDS_CONNECTION_ARN: aws:rds_instance:rds-instance-2#RdsConnectionArn
-            RDS_INSTANCE_2_RDS_ENDPOINT: aws:rds_instance:rds-instance-2#Endpoint
-            RDS_INSTANCE_2_RDS_PASSWORD: aws:rds_instance:rds-instance-2#Password
-            RDS_INSTANCE_2_RDS_USERNAME: aws:rds_instance:rds-instance-2#Username
+        ContainerDefinitions:
+            - Cpu: "256"
+              Environment:
+                - {}
+                - {}
+                - {}
+                - {}
+              Image: aws:ecr_image:ecs_service_0-ecs_service_0
+              LogConfiguration:
+                LogDriver: awslogs
+                Options:
+                    awslogs-group: aws:log_group:ecs_service_0-log-group#LogGroupName
+                    awslogs-region: aws:region:region-0#RegionName
+                    awslogs-stream-prefix: ecs_service_0-ecs_service_0
+              Memory: "512"
+              Name: ecs_service_0
+              PortMappings:
+                - ContainerPort: 80
+                  HostPort: 80
+                  Protocol: TCP
         ExecutionRole: aws:iam_role:ecs_service_0-execution-role
-        Image: aws:ecr_image:ecs_service_0-image
-        LogGroup: aws:log_group:ecs_service_0-log-group
-        Memory: "512"
         NetworkMode: awsvpc
-        PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-              Protocol: TCP
-        Region: aws:region:region-0
         RequiresCompatibilities:
             - FARGATE
         TaskRole: aws:iam_role:ecs_service_0-execution-role
-    aws:ecr_image:ecs_service_0-image:
+    aws:ecr_image:ecs_service_0-ecs_service_0:
         Context: .
-        Dockerfile: ecs_service_0-image.Dockerfile
+        Dockerfile: ecs_service_0-ecs_service_0.Dockerfile
         Repo: aws:ecr_repo:ecr_repo-0
     aws:iam_role:ecs_service_0-execution-role:
         AssumeRolePolicyDoc:
@@ -169,6 +175,11 @@ resources:
               Protocol: "-1"
               ToPort: 0
         IngressRules:
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
             - CidrBlocks:
                 - 10.0.128.0/18
               Description: Allow ingress traffic from ip addresses within the subnet subnet-0
@@ -180,11 +191,6 @@ resources:
               Description: Allow ingress traffic from ip addresses within the subnet subnet-1
               FromPort: 0
               Protocol: "-1"
-              ToPort: 0
-            - Description: Allow ingress traffic from within the same security group
-              FromPort: 0
-              Protocol: "-1"
-              Self: true
               ToPort: 0
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-0-route_table:
@@ -208,11 +214,10 @@ edges:
     aws:ecs_service:ecs_service_0 -> aws:ecs_task_definition:ecs_service_0:
     aws:ecs_service:ecs_service_0 -> aws:subnet:vpc-0:subnet-0:
     aws:ecs_service:ecs_service_0 -> aws:subnet:vpc-0:subnet-1:
-    aws:ecs_task_definition:ecs_service_0 -> aws:ecr_image:ecs_service_0-image:
+    aws:ecs_task_definition:ecs_service_0 -> aws:ecr_image:ecs_service_0-ecs_service_0:
     aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-execution-role:
     aws:ecs_task_definition:ecs_service_0 -> aws:log_group:ecs_service_0-log-group:
-    aws:ecs_task_definition:ecs_service_0 -> aws:region:region-0:
-    aws:ecr_image:ecs_service_0-image -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:ecs_service_0-ecs_service_0 -> aws:ecr_repo:ecr_repo-0:
     aws:iam_role:ecs_service_0-execution-role -> aws:rds_instance:rds-instance-2:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-2:

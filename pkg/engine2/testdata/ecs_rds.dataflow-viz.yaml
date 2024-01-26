@@ -23,11 +23,8 @@ resources:
 
   ecs_service/ecs_service_0:
     children:
-        - aws:ecr_image:ecs_service_0-image
-        - aws:ecr_repo:ecr_repo-0
         - aws:ecs_task_definition:ecs_service_0
         - aws:iam_role:ecs_service_0-execution-role
-        - aws:log_group:ecs_service_0-log-group
     parent: vpc/vpc-0
     tag: big
 

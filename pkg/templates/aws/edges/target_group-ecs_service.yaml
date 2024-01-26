@@ -9,7 +9,7 @@ operational_rules:
           value:
             - TargetGroup: '{{ .Source }}'
               ContainerName: '{{ (downstream "aws:ecs_task_definition" .Target).Name }}'
-              ContainerPort: '{{ fieldValue "PortMappings[0].ContainerPort" (fieldValue "TaskDefinition" .Target)}}'
+              ContainerPort: '{{ fieldValue "ContainerDefinitions[0].PortMappings[0].ContainerPort" (fieldValue "TaskDefinition" .Target)}}'
       - resource: '{{ .Source }}'
         configuration:
           field: TargetType

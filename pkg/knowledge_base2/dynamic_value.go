@@ -38,6 +38,7 @@ type (
 	DynamicValueData struct {
 		Resource construct.ResourceId
 		Edge     *construct.Edge
+		Path     construct.PropertyPath
 	}
 )
 
@@ -64,6 +65,7 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 		"fieldValue":        ctx.FieldValue,
 		"hasField":          ctx.HasField,
 		"fieldRef":          ctx.FieldRef,
+		"pathAncestor":      ctx.PathAncestor,
 
 		"toJson": ctx.toJson,
 
@@ -558,6 +560,19 @@ func (ctx DynamicValueContext) toJson(value any) (string, error) {
 		return "", err
 	}
 	return string(j), nil
+}
+
+func (ctx DynamicValueContext) PathAncestor(path construct.PropertyPath, depth int) (string, error) {
+	if depth < 0 {
+		return "", fmt.Errorf("depth must be >= 0")
+	}
+	if depth == 0 {
+		return path.String(), nil
+	}
+	if len(path) <= depth {
+		return "", fmt.Errorf("depth %d is greater than path length %d", depth, len(path))
+	}
+	return path[:len(path)-depth].String(), nil
 }
 
 // filterMatch returns a json array by filtering the values array with the regex pattern

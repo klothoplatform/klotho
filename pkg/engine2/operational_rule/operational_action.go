@@ -97,6 +97,7 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 					return err
 				}
 				if action.numNeeded > 0 {
+
 					err := action.ruleCtx.addDependencyForDirection(action.Step, resource, res)
 					if err != nil {
 						return err
@@ -319,7 +320,7 @@ func (action *operationalResourceAction) getPriorityResourceType() (
 			if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
 				return construct.ResourceId{}, resourceSelector, err
 			}
-			if id.IsZero() || res != nil {
+			if id.IsZero() || (res != nil && !action.Step.Unique) {
 				continue
 			}
 			return construct.ResourceId{Provider: id.Provider, Type: id.Type, Namespace: id.Namespace, Name: id.Name}, resourceSelector, nil

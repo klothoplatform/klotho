@@ -55,6 +55,26 @@ properties:
   Engine:
     type: string
     default_value: postgres
+    allowed_values:
+      - postgres
+      - mysql
+      - aurora-postgresql
+      - aurora-mysql
+      - aurora-postgresql
+      - mariadb
+      - oracle-ee
+      - oracle-ee-cdb
+      - oracle-se2
+      - oracle-se2-cdb
+      - custom-oracle-ee
+      - custom-oracle-ee-cdb
+      - custom-sqlserver-ee
+      - custom-sqlserver-se
+      - custom-sqlserver-web
+      - sqlserver-ee
+      - sqlserver-ex
+      - sqlserver-se
+      - sqlserver-web
   EngineVersion:
     type: string
     default_value: '13.7'
@@ -72,6 +92,10 @@ properties:
     configuration_disabled: true
     deploy_time: true
   RdsConnectionArn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  ConnectionString:
     type: string
     configuration_disabled: true
     deploy_time: true

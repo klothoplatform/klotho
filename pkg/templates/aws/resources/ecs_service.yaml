@@ -79,8 +79,18 @@ properties:
 consumption:
   consumed:
     - model: EnvironmentVariables
-      property_path: EnvironmentVariables
+      property_path: ContainerDefinitions[0].Environment
       resource: '{{ fieldValue "TaskDefinition" .Self }}'
+      converter: |
+        [
+        {{ $i := 0}}
+        {{ range $key, $value := . }}
+          {
+            "name": "{{ $key }}",
+            "value": "{{ $value }}"
+          }{{if ne $i (sub (len $) 1)}},{{end}}{{ $i = add $i 1 }}
+        {{ end }}
+        ]
   emitted:
     - model: EnvironmentVariables
       value:

@@ -5,20 +5,13 @@ import * as awsInputs from '@pulumi/aws/types/input'
 import { TemplateWrapper } from '../../wrappers'
 
 interface Args {
-    LogGroup: aws.cloudwatch.LogGroup
-    Region: pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>>
     Name: string
-    Cpu?: string
-    Memory?: string
     NetworkMode?: string
     ExecutionRole: aws.iam.Role
     TaskRole: aws.iam.Role
-    EnvironmentVariables: TemplateWrapper<Record<string, pulumi.Output<string>>>
-    Image: docker.Image
-    PortMappings?: Record<string, object>
     RequiresCompatibilities?: string[]
     EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]>
-    MountPoints: Record<string, string>
+    ContainerDefinitions: TemplateWrapper<awsInputs.ecs.TaskDefinitionContainerDefinitions[]>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -44,26 +37,6 @@ function create(args: Args): aws.ecs.TaskDefinition {
         //TMPL {{- if .EfsVolumes }}
         volumes: args.EfsVolumes,
         //TMPL {{- end }}
-        containerDefinitions: pulumi.jsonStringify([
-            {
-                name: args.Name,
-                image: args.Image.imageName,
-                portMappings: args.PortMappings,
-                //TMPL {{- if .EnvironmentVariables }}
-                environment: args.EnvironmentVariables,
-                //TMPL {{- end }}
-                //TMPL {{- if .MountPoints }}
-                mountPoints: args.MountPoints,
-                //TMPL {{- end }}
-                logConfiguration: {
-                    logDriver: 'awslogs',
-                    options: {
-                        'awslogs-group': args.LogGroup.name,
-                        'awslogs-region': args.Region.name,
-                        'awslogs-stream-prefix': args.Name,
-                    },
-                },
-            },
-        ]),
+        containerDefinitions: pulumi.jsonStringify(args.ContainerDefinitions),
     })
 }
