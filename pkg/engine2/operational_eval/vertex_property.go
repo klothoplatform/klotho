@@ -18,9 +18,8 @@ type (
 	propertyVertex struct {
 		Ref construct.PropertyRef
 
-		Template      knowledgebase.Property
-		EdgeRules     map[construct.SimpleEdge][]knowledgebase.OperationalRule
-		ResourceRules map[string][]knowledgebase.OperationalRule
+		Template  knowledgebase.Property
+		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
 	}
 )
 
@@ -50,14 +49,6 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 		for _, opRule := range rule {
 			if err := propCtx.ExecuteOpRule(edgeData, opRule); err != nil {
 				return fmt.Errorf("could not execute edge operational rule for %s: %w", prop.Ref, err)
-			}
-		}
-	}
-
-	for _, rule := range prop.ResourceRules {
-		for _, opRule := range rule {
-			if err := propCtx.ExecuteOpRule(resData, opRule); err != nil {
-				return fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 	}
@@ -420,11 +411,6 @@ func addConfigurationRuleToPropertyVertex(
 		switch v := v.(type) {
 		case *edgeVertex:
 			pv.EdgeRules[v.Edge] = append(pv.EdgeRules[v.Edge], knowledgebase.OperationalRule{
-				If:                 rule.If,
-				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
-			})
-		case *resourceRuleVertex:
-			pv.ResourceRules[v.Rule.Hash()] = append(pv.ResourceRules[v.Rule.Hash()], knowledgebase.OperationalRule{
 				If:                 rule.If,
 				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
 			})

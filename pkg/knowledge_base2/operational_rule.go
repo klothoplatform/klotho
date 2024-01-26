@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
@@ -99,13 +98,13 @@ const (
 	ClosestSelectionOperator SelectionOperator = ""
 )
 
-func (rule AdditionalRule) Hash() string {
+func (rule AdditionalRule) Hash() (string, error) {
 	// Convert the struct to a byte slice.
 	// Note that the struct must be able to be converted to JSON,
 	// so all fields must be exported (i.e., start with a capital letter).
 	byteSlice, err := json.Marshal(rule)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
 	// Hash the byte slice.
@@ -114,7 +113,7 @@ func (rule AdditionalRule) Hash() string {
 	// Convert the hash to a hexadecimal string.
 	hashString := hex.EncodeToString(hash[:])
 
-	return hashString
+	return hashString, nil
 }
 
 func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge {

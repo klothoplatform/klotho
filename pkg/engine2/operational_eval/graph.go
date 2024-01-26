@@ -157,9 +157,15 @@ func (eval *Evaluator) resourceVertices(
 	errs = errors.Join(errs, tmpl.LoopProperties(res, addProp))
 
 	for _, rule := range tmpl.AdditionalRules {
+		hash, err := rule.Hash()
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not hash rule for resource id %s: %w", res.ID, err))
+			continue
+		}
 		vertex := &resourceRuleVertex{
 			Resource: res.ID,
 			Rule:     rule,
+			hash:     hash,
 		}
 		errs = errors.Join(errs, changes.AddVertexAndDeps(eval, vertex))
 	}

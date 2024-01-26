@@ -93,7 +93,8 @@ func TestAdditionalRule_Hash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			got := tt.rule.Hash()
+			got, err := tt.rule.Hash()
+			assert.NoError(err)
 			assert.Equal(tt.want, got)
 		})
 	}

@@ -13,11 +13,12 @@ type (
 	resourceRuleVertex struct {
 		Resource construct.ResourceId
 		Rule     knowledgebase.AdditionalRule
+		hash     string
 	}
 )
 
 func (v resourceRuleVertex) Key() Key {
-	return Key{Ref: construct.PropertyRef{Resource: v.Resource}, RuleHash: v.Rule.Hash()}
+	return Key{Ref: construct.PropertyRef{Resource: v.Resource}, RuleHash: v.hash}
 }
 
 func (v *resourceRuleVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {

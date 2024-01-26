@@ -115,24 +115,15 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 }
 
 func Test_propertyVertex_Dependencies(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	dcap := NewMockdependencyCapturer(ctrl)
-
-	type fields struct {
-		Ref           construct.PropertyRef
-		Template      knowledgebase.Property
-		EdgeRules     map[construct.SimpleEdge][]knowledgebase.OperationalRule
-		ResourceRules map[string][]knowledgebase.OperationalRule
-	}
 	tests := []struct {
 		name    string
-		fields  fields
-		mocks   func()
+		v       *propertyVertex
+		mocks   func(dcap *MockdependencyCapturer)
 		wantErr bool
 	}{
 		{
 			name: "property vertex with template",
-			fields: fields{
+			v: &propertyVertex{
 				Ref: construct.PropertyRef{
 					Property: "test",
 					Resource: construct.ResourceId{Name: "test"},
@@ -145,7 +136,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 					},
 				},
 			},
-			mocks: func() {
+			mocks: func(dcap *MockdependencyCapturer) {
 				dcap.EXPECT().ExecutePropertyRule(knowledgebase.DynamicValueData{
 					Resource: construct.ResourceId{Name: "test"},
 				}, knowledgebase.PropertyRule{
@@ -154,8 +145,8 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			},
 		},
 		{
-			name: "property vertex with edge rules and resource rules",
-			fields: fields{
+			name: "property vertex with edge rules",
+			v: &propertyVertex{
 				Ref: construct.PropertyRef{
 					Property: "test",
 					Resource: construct.ResourceId{Name: "test"},
@@ -170,20 +161,8 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 						},
 					},
 				},
-				ResourceRules: map[string][]knowledgebase.OperationalRule{
-					"test": {
-						{
-							If: "testR",
-						},
-					},
-				},
 			},
-			mocks: func() {
-				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
-					Resource: construct.ResourceId{Name: "test"},
-				}, knowledgebase.OperationalRule{
-					If: "testR",
-				}).Return(nil)
+			mocks: func(dcap *MockdependencyCapturer) {
 				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
 					Resource: construct.ResourceId{Name: "test"},
 					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
@@ -195,15 +174,11 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prop := &propertyVertex{
-				Ref:           tt.fields.Ref,
-				Template:      tt.fields.Template,
-				EdgeRules:     tt.fields.EdgeRules,
-				ResourceRules: tt.fields.ResourceRules,
-			}
-			tt.mocks()
+			ctrl := gomock.NewController(t)
+			dcap := NewMockdependencyCapturer(ctrl)
+			tt.mocks(dcap)
 			eval := &Evaluator{}
-			err := prop.Dependencies(eval, dcap)
+			err := tt.v.Dependencies(eval, dcap)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
