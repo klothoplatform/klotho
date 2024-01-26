@@ -69,7 +69,7 @@ properties:
           step:
             direction: downstream
             resources:
-              - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}
+              - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ if hasField (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}{{else}}image{{end}}
             unique: true
         description: Reference to an Amazon Elastic Container Registry (ECR) image that
           will be used for the container within the task
@@ -101,7 +101,7 @@ properties:
               awslogs-stream-prefix:
                 type: string
                 description: The prefix to use when creating the log stream
-                default_value: '{{ .Self.Name }}-{{ fieldValue (printf "%s.Name" (pathAncestor .Path 3)) .Self }}'
+                default_value: '{{ .Self.Name }}{{ if hasField (printf "%s.Name" (pathAncestor .Path 3)) .Self}}-{{ fieldValue (printf "%s.Name" (pathAncestor .Path 3)) .Self }}{{else}}{{end}}'
           SecretOptions:
             type: list
             properties:
