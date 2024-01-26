@@ -27,9 +27,106 @@ properties:
             type: string
           OriginSslProtocols:
             type: list(string)
-  CloudfrontDefaultCertificate:
-    type: bool
-    default_value: true
+  CacheBehaviors:
+    type: set
+    properties:
+      AllowedMethods:
+        type: set(string)
+        item_property:
+          type: string
+          allowed_values:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+        default_value:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+      CachedMethods:
+        type: set(string)
+        item_property:
+          type: string
+          allowed_values:
+            - DELETE
+            - GET
+            - HEAD
+            - OPTIONS
+            - PATCH
+            - POST
+            - PUT
+        default_value:
+          - HEAD
+          - GET
+      TargetOriginId:
+        type: string
+      ForwardedValues:
+        type: map
+        properties:
+          QueryString:
+            type: bool
+            default_value: true
+          Cookies:
+            type: map
+            properties:
+              Forward:
+                type: string
+                default_value: none
+      MinTtl:
+        type: int
+        default_value: 0
+      MaxTtl:
+        type: int
+        default_value: 86400
+      DefaultTtl:
+        type: int
+        default_value: 3600
+      ViewerProtocolPolicy:
+        type: string
+        default_value: allow-all
+      PathPattern:
+        type: string
+      SmoothStreaming:
+        type: bool
+        default_value: false
+  ViewerCertificate:
+    type: map
+    default_value:
+      CloudfrontDefaultCertificate: true
+    properties:
+      ACMCertificateArn:
+        type: string
+      SSLSupportMethod:
+        type: string
+      MinimumProtocolVersion:
+        type: string
+      CloudfrontDefaultCertificate:
+        type: bool
+      IAMCertificateId:
+        type: string
+  CNAMEs:
+    type: list(string)
+    description: |
+      A list of CNAMEs (aliases) that you want CloudFront to use for this
+      distribution. You can have up to 10 CNAMEs in this list.
+  CustomErrorResponses:
+    type: list
+    properties:
+      ErrorCachingMinTTL:
+        type: int
+      ErrorCode:
+        type: int
+      ResponseCode:
+        type: int
+      ResponsePagePath:
+        type: string
   Enabled:
     type: bool
     default_value: true

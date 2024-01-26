@@ -2,6 +2,7 @@ package properties
 
 import (
 	"fmt"
+	"math"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
@@ -57,6 +58,7 @@ func (i *IntProperty) GetDefaultValue(ctx knowledgebase.DynamicContext, data kno
 }
 
 func (i *IntProperty) Parse(value any, ctx knowledgebase.DynamicContext, data knowledgebase.DynamicValueData) (any, error) {
+
 	if val, ok := value.(string); ok {
 		var result int
 		err := ctx.ExecuteDecode(val, data, &result)
@@ -64,6 +66,21 @@ func (i *IntProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 	}
 	if val, ok := value.(int); ok {
 		return val, nil
+	}
+	EPSILON := 0.0000001
+	if val, ok := value.(float32); ok {
+		ival := int(val)
+		if math.Abs(float64(val)-float64(ival)) > EPSILON {
+			return 0, fmt.Errorf("cannot convert non-integral float to int: %f", val)
+		}
+		return int(val), nil
+
+	} else if val, ok := value.(float64); ok {
+		ival := int(val)
+		if math.Abs(val-float64(ival)) > EPSILON {
+			return 0, fmt.Errorf("cannot convert non-integral float to int: %f", val)
+		}
+		return int(val), nil
 	}
 	val, err := ParsePropertyRef(value, ctx, data)
 	if err == nil {

@@ -90,6 +90,20 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 		"add":  add,
 		"sub":  sub,
 		"last": last,
+		"makeSlice": func() []any {
+			return []any{}
+		},
+		"appendSlice": func(slice []any, value any) []any {
+			return append(slice, value)
+		},
+		"sliceContains": func(slice []any, value any) bool {
+			for _, v := range slice {
+				if v == value {
+					return true
+				}
+			}
+			return false
+		},
 	}
 }
 

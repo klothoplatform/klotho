@@ -4,11 +4,14 @@ import * as pulumi from '@pulumi/pulumi'
 interface Args {
     Name: string
     Origins: aws.types.input.cloudfront.DistributionOrigin[]
-    CloudfrontDefaultCertificate: boolean
+    ViewerCertificate: aws.types.input.cloudfront.DistributionViewerCertificate
     Enabled: boolean
     DefaultCacheBehavior: aws.types.input.cloudfront.DistributionDefaultCacheBehavior
+    CacheBehaviors: aws.types.input.cloudfront.DistributionCacheBehavior[]
     Restrictions: aws.types.input.cloudfront.DistributionRestrictions
     DefaultRootObject: string
+    CNAMEs: string[]
+    CustomErrorResponses: aws.types.input.cloudfront.DistributionCustomErrorResponse[]
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -16,9 +19,14 @@ function create(args: Args): aws.cloudfront.Distribution {
     return new aws.cloudfront.Distribution(args.Name, {
         origins: args.Origins,
         enabled: args.Enabled,
-        viewerCertificate: {
-            cloudfrontDefaultCertificate: args.CloudfrontDefaultCertificate,
-        },
+        viewerCertificate: args.ViewerCertificate,
+        orderedCacheBehaviors: args.CacheBehaviors,
+        //TMPL {{- if .CNAMEs }}
+        aliases: args.CNAMEs,
+        //TMPL {{- end }}
+        //TMPL {{- if .CustomErrorResponses }}
+        customErrorResponses: args.CustomErrorResponses,
+        //TMPL {{- end }}
         //TMPL {{- if (index .DefaultCacheBehavior "targetOriginId") }}
         defaultCacheBehavior: args.DefaultCacheBehavior,
         //TMPL {{- else }}

@@ -1,6 +1,7 @@
 resources:
     aws:cloudfront_distribution:cloudfront_distribution_1:
-        CloudfrontDefaultCertificate: true
+        ViewerCertificate:
+            CloudfrontDefaultCertificate: true
         DefaultCacheBehavior:
             AllowedMethods:
                 - DELETE

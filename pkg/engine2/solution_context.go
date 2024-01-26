@@ -2,6 +2,7 @@ package engine2
 
 import (
 	"errors"
+	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
@@ -90,8 +91,25 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	if err := op.AddVerticesFrom(graph); err != nil {
 		return err
 	}
-	if err := raw.AddEdgesFrom(graph); err != nil {
+
+	edges, err := graph.Edges()
+	if err != nil {
 		return err
+	}
+	for _, edge := range edges {
+		edgeTemplate := ctx.KB.GetEdgeTemplate(edge.Source, edge.Target)
+		if edgeTemplate == nil {
+			return fmt.Errorf("edge template %s -> %s not found", edge.Source, edge.Target)
+		}
+		if edgeTemplate.AlwaysProcess {
+			if err := op.AddEdge(edge.Source, edge.Target); err != nil {
+				return err
+			}
+		} else {
+			if err := raw.AddEdge(edge.Source, edge.Target); err != nil {
+				return err
+			}
+		}
 	}
 
 	// ensure any deployment dependencies due to properties are in place

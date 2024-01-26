@@ -112,6 +112,16 @@ func (m *MapProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 					continue
 				}
 				result[key] = val
+			} else {
+				val, err := prop.GetDefaultValue(ctx, data)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("unable to get default value for sub property %s: %w", key, err))
+					continue
+				}
+				if val == nil {
+					continue
+				}
+				result[key] = val
 			}
 		}
 	}

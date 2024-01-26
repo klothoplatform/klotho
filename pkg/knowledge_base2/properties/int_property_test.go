@@ -158,6 +158,46 @@ func Test_IntProperty_Parse(t *testing.T) {
 			expected: 1,
 		},
 		{
+			name: "valid float32 property",
+			property: &IntProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:    float32(1.0),
+			expected: 1,
+		},
+		{
+			name: "invalid float32 property",
+			property: &IntProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:   float32(1.1),
+			wantErr: true,
+		},
+		{
+			name: "valid float64 property",
+			property: &IntProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:    float64(1.0),
+			expected: 1,
+		},
+		{
+			name: "invalid float64 property",
+			property: &IntProperty{
+				PropertyDetails: knowledgebase2.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:   float64(1.1),
+			wantErr: true,
+		},
+		{
 			name: "non int property",
 			property: &IntProperty{
 				PropertyDetails: knowledgebase2.PropertyDetails{

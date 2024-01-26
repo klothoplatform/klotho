@@ -8,6 +8,10 @@ resources:
         Triggers:
             rest_api_0_integration_0: rest_api_0_integration_0
             rest_api_0_integration_0_method: rest_api_0_integration_0_method
+            rest_api_0_integration_1: rest_api_0_integration_1
+            rest_api_0_integration_1_method: rest_api_0_integration_1_method
+            rest_api_0_integration_2: rest_api_0_integration_2
+            rest_api_0_integration_2_method: rest_api_0_integration_2_method
     aws:rest_api:rest_api_0:
         BinaryMediaTypes:
             - application/octet-stream
@@ -64,7 +68,11 @@ edges:
     aws:api_stage:rest_api_0:api_stage-0 -> aws:api_deployment:rest_api_0:api_deployment-0:
     aws:api_stage:rest_api_0:api_stage-0 -> aws:rest_api:rest_api_0:
     aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_1:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_2:
     aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_method:rest_api_0:rest_api_0_integration_1_method:
+    aws:api_deployment:rest_api_0:api_deployment-0 -> aws:api_method:rest_api_0:rest_api_0_integration_2_method:
     aws:api_deployment:rest_api_0:api_deployment-0 -> aws:rest_api:rest_api_0:
     aws:rest_api:rest_api_0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
     aws:rest_api:rest_api_0 -> aws:api_integration:rest_api_0:rest_api_0_integration_1:

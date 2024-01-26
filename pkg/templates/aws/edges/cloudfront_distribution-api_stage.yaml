@@ -1,5 +1,6 @@
 source: aws:cloudfront_distribution
 target: aws:api_stage
+always_process: true
 operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
@@ -18,3 +19,60 @@ operational_rules:
               DomainName: '{{ .Target }}#StageInvokeUrl'
               OriginId: '{{ .Target.Name }}'
               OriginPath: '/{{ fieldValue "StageName" .Target }}'
+      - resource: '{{ .Source }}'
+        configuration:
+          field: CacheBehaviors
+          value: |
+            [
+            
+            {{ $targetOriginId := .Target.Name }}
+            {{ $routes := makeSlice }}
+            {{ $integrations := allDownstream "aws:api_integration" .Target }}
+            {{ range $i, $integ := $integrations }}
+              {{- if not (sliceContains $routes (fieldValue "Route" $integ)) }}
+                {{ $routes = appendSlice $routes (fieldValue "Route" $integ) }}
+              {{- end }}
+            {{ end }}
+            {{ range $i, $route := $routes }}
+              {{ $methods := makeSlice }}
+              {{ range $i, $integ := $integrations }}
+                {{- if eq (fieldValue "Route" $integ) $route }}
+                  {{ $methods = appendSlice $methods (fieldValue "HttpMethod" (fieldValue "Method" $integ)) }}
+                {{- end }}
+              {{ end }}
+              {
+                "AllowedMethods": [
+                    {{- if or (sliceContains $methods "PATCH") (sliceContains $methods "POST") (sliceContains $methods "PUT") (sliceContains $methods "DELETE") }}
+                    "DELETE",
+                    "GET",
+                    "HEAD",
+                    "OPTIONS",
+                    "PATCH",
+                    "POST",
+                    "PUT"
+                    {{- else }}
+                    "HEAD",
+                    "GET", 
+                    "OPTIONS"
+                    {{- end }}
+                ],
+                "ForwardedValues": {
+                  "Cookies": {
+                    "Forward": "none"
+                  },
+                  "QueryString": true
+                },
+                "CachedMethods": [                    
+                  "HEAD",
+                  "GET"
+                ],
+                "DefaultTtl": 0,
+                "MaxTtl": 0,
+                "MinTtl": 0,
+                "SmoothStreaming": false,
+                "PathPattern": "{{ replace `\/\{proxy\+\}` "*" $route  }}", 
+                "TargetOriginId": "{{ $targetOriginId }}",
+                "ViewerProtocolPolicy": "redirect-to-https"
+              }{{ if ne $i (sub (len $routes) 1) }},{{ end }}
+            {{ end }}
+            ]

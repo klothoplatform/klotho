@@ -12,6 +12,10 @@ type (
 		Source construct.ResourceId `yaml:"source"`
 		Target construct.ResourceId `yaml:"target"`
 
+		// AlwaysProcess signals that the edge should always be processed even if the source and target exist in the input graph
+		// currently we dont check edges for operational rules if they previously existed and this flag is set to false
+		AlwaysProcess bool `yaml:"always_process"`
+
 		// DirectEdgeOnly signals that the edge cannot be used within constructing other paths
 		// and can only be used as a direct edge
 		DirectEdgeOnly bool `yaml:"direct_edge_only"`
