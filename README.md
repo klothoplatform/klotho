@@ -52,7 +52,7 @@ It's a superset of monoliths, microservices and serverless architectures, combin
 
 ## Infrastructure-from-Code
 
-Klotho is part of a new generation of cloud tools that implements Infrastructure-from-Code (IfC), a process to automatically create, configure and manage cloud resources from the existing software application's source code without having describe it explicitly.
+Klotho is part of a new generation of cloud tools that implements Infrastructure-from-Code (IfC), a process to automatically create, configure and manage cloud resources from the existing software application's source code without having to describe it explicitly.
 
 By annotating the clients, SDKs or language constructs used in the code with Klotho capabilities, they are automatically created, updated and wired into the application.
 
