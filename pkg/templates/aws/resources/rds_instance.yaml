@@ -103,6 +103,14 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Host:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Port:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 consumption:
   emitted:

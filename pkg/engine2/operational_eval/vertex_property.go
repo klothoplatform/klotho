@@ -402,6 +402,7 @@ func addConfigurationRuleToPropertyVertex(
 			))
 			continue
 		}
+
 		key := Key{Ref: ref}
 		vertex, err := eval.graph.Vertex(key)
 		if err != nil {

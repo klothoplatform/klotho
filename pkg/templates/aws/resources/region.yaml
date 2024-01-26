@@ -2,7 +2,7 @@ qualified_type_name: aws:region
 display_name: Region
 
 properties:
-  RegionName:
+  Name:
     description: The name of the region
     type: string
     deploy_time: true

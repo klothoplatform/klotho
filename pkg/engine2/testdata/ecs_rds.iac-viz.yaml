@@ -87,6 +87,7 @@ resources:
   ecs_task_definition/ecs_service_0 -> ecr_image/ecs_service_0-ecs_service_0:
   ecs_task_definition/ecs_service_0 -> iam_role/ecs_service_0-execution-role:
   ecs_task_definition/ecs_service_0 -> log_group/ecs_service_0-log-group:
+  ecs_task_definition/ecs_service_0 -> rds_instance/rds-instance-2:
   ecs_task_definition/ecs_service_0 -> region/region-0:
   aws:security_group:vpc-0/ecs_service_0-security_group:
 

@@ -14,7 +14,7 @@ operational_rules:
               Name: '{{ .Target.Name }}'
       - resource: '{{ .Source }}'
         configuration:
-          field: MountPoints
+          field: ContainerDefinitions[0].MountPoints
           value:
             - ContainerPath: '{{ fieldValue "RootDirectory.Path" .Target }}'
               SourceVolume: '{{ .Target.Name }}'
