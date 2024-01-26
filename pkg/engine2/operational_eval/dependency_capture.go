@@ -11,14 +11,27 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-// fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
-// with one that just returns the zero value of the property type and records the property reference.
-type fauxConfigContext struct {
-	propRef construct.PropertyRef
-	inner   knowledgebase.DynamicValueContext
-	changes graphChanges
-	src     Key
-}
+//go:generate 	mockgen -source=./dependency_capture.go --destination=./dependency_capture_mock_test.go --package=operational_eval
+
+type (
+	dependencyCapturer interface {
+		ExecuteOpRule(data knowledgebase.DynamicValueData, rule knowledgebase.OperationalRule) error
+		ExecutePropertyRule(data knowledgebase.DynamicValueData, rule knowledgebase.PropertyRule) error
+		DAG() construct.Graph
+		KB() knowledgebase.TemplateKB
+		ExecuteDecode(tmpl string, data knowledgebase.DynamicValueData, value interface{}) error
+		GetChanges() graphChanges
+	}
+
+	// fauxConfigContext acts like a [knowledgebase.DynamicValueContext] but replaces the [FieldValue] function
+	// with one that just returns the zero value of the property type and records the property reference.
+	fauxConfigContext struct {
+		propRef construct.PropertyRef
+		inner   knowledgebase.DynamicValueContext
+		changes graphChanges
+		src     Key
+	}
+)
 
 func newDepCapture(inner knowledgebase.DynamicValueContext, changes graphChanges, src Key) *fauxConfigContext {
 	return &fauxConfigContext{
@@ -44,6 +57,10 @@ func (ctx *fauxConfigContext) DAG() construct.Graph {
 
 func (ctx *fauxConfigContext) KB() knowledgebase.TemplateKB {
 	return ctx.inner.KB()
+}
+
+func (ctx *fauxConfigContext) GetChanges() graphChanges {
+	return ctx.changes
 }
 
 func (ctx *fauxConfigContext) ExecuteDecode(tmpl string, data knowledgebase.DynamicValueData, value interface{}) error {

@@ -31,6 +31,7 @@ type (
 
 	Key struct {
 		Ref               construct.PropertyRef
+		RuleHash          string
 		Edge              construct.SimpleEdge
 		GraphState        graphStateRepr
 		PathSatisfication knowledgebase.EdgePathSatisfaction
@@ -40,7 +41,7 @@ type (
 		Key() Key
 		Evaluate(eval *Evaluator) error
 		UpdateFrom(other Vertex)
-		Dependencies(eval *Evaluator) (graphChanges, error)
+		Dependencies(eval *Evaluator, propCtx dependencyCapturer) error
 	}
 
 	conditionalVertex interface {
@@ -372,11 +373,15 @@ func (changes graphChanges) addEdges(source Key, targets set.Set[Key]) {
 
 func (changes graphChanges) AddVertexAndDeps(eval *Evaluator, v Vertex) error {
 	changes.nodes[v.Key()] = v
-	deps, err := v.Dependencies(eval)
+
+	depCaptureChanges := newChanges()
+	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), depCaptureChanges, v.Key())
+
+	err := v.Dependencies(eval, propCtx)
 	if err != nil {
 		return fmt.Errorf("could not get dependencies for %s: %w", v.Key(), err)
 	}
-	changes.Merge(deps)
+	changes.Merge(depCaptureChanges)
 	return nil
 }
 

@@ -17,8 +17,8 @@ func (gv graphStateVertex) Key() Key {
 	return Key{GraphState: gv.repr}
 }
 
-func (gv *graphStateVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
-	return graphChanges{}, nil
+func (gv *graphStateVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
+	return nil
 }
 
 func (gv *graphStateVertex) UpdateFrom(other Vertex) {

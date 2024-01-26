@@ -27,12 +27,7 @@ func (prop propertyVertex) Key() Key {
 	return Key{Ref: prop.Ref}
 }
 
-func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
-	changes := newChanges()
-
-	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), changes, prop.Key())
-
-	kb := eval.Solution.KnowledgeBase()
+func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
 	resData := knowledgebase.DynamicValueData{Resource: prop.Ref.Resource}
 
 	// Template can be nil when checking for dependencies from a propertyVertex when adding an edge template
@@ -41,45 +36,24 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator) (graphChanges, error) 
 		details := prop.Template.Details()
 		if opRule := details.OperationalRule; opRule != nil {
 			if err := propCtx.ExecutePropertyRule(resData, *opRule); err != nil {
-				return changes, fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
-			}
-		}
-
-		if !details.Namespace {
-			tmpl, err := kb.GetResourceTemplate(prop.Ref.Resource)
-			if err != nil {
-				return changes, fmt.Errorf("could not get resource template for %s: %w", prop.Ref.Resource, err)
-			}
-			for propKey, propTmpl := range tmpl.Properties {
-				if propTmpl.Details().Namespace {
-					nsRef := construct.PropertyRef{Resource: prop.Ref.Resource, Property: propKey}
-					propCtx.addRef(nsRef)
-				}
+				return fmt.Errorf("could not execute resource operational rule for %s: %w", prop.Ref, err)
 			}
 		}
 	}
 
-	for edge, rules := range prop.EdgeRules {
-		var errs error
+	for edge, rule := range prop.EdgeRules {
 		edgeData := knowledgebase.DynamicValueData{
 			Resource: prop.Ref.Resource,
 			Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
 		}
-		for _, rule := range rules {
-			errs = errors.Join(errs, propCtx.ExecuteOpRule(edgeData, rule))
-		}
-		if errs != nil {
-			return changes, fmt.Errorf("could not execute %s for edge %s: %w", prop.Ref, edge, errs)
-		}
-
-		edgeKey := Key{Edge: edge}
-		_, err := eval.graph.Vertex(edgeKey)
-		if err == nil {
-			changes.addEdge(prop.Key(), edgeKey)
+		for _, opRule := range rule {
+			if err := propCtx.ExecuteOpRule(edgeData, opRule); err != nil {
+				return fmt.Errorf("could not execute edge operational rule for %s: %w", prop.Ref, err)
+			}
 		}
 	}
 
-	return changes, nil
+	return nil
 }
 
 func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
@@ -354,4 +328,100 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		return ReadyNow, nil
 	}
 	return NotReadyMid, nil
+}
+
+// addConfigurationRuleToPropertyVertex adds a configuration rule to a property vertex
+// if the vertex parameter is a edgeVertex or resourceRuleVertex, it will add the rule to the
+// appropriate property vertex and field on the property vertex.
+//
+// The method returns a map of rules which can be evaluated immediately, and an error if any
+func addConfigurationRuleToPropertyVertex(
+	rule knowledgebase.OperationalRule,
+	v Vertex,
+	cfgCtx knowledgebase.DynamicValueContext,
+	data knowledgebase.DynamicValueData,
+	eval *Evaluator,
+) (map[construct.ResourceId][]knowledgebase.ConfigurationRule, error) {
+	configuration := make(map[construct.ResourceId][]knowledgebase.ConfigurationRule)
+
+	log := eval.Log().With("op", "eval")
+	pred, err := eval.graph.PredecessorMap()
+	if err != nil {
+		return configuration, err
+	}
+
+	var errs error
+
+	for _, config := range rule.ConfigurationRules {
+
+		var ref construct.PropertyRef
+		err := cfgCtx.ExecuteDecode(config.Resource, data, &ref.Resource)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"could not decode resource for %s: %w",
+				config.Resource, err,
+			))
+			continue
+		}
+		err = cfgCtx.ExecuteDecode(config.Config.Field, data, &ref.Property)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"could not decode property for %s: %w",
+				config.Config.Field, err,
+			))
+			continue
+		}
+		key := Key{Ref: ref}
+		vertex, err := eval.graph.Vertex(key)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not attempt to get existing vertex for %s: %w", ref, err))
+			continue
+		}
+		_, unevalErr := eval.unevaluated.Vertex(key)
+		if errors.Is(unevalErr, graph.ErrVertexNotFound) {
+			var evalDeps []string
+			for dep := range pred[key] {
+				depEvaled, err := eval.isEvaluated(dep)
+				if err != nil {
+					errs = errors.Join(errs, fmt.Errorf("could not check if %s is evaluated: %w", dep, err))
+					continue
+				}
+				if depEvaled {
+					evalDeps = append(evalDeps, `"`+dep.String()+`"`)
+				}
+			}
+			if len(evalDeps) == 0 {
+				configuration[ref.Resource] = append(configuration[ref.Resource], config)
+				log.Debugf("Allowing config on %s to be evaluated due to no dependents", key)
+			} else {
+				errs = errors.Join(errs, fmt.Errorf(
+					"cannot add rules to evaluated node %s: evaluated dependents: %s",
+					ref, strings.Join(evalDeps, ", "),
+				))
+			}
+			continue
+		} else if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))
+			continue
+		}
+		pv, ok := vertex.(*propertyVertex)
+		if !ok {
+			errs = errors.Join(errs,
+				fmt.Errorf("existing vertex for %s is not a property vertex", ref),
+			)
+		}
+
+		switch v := v.(type) {
+		case *edgeVertex:
+			pv.EdgeRules[v.Edge] = append(pv.EdgeRules[v.Edge], knowledgebase.OperationalRule{
+				If:                 rule.If,
+				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
+			})
+		default:
+			errs = errors.Join(errs,
+				fmt.Errorf("existing vertex for %s is not able to add configuration rules to property vertex", ref),
+			)
+		}
+	}
+	return configuration, errs
 }

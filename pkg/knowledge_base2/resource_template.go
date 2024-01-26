@@ -25,6 +25,8 @@ type (
 		// Properties defines the properties that the resource has
 		Properties Properties `json:"properties" yaml:"properties"`
 
+		AdditionalRules []AdditionalRule `json:"additional_rules" yaml:"additional_rules"`
+
 		// Classification defines the classification of the resource
 		Classification Classification `json:"classification" yaml:"classification"`
 

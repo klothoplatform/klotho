@@ -468,8 +468,9 @@ func (v *pathExpandVertex) addDepsFromEdge(
 	return errs
 }
 
-func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
-	changes := newChanges()
+func (v *pathExpandVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
+	changes := propCtx.GetChanges()
+
 	srcKey := v.Key()
 
 	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference))
@@ -480,34 +481,34 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator) (graphChanges, error) {
 	// This has to be run after we analyze the refs used in path expansion to make sure the operational rules
 	// dont create other resources that need to be operated on in the path expand vertex
 	if v.TempGraph == nil {
-		return changes, nil
+		return nil
 	}
 
 	var errs error
 	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
 	if err != nil {
-		return changes, err
+		return err
 	}
 	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Source, srcDeps))
 
 	targetDeps, err := construct.AllUpstreamDependencies(v.TempGraph, v.Edge.Target)
 	if err != nil {
-		return changes, err
+		return err
 	}
 	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Target, targetDeps))
 	if errs != nil {
-		return changes, errs
+		return errs
 	}
 
 	edges, err := v.TempGraph.Edges()
 	if err != nil {
-		return changes, err
+		return err
 	}
 	for _, edge := range edges {
 		errs = errors.Join(errs, v.addDepsFromEdge(eval, changes, edge))
 	}
 
-	return changes, errs
+	return errs
 }
 
 // getDepsForPropertyRef takes a property reference and recurses down until the property is not filled in on the resource

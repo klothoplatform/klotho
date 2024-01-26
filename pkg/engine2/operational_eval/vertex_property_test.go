@@ -113,3 +113,78 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 		})
 	}
 }
+
+func Test_propertyVertex_Dependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		v       *propertyVertex
+		mocks   func(dcap *MockdependencyCapturer)
+		wantErr bool
+	}{
+		{
+			name: "property vertex with template",
+			v: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				Template: &properties.StringProperty{
+					PropertyDetails: knowledgebase.PropertyDetails{
+						OperationalRule: &knowledgebase.PropertyRule{
+							If: "test",
+						},
+					},
+				},
+			},
+			mocks: func(dcap *MockdependencyCapturer) {
+				dcap.EXPECT().ExecutePropertyRule(knowledgebase.DynamicValueData{
+					Resource: construct.ResourceId{Name: "test"},
+				}, knowledgebase.PropertyRule{
+					If: "test",
+				}).Return(nil)
+			},
+		},
+		{
+			name: "property vertex with edge rules",
+			v: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						{
+							If: "testE",
+						},
+					},
+				},
+			},
+			mocks: func(dcap *MockdependencyCapturer) {
+				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
+					Resource: construct.ResourceId{Name: "test"},
+					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
+				}, knowledgebase.OperationalRule{
+					If: "testE",
+				}).Return(nil)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			dcap := NewMockdependencyCapturer(ctrl)
+			tt.mocks(dcap)
+			eval := &Evaluator{}
+			err := tt.v.Dependencies(eval, dcap)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			ctrl.Finish()
+		})
+	}
+}

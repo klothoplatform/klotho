@@ -1,6 +1,9 @@
 package knowledgebase2
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -20,6 +23,11 @@ type (
 		If                 string                `json:"if" yaml:"if"`
 		Steps              []EdgeOperationalStep `json:"steps" yaml:"steps"`
 		ConfigurationRules []ConfigurationRule   `json:"configuration_rules" yaml:"configuration_rules"`
+	}
+
+	AdditionalRule struct {
+		If    string            `json:"if" yaml:"if"`
+		Steps []OperationalStep `json:"steps" yaml:"steps"`
 	}
 
 	PropertyRule struct {
@@ -89,6 +97,24 @@ const (
 	ClusterSelectionOperator SelectionOperator = "cluster"
 	ClosestSelectionOperator SelectionOperator = ""
 )
+
+func (rule AdditionalRule) Hash() (string, error) {
+	// Convert the struct to a byte slice.
+	// Note that the struct must be able to be converted to JSON,
+	// so all fields must be exported (i.e., start with a capital letter).
+	byteSlice, err := json.Marshal(rule)
+	if err != nil {
+		return "", err
+	}
+
+	// Hash the byte slice.
+	hash := sha256.Sum256(byteSlice)
+
+	// Convert the hash to a hexadecimal string.
+	hashString := hex.EncodeToString(hash[:])
+
+	return hashString, nil
+}
 
 func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge {
 	if d == DirectionUpstream {
