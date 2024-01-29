@@ -412,7 +412,7 @@ func Test_pathExpandVertex_Dependencies(t *testing.T) {
 	tests := []struct {
 		name    string
 		v       *pathExpandVertex
-		mocks   func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty) error
+		mocks   func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty, dcap *MockdependencyCapturer) error
 		want    graphChanges
 		wantErr bool
 	}{
@@ -427,6 +427,10 @@ func Test_pathExpandVertex_Dependencies(t *testing.T) {
 					Classification: "network",
 				},
 			},
+			mocks: func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty, dcap *MockdependencyCapturer) error {
+				dcap.EXPECT().GetChanges().Times(1)
+				return nil
+			},
 			want: newChanges(),
 		},
 	}
@@ -437,20 +441,20 @@ func Test_pathExpandVertex_Dependencies(t *testing.T) {
 			mockSol := &enginetesting.MockSolution{}
 			mockKB := NewMockTemplateKB(ctrl)
 			mockProperty := NewMockProperty(ctrl)
+			dcap := NewMockdependencyCapturer(ctrl)
 			eval := &Evaluator{Solution: mockSol}
 			if tt.mocks != nil {
-				err := tt.mocks(mockSol, mockKB, mockProperty)
+				err := tt.mocks(mockSol, mockKB, mockProperty, dcap)
 				if !assert.NoError(err) {
 					return
 				}
 			}
-			changes, err := tt.v.Dependencies(eval)
+			err := tt.v.Dependencies(eval, dcap)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, changes)
 			mockSol.AssertExpectations(t)
 			ctrl.Finish()
 		})

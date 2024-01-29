@@ -278,7 +278,8 @@ func getDepsForPropertyRef(
 }
 
 func (v *pathExpandVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
-	changes := newChanges()
+	changes := propCtx.GetChanges()
+
 	srcKey := v.Key()
 
 	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference))

@@ -114,6 +114,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		solution_context.DynamicCtx(sol),
 		res,
 		sol.Constraints().Resources,
+		dynData,
 	); err != nil {
 		return err
 	}

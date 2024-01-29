@@ -8,6 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
 	"github.com/stretchr/testify/assert"
@@ -198,41 +199,39 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				}).Return(nil)
 			},
 		},
-
-			}
-			for _, tt := range tests {
-				t.Run(tt.name, func(t *testing.T) {
-					ctrl := gomock.NewController(t)
-				dcap := NewMockdependencyCapturer(ctrl)
-				resource := &construct.Resource{ID: construct.ResourceId{Name: "test"}, Properties: construct.Properties{
-					"test": "test",
-				}}
-				path, err := resource.PropertyPath("test")
-				if !assert.NoError(t, err) {
-					return
-				}
-				tt.mocks(dcap, resource, path)
-				testSol := enginetesting.NewTestSolution()
-				testSol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
-				err = testSol.RawView().AddVertex(resource)
-				if !assert.NoError(t, err) {
-					return
-				}
-				eval := &Evaluator{
-					Solution: testSol,
-				}
-				err = tt.v.Dependencies(eval, dcap)
-				if tt.wantErr {
-					assert.Error(t, err)
-					return
-				}
-				assert.NoError(t, err)
-				ctrl.Finish()
-			})
-		}
 	}
-	
-=======
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			dcap := NewMockdependencyCapturer(ctrl)
+			resource := &construct.Resource{ID: construct.ResourceId{Name: "test"}, Properties: construct.Properties{
+				"test": "test",
+			}}
+			path, err := resource.PropertyPath("test")
+			if !assert.NoError(t, err) {
+				return
+			}
+			tt.mocks(dcap, resource, path)
+			testSol := enginetesting.NewTestSolution()
+			testSol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+			err = testSol.RawView().AddVertex(resource)
+			if !assert.NoError(t, err) {
+				return
+			}
+			eval := &Evaluator{
+				Solution: testSol,
+			}
+			err = tt.v.Dependencies(eval, dcap)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			ctrl.Finish()
+		})
+	}
+}
+
 func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 	id := construct.ResourceId{Provider: "test", Type: "test", Name: "test"}
 	type testData struct {
@@ -355,7 +354,7 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				Ref:      tt.ref,
 				Template: mockProperty,
 			}
-			err := v.evaluateConstraints(mockRc, knowledgebase.DynamicValueContext{}, tt.res, tt.rcs)
+			err := v.evaluateConstraints(mockRc, knowledgebase.DynamicValueContext{}, tt.res, tt.rcs, knowledgebase.DynamicValueData{Resource: id})
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
