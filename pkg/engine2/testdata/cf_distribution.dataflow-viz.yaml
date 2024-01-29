@@ -14,7 +14,6 @@ resources:
 
   cloudfront_distribution/cloudfront_distribution_2 -> rest_api/rest_api_1:
     path:
-        - aws:api_deployment:rest_api_1:api_deployment-0
         - aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1
 
   cloudfront_distribution/cloudfront_distribution_2 -> s3_bucket/s3-bucket-3:
