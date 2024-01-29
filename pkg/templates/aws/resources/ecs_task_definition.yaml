@@ -42,6 +42,7 @@ properties:
         description: The entry point that is passed to the container
       Environment:
         type: list
+        important: true
         properties:
           Name:
             type: string
