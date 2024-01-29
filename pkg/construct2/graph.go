@@ -33,7 +33,7 @@ func NewGraph(options ...func(*graph.Traits)) Graph {
 }
 
 func NewAcyclicGraph(options ...func(*graph.Traits)) Graph {
-	return NewGraph(graph.PreventCycles())
+	return NewGraphWithOptions(append(options, graph.Directed(), graph.PreventCycles())...)
 }
 
 func ResourceHasher(r *Resource) ResourceId {

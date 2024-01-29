@@ -3,7 +3,6 @@ package path_selection
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -90,8 +89,10 @@ func BuildPathSelectionGraph(
 		}
 		var prevRes construct.ResourceId
 		for i, res := range path {
-			id := res.Id()
-			id.Name = fmt.Sprintf("%s%s", PHANTOM_PREFIX, generateStringSuffix(5))
+			id, err := makePhantom(tempGraph, res.Id())
+			if err != nil {
+				return nil, err
+			}
 			if i == 0 {
 				id = dep.Source
 			} else if i == len(path)-1 {
@@ -150,14 +151,15 @@ func PathSatisfiesClassification(
 	return true
 }
 
-func generateStringSuffix(n int) string {
-	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+func makePhantom(g construct.Graph, id construct.ResourceId) (construct.ResourceId, error) {
+	for suffix := 0; suffix < 1000; suffix++ {
+		candidate := id
+		candidate.Name = fmt.Sprintf("%s%d", PHANTOM_PREFIX, suffix)
+		if _, err := g.Vertex(candidate); errors.Is(err, graph.ErrVertexNotFound) {
+			return candidate, nil
+		}
 	}
-	return string(b)
-
+	return id, fmt.Errorf("exhausted suffixes for creating phantom for %s", id)
 }
 
 func calculateEdgeWeight(

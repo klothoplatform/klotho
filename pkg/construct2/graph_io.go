@@ -166,9 +166,7 @@ func (e SimpleEdge) Less(other SimpleEdge) bool {
 	return ResourceIdLess(e.Target, other.Target)
 }
 
-func (e *SimpleEdge) UnmarshalText(data []byte) error {
-	s := string(data)
-
+func (e *SimpleEdge) Parse(s string) error {
 	source, target, found := strings.Cut(s, " -> ")
 	if !found {
 		target, source, found = strings.Cut(s, " <- ")
@@ -176,10 +174,21 @@ func (e *SimpleEdge) UnmarshalText(data []byte) error {
 			return errors.New("invalid edge format, expected either `source -> target` or `target <- source`")
 		}
 	}
+	return errors.Join(
+		e.Source.Parse(source),
+		e.Target.Parse(target),
+	)
+}
 
-	srcErr := e.Source.UnmarshalText([]byte(source))
-	tgtErr := e.Target.UnmarshalText([]byte(target))
-	return errors.Join(srcErr, tgtErr)
+func (e *SimpleEdge) Validate() error {
+	return errors.Join(e.Source.Validate(), e.Target.Validate())
+}
+
+func (e *SimpleEdge) UnmarshalText(data []byte) error {
+	if err := e.Parse(string(data)); err != nil {
+		return err
+	}
+	return e.Validate()
 }
 
 func (e SimpleEdge) ToEdge() Edge {
