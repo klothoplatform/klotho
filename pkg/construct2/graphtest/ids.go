@@ -7,7 +7,7 @@ import (
 )
 
 func ParseId(t *testing.T, str string) (id construct.ResourceId) {
-	err := id.UnmarshalText([]byte(str))
+	err := id.Parse(str)
 	if err != nil {
 		t.Fatalf("failed to parse resource id %q: %v", str, err)
 	}
@@ -16,7 +16,7 @@ func ParseId(t *testing.T, str string) (id construct.ResourceId) {
 
 func ParseEdge(t *testing.T, str string) construct.Edge {
 	var io construct.SimpleEdge
-	err := io.UnmarshalText([]byte(str))
+	err := io.Parse(str)
 	if err != nil {
 		t.Fatalf("failed to parse edge %q: %v", str, err)
 	}
@@ -28,7 +28,7 @@ func ParseEdge(t *testing.T, str string) construct.Edge {
 
 func ParseRef(t *testing.T, str string) construct.PropertyRef {
 	var ref construct.PropertyRef
-	err := ref.UnmarshalText([]byte(str))
+	err := ref.Parse(str)
 	if err != nil {
 		t.Fatalf("failed to parse property ref %q: %v", str, err)
 	}
@@ -37,7 +37,7 @@ func ParseRef(t *testing.T, str string) construct.PropertyRef {
 
 func ParsePath(t *testing.T, str string) construct.Path {
 	var path construct.Path
-	err := path.UnmarshalText([]byte(str))
+	err := path.Parse(str)
 	if err != nil {
 		t.Fatalf("failed to parse path %q: %v", str, err)
 	}

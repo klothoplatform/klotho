@@ -313,6 +313,11 @@ func expandPath(
 		return errs
 	}
 
+	undirected, err := BuildUndirectedGraph(ctx.RawView(), ctx.KnowledgeBase())
+	if err != nil {
+		return err
+	}
+
 	addCandidates := func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		matchIdx := matchesNonBoundary(id, nonBoundaryResources)
 		if matchIdx < 0 {
@@ -334,7 +339,7 @@ func expandPath(
 		if _, ok := candidates[matchIdx][id]; !ok {
 			candidates[matchIdx][id] = 0
 		}
-		weight, err := determineCandidateWeight(ctx, input.Dep.Source.ID, input.Dep.Target.ID, id, resultGraph)
+		weight, err := determineCandidateWeight(ctx, input.Dep.Source.ID, input.Dep.Target.ID, id, resultGraph, undirected)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
@@ -352,7 +357,7 @@ func expandPath(
 	}
 	// We need to add candidates which exist in our current result graph so we can reuse them. We do this in case
 	// we have already performed expansions to ensure the namespaces are connected, etc
-	err := construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err = construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return addCandidates(id, resource, nerr)
 	})
 	if err != nil {

@@ -1,8 +1,8 @@
 package construct2
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 )
 
 type PropertyRef struct {
@@ -18,15 +18,22 @@ func (v PropertyRef) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
 
-func (v *PropertyRef) UnmarshalText(b []byte) error {
-	parts := bytes.SplitN(b, []byte("#"), 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid PropertyRef format: %s", string(b))
+func (v *PropertyRef) Parse(s string) error {
+	res, prop, ok := strings.Cut(s, "#")
+	if !ok {
+		return fmt.Errorf("invalid PropertyRef format: %s", s)
 	}
-	err := v.Resource.UnmarshalText(parts[0])
-	if err != nil {
+	v.Property = prop
+	return v.Resource.Parse(res)
+}
+
+func (v *PropertyRef) Validate() error {
+	return v.Resource.Validate()
+}
+
+func (v *PropertyRef) UnmarshalText(b []byte) error {
+	if err := v.Parse(string(b)); err != nil {
 		return err
 	}
-	v.Property = string(parts[1])
-	return nil
+	return v.Validate()
 }

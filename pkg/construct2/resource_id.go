@@ -153,8 +153,8 @@ var (
 	resourceNamePattern      = regexp.MustCompile(`^[a-zA-Z0-9_./\-:\[\]]*$`)
 )
 
-func (id *ResourceId) UnmarshalText(data []byte) error {
-	parts := strings.SplitN(string(data), ":", 4)
+func (id *ResourceId) Parse(s string) error {
+	parts := strings.SplitN(s, ":", 4)
 	switch len(parts) {
 	case 4:
 		id.Name = parts[3]
@@ -174,6 +174,10 @@ func (id *ResourceId) UnmarshalText(data []byte) error {
 			return fmt.Errorf("must have trailing ':' for provider-only ID")
 		}
 	}
+	return nil
+}
+
+func (id *ResourceId) Validate() error {
 	if id.IsZero() {
 		return nil
 	}
@@ -191,9 +195,17 @@ func (id *ResourceId) UnmarshalText(data []byte) error {
 		err = errors.Join(err, fmt.Errorf("invalid name '%s' (must match %s)", id.Name, resourceNamePattern))
 	}
 	if err != nil {
-		return fmt.Errorf("invalid resource id '%s': %w", string(data), err)
+		return fmt.Errorf("invalid resource id '%s': %w", id.String(), err)
 	}
 	return nil
+}
+
+func (id *ResourceId) UnmarshalText(data []byte) error {
+	err := id.Parse(string(data))
+	if err != nil {
+		return err
+	}
+	return id.Validate()
 }
 
 func (id ResourceId) MarshalTOML() ([]byte, error) {

@@ -42,18 +42,37 @@ func (p Path) MarshalText() ([]byte, error) {
 	return []byte(p.String()), nil
 }
 
-func (p *Path) UnmarshalText(text []byte) error {
-	parts := strings.Split(string(text), " -> ")
+func (p *Path) Parse(s string) error {
+	parts := strings.Split(s, " -> ")
 	*p = make(Path, len(parts))
+	var errs error
 	for i, part := range parts {
 		var id ResourceId
-		err := id.UnmarshalText([]byte(part))
+		err := id.Parse(part)
 		if err != nil {
-			return err
+			errs = errors.Join(errs, fmt.Errorf("could not parse path[%d]: %w", i, err))
 		}
 		(*p)[i] = id
 	}
-	return nil
+	return errs
+}
+
+func (p *Path) Validate() error {
+	var errs error
+	for i, id := range *p {
+		err := id.Validate()
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("path[%d] invalid: %w", i, err))
+		}
+	}
+	return errs
+}
+
+func (p *Path) UnmarshalText(text []byte) error {
+	if err := p.Parse(string(text)); err != nil {
+		return err
+	}
+	return p.Validate()
 }
 
 func (d *Dependencies) Add(p Path) {
