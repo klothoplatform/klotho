@@ -31,7 +31,7 @@ resources:
             - aws:security_group:vpc:lambda_function-security_group
         Subnets:
             - aws:subnet:vpc:subnet1
-            - aws:subnet:subnet2
+            - aws:subnet:vpc:subnet2
         Timeout: 180
     aws:ecr_image:lambda_function-image:
         Context: .
@@ -50,11 +50,11 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-    aws:subnet:subnet2:
+    aws:subnet:vpc:subnet1:
         Type: private
         Vpc: aws:vpc:vpc
         imported: true
-    aws:subnet:vpc:subnet1:
+    aws:subnet:vpc:subnet2:
         Type: private
         Vpc: aws:vpc:vpc
         imported: true
@@ -74,12 +74,12 @@ edges:
     aws:lambda_function:lambda_function -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:lambda_function:lambda_function -> aws:ecr_image:lambda_function-image:
     aws:lambda_function:lambda_function -> aws:iam_role:lambda_function-ExecutionRole:
-    aws:lambda_function:lambda_function -> aws:subnet:subnet2:
     aws:lambda_function:lambda_function -> aws:subnet:vpc:subnet1:
+    aws:lambda_function:lambda_function -> aws:subnet:vpc:subnet2:
     aws:ecr_image:lambda_function-image -> aws:ecr_repo:ecr_repo-0:
     aws:iam_role:lambda_function-ExecutionRole -> aws:log_group:lambda_function-log-group:
-    aws:subnet:subnet2 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
-    aws:subnet:subnet2 -> aws:vpc:vpc:
     aws:subnet:vpc:subnet1 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:vpc:subnet1 -> aws:vpc:vpc:
+    aws:subnet:vpc:subnet2 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
+    aws:subnet:vpc:subnet2 -> aws:vpc:vpc:
     aws:SERVICE_API:lambda_function-lambda_function-log-group -> aws:log_group:lambda_function-log-group:

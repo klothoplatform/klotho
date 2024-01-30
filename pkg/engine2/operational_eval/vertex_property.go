@@ -103,13 +103,19 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
 	}
 	path, err := res.PropertyPath(v.Ref.Property)
-
 	if err != nil {
 		return fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
 	}
 
 	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path}
-	if err := v.evaluateConstraints(sol, res, dynData); err != nil {
+
+	if err := v.evaluateConstraints(
+		&solution_context.Configurer{Ctx: sol},
+		solution_context.DynamicCtx(sol),
+		res,
+		sol.Constraints().Resources,
+		dynData,
+	); err != nil {
 		return err
 	}
 	opCtx := operational_rule.OperationalRuleContext{
@@ -179,13 +185,15 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 }
 
 func (v *propertyVertex) evaluateConstraints(
-	sol solution_context.SolutionContext,
+	rc solution_context.ResourceConfigurer,
+	ctx knowledgebase.DynamicValueContext,
 	res *construct.Resource,
+	rcs []constraints.ResourceConstraint,
 	dynData knowledgebase.DynamicValueData,
 ) error {
 	var setConstraint constraints.ResourceConstraint
 	var addConstraints []constraints.ResourceConstraint
-	for _, c := range sol.Constraints().Resources {
+	for _, c := range rcs {
 		if c.Target != res.ID || c.Property != v.Ref.Property {
 			continue
 		}
@@ -200,17 +208,15 @@ func (v *propertyVertex) evaluateConstraints(
 		return fmt.Errorf("could not get current value for %s: %w", v.Ref, err)
 	}
 
-	ctx := solution_context.DynamicCtx(sol)
 	var defaultVal any
-	if currentValue == nil && !res.Imported {
+	if currentValue == nil && !res.Imported && setConstraint.Operator == "" {
 		defaultVal, err = v.Template.GetDefaultValue(ctx, dynData)
 		if err != nil {
 			return fmt.Errorf("could not get default value for %s: %w", v.Ref, err)
 		}
 	}
 	if currentValue == nil && setConstraint.Operator == "" && v.Template != nil && defaultVal != nil && !res.Imported {
-		err = solution_context.ConfigureResource(
-			sol,
+		err = rc.ConfigureResource(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: defaultVal},
 			dynData,
@@ -222,17 +228,7 @@ func (v *propertyVertex) evaluateConstraints(
 		}
 
 	} else if setConstraint.Operator != "" {
-		kb := sol.KnowledgeBase()
-		resTemplate, err := kb.GetResourceTemplate(res.ID)
-		if err != nil {
-			return fmt.Errorf("could not get resource template for %s: %w", res.ID, err)
-		}
-		property := resTemplate.GetProperty(v.Ref.Property)
-		if property == nil {
-			return fmt.Errorf("could not get property %s from resource %s", v.Ref.Property, res.ID)
-		}
-		err = solution_context.ConfigureResource(
-			sol,
+		err = rc.ConfigureResource(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: setConstraint.Value},
 			dynData,
@@ -255,8 +251,7 @@ func (v *propertyVertex) evaluateConstraints(
 			errs = errors.Join(errs, fmt.Errorf("could not apply constraint for %s: %w", v.Ref, err))
 			continue
 		}
-		errs = errors.Join(errs, solution_context.ConfigureResource(
-			sol,
+		errs = errors.Join(errs, rc.ConfigureResource(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: c.Value},
 			dynData,

@@ -14,21 +14,32 @@ import (
 	"go.uber.org/zap"
 )
 
-type ExpansionInput struct {
-	Dep            construct.ResourceEdge
-	Classification string
-	TempGraph      construct.Graph
-}
+//go:generate mockgen -source=./path_expansion.go --destination=../operational_eval/path_expansion_mock_test.go --package=operational_eval
 
-type ExpansionResult struct {
-	Edges []graph.Edge[construct.ResourceId]
-	Graph construct.Graph
-}
+type (
+	ExpansionInput struct {
+		Dep            construct.ResourceEdge
+		Classification string
+		TempGraph      construct.Graph
+	}
+	ExpansionResult struct {
+		Edges []graph.Edge[construct.ResourceId]
+		Graph construct.Graph
+	}
 
-func ExpandEdge(
-	ctx solution_context.SolutionContext,
+	EdgeExpander interface {
+		ExpandEdge(input ExpansionInput) (ExpansionResult, error)
+	}
+
+	EdgeExpand struct {
+		Ctx solution_context.SolutionContext
+	}
+)
+
+func (e *EdgeExpand) ExpandEdge(
 	input ExpansionInput,
 ) (ExpansionResult, error) {
+	ctx := e.Ctx
 	tempGraph := input.TempGraph
 	dep := input.Dep
 

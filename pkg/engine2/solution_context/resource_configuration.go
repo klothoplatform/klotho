@@ -12,8 +12,25 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
-func ConfigureResource(
-	ctx SolutionContext,
+//go:generate mockgen -source=./resource_configuration.go --destination=../operational_eval/resource_configurer_mock_test.go --package=operational_eval
+
+type (
+	ResourceConfigurer interface {
+		ConfigureResource(
+			resource *construct.Resource,
+			configuration knowledgebase.Configuration,
+			data knowledgebase.DynamicValueData,
+			action string,
+			userInitiated bool,
+		) error
+	}
+
+	Configurer struct {
+		Ctx SolutionContext
+	}
+)
+
+func (c *Configurer) ConfigureResource(
 	resource *construct.Resource,
 	configuration knowledgebase.Configuration,
 	data knowledgebase.DynamicValueData,
@@ -30,7 +47,7 @@ func ConfigureResource(
 		return fmt.Errorf("data resource (%s) does not match configuring resource (%s)", data.Resource, resource.ID)
 	}
 	field := configuration.Field
-	rt, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
+	rt, err := c.Ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
 	if err != nil {
 		return err
 	}
@@ -42,7 +59,7 @@ func ConfigureResource(
 		resource.ID,
 		field,
 		configuration.Value,
-		DynamicCtx(ctx),
+		DynamicCtx(c.Ctx),
 		data,
 	)
 	if err != nil {
@@ -55,7 +72,7 @@ func ConfigureResource(
 		if err != nil {
 			return fmt.Errorf("failed to set property %s on resource %s: %w", field, resource.ID, err)
 		}
-		err = AddDeploymentDependenciesFromVal(ctx, resource, val)
+		err = AddDeploymentDependenciesFromVal(c.Ctx, resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
 		}
@@ -64,7 +81,7 @@ func ConfigureResource(
 		if err != nil {
 			return fmt.Errorf("failed to add property %s on resource %s: %w", field, resource.ID, err)
 		}
-		err = AddDeploymentDependenciesFromVal(ctx, resource, val)
+		err = AddDeploymentDependenciesFromVal(c.Ctx, resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
 		}
@@ -76,7 +93,7 @@ func ConfigureResource(
 	default:
 		return fmt.Errorf("invalid action %s", action)
 	}
-	ctx.RecordDecision(SetPropertyDecision{
+	c.Ctx.RecordDecision(SetPropertyDecision{
 		Resource: resource.ID,
 		Property: configuration.Field,
 		Value:    configuration.Value,
