@@ -39,7 +39,7 @@ resources:
 
   aws:nat_gateway:subnet-2/lambda_test_app-test-efs-fs-route_table-nat_gateway -> elastic_ip/lambda_test_app-test-efs-fs-route_table-nat_gateway-elastic_ip:
   aws:nat_gateway:subnet-2/lambda_test_app-test-efs-fs-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-2:
-  ecr_repo/ecr_repo-0:
+  ecr_repo/lambda_test_app-image-ecr_repo:
 
   efs_file_system/test-efs-fs:
 
@@ -75,7 +75,7 @@ resources:
   aws:subnet:vpc-0/lambda_test_app-test-efs-fs -> vpc/vpc-0:
   ecr_image/lambda_test_app-image:
 
-  ecr_image/lambda_test_app-image -> ecr_repo/ecr_repo-0:
+  ecr_image/lambda_test_app-image -> ecr_repo/lambda_test_app-image-ecr_repo:
   aws:efs_access_point:test-efs-fs/lambda_test_app-test-efs-fs:
 
   aws:efs_access_point:test-efs-fs/lambda_test_app-test-efs-fs -> efs_file_system/test-efs-fs:

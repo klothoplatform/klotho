@@ -73,6 +73,18 @@ func ValidatePropertyRef(value construct.PropertyRef, propertyType string, ctx k
 	if err != nil {
 		return nil, fmt.Errorf("error getting property %s on resource %s, while validating property ref: %w", value.Property, value.Resource, err)
 	}
+
+	// recurse down in case of a nested property ref
+	for _, ok := propVal.(construct.PropertyRef); ok; _, ok = propVal.(construct.PropertyRef) {
+		propVal, err = ValidatePropertyRef(propVal.(construct.PropertyRef), propertyType, ctx)
+		if err != nil {
+			return nil, err
+		}
+		if propVal == nil {
+			return nil, nil
+		}
+	}
+
 	return propVal, nil
 }
 

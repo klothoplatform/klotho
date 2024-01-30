@@ -62,5 +62,6 @@ function create(args: Args): aws.lambda.Function {
 function properties(object: aws.lambda.Function, args: Args) {
     return {
         LambdaIntegrationUri: object.invokeArn,
+        Arn: object.arn,
     }
 }

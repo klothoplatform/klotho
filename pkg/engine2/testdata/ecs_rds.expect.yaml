@@ -63,7 +63,7 @@ resources:
     aws:ecr_image:ecs_service_0-ecs_service_0:
         Context: .
         Dockerfile: ecs_service_0-ecs_service_0.Dockerfile
-        Repo: aws:ecr_repo:ecr_repo-0
+        Repo: aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo
     aws:iam_role:ecs_service_0-execution-role:
         AssumeRolePolicyDoc:
             Statement:
@@ -89,7 +89,7 @@ resources:
     aws:log_group:ecs_service_0-log-group:
         LogGroupName: /aws/ecs/ecs_service_0
         RetentionInDays: 5
-    aws:ecr_repo:ecr_repo-0:
+    aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo:
         ForceDelete: true
     aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
     aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
@@ -224,7 +224,7 @@ edges:
     aws:ecs_task_definition:ecs_service_0 -> aws:ecr_image:ecs_service_0-ecs_service_0:
     aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-execution-role:
     aws:ecs_task_definition:ecs_service_0 -> aws:log_group:ecs_service_0-log-group:
-    aws:ecr_image:ecs_service_0-ecs_service_0 -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:ecs_service_0-ecs_service_0 -> aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo:
     aws:iam_role:ecs_service_0-execution-role -> aws:rds_instance:rds-instance-2:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-2:

@@ -3,7 +3,7 @@ resources:
   lambda_function/lambda_function_0:
     children:
         - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
+        - aws:ecr_repo:lambda_function_0-image-ecr_repo
         - aws:iam_role:lambda_function_0-ExecutionRole
     tag: big
 

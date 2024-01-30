@@ -29,7 +29,7 @@ resources:
     aws:ecr_image:lambda_test_app-image:
         Context: .
         Dockerfile: lambda_test_app-image.Dockerfile
-        Repo: aws:ecr_repo:ecr_repo-0
+        Repo: aws:ecr_repo:lambda_test_app-image-ecr_repo
     aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs:
         FileSystem: aws:efs_file_system:test-efs-fs
         PosixUser:
@@ -62,9 +62,9 @@ resources:
                         - aws:efs_file_system:test-efs-fs#Arn
                 Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-    aws:ecr_repo:ecr_repo-0:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    aws:ecr_repo:lambda_test_app-image-ecr_repo:
         ForceDelete: true
     aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs:
         FileSystem: aws:efs_file_system:test-efs-fs
@@ -146,12 +146,6 @@ resources:
               ToPort: 0
         IngressRules:
             - CidrBlocks:
-                - 10.0.128.0/18
-              Description: Allow ingress traffic from ip addresses within the subnet subnet-1
-              FromPort: 0
-              Protocol: "-1"
-              ToPort: 0
-            - CidrBlocks:
                 - 10.0.192.0/18
               Description: Allow ingress traffic from ip addresses within the subnet lambda_test_app-test-efs-fs
               FromPort: 0
@@ -161,6 +155,12 @@ resources:
               FromPort: 0
               Protocol: "-1"
               Self: true
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.128.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet subnet-1
+              FromPort: 0
+              Protocol: "-1"
               ToPort: 0
         Vpc: aws:vpc:vpc-0
     aws:security_group:vpc-0:subnet-1-test-efs-fs:
@@ -223,7 +223,7 @@ edges:
     aws:lambda_function:lambda_test_app -> aws:iam_role:lambda_test_app-ExecutionRole:
     aws:lambda_function:lambda_test_app -> aws:subnet:vpc-0:lambda_test_app-test-efs-fs:
     aws:lambda_function:lambda_test_app -> aws:subnet:vpc-0:subnet-1:
-    aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:lambda_test_app-image-ecr_repo:
     aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs -> aws:efs_file_system:test-efs-fs:
     aws:iam_role:lambda_test_app-ExecutionRole -> aws:efs_file_system:test-efs-fs:
     aws:iam_role:lambda_test_app-ExecutionRole -> aws:log_group:lambda_test_app-log-group:

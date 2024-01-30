@@ -28,7 +28,7 @@ resources:
     aws:ecr_image:lambda_function-image:
         Context: .
         Dockerfile: lambda_function-image.Dockerfile
-        Repo: aws:ecr_repo:ecr_repo-0
+        Repo: aws:ecr_repo:lambda_function-image-ecr_repo
     aws:iam_role:lambda_function-ExecutionRole:
         AssumeRolePolicyDoc:
             Statement:
@@ -40,8 +40,8 @@ resources:
                         - lambda.amazonaws.com
             Version: "2012-10-17"
         ManagedPolicies:
-            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
     aws:subnet:vpc:lambda_function-vpc:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.128.0/18
@@ -56,7 +56,7 @@ resources:
         RouteTable: aws:route_table:vpc:subnet-1-route_table
         Type: private
         Vpc: aws:vpc:vpc
-    aws:ecr_repo:ecr_repo-0:
+    aws:ecr_repo:lambda_function-image-ecr_repo:
         ForceDelete: true
     aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table:
         RouteTable: aws:route_table:vpc:lambda_function-vpc-route_table
@@ -135,7 +135,7 @@ edges:
     aws:lambda_function:lambda_function -> aws:iam_role:lambda_function-ExecutionRole:
     aws:lambda_function:lambda_function -> aws:subnet:vpc:lambda_function-vpc:
     aws:lambda_function:lambda_function -> aws:subnet:vpc:subnet-1:
-    aws:ecr_image:lambda_function-image -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:lambda_function-image -> aws:ecr_repo:lambda_function-image-ecr_repo:
     aws:iam_role:lambda_function-ExecutionRole -> aws:log_group:lambda_function-log-group:
     aws:subnet:vpc:lambda_function-vpc -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:vpc:lambda_function-vpc -> aws:availability_zone:region-0:availability_zone-0:

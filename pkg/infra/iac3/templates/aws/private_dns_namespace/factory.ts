@@ -11,3 +11,9 @@ function create(args: Args): aws.servicediscovery.PrivateDnsNamespace {
         vpc: args.Vpc.id,
     })
 }
+
+function properties(object: aws.servicediscovery.PrivateDnsNamespace, args: Args) {
+    return {
+        Id: object.id,
+    }
+}

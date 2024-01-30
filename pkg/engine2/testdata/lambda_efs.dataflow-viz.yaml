@@ -26,7 +26,7 @@ resources:
   lambda_function/lambda_test_app:
     children:
         - aws:ecr_image:lambda_test_app-image
-        - aws:ecr_repo:ecr_repo-0
+        - aws:ecr_repo:lambda_test_app-image-ecr_repo
         - aws:iam_role:lambda_test_app-ExecutionRole
     parent: vpc/vpc-0
     tag: big

@@ -9,6 +9,14 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+  Id:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+
+path_satisfaction:
+  as_target:
+    - permissions
 
 classification:
   is:

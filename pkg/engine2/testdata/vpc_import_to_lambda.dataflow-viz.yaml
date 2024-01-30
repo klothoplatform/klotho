@@ -10,7 +10,7 @@ resources:
   lambda_function/lambda_function:
     children:
         - aws:ecr_image:lambda_function-image
-        - aws:ecr_repo:ecr_repo-0
+        - aws:ecr_repo:lambda_function-image-ecr_repo
         - aws:iam_role:lambda_function-ExecutionRole
     parent: vpc/vpc
     tag: big

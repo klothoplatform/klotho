@@ -20,6 +20,7 @@ interface Args {
     Name: string
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
+    ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -55,6 +56,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL {{- end }}
             taskDefinition: args.TaskDefinition.arn,
             waitForSteadyState: true,
+            //TMPL {{- if .ServiceRegistries }}
+            serviceRegistries: args.ServiceRegistries,
+            //TMPL {{- end }}
         },
         { dependsOn: args.dependsOn }
     )
