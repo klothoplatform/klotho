@@ -211,7 +211,7 @@ func (eval *Evaluator) RecalculateUnevaluated() error {
 	return errs
 }
 
-func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, resource *construct.Resource, val any) error {
+func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, resource *construct.Resource) error {
 	topo, err := graph.TopologicalSort(eval.unevaluated)
 	if err != nil {
 		return err

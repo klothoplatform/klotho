@@ -197,8 +197,10 @@ func (eval *Evaluator) isEvaluated(k Key) (bool, error) {
 	_, err = eval.unevaluated.Vertex(k)
 	if errors.Is(err, graph.ErrVertexNotFound) {
 		return true, nil
+	} else if err != nil {
+		return false, err
 	}
-	return false, err
+	return false, nil
 }
 
 func (eval *Evaluator) addEdge(source, target Key) error {
