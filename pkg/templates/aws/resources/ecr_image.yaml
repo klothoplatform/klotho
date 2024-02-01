@@ -6,9 +6,22 @@ properties:
     type: string
     required: true
     description: The base image to use for the Docker image
+    sanitize: |
+      # https://docs.docker.com/engine/reference/commandline/tag/
+      {{ . 
+        | replace `[^[:alnum:]/:.-]+` "" 
+      }}
   Tag:
     type: string
     description: The tag assigned to the Docker image in the repository
+    sanitize: |
+      # https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_Tag.html
+      {{ . 
+        | replace `^[^[:alnum:]]+` "" 
+        | replace `[^[:alnum:]-]+` "-"
+        | replace `-$` ""
+        | length 1 128
+      }}
   Repo:
     type: resource(aws:ecr_repo)
     operational_rule:
@@ -19,19 +32,45 @@ properties:
         unique: true
     description: A reference to the AWS ECR repository resource where the image will
       be stored
+    sanitize: |
+      # https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_CreateRepository.html
+      {{ . 
+        | replace `^[^[:alnum:]]+` "" 
+        | replace `[^[:alnum:]-]+` "-"
+        | replace `-$` ""
+        | length 1 256
+      }}
   Context:
     type: string
     default_value: '.'
     description: The build context path for the Docker build, specifying where to
       find the Dockerfile and other supporting files
+    sanitize: |
+      # No specific AWS documentation, general file path rules applied
+      {{ . 
+        | replace `[^[:alnum:]/.-]+` "" 
+      }}
   Dockerfile:
     type: string
     default_value: '{{ .Self.Name }}.Dockerfile'
     description: The relative path to the Dockerfile within the build context
+    sanitize: |
+      # No specific AWS documentation, general file path rules applied
+      {{ . 
+        | replace `[^[:alnum:]/.-]+` "" 
+      }}
   ImageName:
     type: string
     configuration_disabled: true
     deploy_time: true
+    sanitize: |
+      # https://docs.aws.amazon.com/AmazonECR/latest/APIReference/API_PutImage.html
+      {{ . 
+        | replace `^[^[:alnum:]]+` "" 
+        | replace `[^[:alnum:]-]+` "-"
+        | replace `-$` ""
+        | length 1 256
+      }}
 
 classification:
   is:
