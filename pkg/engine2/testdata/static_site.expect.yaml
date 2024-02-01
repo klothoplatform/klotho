@@ -1,7 +1,5 @@
 resources:
     aws:cloudfront_distribution:cloudfront_distribution_1:
-        ViewerCertificate:
-            CloudfrontDefaultCertificate: true
         DefaultCacheBehavior:
             AllowedMethods:
                 - DELETE
@@ -32,6 +30,8 @@ resources:
         Restrictions:
             GeoRestriction:
                 RestrictionType: none
+        ViewerCertificate:
+            CloudfrontDefaultCertificate: true
     aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0:
         Comment: this is needed to set up S3 polices so that the S3 bucket is not public
     aws:s3_bucket_policy:s3_bucket_policy-0:

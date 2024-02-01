@@ -1,0 +1,112 @@
+[
+  {
+    "error": {
+      "chain": [
+        "required property AvailabilityZone is not set on resource aws:subnet:subnet1"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "AvailabilityZone",
+    "resource": "aws:subnet:subnet1",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property AvailabilityZone is not set on resource aws:subnet:subnet2"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "AvailabilityZone",
+    "resource": "aws:subnet:subnet2",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property AvailabilityZone is not set on resource aws:subnet:subnet3"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "AvailabilityZone",
+    "resource": "aws:subnet:subnet3",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property AvailabilityZone is not set on resource aws:subnet:subnet4"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "AvailabilityZone",
+    "resource": "aws:subnet:subnet4",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property CidrBlock is not set on resource aws:vpc:vpc"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "CidrBlock",
+    "resource": "aws:vpc:vpc",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet1"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet1",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet2"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet2",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet3"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet3",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet4"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet4",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Arn is not set on resource aws:vpc:vpc"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Arn",
+    "resource": "aws:vpc:vpc",
+    "value": null
+  }
+]

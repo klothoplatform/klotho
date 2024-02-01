@@ -1,8 +1,10 @@
 package engine2
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,8 +17,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
+	engine_errs "github.com/klothoplatform/klotho/pkg/engine2/errors"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
-	"github.com/klothoplatform/klotho/pkg/io"
+	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
@@ -29,9 +32,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type EngineMain struct {
-	Engine *Engine
-}
+type (
+	EngineMain struct {
+		Engine *Engine
+	}
+
+	// RunEngineError is used to pass the desired exit code to the main function.
+	// It does not have any sub-errors because EngineMain is responsible for
+	// printing the error to stdout.
+	RunEngineError struct {
+		ExitCode int
+	}
+)
 
 var engineCfg struct {
 	provider   string
@@ -118,7 +130,10 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		Use:     "Run",
 		Short:   "Run the klotho engine",
 		GroupID: engineGroup.ID,
-		RunE:    em.RunEngine,
+		Run: func(cmd *cobra.Command, args []string) {
+			exitErr := em.RunEngine(cmd, args)
+			os.Exit(exitErr.ExitCode)
+		},
 	}
 
 	flags = runCmd.Flags()
@@ -256,7 +271,88 @@ func setupProfiling() func() {
 	return func() {}
 }
 
-func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
+func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineError) {
+	returnCode := 0
+	var engErrs []engine_errs.EngineError
+
+	zap.S().Info("Running engine")
+	err := em.Engine.Run(context)
+	if err != nil {
+		returnCode = 1
+		if ee, ok := err.(engine_errs.EngineError); ok {
+			engErrs = append(engErrs, ee)
+		} else {
+			engErrs = append(engErrs, engine_errs.InternalError{Err: engine_errs.ErrorsToTree(err)})
+		}
+	}
+
+	if len(context.Solutions) > 0 {
+		writeDebugGraphs(context.Solutions[0])
+		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
+			d, ok := d.(solution_context.MaybeErroDecision)
+			if !ok {
+				continue
+			}
+			ee := d.AsEngineError()
+			if ee == nil {
+				continue
+			}
+			engErrs = append(engErrs, ee)
+			if returnCode != 1 {
+				returnCode = 2
+			}
+		}
+	}
+
+	return returnCode, engErrs
+}
+
+func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
+	enc := json.NewEncoder(out)
+	enc.SetIndent("", "  ")
+	// NOTE: since this isn't used in a web context (it's a CLI), we can disable escaping.
+	enc.SetEscapeHTML(false)
+
+	outErrs := make([]map[string]any, len(errs))
+	for i, e := range errs {
+		outErrs[i] = e.ToJSONMap()
+		outErrs[i]["error_code"] = e.ErrorCode()
+		wrapped := errors.Unwrap(e)
+		if wrapped != nil {
+			outErrs[i]["error"] = engine_errs.ErrorsToTree(wrapped)
+		}
+	}
+	return enc.Encode(outErrs)
+}
+
+func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitErr RunEngineError) {
+	var engErrs []engine_errs.EngineError
+	internalError := func(err error) {
+		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
+		exitErr.ExitCode = 1
+	}
+
+	defer func() { // defer functions execute in FILO order, so this executes after the 'recover'.
+		err := writeEngineErrsJson(engErrs, os.Stdout)
+		if err != nil {
+			zap.S().Errorf("failed to output errors to stdout: %v", err)
+		}
+	}()
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		zap.S().Errorf("panic: %v", r)
+		switch r := r.(type) {
+		case engine_errs.EngineError:
+			engErrs = append(engErrs, r)
+		case error:
+			engErrs = append(engErrs, engine_errs.InternalError{Err: r})
+		default:
+			engErrs = append(engErrs, engine_errs.InternalError{Err: fmt.Errorf("panic: %v", r)})
+		}
+	}()
 	defer setupProfiling()()
 
 	// Set up analytics, and hook them up to the logs
@@ -264,14 +360,18 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	analyticsClient.AppendProperties(map[string]any{})
 	z, err := setupLogger(analyticsClient)
 	if err != nil {
-		return err
+		internalError(err)
+		return
 	}
-	defer closenicely.FuncOrDebug(z.Sync)
+	// nolint:errcheck
+	defer z.Sync() // ignore errors from sync, it's always "ERROR: sync /dev/stderr: invalid argument"
+
 	zap.ReplaceGlobals(z)
 
 	err = em.AddEngine()
 	if err != nil {
-		return err
+		internalError(err)
+		return
 	}
 
 	context := &EngineContext{}
@@ -281,12 +381,14 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 		zap.S().Info("Loading input graph")
 		inputF, err := os.Open(architectureEngineCfg.inputGraph)
 		if err != nil {
-			return err
+			internalError(err)
+			return
 		}
 		defer inputF.Close()
 		err = yaml.NewDecoder(inputF).Decode(&input)
 		if err != nil {
-			return err
+			internalError(fmt.Errorf("failed to decode input graph: %w", err))
+			return
 		}
 		context.InitialState = input.Graph
 		if architectureEngineCfg.constraints == "" {
@@ -300,54 +402,57 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) error {
 	if architectureEngineCfg.constraints != "" {
 		runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
 		if err != nil {
-			return errors.Errorf("failed to load constraints: %s", err.Error())
+			internalError(fmt.Errorf("failed to load constraints: %w", err))
+			return
 		}
 		context.Constraints = runConstraints
 	}
+	// len(engErrs) == 0 at this point so overwriting it is safe
+	// All other assignments prior are via 'internalError' and return
+	exitErr.ExitCode, engErrs = em.Run(context)
+	if exitErr.ExitCode == 1 {
+		return
+	}
 
-	zap.S().Info("Running engine")
-	err = em.Engine.Run(context)
+	var files []kio.File
+
+	configErrors := new(bytes.Buffer)
+	err = writeEngineErrsJson(engErrs, configErrors)
 	if err != nil {
-		return errors.Errorf("failed to run engine: %s", err.Error())
+		internalError(fmt.Errorf("failed to write config errors: %w", err))
+		return
 	}
-	writeDebugGraphs(context.Solutions[0])
+	files = append(files, &kio.RawFile{
+		FPath:   "config_errors.json",
+		Content: configErrors.Bytes(),
+	})
+
 	zap.S().Info("Engine finished running... Generating views")
-	var files []io.File
-	files, err = em.Engine.VisualizeViews(context.Solutions[0])
+	vizFiles, err := em.Engine.VisualizeViews(context.Solutions[0])
 	if err != nil {
-		return errors.Errorf("failed to generate views %s", err.Error())
+		internalError(fmt.Errorf("failed to generate views %w", err))
+		return
 	}
+	files = append(files, vizFiles...)
 	zap.S().Info("Generating resources.yaml")
 	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
-		return errors.Errorf("failed to marshal graph: %s", err.Error())
+		internalError(fmt.Errorf("failed to marshal graph: %w", err))
+		return
 	}
-	files = append(files, &io.RawFile{
-		FPath:   "resources.yaml",
-		Content: b,
-	},
+	files = append(files,
+		&kio.RawFile{
+			FPath:   "resources.yaml",
+			Content: b,
+		},
 	)
 
-	configErrors, configErr := em.Engine.getPropertyValidation(context.Solutions[0])
-	if len(configErrors) > 0 {
-		configErrorData, err := json.Marshal(configErrors)
-		if err != nil {
-			return errors.Errorf("failed to marshal config errors: %s", err.Error())
-		}
-		files = append(files, &io.RawFile{
-			FPath:   "config_errors.json",
-			Content: configErrorData,
-		})
-	}
-
-	err = io.OutputTo(files, architectureEngineCfg.outputDir)
+	err = kio.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {
-		return errors.Errorf("failed to write output files: %s", err.Error())
+		internalError(fmt.Errorf("failed to write output files: %w", err))
+		return
 	}
-	if configErr != nil {
-		return ConfigValidationError{Err: configErr}
-	}
-	return nil
+	return
 }
 
 func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
@@ -376,7 +481,7 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 
 	config, err := ReadGetValidEdgeTargetsConfig(getValidEdgeTargetsCfg.configFile)
 	if err != nil {
-		return errors.Errorf("failed to load constraints: %s", err.Error())
+		return fmt.Errorf("failed to load constraints: %w", err)
 	}
 	context := &GetPossibleEdgesContext{
 		InputGraph:                inputF,
@@ -386,23 +491,23 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 	zap.S().Info("getting valid edge targets")
 	validTargets, err := em.Engine.GetValidEdgeTargets(context)
 	if err != nil {
-		return errors.Errorf("failed to run engine: %s", err.Error())
+		return fmt.Errorf("failed to run engine: %w", err)
 	}
 
 	zap.S().Info("writing output files")
 	b, err := yaml.Marshal(validTargets)
 	if err != nil {
-		return errors.Errorf("failed to marshal possible edges: %s", err.Error())
+		return fmt.Errorf("failed to marshal possible edges: %w", err)
 	}
-	var files []io.File
-	files = append(files, &io.RawFile{
+	var files []kio.File
+	files = append(files, &kio.RawFile{
 		FPath:   "valid_edge_targets.yaml",
 		Content: b,
 	})
 
-	err = io.OutputTo(files, getValidEdgeTargetsCfg.outputDir)
+	err = kio.OutputTo(files, getValidEdgeTargetsCfg.outputDir)
 	if err != nil {
-		return errors.Errorf("failed to write output files: %s", err.Error())
+		return fmt.Errorf("failed to write output files: %w", err)
 	}
 	return nil
 }
@@ -414,15 +519,19 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 		defer wg.Done()
 		err := GraphToSVG(sol.KnowledgeBase(), sol.DataflowGraph(), "dataflow")
 		if err != nil {
-			zap.S().Errorf("failed to write dataflow graph: %s", err.Error())
+			zap.S().Errorf("failed to write dataflow graph: %w", err)
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		err := GraphToSVG(sol.KnowledgeBase(), sol.DeploymentGraph(), "iac")
 		if err != nil {
-			zap.S().Errorf("failed to write iac graph: %s", err.Error())
+			zap.S().Errorf("failed to write iac graph: %w", err)
 		}
 	}()
 	wg.Wait()
+}
+
+func (e RunEngineError) Error() string {
+	return fmt.Sprintf("exit code %d", e.ExitCode)
 }

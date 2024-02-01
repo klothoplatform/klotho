@@ -2,6 +2,7 @@ package engine2
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,9 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	engine_errs "github.com/klothoplatform/klotho/pkg/engine2/errors"
 	"github.com/r3labs/diff"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
@@ -72,10 +75,22 @@ func (tc engineTestCase) Test(t *testing.T) {
 		Constraints:  inputFile.Constraints,
 		InitialState: inputFile.Graph,
 	}
-	err = main.Engine.Run(context)
+	_, engineErrs := main.Run(context)
+	// TODO find a convenient way to specify the return code in the testdata
+
+	errDetails := new(bytes.Buffer)
+	err = writeEngineErrsJson(engineErrs, errDetails)
 	if err != nil {
-		t.Fatal(fmt.Errorf("failed to run engine: %w", err))
+		t.Fatal(fmt.Errorf("failed to write engine errors: %w", err))
 	}
+	errDetailsFile, err := os.Open(strings.Replace(tc.inputPath, ".input.yaml", ".err.json", 1))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(fmt.Errorf("failed to open error details file: %w", err))
+	}
+	if errDetailsFile != nil {
+		defer errDetailsFile.Close()
+	}
+	assertErrDetails(t, errDetailsFile, engineErrs)
 
 	sol := context.Solutions[0]
 	actualContent, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
@@ -136,6 +151,28 @@ func (tc engineTestCase) Test(t *testing.T) {
 			}
 		}
 	}
+}
+
+func assertErrDetails(t *testing.T, expectR io.Reader, actual []engine_errs.EngineError) {
+	var expectV []map[string]any
+	err := json.NewDecoder(expectR).Decode(&expectV)
+	if err != nil {
+		t.Fatalf("failed to read expected error details: %v", err)
+		return
+	}
+	actualBuf := new(bytes.Buffer)
+	err = writeEngineErrsJson(actual, actualBuf)
+	if err != nil {
+		t.Fatalf("failed to write actual error details to buffer: %v", err)
+		return
+	}
+	var actualV []map[string]any
+	err = json.NewDecoder(actualBuf).Decode(&actualV)
+	if err != nil {
+		t.Fatalf("failed to read actual error details from buffer: %v", err)
+		return
+	}
+	assert.Equal(t, expectV, actualV, "error details")
 }
 
 func assertYamlMatches(t *testing.T, expectStr, actualStr string, name string) {
