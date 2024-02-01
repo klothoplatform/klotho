@@ -75,8 +75,8 @@ func ValidatePropertyRef(value construct.PropertyRef, propertyType string, ctx k
 	}
 
 	// recurse down in case of a nested property ref
-	for _, ok := propVal.(construct.PropertyRef); ok; _, ok = propVal.(construct.PropertyRef) {
-		propVal, err = ValidatePropertyRef(propVal.(construct.PropertyRef), propertyType, ctx)
+	for propValRef, ok := propVal.(construct.PropertyRef); ok; propValRef, ok = propVal.(construct.PropertyRef) {
+		propVal, err = ValidatePropertyRef(propValRef, propertyType, ctx)
 		if err != nil {
 			return nil, err
 		}
