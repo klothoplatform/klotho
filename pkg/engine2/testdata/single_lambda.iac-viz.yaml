@@ -1,12 +1,12 @@
 provider: aws
 resources:
-  ecr_repo/ecr_repo-0:
+  ecr_repo/lambda_function_0-image-ecr_repo:
 
   log_group/lambda_function_0-log-group:
 
   ecr_image/lambda_function_0-image:
 
-  ecr_image/lambda_function_0-image -> ecr_repo/ecr_repo-0:
+  ecr_image/lambda_function_0-image -> ecr_repo/lambda_function_0-image-ecr_repo:
   iam_role/lambda_function_0-executionrole:
 
   iam_role/lambda_function_0-executionrole -> log_group/lambda_function_0-log-group:

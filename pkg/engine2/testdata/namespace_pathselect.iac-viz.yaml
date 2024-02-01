@@ -33,9 +33,11 @@ resources:
 
   aws:nat_gateway:subnet-2/lambda_function_2-vpc_1-route_table-nat_gateway -> elastic_ip/lambda_function_2-vpc_1-route_table-nat_gateway-elastic_ip:
   aws:nat_gateway:subnet-2/lambda_function_2-vpc_1-route_table-nat_gateway -> aws:subnet:vpc_1/subnet-2:
-  ecr_repo/ecr_repo-0:
+  ecr_repo/lambda_function_2-image-ecr_repo:
 
   log_group/lambda_function_2-log-group:
+
+  ecr_repo/ecr_repo-0:
 
   log_group/lambda_function_0-log-group:
 
@@ -65,7 +67,7 @@ resources:
   aws:subnet:vpc_1/lambda_function_2-vpc_1 -> vpc/vpc_1:
   ecr_image/lambda_function_2-image:
 
-  ecr_image/lambda_function_2-image -> ecr_repo/ecr_repo-0:
+  ecr_image/lambda_function_2-image -> ecr_repo/lambda_function_2-image-ecr_repo:
   iam_role/lambda_function_2-executionrole:
 
   iam_role/lambda_function_2-executionrole -> log_group/lambda_function_2-log-group:

@@ -1,0 +1,61 @@
+qualified_type_name: aws:service_discovery_service
+display_name: Service Discovery Service
+
+properties:
+  DnsConfig:
+    type: map
+    description: The DNS records required to verify the domain
+    properties:
+      DnsRecords:
+        type: list
+        description: An array that contains one DnsRecord object for each resource record set.
+        properties:
+          TTL:
+            type: int
+            description: The amount of time, in seconds, that you want DNS resolvers to cache
+              the value specified in the Value element.
+            min_value: 1
+            max_value: 2147483647
+          Type:
+            type: string
+            description: The type of the resource, which indicates the value that Amazon Route 53 returns in response to DNS queries
+            allowed_values:
+              - A
+              - AAAA
+              - SRV
+              - CNAME
+      NamespaceId:
+        type: string
+        description: The ID of the namespace to use for DNS configuration
+        operational_rule:
+          step:
+            direction: upstream
+            resources:
+              - aws:private_dns_namespace
+            use_property_ref: Id
+    RoutingPolicy:
+      type: string
+      description: The routing policy that you want to apply to all records that Route 53 creates when you register an instance and specify this service
+      allowed_values:
+        - MULTIVALUE
+        - WEIGHTED
+  Name:
+    type: string
+    description: The name of the service
+  HealthCheckCustomConfig:
+    type: map
+    description: A complex type that contains information about an optional custom health check.
+    properties:
+      FailureThreshold:
+        type: int
+        description: The number of 30-second intervals that you want service discovery to wait before it changes the health status of a service instance. Maximum value of 10.
+  Arn:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+
+
+classification:
+  is:
+    - service_discovery
+

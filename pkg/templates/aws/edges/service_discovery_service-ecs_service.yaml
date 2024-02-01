@@ -1,0 +1,21 @@
+source: aws:service_discovery_service
+target: aws:ecs_service
+deployment_order_reversed: true
+
+operational_rules:
+  - configuration_rules:
+      - resource: '{{.Source}}'
+        configuration:
+          field: DnsConfig.DnsRecords
+          value:
+            - Type: A
+              TTL: 60
+      - resource: '{{.Source}}'
+        configuration:
+          field: Name
+          value: '{{ .Target.Name }}'
+      - resource: '{{.Target}}'
+        configuration:
+          field: ServiceRegistries
+          value:
+            RegistryArn: '{{ fieldRef "Arn" .Source }}'

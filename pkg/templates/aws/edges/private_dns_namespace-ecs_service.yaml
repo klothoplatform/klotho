@@ -1,5 +1,0 @@
-source: aws:private_dns_namespace
-target: aws:ecs_service
-
-classification:
-  - service_endpoint

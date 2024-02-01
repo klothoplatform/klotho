@@ -76,6 +76,13 @@ properties:
 
     description: The family and revision (family:revision) or full Amazon Resource
       Name (ARN) of the task definition to run in the service
+  ServiceRegistries:
+    type: map
+    properties:
+      RegistryArn:
+        type: string
+        description: ARN of the Service Registry. The currently supported service registry is Amazon Route 53 Auto Naming Service
+
 consumption:
   consumed:
     - model: EnvironmentVariables

@@ -1,0 +1,7 @@
+{
+    "name": "service_discovery_service",
+    "dependencies": {
+        "@pulumi/pulumi": "^3.69.0",
+        "@pulumi/aws": "^5.37.0"
+    }
+}

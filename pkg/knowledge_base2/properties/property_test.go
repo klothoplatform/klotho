@@ -88,6 +88,60 @@ func Test_ValidatePropertyRef(t *testing.T) {
 			},
 		},
 		{
+			name: "nested property ref",
+			ref: construct.PropertyRef{
+				Resource: construct.ResourceId{Name: "test"},
+				Property: "test",
+			},
+			propertyType: "string",
+			testResources: []*construct.Resource{
+				{
+					ID: construct.ResourceId{Name: "test"},
+					Properties: map[string]any{
+						"test": construct.PropertyRef{
+							Resource: construct.ResourceId{Name: "test2"},
+							Property: "test2",
+						},
+					},
+				},
+				{
+					ID: construct.ResourceId{Name: "test2"},
+					Properties: map[string]any{
+						"test2": "testval",
+					},
+				},
+			},
+			mockKBCalls: []mock.Call{
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Name: "test"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"test": &StringProperty{PropertyDetails: knowledgebase.PropertyDetails{Path: "test", Name: "test"}},
+							},
+						}, nil,
+					},
+				},
+				{
+					Method: "GetResourceTemplate",
+					Arguments: mock.Arguments{
+						construct.ResourceId{Name: "test2"},
+					},
+					ReturnArguments: mock.Arguments{
+						&knowledgebase.ResourceTemplate{
+							Properties: knowledgebase.Properties{
+								"test2": &StringProperty{PropertyDetails: knowledgebase.PropertyDetails{Path: "test2", Name: "test2"}},
+							},
+						}, nil,
+					},
+				},
+			},
+			expect: "testval",
+		},
+		{
 			name:         "no resource, throws err",
 			propertyType: "string",
 			ref: construct.PropertyRef{

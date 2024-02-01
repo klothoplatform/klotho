@@ -38,7 +38,7 @@ resources:
   iam_oidc_provider/eks_cluster-0 -> region/region-0:
   rest_api/rest_api_4:
 
-  ecr_repo/ecr_repo-0:
+  ecr_repo/pod2-ecr_image-ecr_repo:
 
   iam_role/eks_node_group-0-iam_role:
 
@@ -57,7 +57,7 @@ resources:
   iam_role/aws-load-balancer-controller -> iam_oidc_provider/eks_cluster-0:
   ecr_image/pod2-ecr_image:
 
-  ecr_image/pod2-ecr_image -> ecr_repo/ecr_repo-0:
+  ecr_image/pod2-ecr_image -> ecr_repo/pod2-ecr_image-ecr_repo:
   eks_node_group/eks_node_group-0:
 
   eks_node_group/eks_node_group-0 -> eks_cluster/eks_cluster-0:

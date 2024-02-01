@@ -9,7 +9,7 @@ resources:
     aws:ecr_image:lambda_function_0-image:
         Context: .
         Dockerfile: lambda_function_0-image.Dockerfile
-        Repo: aws:ecr_repo:ecr_repo-0
+        Repo: aws:ecr_repo:lambda_function_0-image-ecr_repo
     aws:iam_role:lambda_function_0-ExecutionRole:
         AssumeRolePolicyDoc:
             Statement:
@@ -22,7 +22,7 @@ resources:
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-    aws:ecr_repo:ecr_repo-0:
+    aws:ecr_repo:lambda_function_0-image-ecr_repo:
         ForceDelete: true
     aws:log_group:lambda_function_0-log-group:
         LogGroupName: /aws/lambda/lambda_function_0
@@ -32,5 +32,5 @@ edges:
     aws:lambda_function:lambda_function_0 -> aws:ecr_image:lambda_function_0-image:
     aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole:
     aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_0-log-group:
-    aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:ecr_repo-0:
+    aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:lambda_function_0-image-ecr_repo:
     aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:lambda_function_0-log-group:
