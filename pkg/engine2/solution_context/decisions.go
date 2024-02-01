@@ -27,9 +27,9 @@ type (
 		internal()
 	}
 
-	MaybeErroDecision interface {
-		// AsEngineError returns an EngineError if the decision is an error, otherwise nil.
-		AsEngineError() engine_errs.EngineError
+	AsEngineError interface {
+		// TryEngineError returns an EngineError if the decision is an error, otherwise nil.
+		TryEngineError() engine_errs.EngineError
 	}
 
 	AddResourceDecision struct {

@@ -282,11 +282,11 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 	if len(context.Solutions) > 0 {
 		writeDebugGraphs(context.Solutions[0])
 		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
-			d, ok := d.(solution_context.MaybeErroDecision)
+			d, ok := d.(solution_context.AsEngineError)
 			if !ok {
 				continue
 			}
-			ee := d.AsEngineError()
+			ee := d.TryEngineError()
 			if ee == nil {
 				continue
 			}
