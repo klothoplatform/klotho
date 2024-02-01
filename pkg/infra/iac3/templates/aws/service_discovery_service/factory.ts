@@ -10,13 +10,15 @@ interface Args {
 function create(args: Args): aws.servicediscovery.Service {
     return new aws.servicediscovery.Service(args.Name, {
         dnsConfig: args.DnsConfig,
+        //TMPL {{- if .HealthCheckCustomConfig }}
         healthCheckCustomConfig: args.HealthCheckCustomConfig,
-        name: args.Name,
+        //TMPL {{- end }}
     })
 }
 
 function properties(object: aws.servicediscovery.Service, args: Args) {
     return {
         Arn: object.arn,
+        Name: object.name,
     }
 }

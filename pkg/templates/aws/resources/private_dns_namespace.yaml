@@ -9,6 +9,9 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+  Name:
+    type: string
+    description: The name of the namespace
   Id:
     type: string
     deploy_time: true

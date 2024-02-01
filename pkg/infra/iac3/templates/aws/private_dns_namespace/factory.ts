@@ -15,5 +15,6 @@ function create(args: Args): aws.servicediscovery.PrivateDnsNamespace {
 function properties(object: aws.servicediscovery.PrivateDnsNamespace, args: Args) {
     return {
         Id: object.id,
+        Name: object.name,
     }
 }
