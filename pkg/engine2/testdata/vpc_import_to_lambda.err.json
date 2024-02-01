@@ -68,17 +68,6 @@
   {
     "error": {
       "chain": [
-        "required property Id is not set on resource aws:subnet:subnet2"
-      ]
-    },
-    "error_code": "config_invalid",
-    "property": "Id",
-    "resource": "aws:subnet:subnet2",
-    "value": null
-  },
-  {
-    "error": {
-      "chain": [
         "required property Id is not set on resource aws:subnet:subnet3"
       ]
     },
@@ -107,6 +96,17 @@
     "error_code": "config_invalid",
     "property": "Id",
     "resource": "aws:subnet:vpc:subnet1",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet2"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet2",
     "value": null
   },
   {
