@@ -75,7 +75,7 @@ func (d RemoveDependencyDecision) internal()   {}
 func (d SetPropertyDecision) internal()        {}
 func (d PropertyValidationDecision) internal() {}
 
-func (d PropertyValidationDecision) AsEngineError() engine_errs.EngineError {
+func (d PropertyValidationDecision) TryEngineError() engine_errs.EngineError {
 	if d.Error == nil {
 		return nil
 	}

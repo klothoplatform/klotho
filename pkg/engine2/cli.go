@@ -271,6 +271,8 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 	zap.S().Info("Running engine")
 	err := em.Engine.Run(context)
 	if err != nil {
+		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
+		// This is returned as exit code 1, and add the details to be printed to stdout.
 		returnCode = 1
 		if ee, ok := err.(engine_errs.EngineError); ok {
 			engErrs = append(engErrs, ee)
@@ -281,6 +283,9 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 
 	if len(context.Solutions) > 0 {
 		writeDebugGraphs(context.Solutions[0])
+
+		// If there are any decisions that are engine errors, add them to the list of error details
+		// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
 		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
 			d, ok := d.(solution_context.AsEngineError)
 			if !ok {
