@@ -36,13 +36,6 @@ type (
 	EngineMain struct {
 		Engine *Engine
 	}
-
-	// RunEngineError is used to pass the desired exit code to the main function.
-	// It does not have any sub-errors because EngineMain is responsible for
-	// printing the error to stdout.
-	RunEngineError struct {
-		ExitCode int
-	}
 )
 
 var engineCfg struct {
@@ -131,8 +124,8 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		Short:   "Run the klotho engine",
 		GroupID: engineGroup.ID,
 		Run: func(cmd *cobra.Command, args []string) {
-			exitErr := em.RunEngine(cmd, args)
-			os.Exit(exitErr.ExitCode)
+			exitCode := em.RunEngine(cmd, args)
+			os.Exit(exitCode)
 		},
 	}
 
@@ -325,11 +318,11 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 	return enc.Encode(outErrs)
 }
 
-func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitErr RunEngineError) {
+func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int) {
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
-		exitErr.ExitCode = 1
+		exitCode = 1
 	}
 
 	defer func() { // defer functions execute in FILO order, so this executes after the 'recover'.
@@ -409,8 +402,8 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitErr RunE
 	}
 	// len(engErrs) == 0 at this point so overwriting it is safe
 	// All other assignments prior are via 'internalError' and return
-	exitErr.ExitCode, engErrs = em.Run(context)
-	if exitErr.ExitCode == 1 {
+	exitCode, engErrs = em.Run(context)
+	if exitCode == 1 {
 		return
 	}
 
@@ -530,8 +523,4 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 		}
 	}()
 	wg.Wait()
-}
-
-func (e RunEngineError) Error() string {
-	return fmt.Sprintf("exit code %d", e.ExitCode)
 }
