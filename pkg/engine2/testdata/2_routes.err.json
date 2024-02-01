@@ -1,0 +1,24 @@
+[
+  {
+    "error": {
+      "chain": [
+        "required property BaseImage is not set on resource aws:ecr_image:lambda_function_0-image"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "BaseImage",
+    "resource": "aws:ecr_image:lambda_function_0-image",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property BaseImage is not set on resource aws:ecr_image:lambda_function_1-image"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "BaseImage",
+    "resource": "aws:ecr_image:lambda_function_1-image",
+    "value": null
+  }
+]

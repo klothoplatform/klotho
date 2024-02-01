@@ -1,8 +1,6 @@
 package engine2
 
 import (
-	"errors"
-
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
@@ -44,25 +42,4 @@ func (e *Engine) Run(context *EngineContext) error {
 	err = solutionCtx.Solve()
 	context.Solutions = append(context.Solutions, solutionCtx)
 	return err
-}
-
-func (e *Engine) getPropertyValidation(ctx solution_context.SolutionContext) ([]solution_context.PropertyValidationDecision, error) {
-	decisions := ctx.GetDecisions().GetRecords()
-	validationDecisions := make([]solution_context.PropertyValidationDecision, 0)
-	for _, decision := range decisions {
-		if validation, ok := decision.(solution_context.PropertyValidationDecision); ok {
-			if validation.Error != nil {
-				validationDecisions = append(validationDecisions, validation)
-			}
-		}
-	}
-	var errs error
-	for _, decision := range validationDecisions {
-		for _, c := range ctx.Constraints().Resources {
-			if c.Target == decision.Resource && c.Property == decision.Property.Details().Path {
-				errs = errors.Join(errs, decision.Error)
-			}
-		}
-	}
-	return validationDecisions, errs
 }

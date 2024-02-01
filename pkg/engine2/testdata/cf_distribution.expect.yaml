@@ -1,7 +1,5 @@
 resources:
     aws:cloudfront_distribution:cloudfront_distribution_2:
-        ViewerCertificate:
-            CloudfrontDefaultCertificate: true
         CacheBehaviors: []
         DefaultCacheBehavior:
             AllowedMethods:
@@ -45,6 +43,8 @@ resources:
         Restrictions:
             GeoRestriction:
                 RestrictionType: none
+        ViewerCertificate:
+            CloudfrontDefaultCertificate: true
     aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1:
         Deployment: aws:api_deployment:rest_api_1:api_deployment-0
         RestApi: aws:rest_api:rest_api_1

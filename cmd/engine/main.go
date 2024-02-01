@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	engine "github.com/klothoplatform/klotho/pkg/engine2"
@@ -11,16 +10,11 @@ import (
 func main() {
 	root := newRootCmd()
 	err := root.Execute()
-	if err != nil {
-		switch err.(type) {
-		case engine.ConfigValidationError:
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(2)
-		default:
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
-		}
+	if err == nil {
+		return
 	}
+	// Shouldn't happen, the engine CLI should handle errors
+	os.Exit(1)
 }
 
 func newRootCmd() *cobra.Command {

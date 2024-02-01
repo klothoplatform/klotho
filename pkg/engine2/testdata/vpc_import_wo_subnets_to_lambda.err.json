@@ -1,0 +1,79 @@
+[
+  {
+    "error": {
+      "chain": [
+        "required property CidrBlock is not set on resource aws:vpc:vpc"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "CidrBlock",
+    "resource": "aws:vpc:vpc",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "BaseImage",
+    "resource": "aws:ecr_image:lambda_function-image",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:lambda_function-vpc"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:lambda_function-vpc",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet-1"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet-1",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet-2"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet-2",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Id is not set on resource aws:subnet:vpc:subnet-3"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Id",
+    "resource": "aws:subnet:vpc:subnet-3",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property Arn is not set on resource aws:vpc:vpc"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "Arn",
+    "resource": "aws:vpc:vpc",
+    "value": null
+  }
+]

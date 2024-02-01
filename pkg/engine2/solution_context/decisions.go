@@ -1,9 +1,10 @@
 package solution_context
 
 import (
-	"encoding/json"
+	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	engine_errs "github.com/klothoplatform/klotho/pkg/engine2/errors"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 )
 
@@ -16,10 +17,7 @@ type (
 	DecisionRecords interface {
 		// AddRecord stores each decision (the what) with the context (the why) in some datastore
 		AddRecord(context []KV, decision SolveDecision)
-		// // FindDecision returns the context (the why) for a given decision (the what)
-		// FindDecision(decision SolveDecision) []KV
-		// // FindContext returns the various decisions (the what) for a given context (the why)
-		// FindContext(key string, value any) []SolveDecision
+
 		GetRecords() []SolveDecision
 	}
 
@@ -27,6 +25,11 @@ type (
 		// internal is a private method to prevent other packages from implementing this interface.
 		// It's not necessary, but it could prevent some accidental bad practices from emerging.
 		internal()
+	}
+
+	MaybeErroDecision interface {
+		// AsEngineError returns an EngineError if the decision is an error, otherwise nil.
+		AsEngineError() engine_errs.EngineError
 	}
 
 	AddResourceDecision struct {
@@ -59,6 +62,10 @@ type (
 		Value    any
 		Error    error
 	}
+
+	ConfigValidationError struct {
+		PropertyValidationDecision
+	}
 )
 
 func (d AddResourceDecision) internal()        {}
@@ -68,18 +75,36 @@ func (d RemoveDependencyDecision) internal()   {}
 func (d SetPropertyDecision) internal()        {}
 func (d PropertyValidationDecision) internal() {}
 
-func (d PropertyValidationDecision) MarshalJSON() ([]byte, error) {
-	if d.Value != nil {
-		return json.Marshal(map[string]any{
-			"resource": d.Resource,
-			"property": d.Property.Details().Path,
-			"value":    d.Value,
-			"error":    d.Error.Error(),
-		})
+func (d PropertyValidationDecision) AsEngineError() engine_errs.EngineError {
+	if d.Error == nil {
+		return nil
 	}
-	return json.Marshal(map[string]any{
-		"resource": d.Resource,
-		"property": d.Property.Details().Path,
-		"error":    d.Error.Error(),
-	})
+	return ConfigValidationError{
+		PropertyValidationDecision: d,
+	}
+}
+
+func (e ConfigValidationError) Error() string {
+	return fmt.Sprintf(
+		"config validation error on %s#%s: %v",
+		e.Resource,
+		e.Property.Details().Path,
+		e.PropertyValidationDecision.Error,
+	)
+}
+
+func (e ConfigValidationError) ErrorCode() engine_errs.ErrorCode {
+	return engine_errs.ConfigInvalidCode
+}
+
+func (e ConfigValidationError) ToJSONMap() map[string]any {
+	return map[string]any{
+		"resource": e.Resource,
+		"property": e.Property.Details().Path,
+		"value":    e.Value,
+	}
+}
+
+func (e ConfigValidationError) Unwrap() error {
+	return e.PropertyValidationDecision.Error
 }
