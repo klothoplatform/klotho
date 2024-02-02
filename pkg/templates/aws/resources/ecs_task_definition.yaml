@@ -60,8 +60,8 @@ properties:
       Essential:
         type: bool
         default_value: true
-        description: If the essential parameter of a container is marked as true, and
-          that container fails or stops for any reason, all other containers that
+        description: If the essential parameter of a container is marked as true,
+          and that container fails or stops for any reason, all other containers that
           are part of the task are stopped
       Image:
         type: resource(aws:ecr_image)
@@ -72,8 +72,8 @@ properties:
             resources:
               - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ if hasField (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}{{else}}image{{end}}
             unique: true
-        description: Reference to an Amazon Elastic Container Registry (ECR) image that
-          will be used for the container within the task
+        description: Reference to an Amazon Elastic Container Registry (ECR) image
+          that will be used for the container within the task
       LogConfiguration:
         type: map
         properties:
@@ -151,6 +151,9 @@ properties:
           Protocol:
             type: string
             description: The protocol used for the port mapping, such as TCP or UDP
+            allowed_values:
+              - tcp
+              - udp
         description: A set of port mappings between the container and host
 
       
@@ -175,11 +178,19 @@ properties:
     type: string
     default_value: awsvpc
     description: The Docker networking mode to use for the containers in the task
+    allowed_values:
+      - bridge
+      - host
+      - awsvpc
+      - none
   RequiresCompatibilities:
     type: list(string)
     default_value:
       - FARGATE
     description: A list of launch types required by the task
+    allowed_values:
+      - EC2
+      - FARGATE
   EfsVolumes:
     type: set
     properties:
@@ -197,6 +208,9 @@ properties:
         type: string
         description: Whether to enable in-transit encryption for the EFS volume's
           data
+        allowed_values:
+          - ENABLED
+          - DISABLED
       TransitEncryptionPort:
         type: int
         description: The port to use for transit encryption of the EFS volume
@@ -211,6 +225,9 @@ properties:
 
             description: Whether or not to use IAM authorization for access to the
               EFS volume
+            allowed_values:
+              - ENABLED
+              - DISABLED
         description: The authorization configuration details for the EFS volume
     description: An array of Amazon Elastic File System (EFS) volumes to be attached
       to containers

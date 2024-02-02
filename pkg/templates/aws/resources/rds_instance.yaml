@@ -54,7 +54,6 @@ properties:
     configuration_disabled: true
   Engine:
     type: string
-    default_value: postgres
     allowed_values:
       - postgres
       - mysql
@@ -75,18 +74,24 @@ properties:
       - sqlserver-ex
       - sqlserver-se
       - sqlserver-web
+    default_value: postgres
+    description: The database engine to be used for the RDS instance
   EngineVersion:
     type: string
     default_value: '13.7'
+    description: The version of the database engine
   InstanceClass:
     type: string
     default_value: db.t3.micro
+    description: The compute and memory capacity of the Amazon RDS instance
   SkipFinalSnapshot:
     type: bool
     default_value: true
+    description: Determines whether a final DB snapshot is created before the DB instance is deleted.
   AllocatedStorage:
     type: int
     default_value: 20
+    description: The amount of storage (in gibibytes) to initially allocate for the DB instance.
   CredentialsSecretValue:
     type: string
     configuration_disabled: true

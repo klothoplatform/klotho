@@ -11,6 +11,8 @@ properties:
       Version:
         type: string
         default_value: '2012-10-17'
+        allowed_values: 
+          - '2012-10-17'
       Statement:
         type: list
         properties:
@@ -37,7 +39,7 @@ properties:
                 type: map(string,string)
               StringLike:
                 type: map(string,string)
-              Null:
+              null:
                 type: map(string,string)
 
 classification:

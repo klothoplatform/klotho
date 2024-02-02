@@ -2,16 +2,23 @@ qualified_type_name: aws:efs_file_system
 display_name: EFS File System
 
 properties:
-  PerformanceMode: 
+  PerformanceMode:
     type: string
     default_value: generalPurpose
     description: The file system's performance mode, which determines the throughput
       and operations per second the file system is capable of
+    allowed_values:
+      - generalPurpose
+      - maxIO   
   ThroughputMode:
     type: string
     default_value: bursting
     description: The throughput mode for the file system, which will determine the
       speed at which the system can read and write data
+    allowed_values:
+      - bursting
+      - provisioned    
+      - elastic  
   ProvisionedThroughputInMibps:
     type: int
     description: The throughput, measured in MiB/s, that the file system is provisioned
@@ -31,6 +38,16 @@ properties:
         type: string
         description: Defines when files in the file system are transitioned to the
           Infrequent Access storage class
+        allowed_values: 
+          - AFTER_1_DAY
+          - AFTER_7_DAYS
+          - AFTER_14_DAYS
+          - AFTER_30_DAYS
+          - AFTER_60_DAYS
+          - AFTER_90_DAYS
+          - AFTER_180_DAYS
+          - AFTER_270_DAYS
+          - AFTER_365_DAYS
       TransitionToPrimaryStorageClass:
         type: string
         description: Defines when files in the file system are moved back to the primary

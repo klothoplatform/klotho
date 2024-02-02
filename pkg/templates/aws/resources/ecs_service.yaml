@@ -34,6 +34,9 @@ properties:
   LaunchType:
     type: string
     default_value: FARGATE
+    allowed_values: 
+      - EC2
+      - FARGATE
     description: The launch type on which to run your service
   LoadBalancers:
     type: list(map)

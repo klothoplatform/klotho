@@ -21,10 +21,18 @@ properties:
         properties:
           HttpPort:
             type: int
+            min_value: 1
+            max_value: 65535
           HttpsPort:
             type: int
+            min_value: 1
+            max_value: 65535
           OriginProtocolPolicy:
             type: string
+            allowed_values:
+              - http-only
+              - match-viewer
+              - https-only
           OriginSslProtocols:
             type: list(string)
   CacheBehaviors:
@@ -78,18 +86,32 @@ properties:
             properties:
               Forward:
                 type: string
+                allowed_values:
+                  - none
+                  - whitelist
+                  - all
                 default_value: none
       MinTtl:
         type: int
         default_value: 0
+        min_value: 0
+        max_value: 31536000
       MaxTtl:
         type: int
         default_value: 86400
+        min_value: 0
+        max_value: 31536000
       DefaultTtl:
         type: int
         default_value: 3600
+        min_value: 0
+        max_value: 31536000
       ViewerProtocolPolicy:
         type: string
+        allowed_values:
+          - allow-all
+          - https-only
+          - redirect-to-https
         default_value: allow-all
       PathPattern:
         type: string
@@ -161,19 +183,33 @@ properties:
             properties:
               Forward:
                 type: string
+                allowed_values:
+                  - none
+                  - whitelist
+                  - all
                 default_value: none
       MinTtl:
         type: int
         default_value: 0
+        min_value: 0
+        max_value: 31536000
       MaxTtl:
         type: int
         default_value: 86400
+        min_value: 0
+        max_value: 31536000
       DefaultTtl:
         type: int
         default_value: 3600
+        min_value: 0
+        max_value: 31536000
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
+        allowed_values:
+          - allow-all
+          - https-only
+          - redirect-to-https
   Restrictions:
     type: map
     properties:
@@ -182,6 +218,10 @@ properties:
         properties:
           RestrictionType:
             type: string
+            allowed_values:
+              - blacklist
+              - whitelist
+              - none 
             default_value: none
   DefaultRootObject:
     type: string

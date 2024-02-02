@@ -8,9 +8,14 @@ properties:
   EngineFamily:
     type: string
     default_value: POSTGRESQL
+    allowed_values:
+      - POSTGRESQL
+      - MYSQL
   IdleClientTimeout:
     type: int
     default_value: 1800
+    min_value: 1
+    max_value: 3600
   RequireTls:
     type: bool
     default_value: true

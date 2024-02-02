@@ -19,7 +19,11 @@ properties:
       Type:
         type: string
         description: The data type for the attribute, such as String (S) or Number
-          (N)
+          (N) or Binary (B)
+        allowed_values:
+          - S
+          - N
+          - B
     description: List of attribute definitions for the table which includes attribute
       name and type
   BillingMode:
@@ -27,6 +31,9 @@ properties:
     default_value: PAY_PER_REQUEST
     description: The billing mode that determines how you are charged for read and
       write throughput and how you manage capacity
+    allowed_values:
+      - PROVISIONED
+      - PAY_PER_REQUEST
   DynamoTableStreamArn:
     type: string
     configuration_disabled: true

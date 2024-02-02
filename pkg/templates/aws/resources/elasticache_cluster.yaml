@@ -5,8 +5,10 @@ properties:
   Engine:
     type: string
     default_value: redis
-    description: Specifies the in-memory data store or cache engine to be used by
-      the cluster.
+    description: Specifies the in-memory data store or cache engine to be used by the cluster.
+    allowed_values:
+      - redis
+      - memcached
   CloudwatchGroup:
     type: resource(aws:log_group)
     operational_rule:
@@ -32,8 +34,7 @@ properties:
         resources:
           - aws:security_group
         unique: true
-    description: A list of security group identifiers to control access to the ElastiCache
-      cluster.
+    description: A list of security group identifiers to control access to the ElastiCache cluster.
   NodeType:
     type: string
     default_value: cache.t2.micro

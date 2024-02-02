@@ -13,6 +13,9 @@ properties:
         properties:
           Effect:
             type: string
+            allowed_values:
+              - Allow
+              - Deny
           Action:
             type: list(string)
           Resource:
@@ -33,7 +36,7 @@ properties:
                 type: map(string,string)
               StringLike:
                 type: map(string,string)
-              Null:
+              null:
                 type: map(string,string)
   ManagedPolicies:
     type: set(string)
@@ -53,6 +56,9 @@ properties:
               Effect:
                 type: string
                 default_value: Allow
+                allowed_values:
+                  - Allow
+                  - Deny
               Action:
                 type: list(string)
               Resource:
@@ -73,7 +79,7 @@ properties:
                     type: map(string,string)
                   StringLike:
                     type: map(string,string)
-                  Null:
+                  null:
                     type: map(string,string)
   Arn:
     type: string

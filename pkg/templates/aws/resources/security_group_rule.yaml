@@ -20,6 +20,12 @@ properties:
     type: string
     description: Indicates the protocol type (TCP/UDP/ICMP/All) to be used with the
       security group rule
+    allowed_values:
+      - tcp
+      - udp
+      - icmp
+      - icmpv6
+      - all
   SecurityGroupId:
     type: string # Not resource type because we need deploy time properties to be able to exist here
     required: true
@@ -28,3 +34,6 @@ properties:
     type: string
     description: Specifies the rule type, either 'ingress' or 'egress', defining the
       traffic direction
+    allowed_values:
+      - ingress
+      - egress

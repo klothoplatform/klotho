@@ -28,7 +28,16 @@ properties:
   HttpMethod:
     type: string
     default_value: ANY
-    description: The HTTP method type (e.g., GET, POST, PUT) for the API resource's
+    allowed_values:  # Added allowed_values field
+      - ANY
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - HEAD
+      - PATCH
+      - OPTIONS
+    description: The HTTP method type (e.g., GET, POST, PUT, DELETE, HEAD, PATCH, OPTIONS) for the API resource's
       method request
   RequestParameters:
     type: map(string,bool)
@@ -37,7 +46,10 @@ properties:
   Authorization:
     type: string
     default_value: NONE
-
+    allowed_values:  # Added allowed_values field
+      - NONE
+      - AWS_IAM
+      - CUSTOM
     description: The type of authorization used for the API method, such as NONE,
       AWS_IAM, or CUSTOM
 classification:

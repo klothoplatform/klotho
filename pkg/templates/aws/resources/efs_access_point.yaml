@@ -17,9 +17,13 @@ properties:
       Gid:
         type: int
         default_value: 1000
+        min_value: 0
+        max_value: 65535
       Uid:
         type: int
         default_value: 1000
+        min_value: 0
+        max_value: 65535
   RootDirectory:
     type: map
     important: true
@@ -30,9 +34,13 @@ properties:
           OwnerGid:
             type: int
             default_value: 1000
+            min_value: 0
+            max_value: 65535
           OwnerUid:
             type: int
             default_value: 1000
+            min_value: 0
+            max_value: 65535
           Permissions:
             type: string
             default_value: '777'

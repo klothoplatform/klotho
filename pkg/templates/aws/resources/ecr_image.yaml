@@ -17,8 +17,7 @@ properties:
         resources:
           - aws:ecr_repo
         unique: true
-    description: A reference to the AWS ECR repository resource where the image will
-      be stored
+    description: A reference to the AWS ECR repository resource where the image will be stored
   Context:
     type: string
     default_value: '.'

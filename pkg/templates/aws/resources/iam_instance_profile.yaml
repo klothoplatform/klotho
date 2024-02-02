@@ -10,5 +10,5 @@ properties:
         resources:
           - aws:iam_role
         unique: true
-    description: The role that is associated with the instance profile to be used
-      by the EC2 instances
+    description: The role that is associated with the instance profile to be used by the EC2 instances
+    allowed_values: '{ "Ref" : "AWS::IAM::Role.RoleName" }'

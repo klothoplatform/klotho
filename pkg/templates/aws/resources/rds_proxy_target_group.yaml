@@ -32,6 +32,8 @@ properties:
       ConnectionBorrowTimeout:
         type: int
         default_value: 120
+        min_value: 1
+        max_value: 3600
       InitQuery:
         type: string
         description: One or more SQL statements which the proxy runs when opening
@@ -39,9 +41,13 @@ properties:
       MaxConnectionsPercent:
         type: int
         default_value: 100
+        min_value: 1
+        max_value: 100
       MaxIdleConnectionsPercent:
         type: int
         default_value: 50
+        min_value: 0
+        max_value: 100
       SessionPinningFilters:
         type: list(string)
 
