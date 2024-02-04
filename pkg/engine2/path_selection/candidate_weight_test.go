@@ -43,7 +43,7 @@ func Test_determineCandidateWeight(t *testing.T) {
 			wantWeight:  11,
 		},
 		{
-			name:       "downstream direct",
+			name:       "downstream direct / upstream indirect",
 			graph:      []any{"p:compute:a -> p:glue:b -> p:glue:c -> p:compute:d"},
 			src:        "p:compute:a",
 			target:     "p:compute:d",
@@ -57,6 +57,14 @@ func Test_determineCandidateWeight(t *testing.T) {
 			target:     "p:compute:e",
 			id:         "p:glue:c",
 			wantWeight: 15,
+		},
+		{
+			name:       "upstream direct",
+			graph:      []any{"p:compute:a -> p:glue:b -> p:glue:c -> p:compute:d"},
+			src:        "p:compute:a",
+			target:     "p:compute:d",
+			id:         "p:glue:c",
+			wantWeight: 20,
 		},
 	}
 	for _, tt := range tests {
