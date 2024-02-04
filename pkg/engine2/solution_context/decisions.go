@@ -99,9 +99,10 @@ func (e ConfigValidationError) ErrorCode() engine_errs.ErrorCode {
 
 func (e ConfigValidationError) ToJSONMap() map[string]any {
 	return map[string]any{
-		"resource": e.Resource,
-		"property": e.Property.Details().Path,
-		"value":    e.Value,
+		"resource":         e.Resource,
+		"property":         e.Property.Details().Path,
+		"value":            e.Value,
+		"validation_error": e.PropertyValidationDecision.Error.Error(),
 	}
 }
 
