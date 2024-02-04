@@ -8,6 +8,7 @@
     "error_code": "config_invalid",
     "property": "AvailabilityZone",
     "resource": "aws:subnet:subnet1",
+    "validation_error": "required property AvailabilityZone is not set on resource aws:subnet:subnet1",
     "value": null
   },
   {
@@ -19,6 +20,7 @@
     "error_code": "config_invalid",
     "property": "AvailabilityZone",
     "resource": "aws:subnet:subnet2",
+    "validation_error": "required property AvailabilityZone is not set on resource aws:subnet:subnet2",
     "value": null
   },
   {
@@ -30,6 +32,7 @@
     "error_code": "config_invalid",
     "property": "AvailabilityZone",
     "resource": "aws:subnet:subnet3",
+    "validation_error": "required property AvailabilityZone is not set on resource aws:subnet:subnet3",
     "value": null
   },
   {
@@ -41,6 +44,7 @@
     "error_code": "config_invalid",
     "property": "AvailabilityZone",
     "resource": "aws:subnet:subnet4",
+    "validation_error": "required property AvailabilityZone is not set on resource aws:subnet:subnet4",
     "value": null
   },
   {
@@ -52,6 +56,7 @@
     "error_code": "config_invalid",
     "property": "CidrBlock",
     "resource": "aws:vpc:vpc",
+    "validation_error": "required property CidrBlock is not set on resource aws:vpc:vpc",
     "value": null
   },
   {
@@ -63,6 +68,7 @@
     "error_code": "config_invalid",
     "property": "BaseImage",
     "resource": "aws:ecr_image:lambda_function-image",
+    "validation_error": "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image",
     "value": null
   },
   {
@@ -74,6 +80,7 @@
     "error_code": "config_invalid",
     "property": "Id",
     "resource": "aws:subnet:subnet3",
+    "validation_error": "required property Id is not set on resource aws:subnet:subnet3",
     "value": null
   },
   {
@@ -85,6 +92,7 @@
     "error_code": "config_invalid",
     "property": "Id",
     "resource": "aws:subnet:subnet4",
+    "validation_error": "required property Id is not set on resource aws:subnet:subnet4",
     "value": null
   },
   {
@@ -96,6 +104,7 @@
     "error_code": "config_invalid",
     "property": "Id",
     "resource": "aws:subnet:vpc:subnet1",
+    "validation_error": "required property Id is not set on resource aws:subnet:vpc:subnet1",
     "value": null
   },
   {
@@ -107,6 +116,7 @@
     "error_code": "config_invalid",
     "property": "Id",
     "resource": "aws:subnet:vpc:subnet2",
+    "validation_error": "required property Id is not set on resource aws:subnet:vpc:subnet2",
     "value": null
   },
   {
@@ -118,6 +128,7 @@
     "error_code": "config_invalid",
     "property": "Arn",
     "resource": "aws:vpc:vpc",
+    "validation_error": "required property Arn is not set on resource aws:vpc:vpc",
     "value": null
   }
 ]
