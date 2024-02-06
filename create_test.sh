@@ -30,9 +30,9 @@ if [ ! "$test_dir/$name.input.yaml" -ef "$1" ]; then
   cp $1 "$test_dir/$name.input.yaml"
 fi
 
-cp "$out_dir/resources.yaml" "$test_dir/$name.expect.yaml"
-cp "$out_dir/dataflow-topology.yaml" "$test_dir/$name.dataflow-viz.yaml"
-cp "$out_dir/iac-topology.yaml" "$test_dir/$name.iac-viz.yaml"
-cp "$out_dir/error_details.json" "$test_dir/$name.err.json"
+[ -e "$out_dir/resources.yaml" ] && cp "$out_dir/resources.yaml" "$test_dir/$name.expect.yaml"
+[ -e "$out_dir/dataflow-topology.yaml" ] && cp "$out_dir/dataflow-topology.yaml" "$test_dir/$name.dataflow-viz.yaml"
+[ -e "$out_dir/iac-topology.yaml" ] && cp "$out_dir/iac-topology.yaml" "$test_dir/$name.iac-viz.yaml"
+[ -e "$out_dir/error_details.json" ] && cp "$out_dir/error_details.json" "$test_dir/$name.err.json"
 
 rm -rf $out_dir

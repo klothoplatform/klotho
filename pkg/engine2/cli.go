@@ -264,6 +264,30 @@ func setupProfiling() func() {
 	return func() {}
 }
 
+func extractEngineErrors(err error) []engine_errs.EngineError {
+	if err == nil {
+		return nil
+	}
+	var errs []engine_errs.EngineError
+	queue := []error{err}
+	for len(queue) > 0 {
+		err := queue[0]
+		queue = queue[1:]
+		switch err := err.(type) {
+		case engine_errs.EngineError:
+			errs = append(errs, err)
+		case interface{ Unwrap() []error }:
+			queue = append(queue, err.Unwrap()...)
+		case interface{ Unwrap() error }:
+			queue = append(queue, err.Unwrap())
+		}
+	}
+	if len(errs) == 0 {
+		errs = append(errs, engine_errs.InternalError{Err: err})
+	}
+	return errs
+}
+
 func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineError) {
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
@@ -274,11 +298,8 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
 		// This is returned as exit code 1, and add the details to be printed to stdout.
 		returnCode = 1
-		if ee, ok := err.(engine_errs.EngineError); ok {
-			engErrs = append(engErrs, ee)
-		} else {
-			engErrs = append(engErrs, engine_errs.InternalError{Err: engine_errs.ErrorsToTree(err)})
-		}
+		engErrs = append(engErrs, extractEngineErrors(err)...)
+		zap.S().Errorf("Engine returned error: %v", err)
 	}
 
 	if len(context.Solutions) > 0 {

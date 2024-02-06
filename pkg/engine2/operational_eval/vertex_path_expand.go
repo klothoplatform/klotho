@@ -20,7 +20,11 @@ import (
 
 type (
 	pathExpandVertex struct {
-		Edge          construct.SimpleEdge
+		// ExpandEdge is the overall edge that is being expanded
+		ExpandEdge construct.SimpleEdge
+		// SatisfactionEdge is the specific edge that was being expanded when the error occurred
+		SatisfactionEdge construct.SimpleEdge
+
 		TempGraph     construct.Graph
 		Satisfication knowledgebase.EdgePathSatisfaction
 	}
@@ -39,7 +43,7 @@ type (
 )
 
 func (v *pathExpandVertex) Key() Key {
-	return Key{PathSatisfication: v.Satisfication, Edge: v.Edge}
+	return Key{PathSatisfication: v.Satisfication, Edge: v.SatisfactionEdge}
 }
 
 func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
@@ -56,15 +60,15 @@ func (v *pathExpandVertex) runEvaluation(eval *Evaluator, runner expansionRunner
 	}
 	log := eval.Log()
 	if len(expansions) > 1 && log.Desugar().Core().Enabled(zap.DebugLevel) {
-		log.Debugf("Expansion %s subexpansions:", v.Edge)
+		log.Debugf("Expansion %s subexpansions:", v.SatisfactionEdge)
 		for _, expansion := range expansions {
-			log.Debugf(" %s -> %s", expansion.Dep.Source.ID, expansion.Dep.Target.ID)
+			log.Debugf(" %s -> %s", expansion.SatisfactionEdge.Source.ID, expansion.SatisfactionEdge.Target.ID)
 		}
 	}
 
 	createExpansionErr := func(err error) error {
 		return fmt.Errorf("could not run expansion %s -> %s <%s>: %w",
-			v.Edge.Source, v.Edge.Target, v.Satisfication.Classification, err,
+			v.SatisfactionEdge.Source, v.SatisfactionEdge.Target, v.Satisfication.Classification, err,
 		)
 	}
 
@@ -75,15 +79,15 @@ func (v *pathExpandVertex) runEvaluation(eval *Evaluator, runner expansionRunner
 			continue
 		}
 
-		resultStr, err := expansionResultString(result.Graph, expansion.Dep)
+		resultStr, err := expansionResultString(result.Graph, expansion.SatisfactionEdge)
 		if err != nil {
 			errs = errors.Join(errs, createExpansionErr(err))
 			continue
 		}
 		if v.Satisfication.Classification != "" {
-			eval.Log().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.Edge, resultStr)
+			eval.Log().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.SatisfactionEdge, resultStr)
 		} else {
-			eval.Log().Infof("Satisfied %s -> %s through %s", v.Edge.Source, v.Edge.Target, resultStr)
+			eval.Log().Infof("Satisfied %s -> %s through %s", v.SatisfactionEdge.Source, v.SatisfactionEdge.Target, resultStr)
 		}
 
 		if err := runner.addResourcesAndEdges(result, expansion, v); err != nil {
@@ -144,7 +148,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 
 		ref := construct.PropertyRef{Resource: res, Property: k}
 		for _, dep := range dependencies {
-			if dep == v.Edge.Source || dep == v.Edge.Target {
+			if dep == v.SatisfactionEdge.Source || dep == v.SatisfactionEdge.Target {
 				continue
 			}
 			resource, err := eval.Solution.RawView().Vertex(res)
@@ -282,8 +286,8 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator, propCtx dependencyCaptu
 
 	srcKey := v.Key()
 
-	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Source, v.Satisfication.Source.PropertyReference))
-	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.Edge.Target, v.Satisfication.Target.PropertyReference))
+	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.SatisfactionEdge.Source, v.Satisfication.Source.PropertyReference))
+	changes.addEdges(srcKey, getDepsForPropertyRef(eval.Solution, v.SatisfactionEdge.Target, v.Satisfication.Target.PropertyReference))
 
 	// if we have a temp graph we can analyze the paths in it for possible dependencies on property vertices
 	// if we dont, we should return what we currently have
@@ -294,17 +298,17 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator, propCtx dependencyCaptu
 	}
 
 	var errs error
-	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.Edge.Source)
+	srcDeps, err := construct.AllDownstreamDependencies(v.TempGraph, v.SatisfactionEdge.Source)
 	if err != nil {
 		return err
 	}
-	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Source, srcDeps))
+	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.SatisfactionEdge.Source, srcDeps))
 
-	targetDeps, err := construct.AllUpstreamDependencies(v.TempGraph, v.Edge.Target)
+	targetDeps, err := construct.AllUpstreamDependencies(v.TempGraph, v.SatisfactionEdge.Target)
 	if err != nil {
 		return err
 	}
-	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.Edge.Target, targetDeps))
+	errs = errors.Join(errs, v.addDepsFromProps(eval, changes, v.SatisfactionEdge.Target, targetDeps))
 	if errs != nil {
 		return errs
 	}
@@ -323,13 +327,13 @@ func (v *pathExpandVertex) Dependencies(eval *Evaluator, propCtx dependencyCaptu
 func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([]path_selection.ExpansionInput, error) {
 	eval := runner.Eval
 	var errs error
-	sourceRes, err := eval.Solution.RawView().Vertex(v.Edge.Source)
+	sourceRes, err := eval.Solution.RawView().Vertex(v.SatisfactionEdge.Source)
 	if err != nil {
-		return nil, fmt.Errorf("could not find source resource %s: %w", v.Edge.Source, err)
+		return nil, fmt.Errorf("could not find source resource %s: %w", v.SatisfactionEdge.Source, err)
 	}
-	targetRes, err := eval.Solution.RawView().Vertex(v.Edge.Target)
+	targetRes, err := eval.Solution.RawView().Vertex(v.SatisfactionEdge.Target)
 	if err != nil {
-		return nil, fmt.Errorf("could not find target resource %s: %w", v.Edge.Target, err)
+		return nil, fmt.Errorf("could not find target resource %s: %w", v.SatisfactionEdge.Target, err)
 	}
 	edge := construct.ResourceEdge{Source: sourceRes, Target: targetRes}
 	expansions, err := path_selection.DeterminePathSatisfactionInputs(eval.Solution, v.Satisfication, edge)
@@ -340,12 +344,13 @@ func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([
 	result := make([]path_selection.ExpansionInput, len(expansions))
 	for i, expansion := range expansions {
 		input := path_selection.ExpansionInput{
-			Dep:            expansion.Dep,
-			Classification: expansion.Classification,
-			TempGraph:      v.TempGraph,
+			ExpandEdge:       v.ExpandEdge,
+			SatisfactionEdge: expansion.SatisfactionEdge,
+			Classification:   expansion.Classification,
+			TempGraph:        v.TempGraph,
 		}
-		if expansion.Dep.Source != edge.Source || expansion.Dep.Target != edge.Target {
-			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
+		if expansion.SatisfactionEdge.Source != edge.Source || expansion.SatisfactionEdge.Target != edge.Target {
+			simple := construct.SimpleEdge{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID}
 			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
@@ -369,21 +374,21 @@ func (runner *pathExpandVertexRunner) addResourcesAndEdges(
 		return err
 	}
 	if len(adj) > 2 {
-		_, err := eval.Solution.OperationalView().Edge(v.Edge.Source, v.Edge.Target)
+		_, err := eval.Solution.OperationalView().Edge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
 		if err == nil {
-			if err := eval.Solution.OperationalView().RemoveEdge(v.Edge.Source, v.Edge.Target); err != nil {
+			if err := eval.Solution.OperationalView().RemoveEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target); err != nil {
 				return err
 			}
 		} else if !errors.Is(err, graph.ErrEdgeNotFound) {
 			return err
 		}
 	} else if len(adj) == 2 {
-		err = eval.Solution.RawView().AddEdge(expansion.Dep.Source.ID, expansion.Dep.Target.ID)
+		err = eval.Solution.RawView().AddEdge(expansion.SatisfactionEdge.Source.ID, expansion.SatisfactionEdge.Target.ID)
 		if err != nil {
 			return err
 		}
 		return eval.Solution.OperationalView().MakeEdgesOperational([]construct.Edge{
-			{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID},
+			{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID},
 		})
 	}
 
@@ -450,9 +455,9 @@ func (runner *pathExpandVertexRunner) addSubExpansion(
 			if satisfication.Classification == v.Satisfication.Classification {
 				// we cannot evaluate these vertices immediately because we are unsure if their dependencies have settled
 				changes.addNode(&pathExpandVertex{
-					Edge:          construct.SimpleEdge{Source: subExpand.Source, Target: subExpand.Target},
-					TempGraph:     expansion.TempGraph,
-					Satisfication: satisfication,
+					SatisfactionEdge: construct.SimpleEdge{Source: subExpand.Source, Target: subExpand.Target},
+					TempGraph:        expansion.TempGraph,
+					Satisfication:    satisfication,
 				})
 			}
 		}
@@ -462,8 +467,8 @@ func (runner *pathExpandVertexRunner) addSubExpansion(
 
 func (runner *pathExpandVertexRunner) consumeExpansionProperties(expansion path_selection.ExpansionInput) error {
 	delays, err := knowledgebase.ConsumeFromResource(
-		expansion.Dep.Source,
-		expansion.Dep.Target,
+		expansion.SatisfactionEdge.Source,
+		expansion.SatisfactionEdge.Target,
 		solution_context.DynamicCtx(runner.Eval.Solution),
 	)
 	if err != nil {

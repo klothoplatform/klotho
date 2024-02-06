@@ -33,7 +33,7 @@ func writeGraph(input ExpansionInput, working, result construct.Graph) {
 		return
 	}
 
-	fprefix := fmt.Sprintf("%s-%s", input.Dep.Source.ID, input.Dep.Target.ID)
+	fprefix := fmt.Sprintf("%s-%s", input.SatisfactionEdge.Source.ID, input.SatisfactionEdge.Target.ID)
 	fprefix = strings.ReplaceAll(fprefix, ":", "_") // some filesystems (NTFS) don't like colons in filenames
 	fprefix = filepath.Join(dir, fprefix)
 
@@ -74,7 +74,7 @@ func writeGraph(input ExpansionInput, working, result construct.Graph) {
   rankdir = LR
   labelloc = t
   graph [ranksep = 2]
-`, input.Dep.Source.ID, input.Dep.Target.ID)
+`, input.SatisfactionEdge.Source.ID, input.SatisfactionEdge.Target.ID)
 	}
 
 	err = graphToDOTCluster(input.Classification, working, result, dotContent)

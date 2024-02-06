@@ -54,17 +54,8 @@ func (tc engineTestCase) Test(t *testing.T) {
 		t.Fatal(fmt.Errorf("failed to open input file: %w", err))
 	}
 	defer inputYaml.Close()
-	expectYaml, err := os.Open(strings.Replace(tc.inputPath, ".input.yaml", ".expect.yaml", 1))
-	if err != nil {
-		t.Fatal(fmt.Errorf("failed to open expected output file: %w", err))
-	}
-	defer expectYaml.Close()
 
 	inputFile := tc.readGraph(t, inputYaml)
-	expectContent, err := io.ReadAll(expectYaml)
-	if err != nil {
-		t.Fatal(fmt.Errorf("failed to read expected output file: %w", err))
-	}
 
 	main := EngineMain{}
 	err = main.AddEngine()
@@ -75,7 +66,7 @@ func (tc engineTestCase) Test(t *testing.T) {
 		Constraints:  inputFile.Constraints,
 		InitialState: inputFile.Graph,
 	}
-	_, engineErrs := main.Run(context)
+	returnCode, engineErrs := main.Run(context)
 	// TODO find a convenient way to specify the return code in the testdata
 
 	errDetails := new(bytes.Buffer)
@@ -92,12 +83,25 @@ func (tc engineTestCase) Test(t *testing.T) {
 	}
 	assertErrDetails(t, errDetailsFile, engineErrs)
 
+	if returnCode == 1 {
+		// Run resulted in a failure. After checking the error details, we're done.
+		return
+	}
 	sol := context.Solutions[0]
 	actualContent, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to marshal actual output: %w", err))
 	}
 
+	expectYaml, err := os.Open(strings.Replace(tc.inputPath, ".input.yaml", ".expect.yaml", 1))
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to open expected output file: %w", err))
+	}
+	defer expectYaml.Close()
+	expectContent, err := io.ReadAll(expectYaml)
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to read expected output file: %w", err))
+	}
 	assertYamlMatches(t, string(expectContent), string(actualContent), "dataflow")
 
 	// Always visualize views even if we're not testing them to make sure that it at least succeeds

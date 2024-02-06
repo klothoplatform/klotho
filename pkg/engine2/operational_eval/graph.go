@@ -106,7 +106,7 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 				return fmt.Errorf("could not build temp graph for %s: %w", edge, err)
 			}
 		}
-		vertex := &pathExpandVertex{Edge: edge, Satisfication: satisfication, TempGraph: tempGraph}
+		vertex := &pathExpandVertex{SatisfactionEdge: edge, Satisfication: satisfication, TempGraph: tempGraph}
 		return changes.AddVertexAndDeps(eval, vertex)
 	}
 

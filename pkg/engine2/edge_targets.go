@@ -116,7 +116,7 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 		}
 
 		_, err = edgeExpander.ExpandEdge(path_selection.ExpansionInput{
-			Dep: construct.ResourceEdge{
+			SatisfactionEdge: construct.ResourceEdge{
 				Source: tempSourceResource,
 				Target: tempTargetResource,
 			},
