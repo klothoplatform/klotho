@@ -123,6 +123,7 @@ properties:
         properties:
           ContainerPath:
             type: string
+            important: true
             description: The path on the container to mount the volume at
           SourceVolume:
             type: string
