@@ -1,0 +1,12 @@
+constraints:
+  - node: aws:cloudfront_distribution:cloudfront_distribution_2
+    operator: add
+    scope: application
+  - node: aws:rds_instance:mydb
+    operator: add
+    scope: application
+  - operator: must_exist
+    scope: edge
+    target:
+      source: aws:cloudfront_distribution:cloudfront_distribution_2
+      target: aws:rds_instance:mydb

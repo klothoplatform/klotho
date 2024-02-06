@@ -2,7 +2,8 @@ package engine_errs
 
 import (
 	"fmt"
-	"strings"
+
+	construct "github.com/klothoplatform/klotho/pkg/construct2"
 )
 
 type (
@@ -16,15 +17,6 @@ type (
 	}
 
 	ErrorCode string
-
-	InternalError struct {
-		Err error
-	}
-
-	ErrorTree struct {
-		Chain    []string    `json:"chain,omitempty"`
-		Children []ErrorTree `json:"children,omitempty"`
-	}
 )
 
 const (
@@ -33,6 +25,10 @@ const (
 	EdgeInvalidCode     ErrorCode = "edge_invalid"
 	EdgeUnsupportedCode ErrorCode = "edge_unsupported"
 )
+
+type InternalError struct {
+	Err error
+}
 
 func (e InternalError) Error() string {
 	return fmt.Sprintf("internal error: %v", e.Err)
@@ -50,86 +46,76 @@ func (e InternalError) Unwrap() error {
 	return e.Err
 }
 
-type (
-	chainErr interface {
-		error
-		Unwrap() error
-	}
-	joinErr interface {
-		error
-		Unwrap() []error
-	}
-)
-
-func unwrapChain(err error) (chain []string, last joinErr) {
-	for current := err; current != nil; {
-		var next error
-		cc, ok := current.(chainErr)
-		if ok {
-			next = cc.Unwrap()
-		} else {
-			joined, ok := current.(joinErr)
-			if ok {
-				jerrs := joined.Unwrap()
-				if len(jerrs) == 1 {
-					next = jerrs[0]
-				} else {
-					last = joined
-					return
-				}
-			} else {
-				chain = append(chain, current.Error())
-				return
-			}
-		}
-		msg := strings.TrimSuffix(strings.TrimSuffix(current.Error(), next.Error()), ": ")
-		if msg != "" {
-			chain = append(chain, msg)
-		}
-		current = next
-	}
-	return
+type UnsupportedExpansionErr struct {
+	// ExpandEdge is the overall edge that is being expanded
+	ExpandEdge construct.SimpleEdge
+	// SatisfactionEdge is the specific edge that was being expanded when the error occurred
+	SatisfactionEdge construct.SimpleEdge
+	Classification   string
 }
 
-func ErrorsToTree(err error) (tree ErrorTree) {
-	if err == nil {
-		return
+func (e UnsupportedExpansionErr) Error() string {
+	if e.SatisfactionEdge.Source.IsZero() || e.ExpandEdge == e.SatisfactionEdge {
+		return fmt.Sprintf("unsupported expansion %s in %s", e.ExpandEdge, e.Classification)
 	}
-	if t, ok := err.(ErrorTree); ok {
-		return t
-	}
-
-	var joined joinErr
-	tree.Chain, joined = unwrapChain(err)
-
-	if joined != nil {
-		errs := joined.Unwrap()
-		tree.Children = make([]ErrorTree, len(errs))
-		for i, e := range errs {
-			tree.Children[i] = ErrorsToTree(e)
-		}
-	}
-	return
+	return fmt.Sprintf(
+		"while expanding %s, unsupported expansion of %s in %s",
+		e.ExpandEdge,
+		e.Classification,
+		e.SatisfactionEdge,
+	)
 }
 
-func (t ErrorTree) Error() string {
-	sb := &strings.Builder{}
-	t.print(sb, 0, 0)
-	return sb.String()
+func (e UnsupportedExpansionErr) ErrorCode() ErrorCode {
+	return EdgeUnsupportedCode
 }
 
-func (t ErrorTree) print(out *strings.Builder, indent int, childChar rune) {
-	prefix := strings.Repeat("\t", indent)
-	delim := ""
-	if childChar != 0 {
-		delim = string(childChar) + " "
+func (e UnsupportedExpansionErr) ToJSONMap() map[string]any {
+	m := map[string]any{
+		"satisfaction_edge": e.SatisfactionEdge,
 	}
-	fmt.Fprintf(out, "%s%s%v\n", prefix, delim, t.Chain)
-	for i, child := range t.Children {
-		char := '├'
-		if i == len(t.Children)-1 {
-			char = '└'
-		}
-		child.print(out, indent+1, char)
+	if !e.ExpandEdge.Source.IsZero() {
+		m["expand_edge"] = e.ExpandEdge
 	}
+	if e.Classification != "" {
+		m["classification"] = e.Classification
+	}
+	return m
+}
+
+type InvalidPathErr struct {
+	// ExpandEdge is the overall edge that is being expanded
+	ExpandEdge construct.SimpleEdge
+	// SatisfactionEdge is the specific edge that was being expanded when the error occurred
+	SatisfactionEdge construct.SimpleEdge
+	Classification   string
+}
+
+func (e InvalidPathErr) Error() string {
+	if e.SatisfactionEdge.Source.IsZero() || e.ExpandEdge == e.SatisfactionEdge {
+		return fmt.Sprintf("invalid expansion %s in %s", e.ExpandEdge, e.Classification)
+	}
+	return fmt.Sprintf(
+		"while expanding %s, invalid expansion of %s in %s",
+		e.ExpandEdge,
+		e.Classification,
+		e.SatisfactionEdge,
+	)
+}
+
+func (e InvalidPathErr) ErrorCode() ErrorCode {
+	return EdgeInvalidCode
+}
+
+func (e InvalidPathErr) ToJSONMap() map[string]any {
+	m := map[string]any{
+		"satisfaction_edge": e.SatisfactionEdge,
+	}
+	if !e.ExpandEdge.Source.IsZero() {
+		m["expand_edge"] = e.ExpandEdge
+	}
+	if e.Classification != "" {
+		m["classification"] = e.Classification
+	}
+	return m
 }

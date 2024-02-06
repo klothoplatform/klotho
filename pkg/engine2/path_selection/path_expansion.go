@@ -8,6 +8,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	engine_errs "github.com/klothoplatform/klotho/pkg/engine2/errors"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -18,9 +19,10 @@ import (
 
 type (
 	ExpansionInput struct {
-		Dep            construct.ResourceEdge
-		Classification string
-		TempGraph      construct.Graph
+		ExpandEdge       construct.SimpleEdge
+		SatisfactionEdge construct.ResourceEdge
+		Classification   string
+		TempGraph        construct.Graph
 	}
 	ExpansionResult struct {
 		Edges []graph.Edge[construct.ResourceId]
@@ -41,7 +43,7 @@ func (e *EdgeExpand) ExpandEdge(
 ) (ExpansionResult, error) {
 	ctx := e.Ctx
 	tempGraph := input.TempGraph
-	dep := input.Dep
+	dep := input.SatisfactionEdge
 
 	result := ExpansionResult{
 		Graph: construct.NewGraph(),
@@ -69,9 +71,19 @@ func expandEdge(
 	input ExpansionInput,
 	g construct.Graph,
 ) ([]graph.Edge[construct.ResourceId], error) {
-	paths, err := graph.AllPathsBetween(input.TempGraph, input.Dep.Source.ID, input.Dep.Target.ID)
+	paths, err := graph.AllPathsBetween(input.TempGraph, input.SatisfactionEdge.Source.ID, input.SatisfactionEdge.Target.ID)
 	if err != nil {
 		return nil, err
+	}
+	if len(paths) == 0 {
+		return nil, engine_errs.UnsupportedExpansionErr{
+			ExpandEdge: input.ExpandEdge,
+			SatisfactionEdge: construct.SimpleEdge{
+				Source: input.SatisfactionEdge.Source.ID,
+				Target: input.SatisfactionEdge.Target.ID,
+			},
+			Classification: input.Classification,
+		}
 	}
 	sort.Slice(paths, func(i, j int) bool {
 		il, jl := len(paths[i]), len(paths[j])
@@ -86,10 +98,16 @@ func expandEdge(
 		}
 		return false
 	})
+
+	undirected, err := BuildUndirectedGraph(ctx.RawView(), ctx.KnowledgeBase())
+	if err != nil {
+		return nil, err
+	}
+
 	var errs error
 	// represents id to qualified type because we dont need to do that processing more than once
 	for _, path := range paths {
-		err := expandPath(ctx, input, path, g)
+		err := expandPath(ctx, undirected, input, path, g)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("error expanding path %s: %w", construct.Path(path), err))
 		}
@@ -100,14 +118,21 @@ func expandEdge(
 
 	path, err := graph.ShortestPathStable(
 		input.TempGraph,
-		input.Dep.Source.ID,
-		input.Dep.Target.ID,
+		input.SatisfactionEdge.Source.ID,
+		input.SatisfactionEdge.Target.ID,
 		construct.ResourceIdLess,
 	)
 	if err != nil {
-		return nil, errors.Join(errs,
-			fmt.Errorf("could not find shortest path between %s and %s: %w", input.Dep.Source.ID, input.Dep.Target.ID, err),
-		)
+		// NOTE(gg) this can't happen with the current expandPath implementation
+		// but may in the future.
+		return nil, engine_errs.InvalidPathErr{
+			ExpandEdge: input.ExpandEdge,
+			SatisfactionEdge: construct.SimpleEdge{
+				Source: input.SatisfactionEdge.Source.ID,
+				Target: input.SatisfactionEdge.Target.ID,
+			},
+			Classification: input.Classification,
+		}
 	}
 
 	resultResources, err := renameAndReplaceInTempGraph(ctx, input, g, path)
@@ -123,7 +148,7 @@ func renameAndReplaceInTempGraph(
 	path construct.Path,
 ) ([]*construct.Resource, error) {
 	var errs error
-	name := fmt.Sprintf("%s-%s", input.Dep.Source.ID.Name, input.Dep.Target.ID.Name)
+	name := fmt.Sprintf("%s-%s", input.SatisfactionEdge.Source.ID.Name, input.SatisfactionEdge.Target.ID.Name)
 	// rename phantom nodes
 	result := make([]*construct.Resource, len(path))
 	for i, id := range path {
@@ -274,8 +299,11 @@ func findSubExpansionsToRun(
 
 // ExpandEdge takes a given `selectedPath` and resolves it to a path of resourceIds that can be used
 // for creating resources, or existing resources.
+// 'undirected' is the undirected graph of the dataflow graph from 'ctx' but are a separate input to reuse
+// the calculated graph for performance.
 func expandPath(
 	ctx solution_context.SolutionContext,
+	undirected construct.Graph,
 	input ExpansionInput,
 	path construct.Path,
 	resultGraph construct.Graph,
@@ -324,17 +352,12 @@ func expandPath(
 		return errs
 	}
 
-	undirected, err := BuildUndirectedGraph(ctx.RawView(), ctx.KnowledgeBase())
-	if err != nil {
-		return err
-	}
-
 	addCandidates := func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		matchIdx := matchesNonBoundary(id, nonBoundaryResources)
 		if matchIdx < 0 {
 			return nil
 		}
-		valid, err := checkNamespaceValidity(ctx, resource, input.Dep.Target.ID)
+		valid, err := checkNamespaceValidity(ctx, resource, input.SatisfactionEdge.Target.ID)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error checking namespace validity of %s: %w", resource.ID, err))
 		}
@@ -350,7 +373,7 @@ func expandPath(
 		if _, ok := candidates[matchIdx][id]; !ok {
 			candidates[matchIdx][id] = 0
 		}
-		weight, err := determineCandidateWeight(ctx, input.Dep.Source.ID, input.Dep.Target.ID, id, resultGraph, undirected)
+		weight, err := determineCandidateWeight(ctx, input.SatisfactionEdge.Source.ID, input.SatisfactionEdge.Target.ID, id, resultGraph, undirected)
 		if err != nil {
 			return errors.Join(nerr, err)
 		}
@@ -368,7 +391,7 @@ func expandPath(
 	}
 	// We need to add candidates which exist in our current result graph so we can reuse them. We do this in case
 	// we have already performed expansions to ensure the namespaces are connected, etc
-	err = construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	err := construct.WalkGraph(resultGraph, func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return addCandidates(id, resource, nerr)
 	})
 	if err != nil {
@@ -397,7 +420,7 @@ func expandPath(
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
 		weight := calculateEdgeWeight(
-			construct.SimpleEdge{Source: input.Dep.Source.ID, Target: input.Dep.Target.ID},
+			construct.SimpleEdge{Source: input.SatisfactionEdge.Source.ID, Target: input.SatisfactionEdge.Target.ID},
 			source.id, target.id,
 			source.divideWeightBy, target.divideWeightBy,
 			input.Classification,
@@ -444,7 +467,7 @@ func expandPath(
 	for i, resCandidates := range candidates {
 		for id, weight := range resCandidates {
 			if i == 0 {
-				addEdge(candidate{id: input.Dep.Source.ID}, candidate{id: id, divideWeightBy: weight})
+				addEdge(candidate{id: input.SatisfactionEdge.Source.ID}, candidate{id: id, divideWeightBy: weight})
 				continue
 			}
 
@@ -458,7 +481,7 @@ func expandPath(
 	}
 	if len(candidates) > 0 {
 		for c, weight := range candidates[len(candidates)-1] {
-			addEdge(candidate{id: c, divideWeightBy: weight}, candidate{id: input.Dep.Target.ID})
+			addEdge(candidate{id: c, divideWeightBy: weight}, candidate{id: input.SatisfactionEdge.Target.ID})
 		}
 	}
 	if errs != nil {
@@ -506,9 +529,9 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			continue
 		}
 		input := ExpansionInput{
-			Dep:            construct.ResourceEdge{Source: down, Target: target},
-			Classification: "",
-			TempGraph:      tg,
+			SatisfactionEdge: construct.ResourceEdge{Source: down, Target: target},
+			Classification:   "",
+			TempGraph:        tg,
 		}
 		edges, err := expandEdge(ctx, input, result.Graph)
 		if err != nil {

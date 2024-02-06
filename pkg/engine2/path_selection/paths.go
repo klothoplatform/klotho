@@ -38,11 +38,11 @@ func GetPaths(
 			return result, err
 		}
 		for _, expansion := range expansions {
-			simple := construct.SimpleEdge{Source: expansion.Dep.Source.ID, Target: expansion.Dep.Target.ID}
+			simple := construct.SimpleEdge{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID}
 			paths, found := pathsCache[simple]
 			if !found {
 				var err error
-				paths, err = graph.AllPathsBetween(sol.RawView(), expansion.Dep.Source.ID, expansion.Dep.Target.ID)
+				paths, err = graph.AllPathsBetween(sol.RawView(), expansion.SatisfactionEdge.Source.ID, expansion.SatisfactionEdge.Target.ID)
 				if err != nil {
 					errs = errors.Join(errs, err)
 					continue
@@ -149,8 +149,8 @@ func DeterminePathSatisfactionInputs(
 
 			e := construct.ResourceEdge{Source: src, Target: target}
 			exp := ExpansionInput{
-				Dep:            e,
-				Classification: satisfaction.Classification,
+				SatisfactionEdge: e,
+				Classification:   satisfaction.Classification,
 			}
 			expansions = append(expansions, exp)
 		}

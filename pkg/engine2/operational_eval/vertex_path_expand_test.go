@@ -16,7 +16,7 @@ import (
 func Test_pathExpandVertex_Key(t *testing.T) {
 	assert := assert.New(t)
 	v := &pathExpandVertex{
-		Edge: construct.SimpleEdge{
+		SatisfactionEdge: construct.SimpleEdge{
 			Source: construct.ResourceId{Name: "test"},
 			Target: construct.ResourceId{Name: "test"},
 		},
@@ -59,7 +59,7 @@ func Test_pathExpandVertex_runEvaluation(t *testing.T) {
 		{
 			name: "run evaluation",
 			v: &pathExpandVertex{
-				Edge: construct.SimpleEdge{
+				SatisfactionEdge: construct.SimpleEdge{
 					Source: construct.ResourceId{Name: "s"},
 					Target: construct.ResourceId{Name: "t"},
 				},
@@ -69,7 +69,7 @@ func Test_pathExpandVertex_runEvaluation(t *testing.T) {
 			},
 			mocks: func(mr *MockexpansionRunner, me *MockEdgeExpander, v *pathExpandVertex) {
 				input := path_selection.ExpansionInput{
-					Dep: construct.ResourceEdge{
+					SatisfactionEdge: construct.ResourceEdge{
 						Source: sResource,
 						Target: tResource,
 					},
@@ -123,7 +123,7 @@ func Test_pathExpandVertex_addDepsFromProps(t *testing.T) {
 		{
 			name: "add deps from props",
 			v: &pathExpandVertex{
-				Edge: construct.SimpleEdge{
+				SatisfactionEdge: construct.SimpleEdge{
 					Source: construct.ResourceId{Name: "s"},
 					Target: construct.ResourceId{Name: "t"},
 				},
@@ -210,7 +210,7 @@ func Test_pathExpandVertex_addDepsFromEdge(t *testing.T) {
 		{
 			name: "add deps from props",
 			v: &pathExpandVertex{
-				Edge: construct.SimpleEdge{
+				SatisfactionEdge: construct.SimpleEdge{
 					Source: construct.ResourceId{Name: "s"},
 					Target: construct.ResourceId{Name: "t"},
 				},
@@ -419,7 +419,7 @@ func Test_pathExpandVertex_Dependencies(t *testing.T) {
 		{
 			name: "no temp graph",
 			v: &pathExpandVertex{
-				Edge: construct.SimpleEdge{
+				SatisfactionEdge: construct.SimpleEdge{
 					Source: construct.ResourceId{Name: "s"},
 					Target: construct.ResourceId{Name: "t"},
 				},

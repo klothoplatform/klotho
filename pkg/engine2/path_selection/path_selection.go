@@ -27,10 +27,7 @@ func BuildPathSelectionGraph(
 
 	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph
 	if et := kb.GetEdgeTemplate(dep.Source, dep.Target); et != nil && dep.Source.Namespace == dep.Target.Namespace {
-		directEdgeSatisfies := false
-		if collectionutil.Contains(et.Classification, classification) {
-			directEdgeSatisfies = true
-		}
+		directEdgeSatisfies := collectionutil.Contains(et.Classification, classification)
 
 		if !directEdgeSatisfies {
 			srcRt, err := kb.GetResourceTemplate(dep.Source)
@@ -41,9 +38,8 @@ func BuildPathSelectionGraph(
 			if err != nil {
 				return nil, err
 			}
-			if collectionutil.Contains(srcRt.Classification.Is, classification) || collectionutil.Contains(dst.Classification.Is, classification) {
-				directEdgeSatisfies = true
-			}
+			directEdgeSatisfies = collectionutil.Contains(srcRt.Classification.Is, classification) ||
+				collectionutil.Contains(dst.Classification.Is, classification)
 		}
 
 		if directEdgeSatisfies {
