@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/iancoleman/strcase"
-	"github.com/klothoplatform/klotho/pkg/analytics"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/constraints"
@@ -22,13 +21,11 @@ import (
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -65,9 +62,7 @@ var getValidEdgeTargetsCfg struct {
 var hadWarnings = atomic.NewBool(false)
 var hadErrors = atomic.NewBool(false)
 
-const consoleEncoderName = "engine-cli"
-
-func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
+func setupLogger() (*zap.Logger, error) {
 	var zapCfg zap.Config
 	if architectureEngineCfg.verbose {
 		zapCfg = zap.NewDevelopmentConfig()
@@ -77,19 +72,10 @@ func setupLogger(analyticsClient *analytics.Client) (*zap.Logger, error) {
 	if engineCfg.jsonLog {
 		zapCfg.Encoding = "json"
 	} else {
-		err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
-			return logging.NewConsoleEncoder(architectureEngineCfg.verbose, hadWarnings, hadErrors), nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		zapCfg.Encoding = consoleEncoderName
+		zapCfg.Encoding = "console"
 	}
 
-	return zapCfg.Build(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
-		trackingCore := analyticsClient.NewFieldListener(zapcore.WarnLevel)
-		return zapcore.NewTee(core, trackingCore)
-	}))
+	return zapCfg.Build()
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
@@ -375,9 +361,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	defer setupProfiling()()
 
 	// Set up analytics, and hook them up to the logs
-	analyticsClient := analytics.NewClient()
-	analyticsClient.AppendProperties(map[string]any{})
-	z, err := setupLogger(analyticsClient)
+	z, err := setupLogger()
 	if err != nil {
 		internalError(err)
 		return
@@ -478,9 +462,7 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 	defer setupProfiling()()
 
 	// Set up analytics, and hook them up to the logs
-	analyticsClient := analytics.NewClient()
-	analyticsClient.AppendProperties(map[string]any{})
-	z, err := setupLogger(analyticsClient)
+	z, err := setupLogger()
 	if err != nil {
 		return err
 	}

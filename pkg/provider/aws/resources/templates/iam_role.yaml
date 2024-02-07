@@ -1,6 +1,0 @@
-provider: aws
-type: iam_role
-delete_context:
-  requires_no_upstream: true
-views:
-  dataflow: small

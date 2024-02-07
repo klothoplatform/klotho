@@ -1,2 +1,0 @@
-# klotho::persist (orm)
-psycopg2-binary==2.9.5

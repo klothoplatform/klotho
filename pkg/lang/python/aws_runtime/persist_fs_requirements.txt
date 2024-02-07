@@ -1,2 +1,0 @@
-# klotho::persist (fs)
-boto3>=1.24.96, <2.0.0

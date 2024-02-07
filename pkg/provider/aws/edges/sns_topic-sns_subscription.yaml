@@ -1,6 +1,0 @@
-source: aws:sns_topic
-destination: aws:sns_subscription
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

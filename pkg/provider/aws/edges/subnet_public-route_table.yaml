@@ -1,6 +1,0 @@
-source: aws:subnet_public
-destination: aws:route_table
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

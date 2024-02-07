@@ -1,6 +1,0 @@
-{
-    "name": "route53_health_check",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0"
-    }
-}

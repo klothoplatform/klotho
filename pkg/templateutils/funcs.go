@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
-
-	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 var Funcs = template.FuncMap{
@@ -32,13 +30,6 @@ var Funcs = template.FuncMap{
 		} else {
 			return strings.TrimSpace(buf.String()), nil
 		}
-	},
-
-	"keyNames": func(keys []construct.Construct) (ns []string) {
-		for _, k := range keys {
-			ns = append(ns, k.Id().Name)
-		}
-		return
 	},
 
 	"fileBase": func(path string) string {

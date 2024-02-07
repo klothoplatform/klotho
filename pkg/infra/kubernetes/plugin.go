@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/config"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	kio "github.com/klothoplatform/klotho/pkg/io"
@@ -15,7 +14,7 @@ import (
 )
 
 type Plugin struct {
-	Config           *config.Application
+	AppName          string
 	KB               *knowledgebase.KnowledgeBase
 	files            []kio.File
 	resourcesInChart map[construct.ResourceId][]construct.ResourceId

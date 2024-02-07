@@ -1,6 +1,0 @@
-source: aws:eks_addon
-destination: aws:eks_cluster
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

@@ -1,9 +1,0 @@
-provider: aws
-type: sns_topic
-configuration:
-  - field: FifoTopic
-    value: false
-delete_context:
-  requires_no_upstream_or_downstream: true
-views:
-  dataflow: big

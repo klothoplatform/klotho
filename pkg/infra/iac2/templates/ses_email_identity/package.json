@@ -1,7 +1,0 @@
-{
-    "name": "ses_email_identity",
-    "dependencies": {
-        "@pulumi/pulumi": "^3.69.0",
-        "@pulumi/aws": "^5.37.0"
-    }
-}

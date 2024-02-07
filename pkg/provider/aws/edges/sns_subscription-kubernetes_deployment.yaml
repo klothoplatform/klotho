@@ -1,6 +1,0 @@
-source: aws:sns_subscription
-destination: kubernetes:deployment
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

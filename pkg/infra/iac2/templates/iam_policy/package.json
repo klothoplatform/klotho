@@ -1,6 +1,0 @@
-{
-    "name": "iam_policy",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0"
-    }
-}

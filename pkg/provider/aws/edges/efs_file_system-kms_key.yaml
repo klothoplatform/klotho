@@ -1,6 +1,0 @@
-source: aws:efs_file_system
-destination: aws:kms_key
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

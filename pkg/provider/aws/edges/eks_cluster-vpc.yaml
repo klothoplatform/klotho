@@ -1,6 +1,0 @@
-source: aws:eks_cluster
-destination: aws:vpc
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

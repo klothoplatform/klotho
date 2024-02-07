@@ -1,6 +1,0 @@
-source: aws:sqs_queue
-destination: aws:ecs_service
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:
