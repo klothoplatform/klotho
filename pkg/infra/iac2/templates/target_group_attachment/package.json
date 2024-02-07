@@ -1,6 +1,0 @@
-{
-    "name": "target_group_attachment",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0"
-    }
-}

@@ -1,6 +1,0 @@
-source: aws:lambda_permission
-destination: aws:lambda_function
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

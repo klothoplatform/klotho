@@ -1,6 +1,0 @@
-source: kubernetes:pod
-destination: aws:lambda_function
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

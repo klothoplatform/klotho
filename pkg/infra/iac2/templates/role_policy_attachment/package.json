@@ -1,6 +1,0 @@
-{
-    "name": "iam_role_policy_attachment",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0"
-    }
-}

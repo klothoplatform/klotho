@@ -1,6 +1,0 @@
-source: aws:nat_gateway
-destination: aws:subnet_public
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

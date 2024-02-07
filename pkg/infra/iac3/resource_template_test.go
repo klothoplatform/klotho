@@ -55,7 +55,7 @@ func Test_parseArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			parser := sitter.NewParser()
-			parser.SetLanguage(templateTSLang.Sitter)
+			parser.SetLanguage(tsLang)
 			tree, err := parser.ParseCtx(context.TODO(), nil, []byte(tt.content))
 			if err != nil {
 				t.Fatal(err)

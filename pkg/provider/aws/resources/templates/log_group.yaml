@@ -1,7 +1,0 @@
-provider: aws
-type: log_group
-configuration:
-  - field: RetentionInDays
-    value: 5
-views:
-  dataflow: small

@@ -1,6 +1,0 @@
-source: aws:ecs_service
-destination: aws:sns_topic
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

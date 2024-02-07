@@ -16,7 +16,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine2/solution_context"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/lang/javascript"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
 )
 
@@ -107,10 +106,6 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	if err != nil {
 		return nil, err
 	}
-	packageJson := &javascript.PackageFile{
-		FPath:   "package.json",
-		Content: pJson,
-	}
 
 	pulumiYaml, err := addTemplate("Pulumi.yaml", pulumiBase, p.Config)
 	if err != nil {
@@ -130,7 +125,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		Content: content,
 	}
 
-	files := []kio.File{indexTs, packageJson, pulumiYaml, pulumiStack, tsConfig}
+	files := []kio.File{indexTs, pJson, pulumiYaml, pulumiStack, tsConfig}
 
 	dockerfiles, err := RenderDockerfiles(ctx)
 	if err != nil {

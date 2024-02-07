@@ -7,20 +7,27 @@ import (
 	"runtime/pprof"
 
 	"github.com/klothoplatform/klotho/pkg/closenicely"
-	"github.com/klothoplatform/klotho/pkg/config"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	engine "github.com/klothoplatform/klotho/pkg/engine2"
 	"github.com/klothoplatform/klotho/pkg/infra/iac3"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v3"
 )
+
+var generateIacCfg struct {
+	provider   string
+	inputGraph string
+	outputDir  string
+	appName    string
+	verbose    bool
+	jsonLog    bool
+	profileTo  string
+}
 
 func AddIacCli(root *cobra.Command) error {
 	generateCmd := &cobra.Command{
@@ -40,8 +47,6 @@ func AddIacCli(root *cobra.Command) error {
 	return nil
 }
 
-const consoleEncoderName = "iac-cli"
-
 func setupLogger() (*zap.Logger, error) {
 	var zapCfg zap.Config
 	if generateIacCfg.verbose {
@@ -52,13 +57,7 @@ func setupLogger() (*zap.Logger, error) {
 	if generateIacCfg.jsonLog {
 		zapCfg.Encoding = "json"
 	} else {
-		err := zap.RegisterEncoder(consoleEncoderName, func(zcfg zapcore.EncoderConfig) (zapcore.Encoder, error) {
-			return logging.NewConsoleEncoder(generateIacCfg.verbose, nil, nil), nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		zapCfg.Encoding = consoleEncoderName
+		zapCfg.Encoding = "console"
 	}
 
 	return zapCfg.Build()
@@ -117,8 +116,8 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	kubernetesPlugin := kubernetes.Plugin{
-		Config: &config.Application{AppName: generateIacCfg.appName},
-		KB:     kb,
+		AppName: generateIacCfg.appName,
+		KB:      kb,
 	}
 	k8sfiles, err := kubernetesPlugin.Translate(solCtx)
 	if err != nil {

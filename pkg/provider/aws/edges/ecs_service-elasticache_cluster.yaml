@@ -1,6 +1,0 @@
-source: aws:ecs_service
-destination: aws:elasticache_cluster
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

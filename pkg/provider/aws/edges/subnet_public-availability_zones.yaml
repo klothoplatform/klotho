@@ -1,6 +1,0 @@
-source: aws:subnet_public
-destination: aws:availability_zones
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

@@ -1,7 +1,0 @@
-{
-    "name": "efs_file_system",
-    "dependencies": {
-        "@pulumi/aws": "^5.37.0",
-        "@pulumi/pulumi": "^3.69.0"
-    }
-}

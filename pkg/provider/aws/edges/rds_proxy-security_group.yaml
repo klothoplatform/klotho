@@ -1,6 +1,0 @@
-source: aws:rds_proxy
-destination: aws:security_group
-
-deployment_order_reversed: false
-deletion_dependent: false
-reuse:

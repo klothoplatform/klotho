@@ -11,7 +11,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/klothoplatform/klotho/pkg/compiler/types"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
@@ -278,13 +277,10 @@ func importFuncNodeToTemplate(node *sitter.Node, name string) (*template.Templat
 	return tmpl, outputType, err
 }
 
-var templateTSLang = types.SourceLanguage{
-	ID:     types.LanguageId("ts"),
-	Sitter: typescript.GetLanguage(),
-}
+var tsLang = typescript.GetLanguage()
 
 func doQuery(c *sitter.Node, q string) query.NextMatchFunc {
-	return query.Exec(templateTSLang, c, q)
+	return query.Exec(tsLang, c, q)
 }
 
 func parseFile(r io.Reader) (*sitter.Node, error) {
@@ -294,7 +290,7 @@ func parseFile(r io.Reader) (*sitter.Node, error) {
 	}
 
 	parser := sitter.NewParser()
-	parser.SetLanguage(templateTSLang.Sitter)
+	parser.SetLanguage(tsLang)
 	tree, err := parser.ParseCtx(context.TODO(), nil, content)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,0 @@
-source: aws:rest_api
-destination: aws:api_resource
-
-deployment_order_reversed: true
-deletion_dependent: false
-reuse:
