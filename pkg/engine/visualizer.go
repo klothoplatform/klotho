@@ -13,7 +13,7 @@ import (
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
-	visualizer "github.com/klothoplatform/klotho/pkg/visualizer2"
+	visualizer "github.com/klothoplatform/klotho/pkg/visualizer"
 )
 
 type (
