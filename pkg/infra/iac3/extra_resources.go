@@ -3,7 +3,7 @@ package iac3
 import (
 	"errors"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 func (tc *TemplatesCompiler) AddExtraResources(r construct.ResourceId) error {

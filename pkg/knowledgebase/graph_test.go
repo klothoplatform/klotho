@@ -3,8 +3,8 @@ package knowledgebase
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

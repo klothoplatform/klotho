@@ -3,7 +3,7 @@ package operational_eval
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/stretchr/testify/assert"
 )

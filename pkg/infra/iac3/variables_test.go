@@ -3,8 +3,8 @@ package iac3
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

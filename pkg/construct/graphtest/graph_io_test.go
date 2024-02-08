@@ -4,23 +4,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
 func TestGraphToYAML(t *testing.T) {
-	makeGraph := func(elements ...any) construct2.Graph {
-		return MakeGraph(t, construct2.NewGraph(), elements...)
+	makeGraph := func(elements ...any) construct.Graph {
+		return MakeGraph(t, construct.NewGraph(), elements...)
 	}
 	tests := []struct {
 		name string
-		g    construct2.Graph
+		g    construct.Graph
 		yml  string
 	}{
 		{
 			name: "empty graph",
-			g:    construct2.NewGraph(),
+			g:    construct.NewGraph(),
 			yml: `resources:
 edges:`,
 		},
@@ -93,7 +93,7 @@ edges:
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			b, err := yaml.Marshal(construct2.YamlGraph{Graph: tt.g})
+			b, err := yaml.Marshal(construct.YamlGraph{Graph: tt.g})
 			if !assert.NoError(err) {
 				return
 			}
@@ -104,7 +104,7 @@ edges:
 				"YAML diff",
 			)
 
-			got := construct2.YamlGraph{Graph: construct2.NewGraph()}
+			got := construct.YamlGraph{Graph: construct.NewGraph()}
 			err = yaml.Unmarshal(b, &got)
 			if !assert.NoError(err) {
 				return

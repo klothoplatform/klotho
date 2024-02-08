@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strconv"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"gopkg.in/yaml.v3"
 )

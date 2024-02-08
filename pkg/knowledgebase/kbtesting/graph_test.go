@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 	"github.com/stretchr/testify/assert"

@@ -1,7 +1,7 @@
 package iac3
 
 import (
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 )

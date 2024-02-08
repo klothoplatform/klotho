@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/dominikbraun/graph"
-	"github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
 
-func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph, message string, args ...any) {
+func AssertGraphEqual(t *testing.T, expect, actual construct.Graph, message string, args ...any) {
 	assert := assert.New(t)
 	must := func(v any, err error) any {
 		if err != nil {
@@ -30,12 +30,12 @@ func AssertGraphEqual(t *testing.T, expect, actual construct2.Graph, message str
 	assert.Equal(must(expect.Size()), must(actual.Size()), msg("size (# of edges) mismatch")...)
 
 	// Use the string representation to compare the graphs so that the diffs are nicer
-	eStr := must(construct2.String(expect))
-	aStr := must(construct2.String(actual))
+	eStr := must(construct.String(expect))
+	aStr := must(construct.String(actual))
 	assert.Equal(eStr, aStr, msg("graph mismatch")...)
 }
 
-func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
+func AssertGraphContains(t *testing.T, expect, actual construct.Graph) {
 	assert := assert.New(t)
 	must := func(v any, err error) any {
 		if err != nil {
@@ -44,13 +44,13 @@ func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
 		return v
 	}
 
-	expectVs := must(construct2.TopologicalSort(expect)).([]construct2.ResourceId)
+	expectVs := must(construct.TopologicalSort(expect)).([]construct.ResourceId)
 	for _, expectV := range expectVs {
 		_, err := actual.Vertex(expectV)
 		assert.NoError(err)
 	}
 
-	expectEs := must(expect.Edges()).([]construct2.Edge)
+	expectEs := must(expect.Edges()).([]construct.Edge)
 	for _, expectE := range expectEs {
 		_, err := actual.Edge(expectE.Source, expectE.Target)
 		assert.NoError(err)
@@ -58,13 +58,13 @@ func AssertGraphContains(t *testing.T, expect, actual construct2.Graph) {
 }
 
 func StringToGraphElement(e string) (any, error) {
-	var id construct2.ResourceId
+	var id construct.ResourceId
 	idErr := id.Parse(e)
 	if id.Validate() == nil {
 		return id, nil
 	}
 
-	var path construct2.Path
+	var path construct.Path
 	pathErr := path.Parse(e)
 	if len(path) > 0 {
 		return path, nil
@@ -75,7 +75,7 @@ func StringToGraphElement(e string) (any, error) {
 
 // AddElement is a utility function for adding an element to a graph. See [MakeGraph] for more information on supported
 // element types. Returns whether adding the element failed.
-func AddElement(t *testing.T, g construct2.Graph, e any) (failed bool) {
+func AddElement(t *testing.T, g construct.Graph, e any) (failed bool) {
 	must := func(err error) {
 		if err != nil {
 			t.Fatal(err)
@@ -90,7 +90,7 @@ func AddElement(t *testing.T, g construct2.Graph, e any) (failed bool) {
 		}
 	}
 
-	addIfMissing := func(res *construct2.Resource) {
+	addIfMissing := func(res *construct.Resource) {
 		if _, err := g.Vertex(res.ID); errors.Is(err, graph.ErrVertexNotFound) {
 			must(g.AddVertex(res))
 		} else if err != nil {
@@ -99,33 +99,33 @@ func AddElement(t *testing.T, g construct2.Graph, e any) (failed bool) {
 	}
 
 	switch e := e.(type) {
-	case construct2.ResourceId:
-		addIfMissing(&construct2.Resource{ID: e})
+	case construct.ResourceId:
+		addIfMissing(&construct.Resource{ID: e})
 
-	case construct2.Resource:
+	case construct.Resource:
 		must(g.AddVertex(&e))
 
-	case *construct2.Resource:
+	case *construct.Resource:
 		must(g.AddVertex(e))
 
-	case construct2.Edge:
-		addIfMissing(&construct2.Resource{ID: e.Source})
-		addIfMissing(&construct2.Resource{ID: e.Target})
+	case construct.Edge:
+		addIfMissing(&construct.Resource{ID: e.Source})
+		addIfMissing(&construct.Resource{ID: e.Target})
 		must(g.AddEdge(e.Source, e.Target))
 
-	case construct2.ResourceEdge:
+	case construct.ResourceEdge:
 		addIfMissing(e.Source)
 		addIfMissing(e.Target)
 		must(g.AddEdge(e.Source.ID, e.Target.ID))
 
-	case construct2.SimpleEdge:
-		addIfMissing(&construct2.Resource{ID: e.Source})
-		addIfMissing(&construct2.Resource{ID: e.Target})
+	case construct.SimpleEdge:
+		addIfMissing(&construct.Resource{ID: e.Source})
+		addIfMissing(&construct.Resource{ID: e.Target})
 		must(g.AddEdge(e.Source, e.Target))
 
-	case construct2.Path:
+	case construct.Path:
 		for i, id := range e {
-			addIfMissing(&construct2.Resource{ID: id})
+			addIfMissing(&construct.Resource{ID: id})
 			if i > 0 {
 				must(g.AddEdge(e[i-1], id))
 			}
@@ -150,7 +150,7 @@ func AddElement(t *testing.T, g construct2.Graph, e any) (failed bool) {
 //	makeGraph := func(elements ...any) Graph {
 //		return MakeGraph(t, NewGraph(), elements...)
 //	}
-func MakeGraph(t *testing.T, g construct2.Graph, elements ...any) construct2.Graph {
+func MakeGraph(t *testing.T, g construct.Graph, elements ...any) construct.Graph {
 	failed := false
 	for i, e := range elements {
 		elemFailed := AddElement(t, g, e)

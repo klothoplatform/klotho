@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 func (tc *TemplatesCompiler) RenderImports(out io.Writer) error {

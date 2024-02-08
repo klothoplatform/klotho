@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"text/template"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 

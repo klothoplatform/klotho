@@ -3,7 +3,7 @@ package graphtest
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

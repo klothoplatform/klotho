@@ -1,7 +1,7 @@
 package engine
 
 import (
-	"github.com/klothoplatform/klotho/pkg/construct2"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"gopkg.in/yaml.v3"
 )
@@ -20,7 +20,7 @@ import (
 //	    p:t:a -> p:t:b:
 type FileFormat struct {
 	Constraints constraints.Constraints
-	Graph       construct2.Graph
+	Graph       construct.Graph
 }
 
 func (ff FileFormat) MarshalYAML() (interface{}, error) {
@@ -39,7 +39,7 @@ func (ff FileFormat) MarshalYAML() (interface{}, error) {
 	}
 
 	graphNode := &yaml.Node{}
-	err = graphNode.Encode(construct2.YamlGraph{Graph: ff.Graph})
+	err = graphNode.Encode(construct.YamlGraph{Graph: ff.Graph})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (ff *FileFormat) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	var graph construct2.YamlGraph
+	var graph construct.YamlGraph
 	err = node.Decode(&graph)
 	if err != nil {
 		return err

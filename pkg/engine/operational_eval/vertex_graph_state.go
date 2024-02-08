@@ -1,7 +1,7 @@
 package operational_eval
 
 import (
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type (

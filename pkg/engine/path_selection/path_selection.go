@@ -6,7 +6,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"go.uber.org/zap"
 )

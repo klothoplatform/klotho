@@ -3,7 +3,7 @@ package knowledgebase
 import (
 	"fmt"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"gopkg.in/yaml.v3"
 )
 

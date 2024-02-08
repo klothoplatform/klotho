@@ -3,7 +3,7 @@ package solution_context
 import (
 	"fmt"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )

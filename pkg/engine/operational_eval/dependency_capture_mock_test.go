@@ -12,7 +12,7 @@ package operational_eval
 import (
 	reflect "reflect"
 
-	construct2 "github.com/klothoplatform/klotho/pkg/construct2"
+	construct2 "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )

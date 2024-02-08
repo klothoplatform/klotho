@@ -3,7 +3,7 @@ package iac3
 import (
 	"strings"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type variables map[construct.ResourceId]string

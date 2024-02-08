@@ -14,7 +14,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 	"github.com/klothoplatform/klotho/pkg/closenicely"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"

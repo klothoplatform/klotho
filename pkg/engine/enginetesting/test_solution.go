@@ -3,8 +3,8 @@ package enginetesting
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
