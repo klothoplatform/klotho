@@ -9,7 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine "github.com/klothoplatform/klotho/pkg/engine"
-	"github.com/klothoplatform/klotho/pkg/infra/iac3"
+	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
@@ -126,8 +126,8 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 	files = append(files, k8sfiles...)
 	switch generateIacCfg.provider {
 	case "pulumi":
-		pulumiPlugin := iac3.Plugin{
-			Config: &iac3.PulumiConfig{AppName: generateIacCfg.appName},
+		pulumiPlugin := iac.Plugin{
+			Config: &iac.PulumiConfig{AppName: generateIacCfg.appName},
 			KB:     kb,
 		}
 		iacFiles, err := pulumiPlugin.Translate(solCtx)

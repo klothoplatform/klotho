@@ -1,4 +1,4 @@
-package iac3
+package iac
 
 import (
 	"bytes"
