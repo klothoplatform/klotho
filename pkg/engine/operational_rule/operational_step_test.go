@@ -7,8 +7,8 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
-	"github.com/klothoplatform/klotho/pkg/knowledge_base2/properties"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

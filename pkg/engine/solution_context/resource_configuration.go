@@ -9,7 +9,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 //go:generate mockgen -source=./resource_configuration.go --destination=../operational_eval/resource_configurer_mock_test.go --package=operational_eval

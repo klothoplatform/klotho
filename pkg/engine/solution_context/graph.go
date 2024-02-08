@@ -2,7 +2,7 @@ package solution_context
 
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 func Downstream(
