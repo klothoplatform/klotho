@@ -1,4 +1,4 @@
-package iac3
+package iac
 
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
