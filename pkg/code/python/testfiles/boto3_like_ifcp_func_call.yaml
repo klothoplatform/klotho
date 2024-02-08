@@ -1,0 +1,142 @@
+- arg: '"ARCHITECTURE_BUCKET_NAME"'
+  arg.value: '"ARCHITECTURE_BUCKET_NAME"'
+  name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", None)
+- arg: None
+  arg.value: None
+  name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", None)
+- arg: '"s3"'
+  arg.value: '"s3"'
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg: endpoint_url="http://localhost:9000"
+  arg.value: endpoint_url="http://localhost:9000"
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg.name: endpoint_url
+  arg.value: '"http://localhost:9000"'
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg: aws_access_key_id="minio"
+  arg.value: aws_access_key_id="minio"
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg.name: aws_access_key_id
+  arg.value: '"minio"'
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg: aws_secret_access_key="minio123"
+  arg.value: aws_secret_access_key="minio123"
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg.name: aws_secret_access_key
+  arg.value: '"minio123"'
+  name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- arg: '"s3"'
+  arg.value: '"s3"'
+  name: resource
+  object: boto3
+  statement: boto3.resource("s3")
+- arg: '"ARCHITECTURE_BUCKET_NAME"'
+  arg.value: '"ARCHITECTURE_BUCKET_NAME"'
+  name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", "ifcp-architecture-storage")
+- arg: '"ifcp-architecture-storage"'
+  arg.value: '"ifcp-architecture-storage"'
+  name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", "ifcp-architecture-storage")
+- name: create_s3_resource
+  statement: create_s3_resource()
+- arg: bucket=s3_resource.Bucket(bucket_name)
+  arg.value: bucket=s3_resource.Bucket(bucket_name)
+  name: ArchitectureStorage
+  statement: ArchitectureStorage(bucket=s3_resource.Bucket(bucket_name))
+- arg.name: bucket
+  arg.value: s3_resource.Bucket(bucket_name)
+  name: ArchitectureStorage
+  statement: ArchitectureStorage(bucket=s3_resource.Bucket(bucket_name))
+- arg: bucket_name
+  arg.value: bucket_name
+  name: Bucket
+  object: s3_resource
+  statement: s3_resource.Bucket(bucket_name)
+- arg: '"BINARY_BUCKET_NAME"'
+  arg.value: '"BINARY_BUCKET_NAME"'
+  name: getenv
+  object: os
+  statement: os.getenv("BINARY_BUCKET_NAME", "ifcp-binary-storage")
+- arg: '"ifcp-binary-storage"'
+  arg.value: '"ifcp-binary-storage"'
+  name: getenv
+  object: os
+  statement: os.getenv("BINARY_BUCKET_NAME", "ifcp-binary-storage")
+- name: create_s3_resource
+  statement: create_s3_resource()
+- arg: bucket=s3_resource.Bucket(bucket_name)
+  arg.value: bucket=s3_resource.Bucket(bucket_name)
+  name: BinaryStorage
+  statement: BinaryStorage(bucket=s3_resource.Bucket(bucket_name))
+- arg.name: bucket
+  arg.value: s3_resource.Bucket(bucket_name)
+  name: BinaryStorage
+  statement: BinaryStorage(bucket=s3_resource.Bucket(bucket_name))
+- arg: bucket_name
+  arg.value: bucket_name
+  name: Bucket
+  object: s3_resource
+  statement: s3_resource.Bucket(bucket_name)
