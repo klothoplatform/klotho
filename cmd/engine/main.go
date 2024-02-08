@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	engine "github.com/klothoplatform/klotho/pkg/engine2"
+	engine "github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/spf13/cobra"
 )
 
