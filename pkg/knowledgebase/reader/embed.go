@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strconv"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 // templateString is a quoted string, but evaluates as false-y in a template if the string is empty.

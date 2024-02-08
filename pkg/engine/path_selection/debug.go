@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/dot"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"

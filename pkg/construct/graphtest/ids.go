@@ -3,7 +3,7 @@ package graphtest
 import (
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 func ParseId(t *testing.T, str string) (id construct.ResourceId) {

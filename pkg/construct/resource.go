@@ -1,4 +1,4 @@
-package construct2
+package construct
 
 type Resource struct {
 	ID         ResourceId

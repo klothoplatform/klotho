@@ -7,7 +7,7 @@ import (
 	"io"
 	"io/fs"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"go.uber.org/zap"
 )

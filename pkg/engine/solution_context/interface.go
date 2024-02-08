@@ -1,7 +1,7 @@
 package solution_context
 
 import (
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )

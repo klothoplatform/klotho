@@ -2,7 +2,7 @@ package engine
 
 import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 

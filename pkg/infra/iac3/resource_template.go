@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/query"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/typescript/typescript"

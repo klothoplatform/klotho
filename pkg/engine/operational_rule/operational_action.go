@@ -8,7 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/google/uuid"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"

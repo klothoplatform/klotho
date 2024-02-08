@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"

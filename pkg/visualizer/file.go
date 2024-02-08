@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/ioutil"
 	"gopkg.in/yaml.v3"

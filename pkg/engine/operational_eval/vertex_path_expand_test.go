@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"

@@ -12,7 +12,7 @@ import (
 	"text/template"
 
 	"github.com/iancoleman/strcase"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )

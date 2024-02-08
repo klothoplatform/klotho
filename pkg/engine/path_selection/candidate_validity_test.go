@@ -3,7 +3,7 @@ package path_selection
 import (
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/mock"

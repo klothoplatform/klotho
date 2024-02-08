@@ -13,7 +13,7 @@ import (
 	reflect "reflect"
 
 	graph "github.com/dominikbraun/graph"
-	construct2 "github.com/klothoplatform/klotho/pkg/construct2"
+	construct2 "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )

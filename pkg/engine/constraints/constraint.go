@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 	"gopkg.in/yaml.v3"

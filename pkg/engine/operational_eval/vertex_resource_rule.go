@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	property_eval "github.com/klothoplatform/klotho/pkg/engine/operational_eval"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"

@@ -1,4 +1,4 @@
-package construct2
+package construct
 
 // SortedIds is a helper type for sorting ResourceIds by purely their content, for use when deterministic ordering
 // is desired (when no other sources of ordering are available).

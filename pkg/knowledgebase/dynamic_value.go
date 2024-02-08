@@ -13,7 +13,7 @@ import (
 	"text/template"
 
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"go.uber.org/zap"
 )

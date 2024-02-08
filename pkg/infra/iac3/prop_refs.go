@@ -6,7 +6,7 @@ import (
 	"sync"
 	"text/template"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 )
 
 var bufPool = sync.Pool{

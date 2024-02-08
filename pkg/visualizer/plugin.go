@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/klothoplatform/klotho/pkg/cli_config"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 )
 

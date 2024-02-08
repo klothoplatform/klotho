@@ -10,7 +10,7 @@ import (
 
 	"github.com/alitto/pond"
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"

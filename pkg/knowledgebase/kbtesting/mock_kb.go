@@ -2,7 +2,7 @@ package kbtesting
 
 import (
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/mock"
 )

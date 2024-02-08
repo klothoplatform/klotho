@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"

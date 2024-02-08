@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/construct2/graphtest"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
