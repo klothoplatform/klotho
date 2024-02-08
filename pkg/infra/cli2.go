@@ -8,7 +8,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	engine "github.com/klothoplatform/klotho/pkg/engine2"
+	engine "github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/infra/iac3"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"

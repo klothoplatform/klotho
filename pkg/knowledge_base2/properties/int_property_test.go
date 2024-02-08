@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	"github.com/klothoplatform/klotho/pkg/engine2/enginetesting"
+	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledge_base2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
