@@ -21,7 +21,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
@@ -53,9 +52,6 @@ var getValidEdgeTargetsCfg struct {
 	outputDir  string
 	verbose    bool
 }
-
-var hadWarnings = atomic.NewBool(false)
-var hadErrors = atomic.NewBool(false)
 
 func setupLogger() (*zap.Logger, error) {
 	var zapCfg zap.Config
