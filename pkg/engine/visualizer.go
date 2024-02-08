@@ -11,7 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	visualizer "github.com/klothoplatform/klotho/pkg/visualizer2"
 )

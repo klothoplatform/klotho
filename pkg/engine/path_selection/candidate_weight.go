@@ -8,7 +8,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 // determineCandidateWeight determines the weight of a candidate resource based on its relationship to the src and target resources

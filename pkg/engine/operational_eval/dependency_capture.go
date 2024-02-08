@@ -8,7 +8,7 @@ import (
 	"text/template"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 //go:generate 	mockgen -source=./dependency_capture.go --destination=./dependency_capture_mock_test.go --package=operational_eval

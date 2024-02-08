@@ -12,7 +12,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac3"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
-	"github.com/klothoplatform/klotho/pkg/knowledge_base2/reader"
+	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"

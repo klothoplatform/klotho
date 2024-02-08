@@ -5,7 +5,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/assert"
 	gomock "go.uber.org/mock/gomock"
 )

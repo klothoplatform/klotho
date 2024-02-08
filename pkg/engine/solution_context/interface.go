@@ -3,7 +3,7 @@ package solution_context
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 //go:generate mockgen -source=./interface.go --destination=../operational_eval/solution_context_mock_test.go --package=operational_eval

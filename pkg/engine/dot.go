@@ -11,7 +11,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct2"
 	"github.com/klothoplatform/klotho/pkg/dot"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 func dotAttributes(kb knowledgebase.TemplateKB, r *construct.Resource) map[string]string {

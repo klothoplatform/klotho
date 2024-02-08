@@ -14,7 +14,7 @@ import (
 
 	graph "github.com/dominikbraun/graph"
 	construct2 "github.com/klothoplatform/klotho/pkg/construct2"
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledge_base2"
+	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )
 
