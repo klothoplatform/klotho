@@ -47,22 +47,6 @@ func AddIacCli(root *cobra.Command) error {
 	return nil
 }
 
-func setupLogger() (*zap.Logger, error) {
-	var zapCfg zap.Config
-	if generateIacCfg.verbose {
-		zapCfg = zap.NewDevelopmentConfig()
-	} else {
-		zapCfg = zap.NewProductionConfig()
-	}
-	if generateIacCfg.jsonLog {
-		zapCfg.Encoding = "json"
-	} else {
-		zapCfg.Encoding = "console"
-	}
-
-	return zapCfg.Build()
-}
-
 func GenerateIac(cmd *cobra.Command, args []string) error {
 	logOpts := logging.LogOpts{
 		Verbose:         generateIacCfg.verbose,
