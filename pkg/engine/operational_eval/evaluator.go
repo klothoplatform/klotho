@@ -89,7 +89,6 @@ func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 		graph:       newGraph(nil),
 		unevaluated: newGraph(nil),
 		errored:     make(set.Set[Key]),
-		log:         zap.S().Named("engine.opeval"),
 	}
 }
 
@@ -187,6 +186,9 @@ func (r ReadyPriority) String() string {
 }
 
 func (eval *Evaluator) Log() *zap.SugaredLogger {
+	if eval.log == nil {
+		eval.log = zap.S().Named("engine.opeval")
+	}
 	return eval.log.With("group", len(eval.evaluatedOrder))
 }
 
