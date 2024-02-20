@@ -25,6 +25,9 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Stub auth secret
+        run: |
+          touch pkg/auth/auth0_client_secret.key
       - name: Run Go linter
         uses: golangci/golangci-lint-action@v3
         with:
