@@ -1,0 +1,3 @@
+- module: boto3
+  name: boto3
+  statement: import boto3

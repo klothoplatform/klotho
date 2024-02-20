@@ -1,0 +1,35 @@
+- name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", None)
+- name: resource
+  object: boto3
+  statement: |-
+    boto3.resource(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id="minio",
+                aws_secret_access_key="minio123",
+            )
+- name: resource
+  object: boto3
+  statement: boto3.resource("s3")
+- name: getenv
+  object: os
+  statement: os.getenv("ARCHITECTURE_BUCKET_NAME", "ifcp-architecture-storage")
+- name: create_s3_resource
+  statement: create_s3_resource()
+- name: ArchitectureStorage
+  statement: ArchitectureStorage(bucket=s3_resource.Bucket(bucket_name))
+- name: Bucket
+  object: s3_resource
+  statement: s3_resource.Bucket(bucket_name)
+- name: getenv
+  object: os
+  statement: os.getenv("BINARY_BUCKET_NAME", "ifcp-binary-storage")
+- name: create_s3_resource
+  statement: create_s3_resource()
+- name: BinaryStorage
+  statement: BinaryStorage(bucket=s3_resource.Bucket(bucket_name))
+- name: Bucket
+  object: s3_resource
+  statement: s3_resource.Bucket(bucket_name)

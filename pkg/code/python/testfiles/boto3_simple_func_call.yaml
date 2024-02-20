@@ -1,0 +1,9 @@
+- name: resource
+  object: boto3
+  statement: boto3.resource('s3')
+- name: Bucket
+  object: s3
+  statement: s3.Bucket('my-bucket')
+- name: Object
+  object: bucket
+  statement: bucket.Object('my-object')

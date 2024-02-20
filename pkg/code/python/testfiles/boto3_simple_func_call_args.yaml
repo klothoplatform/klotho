@@ -1,0 +1,15 @@
+- arg: "'s3'"
+  arg.value: "'s3'"
+  name: resource
+  object: boto3
+  statement: boto3.resource('s3')
+- arg: "'my-bucket'"
+  arg.value: "'my-bucket'"
+  name: Bucket
+  object: s3
+  statement: s3.Bucket('my-bucket')
+- arg: "'my-object'"
+  arg.value: "'my-object'"
+  name: Object
+  object: bucket
+  statement: bucket.Object('my-object')
