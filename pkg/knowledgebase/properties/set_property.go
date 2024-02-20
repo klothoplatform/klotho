@@ -94,6 +94,9 @@ func (s *SetProperty) Parse(value any, ctx knowledgebase.DynamicContext, data kn
 		Hasher: func(s any) string {
 			return fmt.Sprintf("%v", s)
 		},
+		Less: func(s1, s2 string) bool {
+			return s1 < s2
+		},
 	}
 
 	var vals []any

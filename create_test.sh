@@ -24,7 +24,7 @@ code=$?
 echo "Ran $name return code $code, copying results to testdata"
 set -e
 
-test_dir="pkg/engine2/testdata"
+test_dir="pkg/engine/testdata"
 
 if [ ! "$test_dir/$name.input.yaml" -ef "$1" ]; then
   cp $1 "$test_dir/$name.input.yaml"
