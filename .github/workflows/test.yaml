@@ -29,7 +29,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run test
-        run: go test -race -v -coverprofile=c.out ./...
+        run: |
+          touch pkg/auth/auth0_client_secret.key
+          go test -race -v -coverprofile=c.out ./...
 
       - name: Update coverage report
         if: github.ref_name == 'main'
