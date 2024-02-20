@@ -25,8 +25,8 @@ clean_debug:
 
 .PHONY: engine_test
 engine_test:
-	go test -race -timeout 5m -test.count 4 -run '^TestEngine$$' ./pkg/engine2
+	go test -race -timeout 5m -test.count 4 -run '^TestEngine$$' ./pkg/engine
 
 .PHONY: regen_tests
 regen_tests:
-	find pkg/engine2/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;
+	find pkg/engine/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;
