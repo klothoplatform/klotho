@@ -21,10 +21,10 @@ type (
 	//
 	// The end result of this should be that the orm construct is expanded into an rds instance + necessary resources
 	ConstructConstraint struct {
-		Operator   ConstraintOperator   `yaml:"operator"`
-		Target     construct.ResourceId `yaml:"target"`
-		Type       string               `yaml:"type"`
-		Attributes map[string]any       `yaml:"attributes"`
+		Operator   ConstraintOperator   `yaml:"operator" json:"operator"`
+		Target     construct.ResourceId `yaml:"target" json:"target"`
+		Type       string               `yaml:"type" json:"type"`
+		Attributes map[string]any       `yaml:"attributes" json:"attributes"`
 	}
 )
 

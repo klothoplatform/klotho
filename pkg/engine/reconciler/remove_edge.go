@@ -21,11 +21,11 @@ func RemovePath(
 ) error {
 	zap.S().Infof("Removing path %s -> %s", source, target)
 	paths, err := graph.AllPathsBetween(ctx.DataflowGraph(), source, target)
-	switch {
-	case errors.Is(err, graph.ErrTargetNotReachable):
-		return nil
-	case err != nil:
+	if err != nil {
 		return err
+	}
+	if len(paths) == 0 {
+		return graph.ErrTargetNotReachable
 	}
 
 	nodes := nodesInPaths(paths)

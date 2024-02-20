@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/iancoleman/strcase"
-	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
@@ -21,6 +20,7 @@ import (
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -47,6 +47,7 @@ var architectureEngineCfg struct {
 	inputGraph  string
 	constraints string
 	outputDir   string
+	logsDir     string
 	verbose     bool
 }
 
@@ -56,22 +57,6 @@ var getValidEdgeTargetsCfg struct {
 	configFile string
 	outputDir  string
 	verbose    bool
-}
-
-func setupLogger() (*zap.Logger, error) {
-	var zapCfg zap.Config
-	if architectureEngineCfg.verbose {
-		zapCfg = zap.NewDevelopmentConfig()
-	} else {
-		zapCfg = zap.NewProductionConfig()
-	}
-	if engineCfg.jsonLog {
-		zapCfg.Encoding = "json"
-	} else {
-		zapCfg.Encoding = "console"
-	}
-
-	return zapCfg.Build()
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
@@ -117,6 +102,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
+	flags.StringVar(&architectureEngineCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
 	flags.BoolVarP(&architectureEngineCfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
@@ -274,14 +260,16 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
 
-	zap.S().Info("Running engine")
+	log := zap.S().Named("engine")
+
+	log.Info("Running engine")
 	err := em.Engine.Run(context)
 	if err != nil {
 		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
 		// This is returned as exit code 1, and add the details to be printed to stdout.
 		returnCode = 1
 		engErrs = append(engErrs, extractEngineErrors(err)...)
-		zap.S().Errorf("Engine returned error: %v", err)
+		log.Errorf("Engine returned error: %v", err)
 	}
 
 	if len(context.Solutions) > 0 {
@@ -327,16 +315,27 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 }
 
 func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int) {
+	logOpts := logging.LogOpts{
+		Verbose:         architectureEngineCfg.verbose,
+		CategoryLogsDir: architectureEngineCfg.logsDir,
+	}
+	if engineCfg.jsonLog {
+		logOpts.Encoding = "json"
+	}
+	zap.ReplaceGlobals(logOpts.NewLogger())
+	defer zap.L().Sync() //nolint:errcheck
+
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
 		exitCode = 1
 	}
+	log := zap.S().Named("engine")
 
 	defer func() { // defer functions execute in FILO order, so this executes after the 'recover'.
 		err := writeEngineErrsJson(engErrs, os.Stdout)
 		if err != nil {
-			zap.S().Errorf("failed to output errors to stdout: %v", err)
+			log.Errorf("failed to output errors to stdout: %v", err)
 		}
 	}()
 	defer func() {
@@ -344,7 +343,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		if r == nil {
 			return
 		}
-		zap.S().Errorf("panic: %v", r)
+		log.Errorf("panic: %v", r)
 		switch r := r.(type) {
 		case engine_errs.EngineError:
 			engErrs = append(engErrs, r)
@@ -356,18 +355,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	}()
 	defer setupProfiling()()
 
-	// Set up analytics, and hook them up to the logs
-	z, err := setupLogger()
-	if err != nil {
-		internalError(err)
-		return
-	}
-	// nolint:errcheck
-	defer z.Sync() // ignore errors from sync, it's always "ERROR: sync /dev/stderr: invalid argument"
-
-	zap.ReplaceGlobals(z)
-
-	err = em.AddEngine()
+	err := em.AddEngine()
 	if err != nil {
 		internalError(err)
 		return
@@ -377,7 +365,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 
 	if architectureEngineCfg.inputGraph != "" {
 		var input FileFormat
-		zap.S().Info("Loading input graph")
+		log.Info("Loading input graph")
 		inputF, err := os.Open(architectureEngineCfg.inputGraph)
 		if err != nil {
 			internalError(err)
@@ -396,7 +384,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	} else {
 		context.InitialState = construct.NewGraph()
 	}
-	zap.S().Info("Loading constraints")
+	log.Info("Loading constraints")
 
 	if architectureEngineCfg.constraints != "" {
 		runConstraints, err := constraints.LoadConstraintsFromFile(architectureEngineCfg.constraints)
@@ -426,14 +414,14 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		Content: configErrors.Bytes(),
 	})
 
-	zap.S().Info("Engine finished running... Generating views")
+	log.Info("Engine finished running... Generating views")
 	vizFiles, err := em.Engine.VisualizeViews(context.Solutions[0])
 	if err != nil {
 		internalError(fmt.Errorf("failed to generate views %w", err))
 		return
 	}
 	files = append(files, vizFiles...)
-	zap.S().Info("Generating resources.yaml")
+	log.Info("Generating resources.yaml")
 	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
@@ -457,19 +445,23 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
 	defer setupProfiling()()
 
-	// Set up analytics, and hook them up to the logs
-	z, err := setupLogger()
-	if err != nil {
-		return err
+	logOpts := logging.LogOpts{
+		Verbose:         architectureEngineCfg.verbose,
+		CategoryLogsDir: architectureEngineCfg.logsDir,
 	}
-	defer closenicely.FuncOrDebug(z.Sync)
-	zap.ReplaceGlobals(z)
+	if engineCfg.jsonLog {
+		logOpts.Encoding = "json"
+	}
+	zap.ReplaceGlobals(logOpts.NewLogger())
+	defer zap.L().Sync() //nolint:errcheck
 
-	err = em.AddEngine()
+	log := zap.S().Named("engine")
+
+	err := em.AddEngine()
 	if err != nil {
 		return err
 	}
-	zap.S().Info("loading config")
+	log.Info("loading config")
 
 	inputF, err := os.ReadFile(getValidEdgeTargetsCfg.inputGraph)
 	if err != nil {
@@ -485,13 +477,13 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 		GetValidEdgeTargetsConfig: config,
 	}
 
-	zap.S().Info("getting valid edge targets")
+	log.Info("getting valid edge targets")
 	validTargets, err := em.Engine.GetValidEdgeTargets(context)
 	if err != nil {
 		return fmt.Errorf("failed to run engine: %w", err)
 	}
 
-	zap.S().Info("writing output files")
+	log.Info("writing output files")
 	b, err := yaml.Marshal(validTargets)
 	if err != nil {
 		return fmt.Errorf("failed to marshal possible edges: %w", err)
@@ -516,14 +508,14 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 		defer wg.Done()
 		err := GraphToSVG(sol.KnowledgeBase(), sol.DataflowGraph(), "dataflow")
 		if err != nil {
-			zap.S().Errorf("failed to write dataflow graph: %w", err)
+			zap.S().Named("engine").Errorf("failed to write dataflow graph: %w", err)
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		err := GraphToSVG(sol.KnowledgeBase(), sol.DeploymentGraph(), "iac")
 		if err != nil {
-			zap.S().Errorf("failed to write iac graph: %w", err)
+			zap.S().Named("engine").Errorf("failed to write iac graph: %w", err)
 		}
 	}()
 	wg.Wait()

@@ -1,6 +1,7 @@
 package constraints
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -97,6 +98,25 @@ func (cs ConstraintList) MarshalYAML() (interface{}, error) {
 		list = append(list, n)
 	}
 	return list, nil
+}
+
+func (cs ConstraintList) MarshalJSON() ([]byte, error) {
+	list := make([]map[string]interface{}, len(cs))
+	for i, c := range cs {
+		m := map[string]interface{}{
+			"scope": c.Scope(),
+		}
+		b, err := json.Marshal(c)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &m)
+		if err != nil {
+			return nil, err
+		}
+		list[i] = m
+	}
+	return json.Marshal(list)
 }
 
 func (cs *ConstraintList) UnmarshalYAML(node *yaml.Node) error {
@@ -220,4 +240,25 @@ func (c Constraints) ToList() ConstraintList {
 		list = append(list, &c.Edges[i])
 	}
 	return list
+}
+
+func (c Constraints) MarshalYAML() (interface{}, error) {
+	return c.ToList(), nil
+}
+
+func (c *Constraints) UnmarshalYAML(node *yaml.Node) error {
+	var list ConstraintList
+	err := node.Decode(&list)
+	if err != nil {
+		return err
+	}
+	*c, err = list.ToConstraints()
+	return err
+}
+
+func (c *Constraints) Append(other Constraints) {
+	c.Application = append(c.Application, other.Application...)
+	c.Construct = append(c.Construct, other.Construct...)
+	c.Resources = append(c.Resources, other.Resources...)
+	c.Edges = append(c.Edges, other.Edges...)
 }

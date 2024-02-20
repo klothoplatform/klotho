@@ -37,7 +37,7 @@ func (eval *Evaluator) Evaluate() error {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
 		}
 
-		log := eval.Log().With("op", "eval")
+		log := eval.Log().Named("eval")
 
 		var errs error
 		for _, v := range ready {
@@ -73,7 +73,7 @@ func (eval *Evaluator) Evaluate() error {
 }
 
 func (eval *Evaluator) printUnevaluated() {
-	log := eval.Log().With("op", "poll-deps")
+	log := eval.Log().Named("eval.poll-deps")
 	if !log.Desugar().Core().Enabled(zap.DebugLevel) {
 		return
 	}
@@ -120,7 +120,7 @@ func (eval *Evaluator) printUnevaluated() {
 }
 
 func (eval *Evaluator) pollReady() ([]Vertex, error) {
-	log := eval.Log().With("op", "dequeue")
+	log := eval.Log().Named("eval.dequeue")
 	adj, err := eval.unevaluated.AdjacencyMap()
 	if err != nil {
 		return nil, err

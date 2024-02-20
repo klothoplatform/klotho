@@ -23,8 +23,8 @@ type (
 	// The end result of this should be a path of klotho:execution_unit:my_compute -> aws:rds_proxy:my_proxy -> klotho:orm:my_orm with N intermediate nodes to satisfy the path's expansion
 
 	EdgeConstraint struct {
-		Operator ConstraintOperator `yaml:"operator"`
-		Target   Edge               `yaml:"target"`
+		Operator ConstraintOperator `yaml:"operator" json:"operator"`
+		Target   Edge               `yaml:"target" json:"target"`
 	}
 )
 
@@ -71,9 +71,9 @@ func (constraint *EdgeConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 
 func (constraint *EdgeConstraint) checkSatisfication(path []*construct.Resource, ctx ConstraintGraph) bool {
 	switch constraint.Operator {
-	case MustExistConstraintOperator:
+	case AddConstraintOperator, MustExistConstraintOperator:
 		return len(path) > 0
-	case MustNotExistConstraintOperator:
+	case RemoveConstraintOperator, MustNotExistConstraintOperator:
 		return len(path) == 0
 	}
 	return false

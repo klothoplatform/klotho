@@ -61,6 +61,14 @@ path_satisfaction:
   as_target:
     - network
 
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_EC_NODE_ADDR': '{{ fieldRef "CacheNodeAddress" .Self }}'
+        '{{ .Self.Name }}_EC_ADDRESS': '{{ fieldRef "ClusterAddress" .Self }}'
+        '{{ .Self.Name }}_EC_PORT': '{{ fieldRef "Port" .Self }}'
+
 classification:
   is:
     - storage

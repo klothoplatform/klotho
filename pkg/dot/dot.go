@@ -92,6 +92,6 @@ func ExecPan(input io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	zap.S().Debugf("dot output %d bytes", out.Len())
+	zap.S().Named("dot").Debugf("dot output %d bytes", out.Len())
 	return SvgPan(out.String()), nil
 }

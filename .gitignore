@@ -44,3 +44,7 @@ go.work.sum
 *.gv.svg
 
 *.log
+
+*.key
+
+/logs

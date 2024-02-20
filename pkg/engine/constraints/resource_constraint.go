@@ -25,10 +25,10 @@ type (
 	//
 	// The end result of this should be that the the rds instance's InstanceClass property should be set to db.t3.micro
 	ResourceConstraint struct {
-		Operator ConstraintOperator   `yaml:"operator"`
-		Target   construct.ResourceId `yaml:"target"`
-		Property string               `yaml:"property"`
-		Value    any                  `yaml:"value"`
+		Operator ConstraintOperator   `yaml:"operator" json:"operator"`
+		Target   construct.ResourceId `yaml:"target" json:"target"`
+		Property string               `yaml:"property" json:"property"`
+		Value    any                  `yaml:"value" json:"value"`
 	}
 )
 
