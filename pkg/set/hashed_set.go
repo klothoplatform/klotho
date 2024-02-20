@@ -20,14 +20,10 @@ func HashedSetOf[K comparable, T any](hasher func(T) K, vs ...T) HashedSet[K, T]
 	return s
 }
 
-func (s *HashedSet[K, T]) initialize() {
+func (s *HashedSet[K, T]) Add(vs ...T) {
 	if s.M == nil {
 		s.M = make(map[K]T)
 	}
-}
-
-func (s *HashedSet[K, T]) Add(vs ...T) {
-	s.initialize()
 	for _, v := range vs {
 		hash := s.Hasher(v)
 		s.M[hash] = v
@@ -108,7 +104,6 @@ func (s HashedSet[K, T]) ToMap() map[K]T {
 }
 
 func (s HashedSet[K, T]) Union(other HashedSet[K, T]) HashedSet[K, T] {
-	s.initialize()
 	union := make(map[K]T)
 	for k := range s.M {
 		v := s.M[k]
@@ -121,6 +116,7 @@ func (s HashedSet[K, T]) Union(other HashedSet[K, T]) HashedSet[K, T] {
 	return HashedSet[K, T]{
 		Hasher: s.Hasher,
 		M:      union,
+		Less:   s.Less,
 	}
 }
 
@@ -128,6 +124,7 @@ func (s HashedSet[K, T]) Intersection(other HashedSet[K, T]) HashedSet[K, T] {
 	intersection := HashedSet[K, T]{
 		Hasher: s.Hasher,
 		M:      make(map[K]T),
+		Less:   s.Less,
 	}
 	for k := range s.M {
 		if _, ok := other.M[k]; ok {
