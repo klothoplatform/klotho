@@ -79,23 +79,22 @@ func (s HashedSet[K, T]) ToSlice() []T {
 	if s.M == nil {
 		return nil
 	}
-	if s.Less != nil {
-		slice := make([]K, 0, len(s.M))
-		for k := range s.M {
-			slice = append(slice, k)
-		}
-		sort.Slice(slice, func(i, j int) bool {
-			return s.Less(slice[i], slice[j])
-		})
-		result := make([]T, 0, len(s.M))
-		for _, k := range slice {
-			result = append(result, s.M[k])
-		}
-		return result
-	}
 	slice := make([]T, 0, len(s.M))
-	for k := range s.M {
-		slice = append(slice, s.M[k])
+	if s.Less != nil {
+		keys := make([]K, 0, len(s.M))
+		for k := range s.M {
+			keys = append(keys, k)
+		}
+		sort.Slice(keys, func(i, j int) bool {
+			return s.Less(keys[i], keys[j])
+		})
+		for _, k := range keys {
+			slice = append(slice, s.M[k])
+		}
+	} else {
+		for k := range s.M {
+			slice = append(slice, s.M[k])
+		}
 	}
 	return slice
 }
