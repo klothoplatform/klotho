@@ -361,7 +361,7 @@ func addConfigurationRuleToPropertyVertex(
 ) (map[construct.ResourceId][]knowledgebase.ConfigurationRule, error) {
 	configuration := make(map[construct.ResourceId][]knowledgebase.ConfigurationRule)
 
-	log := eval.Log().With("op", "eval")
+	log := eval.Log()
 	pred, err := eval.graph.PredecessorMap()
 	if err != nil {
 		return configuration, err

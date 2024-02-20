@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"runtime/pprof"
 
-	"github.com/klothoplatform/klotho/pkg/closenicely"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine "github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -64,12 +64,15 @@ func setupLogger() (*zap.Logger, error) {
 }
 
 func GenerateIac(cmd *cobra.Command, args []string) error {
-	z, err := setupLogger()
-	if err != nil {
-		return err
+	logOpts := logging.LogOpts{
+		Verbose:         generateIacCfg.verbose,
+		CategoryLogsDir: "", // IaC doesn't generate enough logs to warrant category-specific logs
 	}
-	defer closenicely.FuncOrDebug(z.Sync)
-	zap.ReplaceGlobals(z)
+	if generateIacCfg.jsonLog {
+		logOpts.Encoding = "json"
+	}
+	zap.ReplaceGlobals(logOpts.NewLogger())
+	defer zap.L().Sync() //nolint:errcheck
 
 	if generateIacCfg.profileTo != "" {
 		err := os.MkdirAll(filepath.Dir(generateIacCfg.profileTo), 0755)

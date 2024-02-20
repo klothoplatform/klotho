@@ -20,9 +20,9 @@ type (
 	//
 	// The end result of this should be that the execution unit construct is added to the construct graph for processing
 	ApplicationConstraint struct {
-		Operator        ConstraintOperator   `yaml:"operator"`
-		Node            construct.ResourceId `yaml:"node"`
-		ReplacementNode construct.ResourceId `yaml:"replacement_node,omitempty"`
+		Operator        ConstraintOperator   `yaml:"operator" json:"operator"`
+		Node            construct.ResourceId `yaml:"node" json:"node"`
+		ReplacementNode construct.ResourceId `yaml:"replacement_node,omitempty" json:"replacement_node,omitempty"`
 	}
 )
 
@@ -32,7 +32,7 @@ func (constraint *ApplicationConstraint) Scope() ConstraintScope {
 
 func (constraint *ApplicationConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 	switch constraint.Operator {
-	case AddConstraintOperator:
+	case AddConstraintOperator, MustExistConstraintOperator:
 		nodeToSearchFor := constraint.Node
 		// If the add was for a construct, we need to check if any resource references the construct
 		if constraint.Node.IsAbstractResource() {
@@ -40,7 +40,8 @@ func (constraint *ApplicationConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 		}
 		res, _ := ctx.GetResource(nodeToSearchFor)
 		return res != nil
-	case RemoveConstraintOperator:
+
+	case RemoveConstraintOperator, MustNotExistConstraintOperator:
 		nodeToSearchFor := constraint.Node
 		// If the remove was for a construct, we need to check if any resource references the construct
 		if constraint.Node.IsAbstractResource() {
@@ -77,18 +78,21 @@ func (constraint *ApplicationConstraint) IsSatisfied(ctx ConstraintGraph) bool {
 }
 
 func (constraint *ApplicationConstraint) Validate() error {
-	if constraint.Operator == ReplaceConstraintOperator && (constraint.Node == construct.ResourceId{} || constraint.ReplacementNode == construct.ResourceId{}) {
-		return errors.New("replace constraint must have a node and replacement node defined")
-	}
-	if constraint.Operator == AddConstraintOperator && (constraint.Node == construct.ResourceId{}) {
-		return errors.New("add constraint must have a node defined")
-	}
+	switch constraint.Operator {
+	case AddConstraintOperator, MustExistConstraintOperator:
+		if constraint.Node.IsZero() {
+			return errors.New("add/must_exist constraint must have a node defined")
+		}
 
-	if constraint.Operator == RemoveConstraintOperator && (constraint.Node == construct.ResourceId{}) {
-		return errors.New("remove constraint must have a node defined")
-	}
-	if constraint.Operator == ImportConstraintOperator && (constraint.Node == construct.ResourceId{}) {
-		return errors.New("import constraint must have a node defined")
+	case RemoveConstraintOperator, MustNotExistConstraintOperator:
+		if constraint.Node.IsZero() {
+			return errors.New("remove/must_not_exist constraint must have a node defined")
+		}
+
+	case ReplaceConstraintOperator:
+		if constraint.Node.IsZero() || constraint.ReplacementNode.IsZero() {
+			return errors.New("replace constraint must have a node and replacement node defined")
+		}
 	}
 	return nil
 }

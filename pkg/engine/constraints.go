@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
@@ -57,12 +58,26 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 	case constraints.AddConstraintOperator:
 		return ctx.OperationalView().AddVertex(res)
 
+	case constraints.MustExistConstraintOperator:
+		err := ctx.OperationalView().AddVertex(res)
+		if errors.Is(err, graph.ErrVertexAlreadyExists) {
+			return nil
+		}
+		return err
+
 	case constraints.ImportConstraintOperator:
 		res.Imported = true
 		return ctx.OperationalView().AddVertex(res)
 
 	case constraints.RemoveConstraintOperator:
 		return reconciler.RemoveResource(ctx, res.ID, true)
+
+	case constraints.MustNotExistConstraintOperator:
+		err := reconciler.RemoveResource(ctx, res.ID, false)
+		if errors.Is(err, graph.ErrVertexNotFound) {
+			return nil
+		}
+		return err
 
 	case constraints.ReplaceConstraintOperator:
 		node, err := ctx.RawView().Vertex(res.ID)
@@ -124,11 +139,24 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 	}
 
 	switch constraint.Operator {
-	case constraints.MustExistConstraintOperator:
+	case constraints.AddConstraintOperator:
 		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
 
-	case constraints.MustNotExistConstraintOperator:
+	case constraints.MustExistConstraintOperator:
+		err := ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)
+		if errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			return nil
+		}
+		return err
+
+	case constraints.RemoveConstraintOperator:
 		return reconciler.RemovePath(constraint.Target.Source, constraint.Target.Target, ctx)
+
+	case constraints.MustNotExistConstraintOperator:
+		err := reconciler.RemovePath(constraint.Target.Source, constraint.Target.Target, ctx)
+		if errors.Is(err, graph.ErrTargetNotReachable) {
+			return nil
+		}
 	}
 	return nil
 }

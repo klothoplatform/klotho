@@ -1,6 +1,7 @@
 package reconciler
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/dominikbraun/graph"
@@ -20,6 +21,7 @@ func Test_RemovePath(t *testing.T) {
 		mockKB       []mock.Call
 		initialState []any
 		want         []any
+		wantErr      error
 	}{
 		{
 			name:   "remove path simple",
@@ -70,6 +72,27 @@ func Test_RemovePath(t *testing.T) {
 			initialState: []any{"p:t:s", "p:t:t", "p:t:s -> p:t:t", "p:t:a", "p:t:b", "p:t:a -> p:t:t", "p:t:t -> p:t:b"},
 			want:         []any{"p:t:s", "p:t:t", "p:t:a", "p:t:b", "p:t:a -> p:t:t", "p:t:t -> p:t:b"},
 		},
+		{
+			name:   "remove path not found",
+			source: construct.ResourceId{Provider: "p", Type: "t", Name: "s"},
+			target: construct.ResourceId{Provider: "p", Type: "t", Name: "q"},
+			mockKB: []mock.Call{
+				{
+					Method:    "GetResourceTemplate",
+					Arguments: []any{mock.Anything},
+					ReturnArguments: []any{&knowledgebase.ResourceTemplate{
+						Classification: knowledgebase.Classification{Is: []string{string(knowledgebase.Compute)}},
+					}, nil},
+				},
+				{
+					Method:          "GetEdgeTemplate",
+					Arguments:       []any{mock.Anything, mock.Anything},
+					ReturnArguments: []any{&knowledgebase.EdgeTemplate{}},
+				},
+			},
+			initialState: []any{"p:t:s -> p:t:t", "p:t:q"},
+			wantErr:      graph.ErrTargetNotReachable,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -80,6 +103,10 @@ func Test_RemovePath(t *testing.T) {
 			}
 			testSolution.LoadState(t, tt.initialState...)
 			err := RemovePath(tt.source, tt.target, testSolution)
+			if tt.wantErr != nil {
+				assert.True(errors.Is(err, tt.wantErr), "expected error %v, got %v", tt.wantErr, err)
+				return
+			}
 			if !assert.NoError(err) {
 				return
 			}

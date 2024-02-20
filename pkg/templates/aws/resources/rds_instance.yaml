@@ -42,7 +42,7 @@ properties:
         | replace `-$` ""
         | replace `[^[:alnum:]-]+` "-"
         | length 1 63
-      }}  
+      }}
   IamDatabaseAuthenticationEnabled:
     type: bool
     default_value: true
@@ -77,7 +77,7 @@ properties:
       - sqlserver-web
   EngineVersion:
     type: string
-    default_value: '13.7'
+    default_value: '16.1'
   InstanceClass:
     type: string
     default_value: db.t3.micro

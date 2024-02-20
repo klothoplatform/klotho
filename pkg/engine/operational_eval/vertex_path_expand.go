@@ -58,7 +58,7 @@ func (v *pathExpandVertex) runEvaluation(eval *Evaluator, runner expansionRunner
 	if err != nil {
 		errs = errors.Join(errs, fmt.Errorf("could not get expansions to run: %w", err))
 	}
-	log := eval.Log()
+	log := eval.Log().Named("path_expand")
 	if len(expansions) > 1 && log.Desugar().Core().Enabled(zap.DebugLevel) {
 		log.Debugf("Expansion %s subexpansions:", v.SatisfactionEdge)
 		for _, expansion := range expansions {
@@ -85,9 +85,9 @@ func (v *pathExpandVertex) runEvaluation(eval *Evaluator, runner expansionRunner
 			continue
 		}
 		if v.Satisfication.Classification != "" {
-			eval.Log().Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.SatisfactionEdge, resultStr)
+			log.Infof("Satisfied %s for %s through %s", v.Satisfication.Classification, v.SatisfactionEdge, resultStr)
 		} else {
-			eval.Log().Infof("Satisfied %s -> %s through %s", v.SatisfactionEdge.Source, v.SatisfactionEdge.Target, resultStr)
+			log.Infof("Satisfied %s -> %s through %s", v.SatisfactionEdge.Source, v.SatisfactionEdge.Target, resultStr)
 		}
 
 		if err := runner.addResourcesAndEdges(result, expansion, v); err != nil {
@@ -205,7 +205,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 				}
 				changes.addEdge(Key{Ref: actualRef}, v.Key())
 
-				eval.Log().Debugf(
+				eval.Log().Named("path_expand").Debugf(
 					"Adding speculative dependency %s -> %s (matches %s from %s)",
 					actualRef, v.Key(), ref, se,
 				)

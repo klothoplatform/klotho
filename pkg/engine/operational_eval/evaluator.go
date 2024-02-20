@@ -27,6 +27,8 @@ type (
 		errored        set.Set[Key]
 
 		currentKey *Key
+
+		log *zap.SugaredLogger
 	}
 
 	Key struct {
@@ -87,6 +89,7 @@ func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
 		graph:       newGraph(nil),
 		unevaluated: newGraph(nil),
 		errored:     make(set.Set[Key]),
+		log:         zap.S().Named("engine.opeval"),
 	}
 }
 
@@ -184,7 +187,7 @@ func (r ReadyPriority) String() string {
 }
 
 func (eval *Evaluator) Log() *zap.SugaredLogger {
-	return zap.S().With("group", len(eval.evaluatedOrder))
+	return eval.log.With("group", len(eval.evaluatedOrder))
 }
 
 func (eval *Evaluator) isEvaluated(k Key) (bool, error) {
@@ -204,7 +207,7 @@ func (eval *Evaluator) isEvaluated(k Key) (bool, error) {
 }
 
 func (eval *Evaluator) addEdge(source, target Key) error {
-	log := eval.Log().With("op", "deps")
+	log := eval.Log().Named("deps")
 	_, err := eval.graph.Edge(source, target)
 	if err == nil {
 		log.Debugf("  -> %s ✓", target)
@@ -278,7 +281,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 		// short circuit when there's nothing to change
 		return nil
 	}
-	log := eval.Log().With("op", "enqueue")
+	log := eval.Log().Named("enqueue")
 
 	var errs error
 	for key, v := range changes.nodes {
@@ -321,7 +324,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 		return errs
 	}
 
-	log = eval.Log().With("op", "deps")
+	log = eval.Log().Named("deps")
 	for source, targets := range changes.edges {
 		if len(targets) > 0 {
 			log.Debug(source)
