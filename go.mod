@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/alecthomas/kong v0.8.1
 	github.com/alitto/pond v1.8.3
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/coreos/go-semver v0.3.0
@@ -25,6 +26,8 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/thessem/zap-prettyconsole v0.3.0
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
+	go.lsp.dev/jsonrpc2 v0.10.0
+	go.lsp.dev/protocol v0.12.0
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.22.0
 	golang.org/x/oauth2 v0.13.0
@@ -74,10 +77,14 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.3.4 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2 // indirect
+	go.lsp.dev/uri v0.3.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
