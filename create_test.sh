@@ -20,8 +20,10 @@ go run ./cmd/engine Run \
   -c "$1" \
   -o "$out_dir" > $out_dir/error_details.json 2> $out_dir/err.log
 
-code=$?
-echo "Ran $name return code $code, copying results to testdata"
+# note: 'go run' always returns exit code 1 if the program returns any non-zero
+# so using $? to capture it won't work. We'd need to build and run the binary
+
+echo "Ran $name, copying results to testdata"
 set -e
 
 test_dir="pkg/engine/testdata"

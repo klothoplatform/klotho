@@ -190,6 +190,9 @@ func (m *MapProperty) Type() string {
 }
 
 func (m *MapProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if m.DeployTime && value == nil {
+		return nil
+	}
 	if value == nil {
 		if m.Required {
 			return fmt.Errorf(knowledgebase.ErrRequiredProperty, m.Path, resource.ID)
