@@ -84,6 +84,9 @@ func (b *BoolProperty) Type() string {
 }
 
 func (b *BoolProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
+	if b.DeployTime && value == nil {
+		return nil
+	}
 	if value == nil {
 		if b.Required {
 			return fmt.Errorf(knowledgebase.ErrRequiredProperty, b.Path, resource.ID)
