@@ -92,7 +92,7 @@ func (f *FloatProperty) Type() string {
 }
 
 func (f *FloatProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
-	if f.DeployTime && value == nil {
+	if f.DeployTime && value == nil && !resource.Imported {
 		return nil
 	}
 	if value == nil {

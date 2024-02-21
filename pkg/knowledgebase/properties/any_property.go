@@ -110,7 +110,7 @@ func (a *AnyProperty) Type() string {
 }
 
 func (a *AnyProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
-	if a.DeployTime && value == nil {
+	if a.DeployTime && value == nil && !resource.Imported {
 		return nil
 	}
 	if a.Required && value == nil {

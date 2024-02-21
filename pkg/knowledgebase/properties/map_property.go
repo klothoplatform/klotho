@@ -190,7 +190,7 @@ func (m *MapProperty) Type() string {
 }
 
 func (m *MapProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
-	if m.DeployTime && value == nil {
+	if m.DeployTime && value == nil && !resource.Imported {
 		return nil
 	}
 	if value == nil {

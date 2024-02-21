@@ -168,7 +168,7 @@ func (l *ListProperty) Type() string {
 }
 
 func (l *ListProperty) Validate(resource *construct.Resource, value any, ctx knowledgebase.DynamicContext) error {
-	if l.DeployTime && value == nil {
+	if l.DeployTime && value == nil && !resource.Imported {
 		return nil
 	}
 	if value == nil {
