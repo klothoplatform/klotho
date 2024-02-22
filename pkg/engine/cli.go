@@ -34,10 +34,15 @@ type (
 	}
 )
 
+var commonCfg struct {
+	verbose bool
+	jsonLog bool
+	logsDir string
+}
+
 var engineCfg struct {
 	provider   string
 	guardrails string
-	jsonLog    bool
 	profileTo  string
 }
 
@@ -47,8 +52,6 @@ var architectureEngineCfg struct {
 	inputGraph  string
 	constraints string
 	outputDir   string
-	logsDir     string
-	verbose     bool
 }
 
 var getValidEdgeTargetsCfg struct {
@@ -56,10 +59,27 @@ var getValidEdgeTargetsCfg struct {
 	inputGraph string
 	configFile string
 	outputDir  string
-	verbose    bool
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
+	flags := root.PersistentFlags()
+	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
+	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
+	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		logOpts := logging.LogOpts{
+			Verbose:         commonCfg.verbose,
+			CategoryLogsDir: commonCfg.logsDir,
+		}
+		if commonCfg.jsonLog {
+			logOpts.Encoding = "json"
+		}
+		zap.ReplaceGlobals(logOpts.NewLogger())
+	}
+	root.PersistentPostRun = func(cmd *cobra.Command, args []string) {
+		zap.L().Sync() //nolint:errcheck
+	}
+
 	engineGroup := &cobra.Group{
 		ID:    "engine",
 		Title: "engine",
@@ -71,7 +91,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		RunE:    em.ListResourceTypes,
 	}
 
-	flags := listResourceTypesCmd.Flags()
+	flags = listResourceTypesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
 	flags.StringVar(&engineCfg.guardrails, "guardrails", "", "Guardrails file")
 
@@ -102,9 +122,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
-	flags.StringVar(&architectureEngineCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
-	flags.BoolVarP(&architectureEngineCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	getPossibleEdgesCmd := &cobra.Command{
@@ -119,8 +136,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&getValidEdgeTargetsCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.configFile, "config", "c", "", "config file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.outputDir, "output-dir", "o", "", "Output directory")
-	flags.BoolVarP(&getValidEdgeTargetsCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&engineCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	root.AddGroup(engineGroup)
@@ -315,16 +330,6 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 }
 
 func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int) {
-	logOpts := logging.LogOpts{
-		Verbose:         architectureEngineCfg.verbose,
-		CategoryLogsDir: architectureEngineCfg.logsDir,
-	}
-	if engineCfg.jsonLog {
-		logOpts.Encoding = "json"
-	}
-	zap.ReplaceGlobals(logOpts.NewLogger())
-	defer zap.L().Sync() //nolint:errcheck
-
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
@@ -444,16 +449,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 
 func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
 	defer setupProfiling()()
-
-	logOpts := logging.LogOpts{
-		Verbose:         architectureEngineCfg.verbose,
-		CategoryLogsDir: architectureEngineCfg.logsDir,
-	}
-	if engineCfg.jsonLog {
-		logOpts.Encoding = "json"
-	}
-	zap.ReplaceGlobals(logOpts.NewLogger())
-	defer zap.L().Sync() //nolint:errcheck
 
 	log := zap.S().Named("engine")
 
