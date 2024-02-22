@@ -19,6 +19,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var commonCfg struct {
+	verbose bool
+	jsonLog bool
+}
+
 var generateIacCfg struct {
 	provider   string
 	inputGraph string
@@ -30,34 +35,39 @@ var generateIacCfg struct {
 }
 
 func AddIacCli(root *cobra.Command) error {
+	flags := root.PersistentFlags()
+	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
+	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		logOpts := logging.LogOpts{
+			Verbose:         commonCfg.verbose,
+			CategoryLogsDir: "", // IaC doesn't generate enough logs to warrant category-specific logs
+		}
+		if commonCfg.jsonLog {
+			logOpts.Encoding = "json"
+		}
+		zap.ReplaceGlobals(logOpts.NewLogger())
+	}
+	root.PersistentPostRun = func(cmd *cobra.Command, args []string) {
+		zap.L().Sync() //nolint:errcheck
+	}
+
 	generateCmd := &cobra.Command{
 		Use:   "Generate",
 		Short: "Generate IaC for a given graph",
 		RunE:  GenerateIac,
 	}
-	flags := generateCmd.Flags()
+	flags = generateCmd.Flags()
 	flags.StringVarP(&generateIacCfg.provider, "provider", "p", "pulumi", "Provider to use")
 	flags.StringVarP(&generateIacCfg.inputGraph, "input-graph", "i", "", "Input graph to use")
 	flags.StringVarP(&generateIacCfg.outputDir, "output-dir", "o", "", "Output directory to use")
 	flags.StringVarP(&generateIacCfg.appName, "app-name", "a", "", "App name to use")
-	flags.BoolVarP(&generateIacCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&generateIacCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.StringVar(&generateIacCfg.profileTo, "profiling", "", "Profile to file")
 	root.AddCommand(generateCmd)
 	return nil
 }
 
 func GenerateIac(cmd *cobra.Command, args []string) error {
-	logOpts := logging.LogOpts{
-		Verbose:         generateIacCfg.verbose,
-		CategoryLogsDir: "", // IaC doesn't generate enough logs to warrant category-specific logs
-	}
-	if generateIacCfg.jsonLog {
-		logOpts.Encoding = "json"
-	}
-	zap.ReplaceGlobals(logOpts.NewLogger())
-	defer zap.L().Sync() //nolint:errcheck
-
 	if generateIacCfg.profileTo != "" {
 		err := os.MkdirAll(filepath.Dir(generateIacCfg.profileTo), 0755)
 		if err != nil {
