@@ -108,21 +108,14 @@ func (b *boto3) FindInFile(file fs.File) (constraints.Constraints, error) {
 		return constraints.Constraints{}, err
 	}
 	log := zap.L().Named("boto3").With(zap.String("file", info.Name())).Sugar()
-	doc := lsp.DocumentURI("file://" + info.Name())
 
+	// Use a set to dedupe cases where a bucket is instantiated multiple times
 	createRes := make(set.Set[construct.ResourceId])
 	var errs error
 	for match := range sitter.QueryIterator(tree.RootNode(), queries.FuncCall) {
 		name := match["name"]
 		switch name.Content() {
 		case "Bucket":
-			ok, err := b.IsBoto3Func(doc, tree, match)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				continue
-			} else if !ok {
-				continue
-			}
 			for arg := range sitter.QueryIterator(match["statement"], queries.FuncCallArgs) {
 				id := construct.ResourceId{
 					Provider: "aws",
@@ -139,52 +132,11 @@ func (b *boto3) FindInFile(file fs.File) (constraints.Constraints, error) {
 	cs := constraints.Constraints{}
 	for res := range createRes {
 		cs.Application = append(cs.Application, constraints.ApplicationConstraint{
-			// TODO switch to MustExistOperator once the new engine supporting it is deployed
-			Operator: constraints.AddConstraintOperator,
+			Operator: constraints.MustExistConstraintOperator,
 			Node:     res,
 		})
 	}
 	return cs, errs
-}
-
-func (b *boto3) IsBoto3Func(doc lsp.DocumentURI, tree *sitter.Tree, match map[string]*sitter.Node) (bool, error) {
-	obj := match["object"]
-	if obj == nil {
-		return false, nil
-	}
-	defs, err := b.LSP.Server.Definition(b.LSP.Ctx, &lsp.DefinitionParams{
-		TextDocumentPositionParams: lsp.TextDocumentPositionParams{
-			TextDocument: lsp.TextDocumentIdentifier{URI: doc},
-			Position:     lsp.Position{Line: obj.StartPoint().Row, Character: obj.StartPoint().Column},
-		},
-	})
-	if err != nil {
-		return false, err
-	}
-	var assignments []map[string]*sitter.Node
-	for m := range sitter.QueryIterator(tree.RootNode(), queries.Definitions) {
-		if m["name"].Content() == obj.Content() {
-			assignments = append(assignments, m)
-		}
-	}
-	for _, def := range defs {
-		for _, assignment := range assignments {
-			if def.Range.Start.Line != assignment["name"].StartPoint().Row ||
-				def.Range.Start.Character != assignment["name"].StartPoint().Column ||
-				def.Range.End.Line != assignment["name"].EndPoint().Row ||
-				def.Range.End.Character != assignment["name"].EndPoint().Column {
-				continue
-			}
-			if assignment["value"] == nil {
-				continue
-			}
-
-			for _ = range sitter.QueryIterator(assignment["value"], queries.Boto3Resource) {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
 }
 
 func (b *boto3) OpenFiles() error {

@@ -1,0 +1,6 @@
+- scope: application
+  operator: add
+  node: aws:s3_bucket:architecture_bucket_name
+- scope: application
+  operator: add
+  node: aws:s3_bucket:binary_bucket_name

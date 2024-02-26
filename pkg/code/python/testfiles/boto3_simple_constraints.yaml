@@ -1,0 +1,3 @@
+- scope: application
+  operator: add
+  node: aws:s3_bucket:my-bucket

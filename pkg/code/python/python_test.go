@@ -55,7 +55,7 @@ func (tc testCase) Test(t *testing.T) {
 		t.Run(name, func(t *testing.T) { tc.TestQuery(t, tree, query, name) })
 	}
 
-	tc.TestConstraints(t, input)
+	t.Run("constraints", func(t *testing.T) { tc.TestConstraints(t, input) })
 }
 
 func (tc testCase) readTestYaml(t *testing.T, suffix string, val any) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,8 +14,9 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/klothoplatform/klotho/pkg/auth"
+	"github.com/klothoplatform/klotho/pkg/code"
+	"github.com/klothoplatform/klotho/pkg/code/docker"
 	"github.com/klothoplatform/klotho/pkg/code/python"
-	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
@@ -61,25 +63,37 @@ func (a Args) Run(kctx *kong.Context) error {
 	ctx := context.Background()
 
 	files := os.DirFS(root)
-
-	c, err := python.FindBoto3Constraints(ctx, files)
-	if err != nil {
-		return err
+	// For performance, filter some known irrelevant directories
+	files = code.FilteredFS{
+		FS: files,
+		Exclude: func(path string) bool {
+			switch filepath.Base(path) {
+			case ".git", "node_modules", "__pycache__":
+				return true
+			}
+			return false
+		},
 	}
 
-	zap.S().Infof("Pretending we found an ecs service...")
-	c.Application = append(c.Application, constraints.ApplicationConstraint{
-		Operator: constraints.AddConstraintOperator,
-		Node:     construct.ResourceId{Provider: "aws", Type: "ecs_service", Name: "backend"},
-	})
+	var c constraints.Constraints
+	for _, f := range []func(context.Context, fs.FS) (constraints.Constraints, error){
+		python.FindBoto3Constraints,
+		docker.FindDockerConstraints,
+	} {
+		fc, err := f(ctx, files)
+		if err != nil {
+			return err
+		}
+		c.Append(fc)
+	}
 
 	if a.ArchitectureId != "" {
 		return a.UploadArchitecture(ctx, c)
-	} else {
-		cy, _ := yaml.Marshal(c)
-		fmt.Println("constraints:")
-		fmt.Println(string(cy))
 	}
+
+	cy, _ := yaml.Marshal(c)
+	fmt.Println("constraints:")
+	fmt.Println(string(cy))
 
 	return nil
 }
@@ -94,15 +108,9 @@ func (a Args) UploadArchitecture(ctx context.Context, c constraints.Constraints)
 	}
 
 	buf := new(bytes.Buffer)
-	err = json.NewEncoder(buf).Encode(input)
-	if err != nil {
-		return fmt.Errorf("failed to encode constraints: %w", err)
-	}
-	body := buf.Bytes()
 
 	log := zap.S().Named("infracopilot")
 	log.Infof("Uploading architecture %s", a.ArchitectureId)
-	log.Debugf("Body: %s", strings.TrimSpace(string(body)))
 
 	if infracopilotUrl == "" {
 		infracopilotUrl = "https://app.infracopilot.io"
@@ -135,6 +143,14 @@ func (a Args) UploadArchitecture(ctx context.Context, c constraints.Constraints)
 	if err != nil {
 		return fmt.Errorf("failed to decode current version response: %w", err)
 	}
+
+	buf.Reset()
+	err = json.NewEncoder(buf).Encode(input)
+	if err != nil {
+		return fmt.Errorf("failed to encode constraints: %w", err)
+	}
+	body := buf.Bytes()
+	log.Debugf("Body: %s", strings.TrimSpace(string(body)))
 
 	req, _ = http.NewRequest(
 		"POST",
