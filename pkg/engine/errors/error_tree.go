@@ -42,7 +42,10 @@ func unwrapChain(err error) (chain []string, last joinErr) {
 				return
 			}
 		}
-		msg := strings.TrimSuffix(strings.TrimSuffix(current.Error(), next.Error()), ": ")
+		msg := current.Error()
+		if next != nil {
+			msg = strings.TrimSuffix(strings.TrimSuffix(msg, next.Error()), ": ")
+		}
 		if msg != "" {
 			chain = append(chain, msg)
 		}

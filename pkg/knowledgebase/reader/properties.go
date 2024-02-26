@@ -76,6 +76,7 @@ func (p *Properties) UnmarshalYAML(n *yaml.Node) error {
 	for name, property := range p2 {
 		property.Name = name
 		property.Path = name
+		property.Type = strings.TrimSpace(property.Type)
 		setChildPaths(property, name)
 		p2[name] = property
 	}

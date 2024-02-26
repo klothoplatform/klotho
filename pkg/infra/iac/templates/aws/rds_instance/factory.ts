@@ -15,28 +15,44 @@ interface Args {
     AllocatedStorage: number
     Username: string
     Password: string
+    ParameterGroup: { family: string; values: Record<string, string> }
     protect: boolean
 }
 
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.rds.Instance {
-    return new aws.rds.Instance(
-        args.Name,
-        {
-            instanceClass: args.InstanceClass,
-            engine: args.Engine,
-            engineVersion: args.EngineVersion,
-            dbName: args.DatabaseName,
-            username: kloConfig.requireSecret(`${args.Name}-username`),
-            password: kloConfig.requireSecret(`${args.Name}-password`),
-            iamDatabaseAuthenticationEnabled: args.IamDatabaseAuthenticationEnabled,
-            dbSubnetGroupName: args.SubnetGroup.name,
-            vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
-            skipFinalSnapshot: args.SkipFinalSnapshot,
-            allocatedStorage: args.AllocatedStorage,
-        },
-        { protect: args.protect }
-    )
+    return (() => {
+        // TMPL {{- if .ParameterGroup }}
+        const pg = new aws.rds.ParameterGroup(`${args.Name}-pg`, {
+            family: '{{ .ParameterGroup.family }}',
+            parameters: [
+                //TMPL {{- range $key, $value := .ParameterGroup.values }}
+                { name: '{{ $key }}', value: '{{ $value }}' },
+                //TMPL {{- end }}
+            ],
+        })
+        // TMPL {{- end }}
+        return new aws.rds.Instance(
+            args.Name,
+            {
+                instanceClass: args.InstanceClass,
+                engine: args.Engine,
+                engineVersion: args.EngineVersion,
+                dbName: args.DatabaseName,
+                username: kloConfig.requireSecret(`${args.Name}-username`),
+                password: kloConfig.requireSecret(`${args.Name}-password`),
+                iamDatabaseAuthenticationEnabled: args.IamDatabaseAuthenticationEnabled,
+                dbSubnetGroupName: args.SubnetGroup.name,
+                vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
+                skipFinalSnapshot: args.SkipFinalSnapshot,
+                allocatedStorage: args.AllocatedStorage,
+                // TMPL {{- if .ParameterGroup }}
+                parameterGroupName: pg.name,
+                // TMPL {{- end }}
+            },
+            { protect: args.protect }
+        )
+    })()
 }
 
 function properties(object: aws.rds.Instance, args: Args) {

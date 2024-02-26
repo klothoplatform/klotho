@@ -111,6 +111,18 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  ParameterGroup:
+    type: map
+    properties:
+      family:
+        type: string
+      values:
+        type: map(string,string)
+    # default value matches the default EngineVersion
+    default_value:
+      family: postgres16
+      values:
+        rds.force_ssl: '0'
 
 consumption:
   emitted:
