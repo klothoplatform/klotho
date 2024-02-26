@@ -177,6 +177,10 @@ resources:
         EngineVersion: "13.7"
         IamDatabaseAuthenticationEnabled: true
         InstanceClass: db.t3.micro
+        ParameterGroup:
+            family: postgres16
+            values:
+                rds.force_ssl: "0"
         SecurityGroups:
             - aws:security_group:vpc-0:rds-instance-1-security_group
         SkipFinalSnapshot: true
