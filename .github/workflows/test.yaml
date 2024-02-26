@@ -9,6 +9,8 @@ concurrency:
 name: unit tests
 permissions:
   contents: write
+env:
+  GOEXPERIMENT: 'rangefunc'
 jobs:
   test:
     runs-on: ubuntu-latest

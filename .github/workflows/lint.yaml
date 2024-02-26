@@ -7,6 +7,8 @@ concurrency:
   cancel-in-progress: true
   group: linter-${{ github.ref }}
 name: golangci-lint
+env:
+  GOEXPERIMENT: 'rangefunc'
 jobs:
   lint:
     runs-on: ubuntu-latest
