@@ -52,3 +52,8 @@ classification:
     - rds_proxy_target_group
   gives:
     - reliability:storage
+
+deployment_permissions:
+  deploy: ["rds:CreateDBProxyTargetGroup"]
+  tear_down: ["rds:DeleteDBProxyTargetGroup"]
+  update: ["rds:ModifyDBProxyTargetGroup"]

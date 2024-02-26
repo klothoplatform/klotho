@@ -35,3 +35,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["apigateway:CreateStage"]
+  tear_down: ["apigateway:DeleteStage"]
+  update: ["apigateway:UpdateStage"]

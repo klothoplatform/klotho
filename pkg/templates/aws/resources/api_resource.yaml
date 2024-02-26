@@ -54,3 +54,8 @@ delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["apigateway:CreateResource"]
+  tear_down: ["apigateway:DeleteResource"]
+  update: ["apigateway:UpdateResource"]

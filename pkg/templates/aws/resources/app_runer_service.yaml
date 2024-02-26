@@ -56,3 +56,8 @@ classification:
 
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["apprunner:CreateService"]
+  tear_down: ["apprunner:DeleteService"]
+  update: ["apprunner:UpdateService"]

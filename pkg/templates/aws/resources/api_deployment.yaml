@@ -19,3 +19,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["apigateway:CreateDeployment"]
+  tear_down: ["apigateway:DeleteDeployment"]
+  update: ["apigateway:UpdateDeployment"]

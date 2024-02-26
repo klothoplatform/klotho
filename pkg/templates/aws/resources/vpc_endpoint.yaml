@@ -47,3 +47,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["ec2:CreateVpcEndpoint"]
+  tear_down: ["ec2:DeleteVpcEndpoints"]
+  update: ["ec2:ModifyVpcEndpoint"]

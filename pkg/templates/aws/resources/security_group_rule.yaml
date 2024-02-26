@@ -28,3 +28,9 @@ properties:
     type: string
     description: Specifies the rule type, either 'ingress' or 'egress', defining the
       traffic direction
+
+
+deployment_permissions:
+  deploy: ["ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress"]
+  tear_down: ["ec2:RevokeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress"]
+  update: ["ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress", "ec2:RevokeSecurityGroupIngress", "ec2:RevokeSecurityGroupEgress"]

@@ -10,3 +10,7 @@ properties:
 
 delete_context:
   requires_no_upstream: true
+
+
+aws:region:
+  deploy: ["ec2:DescribeRegions"]

@@ -203,3 +203,9 @@ delete_context:
 
 views:
   dataflow: big
+
+
+aws:cloudfront_distribution:
+  deploy: ["cloudfront:CreateDistribution"]
+  tear_down: ["cloudfront:DeleteDistribution"]
+  update: ["cloudfront:UpdateDistribution"]

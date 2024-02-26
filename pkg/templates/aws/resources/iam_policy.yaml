@@ -74,3 +74,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["iam:CreatePolicy"]
+  tear_down: ["iam:DeletePolicy"]
+  update: ["iam:CreatePolicyVersion"]

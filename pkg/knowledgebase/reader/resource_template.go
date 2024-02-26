@@ -26,6 +26,8 @@ type (
 
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
 
+		DeploymentPermissions knowledgebase.DeploymentPermissions `json:"deployment_permissions" yaml:"deployment_permissions"`
+
 		SanitizeNameTmpl string `yaml:"sanitize_name"`
 	}
 )
@@ -43,16 +45,17 @@ func (r *ResourceTemplate) Convert() (*knowledgebase.ResourceTemplate, error) {
 		}
 	}
 	return &knowledgebase.ResourceTemplate{
-		QualifiedTypeName: r.QualifiedTypeName,
-		DisplayName:       r.DisplayName,
-		Properties:        kbProperties,
-		AdditionalRules:   r.AdditionalRules,
-		Classification:    r.Classification,
-		PathSatisfaction:  r.PathSatisfaction,
-		Consumption:       r.Consumption,
-		DeleteContext:     r.DeleteContext,
-		Views:             r.Views,
-		NoIac:             r.NoIac,
-		SanitizeNameTmpl:  sanitizeTmpl,
+		QualifiedTypeName:     r.QualifiedTypeName,
+		DisplayName:           r.DisplayName,
+		Properties:            kbProperties,
+		AdditionalRules:       r.AdditionalRules,
+		Classification:        r.Classification,
+		PathSatisfaction:      r.PathSatisfaction,
+		Consumption:           r.Consumption,
+		DeleteContext:         r.DeleteContext,
+		Views:                 r.Views,
+		NoIac:                 r.NoIac,
+		DeploymentPermissions: r.DeploymentPermissions,
+		SanitizeNameTmpl:      sanitizeTmpl,
 	}, nil
 }

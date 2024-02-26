@@ -101,3 +101,9 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: parent
+
+
+deployment_permissions:
+  deploy: ["elbv2:CreateLoadBalancer"]
+  tear_down: ["elbv2:DeleteLoadBalancer"]
+  update: ["elbv2:ModifyLoadBalancerAttributes"]
