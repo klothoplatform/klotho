@@ -403,11 +403,11 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 						errs = errors.Join(errs, fmt.Errorf("could not cast property to set"))
 						continue
 					}
-					for k := range hs.ToMap() {
+					for i := range hs.ToSlice() {
 						subProperties := make(Properties)
 						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%s]", prop.Details().Path, k))
+							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%d]", prop.Details().Path, i))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {
