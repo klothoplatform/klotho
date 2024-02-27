@@ -21,10 +21,9 @@ properties:
     type: int
     description: The period during which Amazon SQS prevents other consuming components
       from receiving and processing a message
-  Tags:
-    type: map(string,string)
+  aws:tags:
+    type: model
 
-    description: A map of tags to assign to the queue
 path_satisfaction:
   as_target:
     - network

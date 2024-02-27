@@ -13,6 +13,8 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  aws:tags:
+    type: model
 
 path_satisfaction:
   as_source:

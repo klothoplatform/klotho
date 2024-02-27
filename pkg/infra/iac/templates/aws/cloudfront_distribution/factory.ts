@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -12,6 +13,7 @@ interface Args {
     DefaultRootObject: string
     CNAMEs: string[]
     CustomErrorResponses: aws.types.input.cloudfront.DistributionCustomErrorResponse[]
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -38,6 +40,9 @@ function create(args: Args): aws.cloudfront.Distribution {
         restrictions: args.Restrictions,
         //TMPL {{- if .DefaultRootObject }}
         defaultRootObject: args.DefaultRootObject,
+        //TMPL {{- end }}
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
         //TMPL {{- end }}
     })
 }

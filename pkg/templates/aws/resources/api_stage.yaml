@@ -20,6 +20,8 @@ properties:
         direction: downstream
         resources:
           - aws:api_deployment
+  aws:tags:
+    type: model
   StageInvokeUrl:
     type: string
     configuration_disabled: true

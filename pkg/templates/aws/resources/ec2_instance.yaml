@@ -47,6 +47,8 @@ properties:
     default: t3.medium
     description: The type of the EC2 instance, determining the CPU, memory, and other
       resources
+  aws:tags:
+    type: model
   Id:
     type: string
     configuration_disabled: true

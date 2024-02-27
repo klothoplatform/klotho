@@ -68,9 +68,11 @@ properties:
     description: The instance types that can be used for your worker nodes
   Labels:
     type: map(string,string)
-
     description: Key-value mapping of Kubernetes labels to be applied to the nodes
       in the node group
+  aws:tags:
+    type: model
+
 classifications:
   is:
     - kubernetes

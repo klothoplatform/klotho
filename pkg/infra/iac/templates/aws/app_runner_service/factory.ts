@@ -9,6 +9,7 @@ interface Args {
     InstanceRole: aws.iam.Role
     EnvironmentVariables: ModelCaseWrapper<Record<string, pulumi.Output<string>>>
     Port: number
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -45,6 +46,9 @@ function create(args: Args): aws.apprunner.Service {
                 isPubliclyAccessible: true,
             },
         },
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 

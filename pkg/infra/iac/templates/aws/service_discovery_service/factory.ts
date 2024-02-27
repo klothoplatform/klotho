@@ -1,10 +1,12 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     DnsConfig: aws.servicediscovery.ServiceDnsConfig
     HealthCheckCustomConfig: aws.servicediscovery.ServiceHealthCheckCustomConfig
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 function create(args: Args): aws.servicediscovery.Service {
@@ -12,6 +14,9 @@ function create(args: Args): aws.servicediscovery.Service {
         dnsConfig: args.DnsConfig,
         //TMPL {{- if .HealthCheckCustomConfig }}
         healthCheckCustomConfig: args.HealthCheckCustomConfig,
+        //TMPL {{- end }}
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
         //TMPL {{- end }}
     })
 }

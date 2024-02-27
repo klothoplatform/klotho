@@ -10,6 +10,7 @@ interface Args {
     RangeKey: string
     BillingMode: string
     protect: boolean
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 function create(args: Args): aws.dynamodb.Table {
@@ -22,6 +23,9 @@ function create(args: Args): aws.dynamodb.Table {
             rangeKey: args.RangeKey,
             //TMPL {{- end }}
             billingMode: args.BillingMode,
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
+            //TMPL {{- end }}
         },
         { protect: args.protect }
     )

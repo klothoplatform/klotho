@@ -52,6 +52,7 @@ var architectureEngineCfg struct {
 	inputGraph  string
 	constraints string
 	outputDir   string
+	globalTag   string
 }
 
 var getValidEdgeTargetsCfg struct {
@@ -122,6 +123,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
+	flags.StringVarP(&architectureEngineCfg.globalTag, "global-tag", "t", "", "Global tag")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	getPossibleEdgesCmd := &cobra.Command{
@@ -366,7 +368,9 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		return
 	}
 
-	context := &EngineContext{}
+	context := &EngineContext{
+		GlobalTag: architectureEngineCfg.globalTag,
+	}
 
 	if architectureEngineCfg.inputGraph != "" {
 		var input FileFormat

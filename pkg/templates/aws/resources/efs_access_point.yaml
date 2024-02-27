@@ -39,6 +39,8 @@ properties:
       Path:
         type: string
         default_value: /mnt/efs
+  aws:tags:
+    type: model
 
 classification:
   is:

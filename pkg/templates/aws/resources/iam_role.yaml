@@ -75,6 +75,8 @@ properties:
                     type: map(string,string)
                   Null:
                     type: map(string,string)
+  aws:tags:
+    type: model
   Arn:
     type: string
     configuration_disabled: true

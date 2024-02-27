@@ -106,7 +106,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		return fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
 	}
 
-	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path}
+	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path, GlobalTag: eval.Solution.GlobalTag()}
 
 	if err := v.evaluateConstraints(
 		&solution_context.Configurer{Ctx: sol},

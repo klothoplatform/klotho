@@ -1,6 +1,10 @@
 qualified_type_name: aws:elastic_ip
 display_name: Elastic IP
 
+properties:
+  aws:tags:
+    type: model
+
 classification:
   is:
     - static_ip_address

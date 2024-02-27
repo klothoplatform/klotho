@@ -45,6 +45,8 @@ properties:
   Port:
     type: int
     default_value: 8080
+  aws:tags:
+    type: model
 
     description: The network port that the App Runner service listens to for incoming
       traffic

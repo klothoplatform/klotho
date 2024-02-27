@@ -159,7 +159,7 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	solutionCtx := NewSolutionContext(e.Kb)
+	solutionCtx := NewSolutionContext(e.Kb, "")
 	err = solutionCtx.LoadGraph(inputGraph)
 	if err != nil {
 		return nil, err

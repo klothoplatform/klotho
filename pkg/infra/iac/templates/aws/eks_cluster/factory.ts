@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -6,6 +7,7 @@ interface Args {
     SecurityGroups: aws.ec2.SecurityGroup[]
     ClusterRole: aws.iam.Role
     Version: string
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -19,6 +21,9 @@ function create(args: Args): aws.eks.Cluster {
             //TMPL {{- end }}
         },
         roleArn: args.ClusterRole.arn,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 

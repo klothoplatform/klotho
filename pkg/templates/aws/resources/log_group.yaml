@@ -10,6 +10,8 @@ properties:
     default_value: 5
     description: The number of days to retain the log events in the specified log
       group.
+  aws:tags:
+    type: model
   Arn:
     type: string
     configuration_disabled: true

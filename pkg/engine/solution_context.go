@@ -24,10 +24,11 @@ type (
 		mappedResources map[construct.ResourceId]construct.ResourceId
 		constraints     *constraints.Constraints
 		propertyEval    *property_eval.Evaluator
+		globalTag       string
 	}
 )
 
-func NewSolutionContext(kb knowledgebase.TemplateKB) *solutionContext {
+func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string) *solutionContext {
 	ctx := &solutionContext{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
@@ -38,6 +39,7 @@ func NewSolutionContext(kb knowledgebase.TemplateKB) *solutionContext {
 		Deployment:      construct.NewAcyclicGraph(),
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
+		globalTag:       globalTag,
 	}
 	ctx.propertyEval = property_eval.NewEvaluator(ctx)
 	return ctx
@@ -143,4 +145,8 @@ func (ctx solutionContext) ExpandConstruct(resource *construct.Resource) ([]solu
 func (ctx solutionContext) GenerateCombinations() ([]solutionContext, error) {
 	// TODO constructs not yet supported
 	return []solutionContext{ctx}, nil
+}
+
+func (ctx solutionContext) GlobalTag() string {
+	return ctx.globalTag
 }

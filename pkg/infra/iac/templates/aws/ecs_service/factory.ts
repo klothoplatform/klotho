@@ -2,7 +2,7 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { OutputInstance } from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
@@ -21,6 +21,7 @@ interface Args {
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
+        Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -58,6 +59,9 @@ function create(args: Args): aws.ecs.Service {
             waitForSteadyState: true,
             //TMPL {{- if .ServiceRegistries }}
             serviceRegistries: args.ServiceRegistries,
+            //TMPL {{- end }}
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
             //TMPL {{- end }}
         },
         { dependsOn: args.dependsOn }

@@ -51,6 +51,8 @@ properties:
   RangeKey:
     type: string
     description: The table range key, which is the sort key for the DynamoDB table
+  aws:tags:
+    type: model
   Name:
     type: string
     configuration_disabled: true

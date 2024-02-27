@@ -1,5 +1,6 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -7,6 +8,7 @@ interface Args {
     IndexDocument: string
     SSEAlgorithm: string
     protect: boolean
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -29,6 +31,9 @@ function create(args: Args): aws.s3.Bucket {
             website: {
                 indexDocument: args.IndexDocument,
             },
+            //TMPL {{- end }}
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
             //TMPL {{- end }}
         },
         { protect: args.protect }

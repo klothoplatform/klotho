@@ -10,6 +10,8 @@ properties:
     type: string
   FilePath:
     type: string
+  aws:tags:
+    type: model
 
 classification:
   is:

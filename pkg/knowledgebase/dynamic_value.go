@@ -35,10 +35,12 @@ type (
 	// DynamicValueData provides the resource or edge to the templates as
 	// `{{ .Self }}` for resources
 	// `{{ .Source }}` and `{{ .Target }}` for edges
+	// and `{{ .Tag }}` for the global tag
 	DynamicValueData struct {
-		Resource construct.ResourceId
-		Edge     *construct.Edge
-		Path     construct.PropertyPath
+		Resource  construct.ResourceId
+		Edge      *construct.Edge
+		Path      construct.PropertyPath
+		GlobalTag string
 	}
 )
 
@@ -255,6 +257,10 @@ func (data DynamicValueData) Target() (construct.ResourceId, error) {
 		return construct.ResourceId{}, fmt.Errorf("no .Target is set")
 	}
 	return data.Edge.Target, nil
+}
+
+func (data DynamicValueData) Tag() string {
+	return data.GlobalTag
 }
 
 // Log is primarily used for debugging templates and shouldn't actually appear in any.

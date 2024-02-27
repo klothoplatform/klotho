@@ -52,6 +52,8 @@ properties:
         description: A list of individual statements that describe the details of
           the permission
     description: Defines the structure of the IAM policy in JSON format
+  aws:tags:
+    type: model
   Arn:
     type: string
     configuration_disabled: true
