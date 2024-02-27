@@ -142,7 +142,7 @@ resources:
         AllocatedStorage: 20
         DatabaseName: main
         Engine: postgres
-        EngineVersion: "16.1"
+        EngineVersion: "14.11"
         IamDatabaseAuthenticationEnabled: true
         InstanceClass: db.t3.micro
         SecurityGroups:
