@@ -2,7 +2,6 @@ import * as aws from '@pulumi/aws'
 import * as awsInputs from '@pulumi/aws/types/input'
 import { ModelCaseWrapper } from '../../wrappers'
 
-
 interface Args {
     Name: string
     FileSystem: aws.efs.FileSystem

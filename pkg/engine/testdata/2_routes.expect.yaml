@@ -3,6 +3,9 @@ resources:
         Deployment: aws:api_deployment:rest_api_1:api_deployment-0
         RestApi: aws:rest_api:rest_api_1
         StageName: stage
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: api_stage-0
     aws:api_deployment:rest_api_1:api_deployment-0:
         RestApi: aws:rest_api:rest_api_1
         Triggers:
@@ -14,6 +17,9 @@ resources:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_1
     aws:api_resource:rest_api_1:lambda0:
         FullPath: /lambda0
         PathPart: lambda0
@@ -79,12 +85,18 @@ resources:
         Image: aws:ecr_image:lambda_function_0-image
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0
         Timeout: 180
     aws:lambda_function:lambda_function_1:
         ExecutionRole: aws:iam_role:lambda_function_1-ExecutionRole
         Image: aws:ecr_image:lambda_function_1-image
         LogGroup: aws:log_group:lambda_function_1-log-group
         MemorySize: 512
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_1
         Timeout: 180
     aws:ecr_image:lambda_function_0-image:
         Context: .
@@ -102,6 +114,9 @@ resources:
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0-ExecutionRole
     aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
     aws:ecr_image:lambda_function_1-image:
         Context: .
@@ -119,16 +134,31 @@ resources:
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_1-ExecutionRole
     aws:ecr_repo:lambda_function_0-image-ecr_repo:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0-image-ecr_repo
     aws:log_group:lambda_function_0-log-group:
         LogGroupName: /aws/lambda/lambda_function_0
         RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0-log-group
     aws:ecr_repo:lambda_function_1-image-ecr_repo:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_1-image-ecr_repo
     aws:log_group:lambda_function_1-log-group:
         LogGroupName: /aws/lambda/lambda_function_1
         RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_1-log-group
 edges:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:api_deployment:rest_api_1:api_deployment-0:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:rest_api:rest_api_1:

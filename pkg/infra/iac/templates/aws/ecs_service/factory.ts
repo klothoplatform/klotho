@@ -21,7 +21,7 @@ interface Args {
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
-        Tags: ModelCaseWrapper<Record<string, string>>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols

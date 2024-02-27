@@ -3,7 +3,13 @@ resources:
         Deployment: aws:api_deployment:rest_api_0:api_deployment-0
         RestApi: aws:rest_api:rest_api_0
         StageName: stage
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: api_stage-0
     aws:ecs_cluster:ecs_cluster-0:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: ecs_cluster-0
     aws:api_deployment:rest_api_0:api_deployment-0:
         RestApi: aws:rest_api:rest_api_0
         Triggers:
@@ -15,6 +21,9 @@ resources:
             - image/*
         Stages:
             - aws:api_stage:rest_api_0:api_stage-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_0
     aws:api_resource:rest_api_0:api_resource-0:
         FullPath: /{proxy+}
         PathPart: '{proxy+}'

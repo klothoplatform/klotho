@@ -3,12 +3,18 @@ resources:
         Deployment: aws:api_deployment:rest_api_1:api_deployment-0
         RestApi: aws:rest_api:rest_api_1
         StageName: stage
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: api_stage-0
     aws:dynamodb_table:dynamodb_table_3:
         Attributes:
             - Name: id
               Type: S
         BillingMode: PAY_PER_REQUEST
         HashKey: id
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: dynamodb_table_3
     aws:api_deployment:rest_api_1:api_deployment-0:
         RestApi: aws:rest_api:rest_api_1
         Triggers:
@@ -20,6 +26,9 @@ resources:
             - image/*
         Stages:
             - aws:api_stage:rest_api_1:api_stage-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_1
     aws:api_resource:rest_api_1:api_resource-0:
         FullPath: /{proxy+}
         PathPart: '{proxy+}'
@@ -52,6 +61,9 @@ resources:
         Image: aws:ecr_image:lambda_function_0-image
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0
         Timeout: 180
     aws:SERVICE_API:lambda_function_0_lambda_function_0-log-group:
     aws:ecr_image:lambda_function_0-image:
@@ -70,11 +82,20 @@ resources:
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0-ExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: ecr_repo-0
     aws:log_group:lambda_function_0-log-group:
         LogGroupName: /aws/lambda/lambda_function_0
         RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function_0-log-group
 edges:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:api_deployment:rest_api_1:api_deployment-0:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:rest_api:rest_api_1:
