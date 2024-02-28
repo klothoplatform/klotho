@@ -119,6 +119,7 @@ classification:
   is:
     - redis
     - cluster
+    - storage
 
 path_satisfaction:
   as_target:
