@@ -1,0 +1,2 @@
+source: aws:memorydb_cluster
+target: aws:memorydb_subnetgroup

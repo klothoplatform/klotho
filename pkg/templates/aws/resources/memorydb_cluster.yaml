@@ -1,0 +1,134 @@
+qualified_type_name: aws:memorydb_cluster
+display_name: MemoryDB Cluster
+
+properties:
+  Acl:
+    type: string
+    description: The name of the Access Control List associated with the cluster.
+    required: true
+    operational_rule:
+      step:
+        direction: upstream
+        resources:
+          - aws:memorydb_acl:{{ .Self.Name }}
+        unique: true
+        use_property_ref: Id
+  NodeType:
+    type: string
+    required: true
+    default_value: db.t4g.small
+    description: The node type of the cluster.
+  AutoMinorVersionUpgrade:
+    type: bool
+    default_value: true
+    description: Indicates that minor engine upgrades are applied automatically to the cluster during the maintenance window.
+  DataTiering:
+    type: bool
+    default_value: false
+    description: The data tiering option for the cluster.
+  Description:
+    type: string
+    description: The description of the cluster.
+  EngineVersion:
+    type: string
+    description: The version number of the cluster engine to which the cluster is upgraded.
+  FinalSnapshotName:
+    type: string
+    description: The name of the final snapshot that is created immediately before the cluster is deleted.
+  MaintenanceWindow:
+    type: string
+    description: The weekly time range during which system maintenance can occur, in Universal Coordinated Time (UTC).
+  NumReplicasPerShard:
+    type: int
+    description: The number of replicas per shard (defaults to 1).
+  NumShards:
+    type: int
+    description: The number of shards in the cluster (defaults to 1).
+  ParameterGroupName:
+    type: string
+    description: The name of the parameter group associated with the cluster.
+  Port:
+    type: int
+    description: The port number on which the cluster accepts connections (defaults to 6379).
+  SecurityGroups:
+    type: list(resource(aws:security_group))
+    description: The security groups associated with the cluster.
+    operational_rule:
+      step:
+        direction: upstream
+        resources:
+          - aws:security_group
+        unique: true
+  SnapshotArns:
+    type: list(string)
+    description: The snapshot ARNs associated with the cluster.
+  SnapshotName:
+    type: string
+    description: The name of the snapshot from which to restore data into the cluster.
+  SnapshotRetentionLimit:
+    type: int
+    description: The number of days for which MemoryDB retains automatic snapshots before deleting them (defaults to 0).
+  SnapshotWindow:
+    type: string
+    description: The daily time range during which MemoryDB begins taking a daily snapshot of your shard.
+  SubnetGroup:
+    type: resource(aws:memorydb_subnetgroup)
+    description: The name of the subnet group associated with the cluster (defaults to a subnet group consisting of default VPC subnets).
+    operational_rule:
+      step:
+        direction: downstream
+        resources:
+          - aws:memorydb_subnetgroup:{{ .Self.Name }}
+        unique: true
+  aws:tags:
+    type: model
+  TlsEnabled:
+    type: bool
+    default_value: true
+    description: A flag that enables in-transit encryption when set to true. When set to false, the AclName must be open-access (Defaults to true).
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  ClusterEndpoints:
+    type: list
+    description: The endpoints of the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    properties:
+      Address:
+        type: string
+        description: DNS hostname of the node.
+      Port:
+        type: int
+        description: The port number on which each of the nodes accepts connections.
+  ClusterEndpointString:
+    type: string
+    description: The endpoints of the cluster as a string.
+    configuration_disabled: true
+    deploy_time: true
+
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_ARN': '{{ fieldRef "Arn" .Self }}'
+        '{{ .Self.Name }}_CLUSTER_ENDPOINTS': '{{ fieldRef "ClusterEndpointString" .Self }}'
+
+classification:
+  is:
+    - redis
+    - cluster
+
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
+views:
+  dataflow: big
+
+deployment_permissions:
+  deploy: ["memorydb:CreateCluster"] 
+  tear_down: ["memorydb:DeleteCluster"]
+  update: ["memorydb:ModifyCluster"]

@@ -1,0 +1,45 @@
+qualified_type_name: aws:memorydb_subnetgroup
+display_name: MemoryDB SubnetGroup
+
+properties:
+  aws:tags:
+    type: model
+  Subnets:
+    type: list(resource(aws:subnet))
+    required: true
+    operational_rule:
+      step:
+        direction: downstream
+        num_needed: 2
+        resources:
+          - selector: aws:subnet
+            properties:
+              Type: private
+          - aws:subnet
+    description: A list of subnets for the RDS subnet group, with at least 2 needed,
+      and all subnets need to be of 'private' type
+  Description:
+    type: string
+    description: The description of the subnet group
+
+    
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - network
+
+views:
+  dataflow: small
+
+deployment_permissions:
+  deploy: ["memorydb:CreateSubnetGroup"] 
+  tear_down: ["memorydb:DeleteSubnetGroup"]
+  update: ["memorydb:ModifySubnetGroup"]

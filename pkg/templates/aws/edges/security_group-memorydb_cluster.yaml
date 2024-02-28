@@ -1,0 +1,3 @@
+source: aws:security_group
+target: aws:memorydb_cluster
+deployment_order_reversed: true

@@ -1,0 +1,2 @@
+source: aws:memorydb_subnetgroup
+target: aws:subnet

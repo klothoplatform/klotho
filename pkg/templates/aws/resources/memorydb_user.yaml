@@ -1,0 +1,68 @@
+qualified_type_name: aws:memorydb_user
+display_name: MemoryDB User
+sanitize_name:
+  # Only lowercase alphanumeric characters and hyphens are allowed
+  |
+  {{ . 
+    | lower
+    | replace `[^[:alnum:]-]+` "-"
+    | length 1 63
+  }}
+
+
+properties:
+  aws:tags:
+    type: model
+  AccessString:
+    type: string
+    description: The access permissions string used for this user.
+    default_value: "on ~* &* +@all"
+  AuthenticationMode:
+    type: map
+    properties:
+      Type:
+        type: string
+        description: The authentication mode for the user.
+        default_value: "password"
+        allowed_values:
+          - password
+      Passwords:
+        type: list(string)
+        description: The passwords for the user.
+        configuration_disabled: true
+  Password:
+    type: string
+    description: The passwords for the user.
+    configuration_disabled: true
+    deploy_time: true
+  Username:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+consumption:
+  emitted:
+    - model: EnvironmentVariables
+      value:
+        '{{ .Self.Name }}_USER_NAME': '{{ .Self.Name }}'
+        '{{ .Self.Name }}_PASSWORD': '{{ fieldRef "Password" .Self }}'
+
+classification:
+  is:
+    - permissions
+
+views:
+  dataflow: small
+
+deployment_permissions:
+  deploy: ["memorydb:CreateUser"] 
+  tear_down: ["memorydb:DeleteUser"]
+  update: ["memorydb:ModifyUser"]

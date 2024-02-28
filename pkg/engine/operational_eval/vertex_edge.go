@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -134,5 +135,37 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 			}
 		}
 	}
-	return errs
+
+	if errs != nil {
+		return errs
+	}
+
+	src, err := eval.Solution.DataflowGraph().Vertex(ev.Edge.Source)
+	if err != nil {
+		return err
+	}
+	target, err := eval.Solution.DataflowGraph().Vertex(ev.Edge.Target)
+	if err != nil {
+		return err
+	}
+
+	delays, err := knowledgebase.ConsumeFromResource(
+		src,
+		target,
+		solution_context.DynamicCtx(eval.Solution),
+	)
+	if err != nil {
+		return err
+	}
+	// we add constrains for the delayed consumption here since their property has not yet been evaluated
+	c := eval.Solution.Constraints()
+	for _, delay := range delays {
+		c.Resources = append(c.Resources, constraints.ResourceConstraint{
+			Operator: constraints.AddConstraintOperator,
+			Target:   delay.Resource,
+			Property: delay.PropertyPath,
+			Value:    delay.Value,
+		})
+	}
+	return nil
 }
