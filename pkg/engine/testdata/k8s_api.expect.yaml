@@ -3,13 +3,22 @@ resources:
         Deployment: aws:api_deployment:rest_api_4:api_deployment-0
         RestApi: aws:rest_api:rest_api_4
         StageName: stage
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: api_stage-0
     aws:eks_add_on:amazon-cloudwatch-observability:
         AddOnName: amazon-cloudwatch-observability
         Cluster: aws:eks_cluster:eks_cluster-0
         Role: aws:iam_role:amazon-cloudwatch-observability-iam_role
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: amazon-cloudwatch-observability
     aws:eks_add_on:vpc-cni:
         AddOnName: vpc-cni
         Cluster: aws:eks_cluster:eks_cluster-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: vpc-cni
     aws:security_group_rule:security_group_rule-0:
         CidrBlocks:
             - 10.0.0.0/16
@@ -69,10 +78,16 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
             - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: amazon-cloudwatch-observability-iam_role
     aws:rest_api:rest_api_4:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_4
     aws:api_resource:rest_api_4:api_resource-0:
         FullPath: /{proxy+}
         PathPart: '{proxy+}'
@@ -98,12 +113,18 @@ resources:
         Uri: aws:api_integration:rest_api_4:rest_api_4_integration_0#LbUri
         VpcLink: aws:vpc_link:rest_api_4_integration_0-pod2
     aws:vpc_link:rest_api_4_integration_0-pod2:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_4_integration_0-pod2
         Target: aws:load_balancer:rest-api-4-integbcc77100
     aws:load_balancer:rest-api-4-integbcc77100:
         Scheme: internal
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest-api-4-integbcc77100
         Type: network
     aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2:
         DefaultActions:
@@ -112,6 +133,9 @@ resources:
         LoadBalancer: aws:load_balancer:rest-api-4-integbcc77100
         Port: 80
         Protocol: TCP
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_4_integration_0-pod2
     aws:target_group:rest-api-4-integbcc77100:
         HealthCheck:
             Enabled: true
@@ -122,6 +146,9 @@ resources:
             UnhealthyThreshold: 2
         Port: 80
         Protocol: TCP
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest-api-4-integbcc77100
         TargetType: ip
         Vpc: aws:vpc:vpc-0
     kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2:
@@ -220,6 +247,9 @@ resources:
                     Federated:
                         - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: aws-load-balancer-controller
     aws:ecr_image:pod2-ecr_image:
         Context: .
         Dockerfile: pod2-ecr_image.Dockerfile
@@ -238,6 +268,9 @@ resources:
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: eks_node_group-0
     kubernetes:service_account:eks_cluster-0:pod2:
         Cluster: aws:eks_cluster:eks_cluster-0
         Object:
@@ -256,6 +289,9 @@ resources:
         Role: aws:iam_role:aws-load-balancer-controller
     aws:ecr_repo:pod2-ecr_image-ecr_repo:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: pod2-ecr_image-ecr_repo
     aws:iam_role:eks_node_group-0-iam_role:
         AssumeRolePolicyDoc:
             Statement:
@@ -273,6 +309,9 @@ resources:
             - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
             - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
             - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: eks_node_group-0-iam_role
     aws:iam_role:pod2:
         AssumeRolePolicyDoc:
             Statement:
@@ -283,6 +322,9 @@ resources:
                     Federated:
                         - aws:iam_oidc_provider:eks_cluster-0#Arn
             Version: "2012-10-17"
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: pod2
     aws:iam_policy:iam_policy-0:
         Policy:
             Statement:
@@ -429,11 +471,17 @@ resources:
                   Resource:
                     - '*'
             Version: "2012-10-17"
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: iam_policy-0
     aws:iam_oidc_provider:eks_cluster-0:
         ClientIdLists:
             - sts.amazonaws.com
         Cluster: aws:eks_cluster:eks_cluster-0
         Region: aws:region:region-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: eks_cluster-0
     aws:eks_cluster:eks_cluster-0:
         ClusterRole: aws:iam_role:ClusterRole-eks_cluster-0
         SecurityGroups:
@@ -441,6 +489,9 @@ resources:
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: eks_cluster-0
         Version: "1.28"
         Vpc: aws:vpc:vpc-0
     aws:iam_role:ClusterRole-eks_cluster-0:
@@ -455,11 +506,17 @@ resources:
             Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: ClusterRole-eks_cluster-0
     aws:subnet:vpc-0:subnet-0:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.128.0/18
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-0-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-0
         Type: private
         Vpc: aws:vpc:vpc-0
     aws:subnet:vpc-0:subnet-1:
@@ -467,6 +524,9 @@ resources:
         CidrBlock: 10.0.192.0/18
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-1-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-1
         Type: private
         Vpc: aws:vpc:vpc-0
     aws:route_table_association:subnet-0-subnet-0-route_table:
@@ -507,37 +567,64 @@ resources:
               Protocol: "-1"
               Self: true
               ToPort: 0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: eks_cluster-0-security_group
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-0-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-0-route_table
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-1-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-1-route_table
         Vpc: aws:vpc:vpc-0
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-2
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-0-route_table-nat_gateway
     aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-3
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-1-route_table-nat_gateway
     aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-0-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc-0:subnet-2:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.0.0/18
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-2-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-2
         Type: public
         Vpc: aws:vpc:vpc-0
     aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-1-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc-0:subnet-3:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
         CidrBlock: 10.0.64.0/18
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-3-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-3
         Type: public
         Vpc: aws:vpc:vpc-0
     aws:availability_zone:region-0:availability_zone-0:
@@ -556,19 +643,31 @@ resources:
         Routes:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-2-route_table
         Vpc: aws:vpc:vpc-0
     aws:region:region-0:
     aws:route_table:vpc-0:subnet-3-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: subnet-3-route_table
         Vpc: aws:vpc:vpc-0
     aws:internet_gateway:vpc-0:internet_gateway-0:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: internet_gateway-0
         Vpc: aws:vpc:vpc-0
     aws:vpc:vpc-0:
         CidrBlock: 10.0.0.0/16
         EnableDnsHostnames: true
         EnableDnsSupport: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: vpc-0
 edges:
     aws:api_stage:rest_api_4:api_stage-0 -> aws:api_deployment:rest_api_4:api_deployment-0:
     aws:api_stage:rest_api_4:api_stage-0 -> aws:rest_api:rest_api_4:

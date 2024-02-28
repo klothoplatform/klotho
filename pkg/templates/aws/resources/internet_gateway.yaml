@@ -11,6 +11,8 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+  aws:tags:
+    type: model
 
 classification:
   gives:

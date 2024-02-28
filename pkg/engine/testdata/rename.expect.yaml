@@ -6,6 +6,9 @@ resources:
         Image: aws:ecr_image:lambda_test_app-image
         LogGroup: aws:log_group:lambda_test_app-log-group
         MemorySize: 512
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_test_app
         Timeout: 180
     aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
     aws:ecr_image:lambda_test_app-image:
@@ -35,14 +38,26 @@ resources:
                 Version: "2012-10-17"
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_test_app-ExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: ecr_repo-0
     aws:log_group:lambda_test_app-log-group:
         LogGroupName: /aws/lambda/lambda_test_app
         RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_test_app-log-group
     aws:s3_bucket:new-bucket:
         ForceDestroy: true
         SSEAlgorithm: aws:kms
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: new-bucket
 edges:
     aws:lambda_function:lambda_test_app -> aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
     aws:lambda_function:lambda_test_app -> aws:ecr_image:lambda_test_app-image:

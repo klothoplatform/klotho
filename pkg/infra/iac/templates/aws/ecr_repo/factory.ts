@@ -1,7 +1,9 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -13,9 +15,8 @@ function create(args: Args): aws.ecr.Repository {
         imageTagMutability: 'MUTABLE',
         forceDelete: true,
         encryptionConfigurations: [{ encryptionType: 'KMS' }],
-        tags: {
-            env: 'production',
-            AppName: args.Name,
-        },
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }

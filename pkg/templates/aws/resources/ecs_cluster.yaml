@@ -1,6 +1,10 @@
 qualified_type_name: aws:ecs_cluster
 display_name: ECS Cluster
 
+properties:
+  aws:tags:
+    type: model
+
 classification:
   is:
     - cluster

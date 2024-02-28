@@ -54,6 +54,8 @@ properties:
   MapPublicIpOnLaunch:
     type: bool
     default_value: false
+  aws:tags:
+    type: model
   Id:
     type: string
     configuration_disabled: true

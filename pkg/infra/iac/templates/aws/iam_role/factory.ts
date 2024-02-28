@@ -9,6 +9,7 @@ interface Args {
     InlinePolicies: TemplateWrapper<pulumi.Input<pulumi.Input<awsInputs.iam.RoleInlinePolicy>[]>>
     ManagedPolicies: pulumi.Output<string>[]
     AwsManagedPolicies: string[]
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -27,6 +28,9 @@ function create(args: Args): aws.iam.Role {
             ...args.AwsManagedPolicies,
             //TMPL {{- end }}
         ],
+        //TMPL {{- end }}
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
         //TMPL {{- end }}
     })
 }

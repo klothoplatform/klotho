@@ -82,6 +82,8 @@ properties:
       RegistryArn:
         type: string
         description: ARN of the Service Registry. The currently supported service registry is Amazon Route 53 Auto Naming Service
+  aws:tags:
+    type: model
 
 consumption:
   consumed:

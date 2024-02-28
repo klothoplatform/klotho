@@ -1,10 +1,13 @@
 qualified_type_name: aws:ami
 display_name: AMI
 
+properties:
+  aws:tags:
+    type: model
+
 classification:
   is:
     - machine_image
-
 delete_context:
   requires_no_upstream: true
 views:

@@ -19,6 +19,7 @@ type (
 		Constraints  constraints.Constraints
 		InitialState construct.Graph
 		Solutions    []solution_context.SolutionContext
+		GlobalTag    string
 	}
 )
 
@@ -29,7 +30,7 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 }
 
 func (e *Engine) Run(context *EngineContext) error {
-	solutionCtx := NewSolutionContext(e.Kb)
+	solutionCtx := NewSolutionContext(e.Kb, context.GlobalTag)
 	solutionCtx.constraints = &context.Constraints
 	err := solutionCtx.LoadGraph(context.InitialState)
 	if err != nil {

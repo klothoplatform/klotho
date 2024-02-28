@@ -77,6 +77,8 @@ properties:
     description: "The type of load balancer: either 'network' or 'application'"
     required: true
     important: true
+  aws:tags:
+    type: model
   NlbUri:
     type: string
     configuration_disabled: true

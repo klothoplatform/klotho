@@ -185,6 +185,8 @@ properties:
             default_value: none
   DefaultRootObject:
     type: string
+  aws:tags:
+    type: model
 
 path_satisfaction:
   as_source:

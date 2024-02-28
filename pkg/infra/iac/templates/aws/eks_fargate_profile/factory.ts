@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -10,6 +10,7 @@ interface Args {
     Selectors: TemplateWrapper<
         pulumi.Input<pulumi.Input<aws.types.input.eks.FargateProfileSelector>[]>
     >
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -21,6 +22,9 @@ function create(args: Args): aws.eks.FargateProfile {
             podExecutionRoleArn: args.PodExecutionRole.arn,
             selectors: args.Selectors,
             subnetIds: args.Subnets.map((subnet) => subnet.id),
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
+            //TMPL {{- end }}
         },
         {
             customTimeouts: { create: '30m', update: '30m', delete: '30m' },

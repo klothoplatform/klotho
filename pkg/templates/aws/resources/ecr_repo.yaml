@@ -5,6 +5,9 @@ properties:
   ForceDelete:
     type: bool
     default_value: true
+  aws:tags:
+    type: model
+
 classification:
   is:
     - repository

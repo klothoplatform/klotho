@@ -29,6 +29,9 @@ properties:
         description: A reference to an internet gateway resource to which traffic
           is directed.
     description: Defines a list of routing rules for directing network traffic.
+  aws:tags:
+    type: model
+
 delete_context:
   requires_no_upstream: true
 views:

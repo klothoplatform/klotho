@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -10,6 +11,7 @@ interface Args {
     Subnets: aws.ec2.Subnet[]
     SecurityGroupIds: pulumi.Input<string[]> | undefined
     RouteTables: aws.ec2.RouteTable[]
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -26,5 +28,8 @@ function create(args: Args): aws.ec2.VpcEndpoint {
         //TMPL {{- if and .RouteTables (eq .VpcEndpointType "Gateway")}}
         routeTableIds: args.RouteTables.map((rt) => rt.id),
         //TMPL {{- end}}
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }

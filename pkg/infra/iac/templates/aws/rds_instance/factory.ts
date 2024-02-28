@@ -1,6 +1,7 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as aws from '@pulumi/aws'
 import { accountId, region, kloConfig } from '../../globals'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -16,6 +17,7 @@ interface Args {
     Username: string
     Password: string
     protect: boolean
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -34,6 +36,9 @@ function create(args: Args): aws.rds.Instance {
             vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
             skipFinalSnapshot: args.SkipFinalSnapshot,
             allocatedStorage: args.AllocatedStorage,
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
+            //TMPL {{- end }}
         },
         { protect: args.protect }
     )

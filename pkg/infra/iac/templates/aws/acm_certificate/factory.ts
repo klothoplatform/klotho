@@ -10,7 +10,7 @@ interface Args {
     DomainName: string
     EarlyRenewalDuration?: string
     SubjectAlternativeNames?: string[]
-    Tags?: ModelCaseWrapper<Record<string, string>>
+    Tags: ModelCaseWrapper<Record<string, string>>
     ValidationMethod?: string
     DomainValidationOptions?: pulumi.Input<pulumi.Input<inputs.acm.CertificateValidationOption>[]>
 }

@@ -1,0 +1,7 @@
+name: aws:tags
+properties:
+  Tags:
+    type: map(string,string)
+    default_value: 
+      RESOURCE_NAME: '{{ .Self.Name }}'
+      GLOBAL_KLOTHO_TAG: '{{ .Tag }}'

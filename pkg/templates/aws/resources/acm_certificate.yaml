@@ -24,8 +24,8 @@ properties:
     description: Additional FQDNs to be included in the Subject Alternative Name extension of the ACM certificate
 #    min_length: 1
 #    max_length: 253
-  Tags:
-    type: map(string,string)
+  aws:tags:
+    type: model
   ValidationMethod:
     type: string
     default_value: DNS

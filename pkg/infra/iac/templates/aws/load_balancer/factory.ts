@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -7,7 +8,7 @@ interface Args {
     Scheme: string
     SecurityGroups: aws.ec2.SecurityGroup[]
     Subnets: aws.ec2.Subnet[]
-    Tags: Record<string, string>
+    Tags: ModelCaseWrapper<Record<string, string>>
     Type: string
 }
 

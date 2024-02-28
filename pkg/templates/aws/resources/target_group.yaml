@@ -88,6 +88,8 @@ properties:
         type: string
   LambdaMultiValueHeadersEnabled:
     type: bool
+  aws:tags:
+    type: model
   Arn:
     type: string
     configuration_disabled: true

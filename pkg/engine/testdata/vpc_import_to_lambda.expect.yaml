@@ -13,6 +13,9 @@ resources:
               Protocol: "-1"
               Self: true
               ToPort: 0
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function-security_group
         Vpc: aws:vpc:vpc
     aws:subnet:subnet3:
         Type: public
@@ -32,6 +35,9 @@ resources:
         Subnets:
             - aws:subnet:vpc:subnet1
             - aws:subnet:vpc:subnet2
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function
         Timeout: 180
     aws:ecr_image:lambda_function-image:
         Context: .
@@ -50,6 +56,9 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function-ExecutionRole
     aws:subnet:vpc:subnet1:
         Type: private
         Vpc: aws:vpc:vpc
@@ -60,12 +69,18 @@ resources:
         imported: true
     aws:ecr_repo:lambda_function-image-ecr_repo:
         ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function-image-ecr_repo
     aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:vpc:vpc:
         imported: true
     aws:log_group:lambda_function-log-group:
         LogGroupName: /aws/lambda/lambda_function
         RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: lambda_function-log-group
 edges:
     aws:security_group:vpc:lambda_function-security_group -> aws:lambda_function:lambda_function:
     aws:security_group:vpc:lambda_function-security_group -> aws:vpc:vpc:

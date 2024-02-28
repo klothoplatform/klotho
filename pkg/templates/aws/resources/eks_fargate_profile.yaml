@@ -35,6 +35,8 @@ properties:
         type: string
       Labels:
         type: map(string,string)
+  aws:tags:
+    type: model
 
 classifications:
   is:

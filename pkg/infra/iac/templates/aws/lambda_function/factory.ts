@@ -14,6 +14,7 @@ interface Args {
     Timeout: pulumi.Input<number>
     EfsAccessPoint: aws.efs.AccessPoint
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -48,10 +49,9 @@ function create(args: Args): aws.lambda.Function {
                 variables: args.EnvironmentVariables,
             },
             //TMPL {{- end }}
-            tags: {
-                env: 'production',
-                service: args.Name,
-            },
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
+            //TMPL {{- end }}
         },
         {
             dependsOn: args.dependsOn,

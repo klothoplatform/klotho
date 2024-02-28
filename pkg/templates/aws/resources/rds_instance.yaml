@@ -87,6 +87,8 @@ properties:
   AllocatedStorage:
     type: int
     default_value: 20
+  aws:tags:
+    type: model
   CredentialsSecretValue:
     type: string
     configuration_disabled: true

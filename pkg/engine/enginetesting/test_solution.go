@@ -78,6 +78,10 @@ func (sol *TestSolution) RawView() construct.Graph {
 	return solution_context.NewRawView(sol)
 }
 
+func (sol *TestSolution) GlobalTag() string {
+	return "test"
+}
+
 type testOperationalView struct {
 	construct.Graph
 	Mock *mock.Mock

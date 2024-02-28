@@ -16,6 +16,8 @@ properties:
     default_value: true
     description: Determines whether instances with public IP addresses get corresponding
       public DNS hostnames
+  aws:tags:
+    type: model
   Id:
     type: string
     configuration_disabled: true

@@ -73,6 +73,8 @@ properties:
             properties:
               LogGroupName: /aws/lambda/{{ .Self.Name }}
         unique: true
+  aws:tags:
+    type: model
   LambdaIntegrationUri:
     type: string
     configuration_disabled: true

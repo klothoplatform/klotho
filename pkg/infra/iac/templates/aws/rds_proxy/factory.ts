@@ -1,5 +1,7 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
+import { ModelCaseWrapper } from '../../wrappers'
+
 interface Args {
     Name: string
     DebugLogging: boolean
@@ -10,6 +12,7 @@ interface Args {
     SecurityGroups: aws.ec2.SecurityGroup[]
     Subnets: aws.ec2.Subnet[]
     Auths: pulumi.Input<aws.types.input.rds.ProxyAuth>[]
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -23,6 +26,9 @@ function create(args: Args): aws.rds.Proxy {
         vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
         vpcSubnetIds: args.Subnets.map((subnet) => subnet.id),
         auths: args.Auths,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 
