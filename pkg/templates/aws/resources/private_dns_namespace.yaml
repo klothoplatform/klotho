@@ -30,3 +30,9 @@ delete_context:
 
 views:
   dataflow: small
+
+
+aws:private_dns_namespace:
+  deploy: ["servicediscovery:CreatePrivateDnsNamespace"]
+  tear_down: ["servicediscovery:DeleteNamespace"]
+  update: ["servicediscovery:UpdatePrivateDnsNamespace"]

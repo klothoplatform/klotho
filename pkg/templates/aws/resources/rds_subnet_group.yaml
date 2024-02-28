@@ -33,3 +33,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["rds:CreateDBSubnetGroup"]
+  tear_down: ["rds:DeleteDBSubnetGroup"]
+  update: ["rds:ModifyDBSubnetGroup"]

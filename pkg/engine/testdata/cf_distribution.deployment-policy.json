@@ -1,0 +1,55 @@
+{
+    "Statement": [
+        {
+            "Action": null,
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateStage",
+                "apigateway:DeleteStage",
+                "apigateway:UpdateStage"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateDeployment",
+                "apigateway:DeleteDeployment",
+                "apigateway:UpdateDeployment"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "s3:PutBucketPolicy",
+                "s3:DeleteBucketPolicy",
+                "s3:PutBucketPolicy"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateRestApi",
+                "apigateway:DeleteRestApi",
+                "apigateway:UpdateRestApi"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:PutBucketAcl"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}

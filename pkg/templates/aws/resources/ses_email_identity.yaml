@@ -25,3 +25,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["ses:VerifyEmailIdentity"]
+  tear_down: ["ses:DeleteIdentity"]
+  update: ["ses:VerifyEmailIdentity"]

@@ -21,3 +21,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["s3:PutObject"]
+  tear_down: ["s3:DeleteObject"]
+  update: ["s3:PutObject"]

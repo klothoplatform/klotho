@@ -39,3 +39,8 @@ delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["sqs:CreateQueue"]
+  tear_down: ["sqs:DeleteQueue"]
+  update: ["sqs:SetQueueAttributes"]

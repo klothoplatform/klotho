@@ -81,3 +81,9 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: big
+
+
+deployment_permissions:
+  deploy: ["elasticache:CreateCacheCluster"]
+  tear_down: ["elasticache:DeleteCacheCluster"]
+  update: ["elasticache:ModifyCacheCluster"]

@@ -74,3 +74,10 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: big
+
+
+
+deployment_permissions:
+  deploy: ["efs:CreateFileSystem"]
+  tear_down: ["efs:DeleteFileSystem"]
+  update: ["efs:CreateFileSystem"]

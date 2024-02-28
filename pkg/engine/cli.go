@@ -21,6 +21,7 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -438,6 +439,20 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 			Content: b,
 		},
 	)
+
+	if architectureEngineCfg.provider == "aws" {
+		polictBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+		if err != nil {
+			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
+			return
+		}
+		files = append(files,
+			&kio.RawFile{
+				FPath:   "deployment_permissions_policy.json",
+				Content: polictBytes,
+			},
+		)
+	}
 
 	err = kio.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {

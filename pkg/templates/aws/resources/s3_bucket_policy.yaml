@@ -49,3 +49,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["s3:PutBucketPolicy"]
+  tear_down: ["s3:DeleteBucketPolicy"]
+  update: ["s3:PutBucketPolicy"]

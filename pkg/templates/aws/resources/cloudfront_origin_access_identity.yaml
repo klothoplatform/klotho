@@ -16,3 +16,8 @@ properties:
 
 delete_context:
   requires_no_upstream_or_downstream: true
+
+aws:deployment_permissions:
+  deploy: ["cloudfront:CreateCloudFrontOriginAccessIdentity"]
+  tear_down: ["cloudfront:DeleteCloudFrontOriginAccessIdentity"]
+  update: ["cloudfront:UpdateCloudFrontOriginAccessIdentity"]
