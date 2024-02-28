@@ -15,3 +15,8 @@ properties:
     description: The name of the IAM role to which the policy will be attached
 delete_context:
   requires_no_upstream_or_downstream: true
+
+deployment_permissions:
+  deploy: ["iam:AttachRolePolicy"]
+  tear_down: ["iam:DetachRolePolicy"]
+  update: ["iam:AttachRolePolicy"]

@@ -48,3 +48,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["acm:RequestCertificate", "acm:AddTagsToCertificate", "acm:ImportCertificate"]
+  tear_down: ["acm:DeleteCertificate"]
+  update: ["acm:ResendValidationEmail"]

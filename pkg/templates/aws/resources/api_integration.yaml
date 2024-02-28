@@ -107,3 +107,8 @@ delete_context:
 
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["apigateway:PutIntegration"]
+  tear_down: ["apigateway:DeleteIntegration"]
+  update: ["apigateway:UpdateIntegration"]

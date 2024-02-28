@@ -10,3 +10,9 @@ properties:
     type: resource(aws:subnet)
     default_value: '{{ upstream "aws:subnet" .Self }}'
     description: The Subnet to which the Route Table will be associated
+
+
+deployment_permissions:
+  deploy: ["ec2:AssociateRouteTable"]
+  tear_down: ["ec2:DisassociateRouteTable"]
+  update: ["ec2:ReplaceRouteTableAssociation"]

@@ -33,3 +33,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["logs:CreateLogGroup"]
+  tear_down: ["logs:DeleteLogGroup"]
+  update: ["logs:PutRetentionPolicy"]

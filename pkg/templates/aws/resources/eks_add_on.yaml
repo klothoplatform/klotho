@@ -20,3 +20,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+aws:eks_add_on:
+  deploy: ["eks:CreateAddon"]
+  tear_down: ["eks:DeleteAddon"]
+  update: ["eks:UpdateAddon"]

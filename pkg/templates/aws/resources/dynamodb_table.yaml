@@ -86,3 +86,9 @@ delete_context:
 
 views:
   dataflow: big
+
+
+deployment_permissions:
+  deploy: ["dynamodb:CreateTable"]
+  tear_down: ["dynamodb:DeleteTable"]
+  update: ["dynamodb:UpdateTable"]

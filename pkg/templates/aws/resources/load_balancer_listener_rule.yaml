@@ -76,3 +76,8 @@ classification:
 path_satisfaction:
   as_source:
     - network#Listener#LoadBalancer#Subnets
+
+deployment_permissions:
+  deploy: ["elbv2:CreateRule"]
+  tear_down: ["elbv2:DeleteRule"]
+  update: ["elbv2:ModifyRule"]

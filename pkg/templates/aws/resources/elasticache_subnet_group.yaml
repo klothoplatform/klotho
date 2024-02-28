@@ -33,3 +33,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["elasticache:CreateCacheSubnetGroup"]
+  tear_down: ["elasticache:DeleteCacheSubnetGroup"]
+  update: ["elasticache:ModifyCacheSubnetGroup"]

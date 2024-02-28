@@ -71,3 +71,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: parent
+
+
+deployment_permissions:
+  deploy: ["eks:CreateCluster"]
+  tear_down: ["eks:DeleteCluster"]
+  update: ["eks:UpdateCluster"]

@@ -19,3 +19,6 @@ properties:
     description: References the AWS Region associated with the Availability Zone
 delete_context:
   requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["ec2:DescribeAvailabilityZones"]

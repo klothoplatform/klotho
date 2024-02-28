@@ -12,6 +12,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/r3labs/diff"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -87,6 +88,21 @@ func (tc engineTestCase) Test(t *testing.T) {
 		// Run resulted in a failure. After checking the error details, we're done.
 		return
 	}
+
+	// Check to make sure that we produce a policy for deployment roles
+	deploymentPolicyBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+	if err != nil {
+		t.Fatal(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
+	}
+	deploymentPolicyFile, err := os.Open(strings.Replace(tc.inputPath, ".input.yaml", ".deployment-policy.json", 1))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(fmt.Errorf("failed to open deployment policy file: %w", err))
+	}
+	if deploymentPolicyFile != nil {
+		defer deploymentPolicyFile.Close()
+	}
+	assertDeploymentPolicy(t, deploymentPolicyFile, deploymentPolicyBytes)
+
 	sol := context.Solutions[0]
 	actualContent, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
 	if err != nil {
@@ -177,6 +193,41 @@ func assertErrDetails(t *testing.T, expectR io.Reader, actual []engine_errs.Engi
 		return
 	}
 	assert.Equal(t, expectV, actualV, "error details")
+}
+
+func assertDeploymentPolicy(t *testing.T, expectR io.Reader, policyBytes []byte) {
+	var expect, actual map[string]interface{}
+	err := json.NewDecoder(expectR).Decode(&expect)
+	if err != nil {
+		t.Errorf("failed to read expected deployment policy: %v", err)
+		return
+	}
+	err = json.Unmarshal(policyBytes, &actual)
+	if err != nil {
+		t.Errorf("failed to unmarshal actual deployment policy: %v", err)
+		return
+	}
+	differ, err := diff.NewDiffer(diff.SliceOrdering(false))
+	if err != nil {
+		t.Errorf("failed to create differ for deployment policy: %v", err)
+		return
+	}
+	changes, err := differ.Diff(expect, actual)
+	if err != nil {
+		t.Errorf("failed to diff deployment policy: %v", err)
+		return
+	}
+	for _, c := range changes {
+		path := strings.Join(c.Path, ".")
+		switch c.Type {
+		case diff.CREATE:
+			t.Errorf("deployment policy %s %s: %v", c.Type, path, c.To)
+		case diff.DELETE:
+			t.Errorf("deployment policy %s %s: %v", c.Type, path, c.From)
+		case diff.UPDATE:
+			t.Errorf("deployment policy %s %s: %v to %v", c.Type, path, c.From, c.To)
+		}
+	}
 }
 
 func assertYamlMatches(t *testing.T, expectStr, actualStr string, name string) {

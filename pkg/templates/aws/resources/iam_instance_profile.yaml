@@ -14,3 +14,8 @@ properties:
       by the EC2 instances
   aws:tags:
     type: model
+
+deployment_permissions:
+  deploy: ["iam:CreateInstanceProfile"]
+  tear_down: ["iam:DeleteInstanceProfile"]
+  update: ["iam:AddRoleToInstanceProfile"]

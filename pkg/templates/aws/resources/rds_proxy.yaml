@@ -74,3 +74,8 @@ delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["rds:CreateDBProxy"]
+  tear_down: ["rds:DeleteDBProxy"]
+  update: ["rds:ModifyDBProxy"]

@@ -61,3 +61,7 @@ classification:
   is:
     - service_discovery
 
+deployment_permissions:
+  deploy: ["servicediscovery:CreateService"]
+  tear_down: ["servicediscovery:DeleteService"]
+  update: ["servicediscovery:UpdateService"]

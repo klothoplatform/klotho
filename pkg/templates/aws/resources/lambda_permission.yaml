@@ -24,3 +24,9 @@ delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["lambda:AddPermission"]
+  tear_down: ["lambda:RemovePermission"]
+  update: ["lambda:AddPermission"]

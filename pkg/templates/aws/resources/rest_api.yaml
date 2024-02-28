@@ -37,3 +37,8 @@ delete_context:
 
 views:
   dataflow: parent
+
+deployment_permissions:
+  deploy: ["apigateway:CreateRestApi"]
+  tear_down: ["apigateway:DeleteRestApi"]
+  update: ["apigateway:UpdateRestApi"]

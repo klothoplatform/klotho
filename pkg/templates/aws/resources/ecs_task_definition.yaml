@@ -233,3 +233,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["ecs:RegisterTaskDefinition"]
+  tear_down: ["ecs:DeregisterTaskDefinition"]
+  update: ["ecs:RegisterTaskDefinition"]

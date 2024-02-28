@@ -36,5 +36,5 @@ fi
 [ -e "$out_dir/dataflow-topology.yaml" ] && cp "$out_dir/dataflow-topology.yaml" "$test_dir/$name.dataflow-viz.yaml"
 [ -e "$out_dir/iac-topology.yaml" ] && cp "$out_dir/iac-topology.yaml" "$test_dir/$name.iac-viz.yaml"
 [ -e "$out_dir/error_details.json" ] && cp "$out_dir/error_details.json" "$test_dir/$name.err.json"
-
+[ -e "$out_dir/deployment_permissions_policy.json" ] && cp "$out_dir/deployment_permissions_policy.json" "$test_dir/$name.deployment-policy.json"
 rm -rf $out_dir

@@ -123,3 +123,8 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["ecs:CreateService"]
+  tear_down: ["ecs:DeleteService"]
+  update: ["ecs:UpdateService"]

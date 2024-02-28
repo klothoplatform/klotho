@@ -72,3 +72,9 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: big
+
+
+deployment_permissions:
+  deploy: ["ec2:RunInstances"]
+  tear_down: ["ec2:TerminateInstances"]
+  update: ["ec2:ModifyInstanceAttribute"]

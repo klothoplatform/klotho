@@ -72,3 +72,8 @@ delete_context:
 
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["s3:CreateBucket"]
+  tear_down: ["s3:DeleteBucket"]
+  update: ["s3:PutBucketAcl"]
