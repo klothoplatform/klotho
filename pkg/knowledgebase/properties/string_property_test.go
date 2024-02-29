@@ -235,13 +235,23 @@ func Test_StringParse(t *testing.T) {
 			expected: "test",
 		},
 		{
-			name: "non string throws error",
+			name: "non string converts int",
 			property: &StringProperty{
 				PropertyDetails: knowledgebase.PropertyDetails{
 					Path: "test",
 				},
 			},
-			value:   1,
+			value:    1,
+			expected: "1",
+		},
+		{
+			name: "non string fails non-primitive",
+			property: &StringProperty{
+				PropertyDetails: knowledgebase.PropertyDetails{
+					Path: "test",
+				},
+			},
+			value:   []string{"hi"},
 			wantErr: true,
 		},
 	}

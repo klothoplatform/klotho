@@ -136,7 +136,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 	var errs error
 	for k, prop := range tmpl.Properties {
 		// Only consider properties whose type can even accommodate a resource
-		if prop.Type() != "resource" {
+		if !strings.HasPrefix(prop.Type(), "resource") {
 			continue
 		}
 		details := prop.Details()
