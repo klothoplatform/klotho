@@ -154,6 +154,7 @@ func Test_pathExpandVertex_addDepsFromProps(t *testing.T) {
 
 				mockSol.On("RawView").Return(resultGraph).Once()
 				mockProperty.EXPECT().Validate(resource, construct.ResourceId{Name: "u"}, gomock.Any()).Return(nil).Times(1)
+				mockProperty.EXPECT().Type().Return("resource").Times(1)
 				return nil
 			},
 			want: graphChanges{
