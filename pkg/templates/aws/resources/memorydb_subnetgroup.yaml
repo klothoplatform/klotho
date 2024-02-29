@@ -21,8 +21,6 @@ properties:
   Description:
     type: string
     description: The description of the subnet group
-
-    
   Arn:
     type: string
     configuration_disabled: true
