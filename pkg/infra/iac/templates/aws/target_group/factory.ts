@@ -7,7 +7,6 @@ interface Args {
     Protocol: string
     Vpc: aws.ec2.Vpc
     TargetType: string
-    Tags: Record<string, string>
     Targets: { Id: string; Port: number }[]
     HealthCheck: TemplateWrapper<Record<string, any>>
     LambdaMultiValueHeadersEnabled?: boolean
@@ -22,9 +21,6 @@ function create(args: Args): aws.lb.TargetGroup {
             protocol: args.Protocol,
             targetType: args.TargetType,
             vpcId: args.Vpc.id,
-            //TMPL {{- if .Tags }}
-            tags: args.Tags,
-            //TMPL {{- end }}
             healthCheck: args.HealthCheck,
             //TMPL {{- if .LambdaMultiValueHeadersEnabled }}
             lambdaMultiValueHeadersEnabled: args.LambdaMultiValueHeadersEnabled,
