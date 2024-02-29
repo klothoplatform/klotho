@@ -1,0 +1,38 @@
+source: aws:service_discovery_http_namespace
+target: aws:ecs_service
+deployment_order_reversed: true
+
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ downstream "aws:ecs_task_definition" .Target }}'
+        configuration:
+          field: PortMappings
+          value: | 
+            [
+              {{ range $i, $portMapping := (fieldValue "PortMappings" (downstream "aws:ecs_task_definition" .Target)) -}}
+              {
+                "ContainerPort": {{ $portMapping.ContainerPort }},
+                "HostPort": {{ $portMapping.HostPort }},
+                "Protocol": "{{ $portMapping.Protocol }}",
+                "AppProtocol": "http"
+                "Name": {{ .Target.Name }}-port-{{ $i }}
+              }{{ if ne $i (sub (len (fieldValue "PortMappings")) 1) }},{{ end }}
+            ]
+      - resource: '{{ .Target }}'
+        configuration:
+          field: ServiceConnectConfiguration
+          value: | 
+            {
+                "Enabled": true
+                "Services": [
+                  {{ range $i, $portMapping := (fieldValue "PortMappings") -}}
+                  {
+                    "PortName": {{ .Target.Name }}-port-{{ $i }},
+                    "ClientAliases": [
+                      "{{ .Target.Name }}-{{ .Target.Namespace }}.{{ .Target.DNSName }}"
+                    ],
+                  }{{ if ne $i (sub (len (fieldValue "PortMappings")) 1) }},{{ end }}
+                  {{ end -}}
+                ]
+            }
+            

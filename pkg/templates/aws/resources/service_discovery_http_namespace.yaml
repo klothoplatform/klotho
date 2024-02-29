@@ -1,0 +1,40 @@
+qualified_type_name: aws:private_dns_namespace
+display_name: Private DNS Namespace
+
+properties:
+  Description:
+    type: string
+    description: A description for the namespace
+  Name:
+    type: string
+    description: The name of the namespace
+  aws:tags:
+    type: model
+  Id:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+  Arn:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+
+path_satisfaction:
+  as_target:
+    - permissions
+
+classification:
+  is:
+    - service_discovery
+
+delete_context:
+  requires_no_upstream: true
+
+views:
+  dataflow: small
+
+
+aws:private_dns_namespace:
+  deploy: ["servicediscovery:CreatePrivateDnsNamespace"]
+  tear_down: ["servicediscovery:DeleteNamespace"]
+  update: ["servicediscovery:UpdatePrivateDnsNamespace"]

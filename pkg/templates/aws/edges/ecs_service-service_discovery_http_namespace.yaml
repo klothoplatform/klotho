@@ -1,0 +1,2 @@
+source: aws:ecs_service
+target: aws:service_discovery_http_namespace
