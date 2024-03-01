@@ -1,0 +1,36 @@
+qualified_type_name: aws:memorydb_acl
+display_name: MemoryDB ACL
+
+properties:
+  aws:tags:
+    type: model
+  UserNames:
+    type: list(string)
+    description: Set of MemoryDB user names to be included in this ACL.
+    operational_rule:
+      step:
+        direction: upstream
+        resources:
+          - aws:memorydb_user
+        unique: true
+        use_property_ref: Id
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+classification:
+  is:
+    - permissions
+
+views:
+  dataflow: small
+
+deployment_permissions:
+  deploy: ["memorydb:CreateACL"] 
+  tear_down: ["memorydb:DeleteACL"]
+  update: ["memorydb:ModifyACL"]

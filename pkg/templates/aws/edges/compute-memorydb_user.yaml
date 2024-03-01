@@ -1,0 +1,8 @@
+resource: aws:memorydb_user
+
+sources:
+  - aws:lambda_function
+  - aws:ec2_instance
+  - aws:ecs_service
+  - kubernetes:pod
+  - kubernetes:deployment
