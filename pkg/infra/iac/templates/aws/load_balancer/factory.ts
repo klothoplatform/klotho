@@ -34,6 +34,7 @@ function create(args: Args): aws.lb.LoadBalancer {
 function properties(object: aws.lb.LoadBalancer, args: Args) {
     return {
         NlbUri: pulumi.interpolate`http://${object.dnsName}`,
+        DnsName: object.dnsName,
     }
 }
 

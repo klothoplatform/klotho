@@ -84,6 +84,11 @@ properties:
     configuration_disabled: true
     deploy_time: true
     description: A unique identifier for the load balancer, available after deployment
+  DnsName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    description: The DNS name for the load balancer, available after deployment
 
 path_satisfaction:
   # See comment above for why we are not solving the network path
