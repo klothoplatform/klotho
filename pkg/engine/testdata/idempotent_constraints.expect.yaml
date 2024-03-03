@@ -21,6 +21,7 @@ resources:
         AssignPublicIp: false
         Cluster: aws:ecs_cluster:ecs_cluster-0
         DesiredCount: 1
+        EnableExecuteCommand: false
         ForceNewDeployment: true
         LaunchType: FARGATE
         SecurityGroups:
