@@ -21,3 +21,23 @@ operational_rules:
           field: ManagedPolicies
           value:
             - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+  - if: |
+      {{ (fieldValue "EnableExecuteCommand" (upstream "aws:ecs_service" .Source)) }}
+    configuration_rules:
+      - resource: |
+          {{ .Target }}
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Source.Name }}-ecs-exec'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      - ssmmessages:CreateControlChannel
+                      - ssmmessages:CreateDataChannel
+                      - ssmmessages:OpenControlChannel
+                      - ssmmessages:OpenDataChannel
+                    Effect: Allow
+                    Resource:
+                      - '*'

@@ -18,8 +18,12 @@ func AttributesToString(attribs map[string]string) string {
 	var list []string
 	for _, k := range keys {
 		v := attribs[k]
-		v = strings.ReplaceAll(v, `"`, `\"`)
-		list = append(list, fmt.Sprintf(`%s="%s"`, k, v))
+		if len(v) > 1 && v[0] == '<' && v[len(v)-1] == '>' {
+			list = append(list, fmt.Sprintf(`%s=%s`, k, v))
+		} else {
+			v = strings.ReplaceAll(v, `"`, `\"`)
+			list = append(list, fmt.Sprintf(`%s="%s"`, k, v))
+		}
 	}
 	return " [" + strings.Join(list, ", ") + "]"
 }

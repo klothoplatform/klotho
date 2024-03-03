@@ -6,12 +6,14 @@ import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Cpu: string
+    Memory: string
     NetworkMode?: string
     ExecutionRole: aws.iam.Role
     TaskRole: aws.iam.Role
     RequiresCompatibilities?: string[]
-    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]>
-    ContainerDefinitions: TemplateWrapper<awsInputs.ecs.TaskDefinitionContainerDefinitions[]>
+    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolume[]>
+    ContainerDefinitions: TemplateWrapper<any[]>
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 

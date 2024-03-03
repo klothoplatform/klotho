@@ -52,14 +52,16 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 		}
 	}
 
-	for edge, rule := range prop.EdgeRules {
-		edgeData := knowledgebase.DynamicValueData{
-			Resource: prop.Ref.Resource,
-			Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
-		}
-		for _, opRule := range rule {
-			if err := propCtx.ExecuteOpRule(edgeData, opRule); err != nil {
-				return fmt.Errorf("could not execute edge operational rule for %s: %w", prop.Ref, err)
+	if prop.shouldEvalEdges(eval.Solution.Constraints().Resources) {
+		for edge, rule := range prop.EdgeRules {
+			edgeData := knowledgebase.DynamicValueData{
+				Resource: prop.Ref.Resource,
+				Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
+			}
+			for _, opRule := range rule {
+				if err := propCtx.ExecuteOpRule(edgeData, opRule); err != nil {
+					return fmt.Errorf("could not execute edge operational rule for %s: %w", prop.Ref, err)
+				}
 			}
 		}
 	}
@@ -129,12 +131,14 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	//
 	// we still need to run the resource operational rules though,
 	// to make sure dependencies exist where properties have operational rules set
-	if err := v.evaluateResourceOperational(res, &opCtx); err != nil {
+	if err := v.evaluateResourceOperational(&opCtx); err != nil {
 		return err
 	}
 
-	if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
-		return err
+	if v.shouldEvalEdges(eval.Solution.Constraints().Resources) {
+		if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
+			return err
+		}
 	}
 
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
@@ -259,7 +263,6 @@ func (v *propertyVertex) evaluateConstraints(
 }
 
 func (v *propertyVertex) evaluateResourceOperational(
-	res *construct.Resource,
 	opCtx operational_rule.OpRuleHandler,
 ) error {
 	if v.Template == nil || v.Template.Details().OperationalRule == nil {
@@ -272,6 +275,25 @@ func (v *propertyVertex) evaluateResourceOperational(
 	}
 
 	return nil
+}
+
+// shouldEvalEdges is used as common logic for whether edges should be evaluated and is used in dependency
+// calculation and in the Evaluate method.
+func (v *propertyVertex) shouldEvalEdges(cs []constraints.ResourceConstraint) bool {
+	if knowledgebase.IsCollectionProperty(v.Template) {
+		return true
+	}
+	for _, c := range cs {
+		if c.Target != v.Ref.Resource || c.Property != v.Ref.Property {
+			continue
+		}
+		// NOTE(gg): does operator even matter here? If it's not a collection,
+		// what does an 'add' mean? Should it allow edges to overwrite?
+		if c.Operator == constraints.EqualsConstraintOperator {
+			return false
+		}
+	}
+	return true
 }
 
 func (v *propertyVertex) evaluateEdgeOperational(

@@ -67,6 +67,10 @@ func NewKB() *KnowledgeBase {
 	}
 }
 
+func (kb *KnowledgeBase) Graph() graph.Graph[string, *ResourceTemplate] {
+	return kb.underlying
+}
+
 func (kb *KnowledgeBase) GetModel(model string) *Model {
 	return kb.Models[model]
 }

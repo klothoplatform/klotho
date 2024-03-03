@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import * as awsInputs from '@pulumi/aws/types/input'
 import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
@@ -8,7 +9,7 @@ interface Args {
     Vpc: aws.ec2.Vpc
     TargetType: string
     Targets: { Id: string; Port: number }[]
-    HealthCheck: TemplateWrapper<Record<string, any>>
+    HealthCheck: TemplateWrapper<awsInputs.lb.TargetGroupHealthCheck>
     LambdaMultiValueHeadersEnabled?: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
 }
