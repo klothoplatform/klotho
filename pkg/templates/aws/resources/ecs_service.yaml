@@ -27,6 +27,10 @@ properties:
     default_value: 1
     description: The number of instantiations of the specified task definition to
       keep running on the service
+  EnableExecuteCommand:
+    type: bool
+    default_value: false
+    description: Whether to enable Amazon ECS Exec for the service. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html
   ForceNewDeployment:
     type: bool
     default_value: true
@@ -125,6 +129,6 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ["ecs:CreateService"]
-  tear_down: ["ecs:DeleteService"]
-  update: ["ecs:UpdateService"]
+  deploy: ['ecs:CreateService']
+  tear_down: ['ecs:DeleteService']
+  update: ['ecs:UpdateService']

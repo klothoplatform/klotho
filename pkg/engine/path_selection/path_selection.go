@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// PHANTOM_PREFIX deliberately uses an invalid character so if it leaks into an actualy input/output, it will
+// PHANTOM_PREFIX deliberately uses an invalid character so if it leaks into an actual input/output, it will
 // fail to parse.
 const PHANTOM_PREFIX = "phantom$"
 const GLUE_WEIGHT = 100
@@ -75,6 +75,7 @@ func BuildPathSelectionGraph(
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
+	satisfied_paths := 0
 	for _, path := range paths {
 		resourcePath := make([]construct.ResourceId, len(path))
 		for i, res := range path {
@@ -83,6 +84,24 @@ func BuildPathSelectionGraph(
 		if !PathSatisfiesClassification(kb, resourcePath, classification) {
 			continue
 		}
+		// Check to see if the whole path is valid before adding phantoms and edges.
+		// It's a miniscule performance benefit, and is mostly done for clarity in the debug graph output.
+		validPath := true
+		for i, res := range path {
+			if i == 0 {
+				continue
+			}
+			edgeTemplate := kb.GetEdgeTemplate(path[i-1].Id(), res.Id())
+			if edgeTemplate == nil || edgeTemplate.DirectEdgeOnly {
+				validPath = false
+				break
+			}
+		}
+		if !validPath {
+			continue
+		}
+
+		satisfied_paths++
 		var prevRes construct.ResourceId
 		for i, res := range path {
 			id, err := makePhantom(tempGraph, res.Id())
@@ -111,6 +130,7 @@ func BuildPathSelectionGraph(
 			prevRes = id
 		}
 	}
+	zap.S().Debugf("Found %d paths for %s :: %s", satisfied_paths, dep, classification)
 
 	return tempGraph, nil
 }

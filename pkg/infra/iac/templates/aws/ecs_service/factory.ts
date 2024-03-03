@@ -6,10 +6,8 @@ import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
-    DeploymentCircuitBreaker:
-        | Promise<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
-        | OutputInstance<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
-        | awsInputs.ecs.ServiceDeploymentCircuitBreaker
+    DeploymentCircuitBreaker: pulumi.Input<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
+    EnableExecuteCommand: boolean
     ForceNewDeployment: boolean
     Cluster: aws.ecs.Cluster
     DesiredCount?: number
@@ -38,6 +36,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL },
             //TMPL {{- end }}
             desiredCount: args.DesiredCount,
+            //TMPL {{- if .EnableExecuteCommand }}
+            enableExecuteCommand: args.EnableExecuteCommand,
+            //TMPL {{- end }}
             forceNewDeployment: args.ForceNewDeployment,
             //TMPL {{- if .LoadBalancers }}
             loadBalancers: args.LoadBalancers,

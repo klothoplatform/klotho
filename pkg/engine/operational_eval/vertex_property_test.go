@@ -38,8 +38,7 @@ func Test_propertyVertex_evaluateResourceOperational(t *testing.T) {
 		Value: "test",
 	}
 	type args struct {
-		v   *propertyVertex
-		res *construct.Resource
+		v *propertyVertex
 	}
 	tests := []struct {
 		name    string
@@ -60,7 +59,6 @@ func Test_propertyVertex_evaluateResourceOperational(t *testing.T) {
 						},
 					},
 				},
-				res: &construct.Resource{ID: construct.ResourceId{Name: "test"}},
 			},
 		},
 	}
@@ -70,13 +68,79 @@ func Test_propertyVertex_evaluateResourceOperational(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			opctx := NewMockOpRuleHandler(ctrl)
 			opctx.EXPECT().HandlePropertyRule(*rule).Return(nil).Times(1)
-			err := tt.args.v.evaluateResourceOperational(tt.args.res, opctx)
+			err := tt.args.v.evaluateResourceOperational(opctx)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
 			ctrl.Finish()
+		})
+	}
+}
+
+func Test_propertyVertex_shouldEvalEdges(t *testing.T) {
+	ref := construct.PropertyRef{
+		Property: "test",
+		Resource: construct.ResourceId{Name: "test"},
+	}
+	tests := []struct {
+		name        string
+		v           *propertyVertex
+		constraints []constraints.ResourceConstraint
+		want        bool
+	}{
+		{
+			name: "no constraints always evals",
+			v: &propertyVertex{
+				Ref:      ref,
+				Template: &properties.StringProperty{},
+			},
+			want: true,
+		},
+		{
+			name: "collection always evals",
+			v: &propertyVertex{
+				Ref:      ref,
+				Template: &properties.ListProperty{},
+			},
+			want: true,
+		},
+		{
+			name: "no matching constraints evals",
+			v: &propertyVertex{
+				Ref:      ref,
+				Template: &properties.StringProperty{},
+			},
+			constraints: []constraints.ResourceConstraint{
+				{
+					Operator: constraints.EqualsConstraintOperator,
+					Target:   construct.ResourceId{Name: "not_test"},
+					Property: "test",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "matching constraint does not eval",
+			v: &propertyVertex{
+				Ref:      ref,
+				Template: &properties.StringProperty{},
+			},
+			constraints: []constraints.ResourceConstraint{
+				{
+					Operator: constraints.EqualsConstraintOperator,
+					Target:   construct.ResourceId{Name: "test"},
+					Property: "test",
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.v.shouldEvalEdges(tt.constraints)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -139,10 +203,11 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 func Test_propertyVertex_Dependencies(t *testing.T) {
 
 	tests := []struct {
-		name    string
-		v       *propertyVertex
-		mocks   func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath)
-		wantErr bool
+		name        string
+		v           *propertyVertex
+		constraints constraints.Constraints
+		mocks       func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath)
+		wantErr     bool
 	}{
 		{
 			name: "property vertex with template",
@@ -199,6 +264,39 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				}).Return(nil)
 			},
 		},
+		{
+			name: "property vertex with edge rules not considered due to constraints",
+			v: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				Template: &properties.StringProperty{},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						{
+							If: "testE",
+						},
+					},
+				},
+			},
+			constraints: constraints.Constraints{
+				Resources: []constraints.ResourceConstraint{
+					{
+						Operator: constraints.EqualsConstraintOperator,
+						Target:   construct.ResourceId{Name: "test"},
+						Property: "test",
+					},
+				},
+			},
+			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
+				// expect no calls to ExecuteOpRule due to shouldEvalEdges returning false
+				dcap.EXPECT().ExecuteOpRule(gomock.Any(), gomock.Any()).Times(0)
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -213,6 +311,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			}
 			tt.mocks(dcap, resource, path)
 			testSol := enginetesting.NewTestSolution()
+			testSol.Constr = tt.constraints
 			testSol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
 			err = testSol.RawView().AddVertex(resource)
 			if !assert.NoError(t, err) {

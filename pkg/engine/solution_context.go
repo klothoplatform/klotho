@@ -28,7 +28,7 @@ type (
 	}
 )
 
-func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string) *solutionContext {
+func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
 	ctx := &solutionContext{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
@@ -39,6 +39,7 @@ func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string) *solution
 		Deployment:      construct.NewAcyclicGraph(),
 		decisions:       &solution_context.MemoryRecord{},
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
+		constraints:     constraints,
 		globalTag:       globalTag,
 	}
 	ctx.propertyEval = property_eval.NewEvaluator(ctx)

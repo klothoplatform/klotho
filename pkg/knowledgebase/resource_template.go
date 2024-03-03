@@ -435,3 +435,13 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 	}
 	return errs
 }
+
+func IsCollectionProperty(p Property) bool {
+	if _, ok := p.(CollectionProperty); ok {
+		return true
+	}
+	if _, ok := p.(MapProperty); ok {
+		return true
+	}
+	return false
+}
