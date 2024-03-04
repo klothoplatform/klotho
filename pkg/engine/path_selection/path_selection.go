@@ -119,12 +119,10 @@ func BuildPathSelectionGraph(
 				return nil, err
 			}
 			if !prevRes.IsZero() {
-				edgeTemplate := kb.GetEdgeTemplate(prevRes, id)
-				if edgeTemplate != nil && !edgeTemplate.DirectEdgeOnly {
-					err := tempGraph.AddEdge(prevRes, id, graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, classification, kb)))
-					if err != nil {
-						return nil, err
-					}
+				err := tempGraph.AddEdge(prevRes, id,
+					graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, classification, kb)))
+				if err != nil {
+					return nil, err
 				}
 			}
 			prevRes = id
