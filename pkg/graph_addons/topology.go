@@ -1,31 +1,41 @@
 package graph_addons
 
 import (
-	"fmt"
 	"sort"
 
 	"github.com/dominikbraun/graph"
 )
 
-// TopologicalSort provides a stable topological ordering of resource IDs.
-// This is a modified implementation of graph.StableTopologicalSort with the primary difference
-// being any uses of the internal function `enqueueArbitrary`.
+// TopologicalSort provides a stable topological ordering.
 func TopologicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bool) ([]K, error) {
-	return toplogicalSort(g, less, false)
+	predecessors, err := g.PredecessorMap()
+	if err != nil {
+		return nil, err
+	}
+	return topologicalSort(predecessors, less)
 }
 
-func toplogicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bool, invertLess bool) ([]K, error) {
-	if !g.Traits().IsDirected {
-		return nil, fmt.Errorf("topological sort cannot be computed on undirected graph")
-	}
-
-	predecessorMap, err := g.PredecessorMap()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get predecessor map: %w", err)
-	}
-
-	if len(predecessorMap) == 0 {
+// topologicalSort performs a topological sort on a graph with the given dependencies.
+// Whether the sort is regular or reverse is determined by whether the `deps` map is a PredecessorMap or AdjacencyMap.
+// The `less` function is used to determine the order of vertices in the result.
+// This is a modified implementation of graph.StableTopologicalSort with the primary difference
+// being any uses of the internal function `enqueueArbitrary`.
+func topologicalSort[K comparable](deps map[K]map[K]graph.Edge[K], less func(K, K) bool) ([]K, error) {
+	if len(deps) == 0 {
 		return nil, nil
+	}
+
+	reverseSort := false
+	// PredecessorMap (for regular topological sort) returns a map source -> targets, so check the first edge to see
+	// if the source matches the top map's key. AdjacencyMap (for reverse topological sort) returns a map
+	// target -> sources, so if the edge's source doesn't match the top map's key, we need to invert the less function.
+	for source, ts := range deps {
+		for _, edge := range ts {
+			if edge.Source != source {
+				reverseSort = true
+			}
+			break
+		}
 	}
 
 	queue := make([]K, 0)
@@ -37,56 +47,47 @@ func toplogicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bo
 		}
 	}
 
-	for vertex, predecessors := range predecessorMap {
-		if len(predecessors) == 0 {
+	for vertex, vdeps := range deps {
+		if len(vdeps) == 0 {
 			enqueue(vertex)
 		}
 	}
 
 	// enqueueArbitrary enqueues an arbitray but deterministic id from the remaining unvisited ids.
-	// It should only be used if len(queue) == 0 && len(predecessorMap) > 0
+	// It should only be used if len(queue) == 0 && len(deps) > 0
 	enqueueArbitrary := func() {
-		remainingIds := make([]K, 0, len(predecessorMap))
-		for vertex := range predecessorMap {
-			remainingIds = append(remainingIds, vertex)
+		remaining := make([]K, 0, len(deps))
+		for vertex := range deps {
+			remaining = append(remaining, vertex)
 		}
-		sort.Slice(remainingIds, func(i, j int) bool {
-			// Pick an arbitrary vertex to start the queue based first on the number of remaining predecessors
-			iPcount := len(predecessorMap[remainingIds[i]])
-			jPcount := len(predecessorMap[remainingIds[j]])
+		sort.Slice(remaining, func(i, j int) bool {
+			// Pick an arbitrary vertex to start the queue based first on the number of remaining deps
+			iPcount := len(deps[remaining[i]])
+			jPcount := len(deps[remaining[j]])
 			if iPcount != jPcount {
-				if invertLess {
-					return iPcount >= jPcount
+				if reverseSort {
+					return jPcount < iPcount
 				} else {
 					return iPcount < jPcount
 				}
 			}
 
-			// Tie-break on the ID contents themselves
-			if invertLess {
-				return !less(remainingIds[i], remainingIds[j])
-			}
-			return less(remainingIds[i], remainingIds[j])
+			// Tie-break using the less function on contents themselves
+			return less(remaining[i], remaining[j])
 		})
-		enqueue(remainingIds[0])
+		enqueue(remaining[0])
 	}
 
 	if len(queue) == 0 {
 		enqueueArbitrary()
 	}
 
-	order := make([]K, 0, len(predecessorMap))
+	order := make([]K, 0, len(deps))
 	visited := make(map[K]struct{})
 
-	if invertLess {
-		sort.Slice(queue, func(i, j int) bool {
-			return !less(queue[i], queue[j])
-		})
-	} else {
-		sort.Slice(queue, func(i, j int) bool {
-			return less(queue[i], queue[j])
-		})
-	}
+	sort.Slice(queue, func(i, j int) bool {
+		return less(queue[i], queue[j])
+	})
 
 	for len(queue) > 0 {
 		currentVertex := queue[0]
@@ -98,11 +99,11 @@ func toplogicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bo
 
 		order = append(order, currentVertex)
 		visited[currentVertex] = struct{}{}
-		delete(predecessorMap, currentVertex)
+		delete(deps, currentVertex)
 
 		frontier := make([]K, 0)
 
-		for vertex, predecessors := range predecessorMap {
+		for vertex, predecessors := range deps {
 			delete(predecessors, currentVertex)
 
 			if len(predecessors) != 0 {
@@ -116,19 +117,13 @@ func toplogicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bo
 			frontier = append(frontier, vertex)
 		}
 
-		if invertLess {
-			sort.Slice(frontier, func(i, j int) bool {
-				return !less(frontier[i], frontier[j])
-			})
-		} else {
-			sort.Slice(frontier, func(i, j int) bool {
-				return less(frontier[i], frontier[j])
-			})
-		}
+		sort.Slice(frontier, func(i, j int) bool {
+			return less(frontier[i], frontier[j])
+		})
 
 		enqueue(frontier...)
 
-		if len(queue) == 0 && len(predecessorMap) > 0 {
+		if len(queue) == 0 && len(deps) > 0 {
 			enqueueArbitrary()
 		}
 	}
