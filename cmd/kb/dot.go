@@ -13,6 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/dot"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 )
 
 func dotAttributes(tmpl *knowledgebase.ResourceTemplate, props graph.VertexProperties) map[string]string {
@@ -27,7 +28,11 @@ func dotAttributes(tmpl *knowledgebase.ResourceTemplate, props graph.VertexPrope
 	return a
 }
 
-func dotEdgeAttributes(e *knowledgebase.EdgeTemplate, props graph.EdgeProperties) map[string]string {
+func dotEdgeAttributes(
+	kb knowledgebase.TemplateKB,
+	e *knowledgebase.EdgeTemplate,
+	props graph.EdgeProperties,
+) map[string]string {
 	a := make(map[string]string)
 	for k, v := range props.Attributes {
 		a[k] = v
@@ -36,10 +41,67 @@ func dotEdgeAttributes(e *knowledgebase.EdgeTemplate, props graph.EdgeProperties
 		a["style"] = "dashed"
 	}
 	a["edgetooltip"] = fmt.Sprintf("%s -> %s", e.Source, e.Target)
+
+	if source, err := kb.GetResourceTemplate(e.Source); err == nil {
+		var isTarget func(ps knowledgebase.Properties) knowledgebase.Property
+		isTarget = func(ps knowledgebase.Properties) knowledgebase.Property {
+			for _, p := range ps {
+				name := p.Details().Name
+				if name == "" {
+					fmt.Print()
+				}
+				switch inst := p.(type) {
+				case *properties.ResourceProperty:
+					if inst.AllowedTypes.MatchesAny(e.Target) {
+						return p
+					}
+
+				case knowledgebase.CollectionProperty:
+					if ip := inst.Item(); ip != nil {
+						ret := isTarget(knowledgebase.Properties{"item": ip})
+						if ret != nil {
+							return ret
+						}
+					}
+
+				case knowledgebase.MapProperty:
+					mapProps := make(knowledgebase.Properties)
+					if kp := inst.Key(); kp != nil {
+						mapProps["key"] = kp
+					}
+					if vp := inst.Value(); vp != nil {
+						mapProps["value"] = vp
+					}
+					ret := isTarget(mapProps)
+					if ret != nil {
+						return ret
+					}
+				}
+				return isTarget(p.SubProperties())
+			}
+			return nil
+		}
+		prop := isTarget(source.Properties)
+		if prop != nil {
+			if label, ok := a["label"]; ok {
+				a["label"] = label + "\n" + prop.Details().Path
+			} else {
+				a["label"] = prop.Details().Path
+			}
+		}
+	}
 	return a
 }
 
-func KbToDot(g graph.Graph[string, *knowledgebase.ResourceTemplate], out io.Writer) error {
+func KbToDot(kb knowledgebase.TemplateKB, out io.Writer) error {
+	hasGraph, ok := kb.(interface {
+		Graph() graph.Graph[string, *knowledgebase.ResourceTemplate]
+	})
+	if !ok {
+		return fmt.Errorf("knowledgebase does not have a graph")
+	}
+	g := hasGraph.Graph()
+
 	ids, err := graph_addons.TopologicalSort(g, func(a, b string) bool {
 		return a < b
 	})
@@ -93,7 +155,7 @@ func KbToDot(g graph.Graph[string, *knowledgebase.ResourceTemplate], out io.Writ
 			errs = errors.Join(errs, fmt.Errorf("edge %q -> %q has no EdgeTemplate", e.Source, e.Target))
 			continue
 		}
-		printf("  %q -> %q%s\n", e.Source, e.Target, dot.AttributesToString(dotEdgeAttributes(et, e.Properties)))
+		printf("  %q -> %q%s\n", e.Source, e.Target, dot.AttributesToString(dotEdgeAttributes(kb, et, e.Properties)))
 	}
 	printf("}\n")
 	return errs
@@ -109,16 +171,8 @@ func KbToSVG(kb knowledgebase.TemplateKB, prefix string) error {
 	}
 	defer f.Close()
 
-	hasGraph, ok := kb.(interface {
-		Graph() graph.Graph[string, *knowledgebase.ResourceTemplate]
-	})
-	if !ok {
-		return fmt.Errorf("knowledgebase does not have a graph")
-	}
-	g := hasGraph.Graph()
-
 	dotContent := new(bytes.Buffer)
-	err = KbToDot(g, io.MultiWriter(f, dotContent))
+	err = KbToDot(kb, io.MultiWriter(f, dotContent))
 	if err != nil {
 		return fmt.Errorf("could not render graph to file %s: %v", prefix+".gv", err)
 	}
