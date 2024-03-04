@@ -2,8 +2,24 @@ package graph_addons
 
 import "github.com/dominikbraun/graph"
 
+// ReverseLess is a helper function that returns a new less function that reverses the order of the original less function.
+func ReverseLess[K any](less func(K, K) bool) func(K, K) bool {
+	return func(a, b K) bool {
+		return less(b, a)
+	}
+}
+
+// TopologicalSort provides a stable topological ordering. Note, the following is true:
+//
+//	ReverseTopologicalSort(g, ReverseLess(less)) == reverse(TopologicalSort(g, less))
+//
+// Meaning, the reverse topological sort of a graph under a reversed less is the reverse of the topological sort.
 func ReverseTopologicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bool) ([]K, error) {
-	return toplogicalSort(g, less, true)
+	adjacencyMap, err := g.AdjacencyMap()
+	if err != nil {
+		return nil, err
+	}
+	return topologicalSort(adjacencyMap, less)
 }
 
 func ReverseGraph[K comparable, T any](g graph.Graph[K, T]) (graph.Graph[K, T], error) {
