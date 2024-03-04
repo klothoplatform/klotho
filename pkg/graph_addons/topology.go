@@ -25,19 +25,6 @@ func topologicalSort[K comparable](deps map[K]map[K]graph.Edge[K], less func(K, 
 		return nil, nil
 	}
 
-	reverseSort := false
-	// PredecessorMap (for regular topological sort) returns a map source -> targets, so check the first edge to see
-	// if the source matches the top map's key. AdjacencyMap (for reverse topological sort) returns a map
-	// target -> sources, so if the edge's source doesn't match the top map's key, we need to invert the less function.
-	for source, ts := range deps {
-		for _, edge := range ts {
-			if edge.Source != source {
-				reverseSort = true
-			}
-			break
-		}
-	}
-
 	queue := make([]K, 0)
 	queued := make(map[K]struct{})
 	enqueue := func(vs ...K) {
@@ -61,15 +48,12 @@ func topologicalSort[K comparable](deps map[K]map[K]graph.Edge[K], less func(K, 
 			remaining = append(remaining, vertex)
 		}
 		sort.Slice(remaining, func(i, j int) bool {
-			// Pick an arbitrary vertex to start the queue based first on the number of remaining deps
-			iPcount := len(deps[remaining[i]])
-			jPcount := len(deps[remaining[j]])
-			if iPcount != jPcount {
-				if reverseSort {
-					return jPcount < iPcount
-				} else {
-					return iPcount < jPcount
-				}
+			// Start based first on the number of remaining deps, prioritizing vertices with fewer deps
+			// to make it most likely to break any cycles, reducing the amount of arbitrary choices.
+			ic := len(deps[remaining[i]])
+			jc := len(deps[remaining[j]])
+			if ic != jc {
+				return ic < jc
 			}
 
 			// Tie-break using the less function on contents themselves

@@ -9,11 +9,7 @@ func ReverseLess[K any](less func(K, K) bool) func(K, K) bool {
 	}
 }
 
-// TopologicalSort provides a stable topological ordering. Note, the following is true:
-//
-//	ReverseTopologicalSort(g, ReverseLess(less)) == reverse(TopologicalSort(g, less))
-//
-// Meaning, the reverse topological sort of a graph under a reversed less is the reverse of the topological sort.
+// TopologicalSort provides a stable topological ordering.
 func ReverseTopologicalSort[K comparable, T any](g graph.Graph[K, T], less func(K, K) bool) ([]K, error) {
 	adjacencyMap, err := g.AdjacencyMap()
 	if err != nil {
