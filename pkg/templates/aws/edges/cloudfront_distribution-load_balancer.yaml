@@ -37,12 +37,10 @@ operational_rules:
             {{ end }}
             {{ range $i, $route := $routes }}
               {{ $methods := makeSlice }}
-              {{ range $i, $rule := $rules }}
-                {{ range $j, $condition := (fieldValue "Conditions" $rule) }}
-                  {{- if (sliceContains $condition.PathPattern.Values $route) }}
-                    {{ range $j, $method := $condition.HttpRequestMethod.Values }}
-                      {{ $methods = appendSlice $methods $method }}
-                    {{- end }}
+              {{ range $j, $rule := $rules }}
+                {{ range $k, $condition := (fieldValue "Conditions" $rule) }}
+                  {{ range $l, $method := $condition.HttpRequestMethod.Values }}
+                    {{ $methods = appendSlice $methods $method }}
                   {{- end }}
                 {{- end }}
               {{ end }}
