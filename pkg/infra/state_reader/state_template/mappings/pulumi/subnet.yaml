@@ -1,0 +1,11 @@
+qualified_type_name: aws:subnet
+iac_qualified_type: aws:ec2/subnet:Subnet
+
+property_mappings:
+  vpcId: Vpc#Id
+  availabilityZone: AvailabilityZone#Name
+  cidrBlock: CidrBlock
+  mapPublicIpOnLaunch: MapPublicIpOnLaunch
+  tags: Tags
+  id: Id
+  arn: Arn

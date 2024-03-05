@@ -16,3 +16,7 @@ function properties(
         Name: object.apply((o) => o.name),
     }
 }
+
+function importResource(args: Args): pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>> {
+    return pulumi.output(aws.getRegion({}))
+}

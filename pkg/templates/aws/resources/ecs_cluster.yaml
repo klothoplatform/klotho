@@ -4,6 +4,17 @@ display_name: ECS Cluster
 properties:
   aws:tags:
     type: model
+  Arn:
+    type: string
+    description: The Amazon Resource Name (ARN) that identifies the cluster.
+    deploy_time: true
+    configuration_disabled: true
+  Id:
+    type: string
+    description: The unique identifier for the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 classification:
   is:

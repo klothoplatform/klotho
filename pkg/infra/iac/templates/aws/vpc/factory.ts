@@ -7,6 +7,7 @@ interface Args {
     EnableDnsHostnames: boolean
     EnableDnsSupport: boolean
     Arn?: string
+    Id?: string
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -30,5 +31,5 @@ function properties(object: aws.ec2.Vpc, args: Args) {
 }
 
 function importResource(args: Args): aws.ec2.Vpc {
-    return aws.ec2.Vpc.get(args.Name, args.Arn)
+    return aws.ec2.Vpc.get(args.Name, args.Id)
 }

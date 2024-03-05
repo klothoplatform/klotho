@@ -1,0 +1,5 @@
+qualified_type_name: aws:region
+iac_qualified_type: pulumi:providers:aws
+
+property_mappings:
+  region: Name

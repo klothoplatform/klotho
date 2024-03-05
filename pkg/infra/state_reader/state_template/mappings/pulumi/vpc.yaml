@@ -1,0 +1,10 @@
+qualified_type_name: aws:vpc
+iac_qualified_type: aws:ec2/vpc:Vpc
+
+property_mappings:
+  cidrBlock: CidrBlock
+  enableDnsSupport: EnableDnsSupport
+  enableDnsHostnames: EnableDnsHostnames
+  tags: Tags
+  id: Id
+  arn: Arn

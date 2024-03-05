@@ -1,0 +1,7 @@
+qualified_type_name: aws:ecs_cluster
+iac_qualified_type: aws:ecs/cluster:Cluster
+
+property_mappings:
+  arn: Arn
+  name: Id
+  tags: Tags
