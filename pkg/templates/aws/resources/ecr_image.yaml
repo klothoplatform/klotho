@@ -32,7 +32,11 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-
+  Platform:
+    type: string
+    description: The platform to use for the Docker image (e.g. linux/amd64, linux/arm64, windows/amd64)
+    default_value: linux/amd64
+    min_length: 3
 classification:
   is:
     - image

@@ -35,6 +35,7 @@ resources:
     aws:ecr_image:lambda_test_app-image:
         Context: .
         Dockerfile: lambda_test_app-image.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:lambda_test_app-image-ecr_repo
     aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs:
         FileSystem: aws:efs_file_system:test-efs-fs

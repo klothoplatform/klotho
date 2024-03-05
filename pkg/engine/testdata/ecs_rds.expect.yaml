@@ -76,6 +76,7 @@ resources:
     aws:ecr_image:ecs_service_0-ecs_service_0:
         Context: .
         Dockerfile: ecs_service_0-ecs_service_0.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo
     aws:iam_role:ecs_service_0-execution-role:
         AssumeRolePolicyDoc:

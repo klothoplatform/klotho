@@ -29,6 +29,7 @@ resources:
     aws:ecr_image:lambda_function_0-image:
         Context: .
         Dockerfile: lambda_function_0-image.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:ecr_repo-0
     aws:iam_role:lambda_function_0-ExecutionRole:
         AssumeRolePolicyDoc:
@@ -67,6 +68,7 @@ resources:
     aws:ecr_image:lambda_function_2-image:
         Context: .
         Dockerfile: lambda_function_2-image.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:lambda_function_2-image-ecr_repo
     aws:iam_role:lambda_function_2-ExecutionRole:
         AssumeRolePolicyDoc:

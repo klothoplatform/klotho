@@ -253,6 +253,7 @@ resources:
     aws:ecr_image:pod2-ecr_image:
         Context: .
         Dockerfile: pod2-ecr_image.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:pod2-ecr_image-ecr_repo
     aws:eks_node_group:eks_node_group-0:
         AmiType: AL2_x86_64
