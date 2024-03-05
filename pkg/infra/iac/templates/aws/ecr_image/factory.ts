@@ -10,6 +10,7 @@ interface Args {
     Context: string
     Dockerfile: string
     BaseImage: string
+    Platform: string
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
@@ -19,7 +20,9 @@ function create(args: Args): docker.Image {
         //TMPL {{- if .BaseImage }}
         const pullBaseImage = new command.local.Command(
             `${args.Name}-pull-base-image-${Date.now()}`,
-            { create: pulumi.interpolate`docker pull ${args.BaseImage}` }
+            {
+                create: pulumi.interpolate`docker pull ${args.BaseImage} --platform ${args.Platform}`,
+            }
         )
         //TMPL {{- end }}
         const base = new docker.Image(
@@ -28,7 +31,7 @@ function create(args: Args): docker.Image {
                 build: {
                     context: args.Context,
                     dockerfile: args.Dockerfile,
-                    platform: 'linux/amd64',
+                    platform: args.Platform,
                 },
                 skipPush: true,
                 imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:{{ if .Tag }}${args.Tag}-{{ end }}base`,
@@ -52,7 +55,7 @@ function create(args: Args): docker.Image {
                 build: {
                     context: args.Context,
                     dockerfile: args.Dockerfile,
-                    platform: 'linux/amd64',
+                    platform: args.Platform,
                 },
                 registry: aws.ecr
                     .getAuthorizationTokenOutput(

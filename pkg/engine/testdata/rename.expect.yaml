@@ -14,6 +14,7 @@ resources:
     aws:ecr_image:lambda_test_app-image:
         Context: .
         Dockerfile: lambda_test_app-image.Dockerfile
+        Platform: linux/amd64
         Repo: aws:ecr_repo:ecr_repo-0
     aws:iam_role:lambda_test_app-ExecutionRole:
         AssumeRolePolicyDoc:
