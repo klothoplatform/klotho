@@ -1,12 +1,5 @@
 provider: aws
 resources:
-  vpc/vpc:
-    children:
-        - aws:security_group:vpc:lambda_function-security_group
-        - aws:subnet:vpc:subnet1
-        - aws:subnet:vpc:subnet2
-    tag: parent
-
   lambda_function/lambda_function:
     children:
         - aws:ecr_image:lambda_function-image
@@ -14,4 +7,9 @@ resources:
         - aws:iam_role:lambda_function-ExecutionRole
     parent: vpc/vpc
     tag: big
+
+  vpc/vpc:
+    children:
+        - aws:security_group:vpc:lambda_function-security_group
+    tag: parent
 

@@ -110,13 +110,13 @@
   {
     "error": {
       "chain": [
-        "required property Arn is not set on resource aws:vpc:vpc"
+        "required property Id is not set on resource aws:vpc:vpc"
       ]
     },
     "error_code": "config_invalid",
-    "property": "Arn",
+    "property": "Id",
     "resource": "aws:vpc:vpc",
-    "validation_error": "required property Arn is not set on resource aws:vpc:vpc",
+    "validation_error": "required property Id is not set on resource aws:vpc:vpc",
     "value": null
   }
 ]

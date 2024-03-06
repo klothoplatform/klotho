@@ -1,5 +1,8 @@
 provider: aws
 resources:
+  dynamodb_table/dynamodb_table_3:
+    tag: big
+
   lambda_function/lambda_function_0:
     children:
         - aws:ecr_image:lambda_function_0-image
@@ -15,9 +18,6 @@ resources:
         - aws:api_resource:rest_api_1:api_resource-0
         - aws:api_stage:rest_api_1:api_stage-0
     tag: parent
-
-  dynamodb_table/dynamodb_table_3:
-    tag: big
 
   aws:api_integration:rest_api_1/rest_api_1_integration_0:
     parent: rest_api/rest_api_1

@@ -1,5 +1,7 @@
 provider: aws
 resources:
+  ecs_cluster/ecs_cluster-0:
+
   rest_api/rest_api_0:
 
   aws:api_resource:rest_api_0/api_resource-0:
@@ -19,8 +21,6 @@ resources:
   aws:api_deployment:rest_api_0/api_deployment-0 -> aws:api_integration:rest_api_0/rest_api_0_integration_0:
   aws:api_deployment:rest_api_0/api_deployment-0 -> aws:api_method:rest_api_0/rest_api_0_integration_0_method:
   aws:api_deployment:rest_api_0/api_deployment-0 -> rest_api/rest_api_0:
-  ecs_cluster/ecs_cluster-0:
-
   aws:api_stage:rest_api_0/api_stage-0:
 
   aws:api_stage:rest_api_0/api_stage-0 -> aws:api_deployment:rest_api_0/api_deployment-0:

@@ -1,5 +1,13 @@
 provider: aws
 resources:
+  lambda_function/lambda_function:
+    children:
+        - aws:ecr_image:lambda_function-image
+        - aws:ecr_repo:lambda_function-image-ecr_repo
+        - aws:iam_role:lambda_function-ExecutionRole
+    parent: vpc/vpc
+    tag: big
+
   vpc/vpc:
     children:
         - aws:internet_gateway:vpc:internet_gateway-0
@@ -13,12 +21,4 @@ resources:
         - aws:subnet:vpc:subnet-2
         - aws:subnet:vpc:subnet-3
     tag: parent
-
-  lambda_function/lambda_function:
-    children:
-        - aws:ecr_image:lambda_function-image
-        - aws:ecr_repo:lambda_function-image-ecr_repo
-        - aws:iam_role:lambda_function-ExecutionRole
-    parent: vpc/vpc
-    tag: big
 

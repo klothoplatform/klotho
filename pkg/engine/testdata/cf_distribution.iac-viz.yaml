@@ -1,22 +1,22 @@
 provider: aws
 resources:
+  cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
+
   rest_api/rest_api_1:
+
+  s3_bucket/s3-bucket-3:
 
   aws:api_deployment:rest_api_1/api_deployment-0:
 
   aws:api_deployment:rest_api_1/api_deployment-0 -> rest_api/rest_api_1:
-  cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
-
-  s3_bucket/s3-bucket-3:
-
-  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1:
-
-  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1 -> aws:api_deployment:rest_api_1/api_deployment-0:
-  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1 -> rest_api/rest_api_1:
   s3_bucket_policy/s3_bucket_policy-0:
 
   s3_bucket_policy/s3_bucket_policy-0 -> cloudfront_origin_access_identity/cloudfront_origin_access_identity-0:
   s3_bucket_policy/s3_bucket_policy-0 -> s3_bucket/s3-bucket-3:
+  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1:
+
+  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1 -> aws:api_deployment:rest_api_1/api_deployment-0:
+  aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1 -> rest_api/rest_api_1:
   cloudfront_distribution/cloudfront_distribution_2:
 
   cloudfront_distribution/cloudfront_distribution_2 -> aws:api_stage:rest_api_1/cloudfront_distribution_2-rest_api_1:
