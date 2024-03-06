@@ -32,6 +32,9 @@ func NewLSP(ctx context.Context, lspCmd string, cmdStderr io.Writer) (*LSP, erro
 	log := zap.L().Named(fmt.Sprintf("lsp/%s", lspCmd))
 
 	cmd := exec.CommandContext(ctx, lspCmd, "-vv")
+	if cmd.Err != nil {
+		return nil, fmt.Errorf("failed to create command: %w", cmd.Err)
+	}
 	send, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)

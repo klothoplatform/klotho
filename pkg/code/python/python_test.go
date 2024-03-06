@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -103,6 +104,9 @@ func (tc testCase) TestConstraints(t *testing.T, input []byte) {
 		"test.py": &fstest.MapFile{Data: input},
 	}
 	actual, err := FindBoto3Constraints(context.Background(), files)
+	if errors.Is(err, exec.ErrNotFound) {
+		t.Skip("pylsp not found")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
