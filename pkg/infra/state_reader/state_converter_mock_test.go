@@ -10,6 +10,7 @@
 package statereader
 
 import (
+	io "io"
 	reflect "reflect"
 
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
@@ -40,7 +41,7 @@ func (m *MockStateConverter) EXPECT() *MockStateConverterMockRecorder {
 }
 
 // ConvertState mocks base method.
-func (m *MockStateConverter) ConvertState(arg0 []byte) (stateconverter.State, error) {
+func (m *MockStateConverter) ConvertState(arg0 io.Reader) (stateconverter.State, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConvertState", arg0)
 	ret0, _ := ret[0].(stateconverter.State)

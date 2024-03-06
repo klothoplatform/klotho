@@ -78,12 +78,12 @@ func AddIacCli(root *cobra.Command) error {
 
 	getLiveStateCmd := &cobra.Command{
 		Use:   "GetLiveState",
-		Short: "Get the live state for a given graph and state file",
+		Short: "Reads the state file from the provider specified and translates it to Klotho Engine state graph.",
 		RunE:  GetLiveState,
 	}
 	flags = getLiveStateCmd.Flags()
 	flags.StringVarP(&getImportConstraintsCfg.provider, "provider", "p", "pulumi", "Provider to use")
-	flags.StringVarP(&getImportConstraintsCfg.inputGraph, "input-graph", "i", "", "Input graph to use")
+	flags.StringVarP(&getImportConstraintsCfg.inputGraph, "input-graph", "i", "", "Input graph to use to provide additional context to the state file.")
 	flags.StringVarP(&getImportConstraintsCfg.stateFile, "state-file", "s", "", "State file to use")
 	root.AddCommand(getLiveStateCmd)
 

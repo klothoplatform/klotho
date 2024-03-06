@@ -1,6 +1,7 @@
 package statereader
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -34,7 +35,8 @@ func Test_stateReader_ReadState(t *testing.T) {
 				},
 			},
 			mocks: func(mockConverter *MockStateConverter, mockKB *enginetesting.MockKB) {
-				mockConverter.EXPECT().ConvertState([]byte(`fake state`)).Return(stateconverter.State{
+				bytesReader := bytes.NewReader([]byte(`fake state`))
+				mockConverter.EXPECT().ConvertState(bytesReader).Return(stateconverter.State{
 					construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"}: construct.Properties{
 						"Arn": "arn",
 						"Id":  "id",

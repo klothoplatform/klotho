@@ -1,6 +1,8 @@
 package statereader
 
 import (
+	"bytes"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
 	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
@@ -27,7 +29,8 @@ func NewPulumiReader(templates map[string]statetemplate.StateTemplate, kb knowle
 
 func (p stateReader) ReadState(state []byte, graph construct.Graph) (construct.Graph, error) {
 	returnGraph := construct.NewGraph()
-	internalState, err := p.converter.ConvertState(state)
+	stateReader := bytes.NewReader(state)
+	internalState, err := p.converter.ConvertState(stateReader)
 	if err != nil {
 		return nil, err
 	}

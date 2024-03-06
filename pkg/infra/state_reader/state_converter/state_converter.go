@@ -1,6 +1,8 @@
 package stateconverter
 
 import (
+	"io"
+
 	"github.com/iancoleman/strcase"
 	"github.com/klothoplatform/klotho/pkg/construct"
 	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
@@ -13,7 +15,7 @@ type (
 
 	StateConverter interface {
 		// ConvertState converts the state to the Klotho state
-		ConvertState([]byte) (State, error)
+		ConvertState(io.Reader) (State, error)
 	}
 )
 

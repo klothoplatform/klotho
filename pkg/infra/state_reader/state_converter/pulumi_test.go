@@ -1,6 +1,7 @@
 package stateconverter
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -66,7 +67,8 @@ func Test_pulumiStateConverter_ConvertState(t *testing.T) {
 			p := pulumiStateConverter{
 				templates: tt.templates,
 			}
-			got, err := p.ConvertState(tt.data)
+			reader := bytes.NewReader(tt.data)
+			got, err := p.ConvertState(reader)
 			if !assert.NoError(err) {
 				return
 			}
@@ -77,11 +79,10 @@ func Test_pulumiStateConverter_ConvertState(t *testing.T) {
 
 func Test_pulumiStateConverter_convertResource(t *testing.T) {
 	tests := []struct {
-		name       string
-		resource   Resource
-		template   statetemplate.StateTemplate
-		id         construct.ResourceId
-		properties construct.Properties
+		name     string
+		resource Resource
+		template statetemplate.StateTemplate
+		want     construct.Resource
 	}{
 		{
 			name: "converts the state to the internal model",
@@ -101,10 +102,12 @@ func Test_pulumiStateConverter_convertResource(t *testing.T) {
 					"id":  "id",
 				},
 			},
-			id: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"},
-			properties: construct.Properties{
-				"Arn": "arn",
-				"Id":  "id",
+			want: construct.Resource{
+				ID: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"},
+				Properties: construct.Properties{
+					"Arn": "arn",
+					"Id":  "id",
+				},
 			},
 		},
 		{
@@ -127,10 +130,12 @@ func Test_pulumiStateConverter_convertResource(t *testing.T) {
 					"vpcId": "vpc-1",
 				},
 			},
-			id: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"},
-			properties: construct.Properties{
-				"Arn": "arn",
-				"Id":  "id",
+			want: construct.Resource{
+				ID: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"},
+				Properties: construct.Properties{
+					"Arn": "arn",
+					"Id":  "id",
+				},
 			},
 		},
 	}
@@ -138,12 +143,11 @@ func Test_pulumiStateConverter_convertResource(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			p := pulumiStateConverter{}
-			id, props, err := p.convertResource(tt.resource, tt.template)
+			got, err := p.convertResource(tt.resource, tt.template)
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Equal(tt.id, id)
-			assert.Equal(tt.properties, props)
+			assert.Equal(tt.want, *got)
 		})
 	}
 }

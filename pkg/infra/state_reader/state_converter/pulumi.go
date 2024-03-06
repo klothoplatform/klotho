@@ -3,6 +3,7 @@ package stateconverter
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -23,9 +24,10 @@ type (
 	}
 )
 
-func (p pulumiStateConverter) ConvertState(data []byte) (State, error) {
+func (p pulumiStateConverter) ConvertState(reader io.Reader) (State, error) {
 	var pulumiState PulumiState
-	err := json.Unmarshal(data, &pulumiState)
+	dec := json.NewDecoder(reader)
+	err := dec.Decode(&pulumiState)
 	if err != nil {
 		return nil, err
 	}
@@ -35,23 +37,21 @@ func (p pulumiStateConverter) ConvertState(data []byte) (State, error) {
 	for _, resource := range pulumiState {
 		mapping, ok := p.templates[resource.Type]
 		if !ok {
-			zap.S().Warnf("no mapping found for resource type %s", resource.Type)
-			// errs = errors.Join(errs, fmt.Errorf("no mapping found for resource type %s", resource.Type))
+			zap.S().Debugf("no mapping found for resource type %s", resource.Type)
 			continue
 		}
-		id, properties, err := p.convertResource(resource, mapping)
+		resource, err := p.convertResource(resource, mapping)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
 		}
-		internalModel[id] = properties
+		internalModel[resource.ID] = resource.Properties
 	}
 	return internalModel, errs
 }
 
 func (p pulumiStateConverter) convertResource(resource Resource, template statetemplate.StateTemplate) (
-	construct.ResourceId,
-	construct.Properties,
+	*construct.Resource,
 	error,
 ) {
 
@@ -74,5 +74,9 @@ func (p pulumiStateConverter) convertResource(resource Resource, template statet
 		}
 	}
 	// Convert the keys to camel case
-	return id, convertKeysToCamelCase(properties), nil
+	klothoResource := &construct.Resource{
+		ID:         id,
+		Properties: convertKeysToCamelCase(properties),
+	}
+	return klothoResource, nil
 }
