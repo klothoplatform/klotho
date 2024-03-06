@@ -1,8 +1,5 @@
 provider: aws
 resources:
-  s3_bucket/s3-bucket-0:
-    tag: big
-
   cloudfront_distribution/cloudfront_distribution_1:
     tag: big
 
@@ -10,4 +7,7 @@ resources:
     path:
         - aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0
         - aws:s3_bucket_policy:s3_bucket_policy-0
+
+  s3_bucket/s3-bucket-0:
+    tag: big
 

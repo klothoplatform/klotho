@@ -39,6 +39,9 @@ func topologicalSort[K comparable](deps map[K]map[K]graph.Edge[K], less func(K, 
 			enqueue(vertex)
 		}
 	}
+	sort.Slice(queue, func(i, j int) bool {
+		return less(queue[i], queue[j])
+	})
 
 	// enqueueArbitrary enqueues an arbitray but deterministic id from the remaining unvisited ids.
 	// It should only be used if len(queue) == 0 && len(deps) > 0
@@ -68,10 +71,6 @@ func topologicalSort[K comparable](deps map[K]map[K]graph.Edge[K], less func(K, 
 
 	order := make([]K, 0, len(deps))
 	visited := make(map[K]struct{})
-
-	sort.Slice(queue, func(i, j int) bool {
-		return less(queue[i], queue[j])
-	})
 
 	for len(queue) > 0 {
 		currentVertex := queue[0]

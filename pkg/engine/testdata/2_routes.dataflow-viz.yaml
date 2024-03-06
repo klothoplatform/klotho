@@ -1,33 +1,5 @@
 provider: aws
 resources:
-  lambda_function/lambda_function_0:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:lambda_function_0-image-ecr_repo
-        - aws:iam_role:lambda_function_0-ExecutionRole
-    tag: big
-
-  lambda_function/lambda_function_1:
-    children:
-        - aws:ecr_image:lambda_function_1-image
-        - aws:ecr_repo:lambda_function_1-image-ecr_repo
-        - aws:iam_role:lambda_function_1-ExecutionRole
-    tag: big
-
-  rest_api/rest_api_1:
-    children:
-        - aws:api_deployment:rest_api_1:api_deployment-0
-        - aws:api_integration:rest_api_1:integ0
-        - aws:api_integration:rest_api_1:integ1
-        - aws:api_method:rest_api_1:integ0-api_method
-        - aws:api_method:rest_api_1:integ1-api_method
-        - aws:api_resource:rest_api_1:api_resource-0
-        - aws:api_resource:rest_api_1:api_resource-1
-        - aws:api_resource:rest_api_1:lambda0
-        - aws:api_resource:rest_api_1:lambda1
-        - aws:api_stage:rest_api_1:api_stage-0
-    tag: parent
-
   aws:api_integration:rest_api_1/integ0:
     parent: rest_api/rest_api_1
     tag: big
@@ -43,4 +15,32 @@ resources:
   aws:api_integration:rest_api_1/integ1 -> lambda_function/lambda_function_1:
     path:
         - aws:lambda_permission:integ1-lambda_function_1
+
+  rest_api/rest_api_1:
+    children:
+        - aws:api_deployment:rest_api_1:api_deployment-0
+        - aws:api_integration:rest_api_1:integ0
+        - aws:api_integration:rest_api_1:integ1
+        - aws:api_method:rest_api_1:integ0-api_method
+        - aws:api_method:rest_api_1:integ1-api_method
+        - aws:api_resource:rest_api_1:api_resource-0
+        - aws:api_resource:rest_api_1:api_resource-1
+        - aws:api_resource:rest_api_1:lambda0
+        - aws:api_resource:rest_api_1:lambda1
+        - aws:api_stage:rest_api_1:api_stage-0
+    tag: parent
+
+  lambda_function/lambda_function_0:
+    children:
+        - aws:ecr_image:lambda_function_0-image
+        - aws:ecr_repo:lambda_function_0-image-ecr_repo
+        - aws:iam_role:lambda_function_0-ExecutionRole
+    tag: big
+
+  lambda_function/lambda_function_1:
+    children:
+        - aws:ecr_image:lambda_function_1-image
+        - aws:ecr_repo:lambda_function_1-image-ecr_repo
+        - aws:iam_role:lambda_function_1-ExecutionRole
+    tag: big
 

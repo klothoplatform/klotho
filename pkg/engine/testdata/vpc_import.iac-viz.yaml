@@ -1,7 +1,5 @@
 provider: aws
 resources:
-  vpc/vpc:
-
   aws:subnet:vpc/subnet1:
 
   aws:subnet:vpc/subnet1 -> vpc/vpc:
@@ -14,3 +12,5 @@ resources:
   aws:subnet:vpc/subnet4:
 
   aws:subnet:vpc/subnet4 -> vpc/vpc:
+  vpc/vpc:
+
