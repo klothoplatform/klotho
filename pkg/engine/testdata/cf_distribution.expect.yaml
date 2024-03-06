@@ -43,12 +43,18 @@ resources:
         Restrictions:
             GeoRestriction:
                 RestrictionType: none
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: cloudfront_distribution_2
         ViewerCertificate:
             CloudfrontDefaultCertificate: true
     aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1:
         Deployment: aws:api_deployment:rest_api_1:api_deployment-0
         RestApi: aws:rest_api:rest_api_1
         StageName: stage
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: cloudfront_distribution_2-rest_api_1
     aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0:
         Comment: this is needed to set up S3 polices so that the S3 bucket is not public
     aws:api_deployment:rest_api_1:api_deployment-0:
@@ -70,9 +76,15 @@ resources:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: rest_api_1
     aws:s3_bucket:s3-bucket-3:
         ForceDestroy: true
         SSEAlgorithm: AES256
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: s3-bucket-3
 edges:
     aws:cloudfront_distribution:cloudfront_distribution_2 -> aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1:
     ? aws:cloudfront_distribution:cloudfront_distribution_2 -> aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0

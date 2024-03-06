@@ -8,7 +8,7 @@ interface Args {
     Priority: number
     Conditions: []
     Actions: TemplateWrapper<inputs.lb.ListenerRuleAction[]>
-    Tags?: ModelCaseWrapper<Record<string, string>>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols

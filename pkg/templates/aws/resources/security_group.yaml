@@ -58,9 +58,11 @@ properties:
         description: Indicates the network protocol used for the egress rule
       Self:
         type: bool
-
         description: A boolean indicating whether the security group can send traffic
           to itself
+  aws:tags:
+    type: model
+
 classification:
   is:
     - network
@@ -69,3 +71,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["ec2:CreateSecurityGroup"]
+  tear_down: ["ec2:DeleteSecurityGroup"]
+  update: ["ec2:ModifySecurityGroupRules"]

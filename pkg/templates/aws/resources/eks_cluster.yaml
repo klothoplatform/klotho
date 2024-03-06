@@ -43,6 +43,8 @@ properties:
           - aws:security_group
         unique: true
     description: Lists the security groups associated with the EKS cluster nodes
+  aws:tags:
+    type: model
   Name:
     type: string
     configuration_disabled: true
@@ -69,3 +71,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: parent
+
+
+deployment_permissions:
+  deploy: ["eks:CreateCluster"]
+  tear_down: ["eks:DeleteCluster"]
+  update: ["eks:UpdateCluster"]

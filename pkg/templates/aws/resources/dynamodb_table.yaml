@@ -51,6 +51,8 @@ properties:
   RangeKey:
     type: string
     description: The table range key, which is the sort key for the DynamoDB table
+  aws:tags:
+    type: model
   Name:
     type: string
     configuration_disabled: true
@@ -84,3 +86,9 @@ delete_context:
 
 views:
   dataflow: big
+
+
+deployment_permissions:
+  deploy: ["dynamodb:CreateTable"]
+  tear_down: ["dynamodb:DeleteTable"]
+  update: ["dynamodb:UpdateTable"]

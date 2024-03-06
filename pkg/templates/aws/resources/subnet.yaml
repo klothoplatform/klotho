@@ -54,6 +54,8 @@ properties:
   MapPublicIpOnLaunch:
     type: bool
     default_value: false
+  aws:tags:
+    type: model
   Id:
     type: string
     configuration_disabled: true
@@ -70,3 +72,8 @@ classification:
 
 delete_context:
   requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["ec2:CreateSubnet"]
+  tear_down: ["ec2:DeleteSubnet"]
+  update: ["ec2:ModifySubnetAttribute"]

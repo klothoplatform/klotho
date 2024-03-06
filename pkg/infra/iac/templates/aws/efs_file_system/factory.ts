@@ -1,6 +1,7 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     LifecyclePolicies: awsInputs.efs.FileSystemLifecyclePolicy[]
@@ -13,6 +14,7 @@ interface Args {
     Encrypted?: Promise<boolean> | pulumi.OutputInstance<boolean> | boolean
     CreationToken?: Promise<string> | pulumi.OutputInstance<string> | string
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -43,6 +45,9 @@ function create(args: Args): aws.efs.FileSystem {
             //TMPL {{- end }}
             //TMPL {{- if .ThroughputMode }}
             throughputMode: args.ThroughputMode,
+            //TMPL {{- end }}
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
             //TMPL {{- end }}
         },
         {

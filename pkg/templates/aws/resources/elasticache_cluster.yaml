@@ -42,6 +42,8 @@ properties:
     type: int
     default_value: 1
     description: The number of cache nodes that the cache cluster should have.
+  aws:tags:
+    type: model
   Port:
     type: int
     configuration_disabled: true
@@ -81,3 +83,9 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: big
+
+
+deployment_permissions:
+  deploy: ["elasticache:CreateCacheCluster"]
+  tear_down: ["elasticache:DeleteCacheCluster"]
+  update: ["elasticache:ModifyCacheCluster"]

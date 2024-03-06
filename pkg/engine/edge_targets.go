@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 
 	"github.com/alitto/pond"
@@ -159,7 +160,7 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	if err != nil {
 		return nil, err
 	}
-	solutionCtx := NewSolutionContext(e.Kb)
+	solutionCtx := NewSolutionContext(e.Kb, "", &constraints.Constraints{})
 	err = solutionCtx.LoadGraph(inputGraph)
 	if err != nil {
 		return nil, err

@@ -8,6 +8,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine "github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
 	"github.com/klothoplatform/klotho/pkg/io"
@@ -107,7 +108,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	solCtx := engine.NewSolutionContext(kb)
+	solCtx := engine.NewSolutionContext(kb, "", &constraints.Constraints{})
 	err = solCtx.LoadGraph(input.Graph)
 	if err != nil {
 		return err

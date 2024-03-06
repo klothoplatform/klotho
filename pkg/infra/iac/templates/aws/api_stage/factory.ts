@@ -1,10 +1,12 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     RestApi: aws.apigateway.RestApi
     Deployment: aws.apigateway.Deployment
     StageName: string
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -13,6 +15,9 @@ function create(args: Args): aws.apigateway.Stage {
         deployment: args.Deployment.id,
         restApi: args.RestApi.id,
         stageName: args.StageName,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 

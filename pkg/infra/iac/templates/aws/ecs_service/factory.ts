@@ -2,14 +2,12 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { OutputInstance } from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
-    DeploymentCircuitBreaker:
-        | Promise<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
-        | OutputInstance<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
-        | awsInputs.ecs.ServiceDeploymentCircuitBreaker
+    DeploymentCircuitBreaker: pulumi.Input<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
+    EnableExecuteCommand: boolean
     ForceNewDeployment: boolean
     Cluster: aws.ecs.Cluster
     DesiredCount?: number
@@ -21,6 +19,7 @@ interface Args {
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -37,6 +36,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL },
             //TMPL {{- end }}
             desiredCount: args.DesiredCount,
+            //TMPL {{- if .EnableExecuteCommand }}
+            enableExecuteCommand: args.EnableExecuteCommand,
+            //TMPL {{- end }}
             forceNewDeployment: args.ForceNewDeployment,
             //TMPL {{- if .LoadBalancers }}
             loadBalancers: args.LoadBalancers,
@@ -58,6 +60,9 @@ function create(args: Args): aws.ecs.Service {
             waitForSteadyState: true,
             //TMPL {{- if .ServiceRegistries }}
             serviceRegistries: args.ServiceRegistries,
+            //TMPL {{- end }}
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
             //TMPL {{- end }}
         },
         { dependsOn: args.dependsOn }

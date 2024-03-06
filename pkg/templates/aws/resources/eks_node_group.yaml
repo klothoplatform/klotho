@@ -68,9 +68,11 @@ properties:
     description: The instance types that can be used for your worker nodes
   Labels:
     type: map(string,string)
-
     description: Key-value mapping of Kubernetes labels to be applied to the nodes
       in the node group
+  aws:tags:
+    type: model
+
 classifications:
   is:
     - kubernetes
@@ -79,3 +81,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["eks:CreateNodegroup"]
+  tear_down: ["eks:DeleteNodegroup"]
+  update: ["eks:UpdateNodegroupConfig"]

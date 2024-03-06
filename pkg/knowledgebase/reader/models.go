@@ -71,8 +71,10 @@ func updateModels(property *Property, properties Properties, models map[string]*
 				for name, prop := range model.Properties {
 					// since properties are pointers and models can be reused, we need to clone the property from the model itself
 					newProp := prop.Clone()
-					newProp.Path = fmt.Sprintf("%s.%s", name, prop.Path)
-
+					// We need to make sure we perpend the parent property path
+					if property != nil {
+						newProp.Path = fmt.Sprintf("%s.%s", property.Path, prop.Path)
+					}
 					// we also need to check if the current property has a default and propagate it lower
 					if p.DefaultValue != nil {
 						defaultMap, ok := p.DefaultValue.(map[string]any)

@@ -25,11 +25,16 @@ properties:
           - aws:subnet
     description: A list of subnets for the RDS subnet group, with at least 2 needed,
       and all subnets need to be of 'private' type
-  Tags:
-    type: map(string,string)
+  aws:tags:
+    type: model
 
     description: A map of key-value pairs to assign as tags to the RDS subnet group
 delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["rds:CreateDBSubnetGroup"]
+  tear_down: ["rds:DeleteDBSubnetGroup"]
+  update: ["rds:ModifyDBSubnetGroup"]

@@ -77,7 +77,7 @@ properties:
       - sqlserver-web
   EngineVersion:
     type: string
-    default_value: '16.1'
+    default_value: '14.11'
   InstanceClass:
     type: string
     default_value: db.t3.micro
@@ -87,6 +87,8 @@ properties:
   AllocatedStorage:
     type: int
     default_value: 20
+  aws:tags:
+    type: model
   CredentialsSecretValue:
     type: string
     configuration_disabled: true
@@ -138,3 +140,8 @@ delete_context:
   requires_explicit_delete: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["rds:CreateDBInstance"]
+  tear_down: ["rds:DeleteDBInstance"]
+  update: ["rds:ModifyDBInstance"]

@@ -2,16 +2,19 @@ import * as aws from '@pulumi/aws'
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Cpu: string
+    Memory: string
     NetworkMode?: string
     ExecutionRole: aws.iam.Role
     TaskRole: aws.iam.Role
     RequiresCompatibilities?: string[]
-    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolumeEfsVolumeConfiguration[]>
-    ContainerDefinitions: TemplateWrapper<awsInputs.ecs.TaskDefinitionContainerDefinitions[]>
+    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolume[]>
+    ContainerDefinitions: TemplateWrapper<any[]>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -38,5 +41,8 @@ function create(args: Args): aws.ecs.TaskDefinition {
         volumes: args.EfsVolumes,
         //TMPL {{- end }}
         containerDefinitions: pulumi.jsonStringify(args.ContainerDefinitions),
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }

@@ -2,12 +2,14 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { getIssuerCAThumbprint } from '@pulumi/eks/cert-thumprint'
 import * as https from 'https'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     ClientIdLists: string[]
     Cluster: aws.eks.Cluster
     Region: pulumi.Output<pulumi.UnwrappedObject<aws.GetRegionResult>>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -25,6 +27,9 @@ function create(args: Args): aws.iam.OpenIdConnectProvider {
                 })
             ),
         ],
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 function properties(object: aws.iam.OpenIdConnectProvider, args: Args) {

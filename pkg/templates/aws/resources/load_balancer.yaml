@@ -77,11 +77,18 @@ properties:
     description: "The type of load balancer: either 'network' or 'application'"
     required: true
     important: true
+  aws:tags:
+    type: model
   NlbUri:
     type: string
     configuration_disabled: true
     deploy_time: true
     description: A unique identifier for the load balancer, available after deployment
+  DnsName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    description: The DNS name for the load balancer, available after deployment
 
 path_satisfaction:
   # See comment above for why we are not solving the network path
@@ -101,3 +108,9 @@ delete_context:
   requires_no_downstream: true
 views:
   dataflow: parent
+
+
+deployment_permissions:
+  deploy: ["elbv2:CreateLoadBalancer"]
+  tear_down: ["elbv2:DeleteLoadBalancer"]
+  update: ["elbv2:ModifyLoadBalancerAttributes"]

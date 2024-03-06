@@ -37,3 +37,9 @@ properties:
     properties:
       MaximumConcurrency:
         type: int
+
+
+deployment_permissions:
+  deploy: ["lambda:CreateEventSourceMapping"]
+  tear_down: ["lambda:DeleteEventSourceMapping"]
+  update: ["lambda:UpdateEventSourceMapping"]

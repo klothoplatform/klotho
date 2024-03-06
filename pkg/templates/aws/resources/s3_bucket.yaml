@@ -23,6 +23,8 @@ properties:
     type: string
     description: The webpage that Amazon S3 returns when it receives a request to
       the root domain name of the bucket or when an index document is specified
+  aws:tags:
+    type: model
   AllBucketDirectory:
     type: string
     configuration_disabled: true
@@ -42,9 +44,10 @@ properties:
   SSEAlgorithm:
     type: string
     default_value: aws:kms
-
     description: The server-side encryption algorithm to use to encrypt data stored
       in the S3 bucket
+
+
 path_satisfaction:
   as_target:
     - network
@@ -69,3 +72,8 @@ delete_context:
 
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["s3:CreateBucket"]
+  tear_down: ["s3:DeleteBucket"]
+  update: ["s3:PutBucketAcl"]

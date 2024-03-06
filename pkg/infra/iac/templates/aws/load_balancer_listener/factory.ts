@@ -1,5 +1,5 @@
 import * as aws from '@pulumi/aws'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -7,6 +7,7 @@ interface Args {
     Protocol: string
     LoadBalancer: aws.lb.LoadBalancer
     DefaultActions: TemplateWrapper<aws.types.input.lb.ListenerDefaultAction[]>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -16,5 +17,8 @@ function create(args: Args): aws.lb.Listener {
         defaultActions: args.DefaultActions,
         port: args.Port,
         protocol: args.Protocol,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }

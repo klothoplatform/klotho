@@ -6,21 +6,5 @@
       "Source": "aws:cloudfront_distribution:cloudfront_distribution_2",
       "Target": "aws:rds_instance:mydb"
     }
-  },
-  {
-    "classification": "network",
-    "error_code": "edge_unsupported",
-    "satisfaction_edge": {
-      "Source": "aws:cloudfront_distribution:cloudfront_distribution_2",
-      "Target": "aws:rds_instance:mydb"
-    }
-  },
-  {
-    "classification": "cloudfront_origin",
-    "error_code": "edge_unsupported",
-    "satisfaction_edge": {
-      "Source": "aws:cloudfront_distribution:cloudfront_distribution_2",
-      "Target": "aws:rds_instance:mydb"
-    }
   }
 ]

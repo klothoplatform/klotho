@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -6,6 +7,7 @@ interface Args {
     EnableDnsHostnames: boolean
     EnableDnsSupport: boolean
     Arn?: string
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -14,9 +16,9 @@ function create(args: Args): aws.ec2.Vpc {
         cidrBlock: args.CidrBlock,
         enableDnsHostnames: args.EnableDnsHostnames,
         enableDnsSupport: args.EnableDnsSupport,
-        tags: {
-            Name: args.Name,
-        },
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 

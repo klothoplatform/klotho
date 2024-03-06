@@ -5,6 +5,9 @@ properties:
   ForceDelete:
     type: bool
     default_value: true
+  aws:tags:
+    type: model
+
 classification:
   is:
     - repository
@@ -12,3 +15,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["ecr:CreateRepository"]
+  tear_down: ["ecr:DeleteRepository"]
+  update: ["ecr:PutLifecyclePolicy"]

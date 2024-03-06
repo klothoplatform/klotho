@@ -64,12 +64,15 @@ func (str *StringProperty) Parse(value any, ctx knowledgebase.DynamicContext, da
 	if err == nil {
 		return val, nil
 	}
-	if val, ok := value.(string); ok {
-		var result string
-		err := ctx.ExecuteDecode(val, data, &result)
-		return result, err
+	switch val := value.(type) {
+	case string:
+		err := ctx.ExecuteDecode(val, data, &val)
+		return val, err
+
+	case int, int32, int64, float32, float64, bool:
+		return fmt.Sprintf("%v", val), nil
 	}
-	return nil, fmt.Errorf("could not parse string property: invalid string value %v", value)
+	return nil, fmt.Errorf("could not parse string property: invalid string value %v (%[1]T)", value)
 }
 
 func (s *StringProperty) ZeroValue() any {

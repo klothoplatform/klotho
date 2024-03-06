@@ -61,6 +61,8 @@ properties:
     default_value: 1
   Tags:
     type: map(string,string)
+  aws:tags:
+    type: model
 
 delete_context:
   requires_no_upstream: true
@@ -74,3 +76,8 @@ classification:
 path_satisfaction:
   as_source:
     - network#Listener#LoadBalancer#Subnets
+
+deployment_permissions:
+  deploy: ["elbv2:CreateRule"]
+  tear_down: ["elbv2:DeleteRule"]
+  update: ["elbv2:ModifyRule"]

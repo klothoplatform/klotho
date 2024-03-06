@@ -11,11 +11,18 @@ properties:
     description: An EKS Cluster resource to which the AddOn will be attached
   Role:
     type: resource(aws:iam_role)
-
-
     description: An IAM role that provides permissions to the EKS AddOn for making
       AWS API calls
+  aws:tags:
+    type: model
+    
 delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+aws:eks_add_on:
+  deploy: ["eks:CreateAddon"]
+  tear_down: ["eks:DeleteAddon"]
+  update: ["eks:UpdateAddon"]

@@ -1,10 +1,12 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Vpc: aws.ec2.Vpc
     IngressRules: aws.types.input.ec2.SecurityGroupIngress[]
     EgressRules: aws.types.input.ec2.SecurityGroupEgress[]
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 function create(args: Args): aws.ec2.SecurityGroup {
@@ -13,5 +15,8 @@ function create(args: Args): aws.ec2.SecurityGroup {
         vpcId: args.Vpc.id,
         egress: args.EgressRules,
         ingress: args.IngressRules,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }

@@ -16,6 +16,8 @@ properties:
     default_value: true
     description: Determines whether instances with public IP addresses get corresponding
       public DNS hostnames
+  aws:tags:
+    type: model
   Id:
     type: string
     configuration_disabled: true
@@ -38,3 +40,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: parent
+
+deployment_permissions:
+  deploy: ["ec2:CreateVpc"]
+  tear_down: ["ec2:DeleteVpc"]
+  update: ["ec2:ModifyVpcAttribute"]

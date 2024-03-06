@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as aws_native from '@pulumi/aws-native'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -14,6 +15,7 @@ interface Args {
     DiskSize: number
     InstanceTypes: string[]
     Labels: Record<string, string>
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -37,6 +39,9 @@ function create(args: Args): aws.eks.NodeGroup {
         instanceTypes: args.InstanceTypes,
         //TMPL {{- if .Labels }}
         labels: args.Labels,
+        //TMPL {{- end }}
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
         //TMPL {{- end }}
     })
 }

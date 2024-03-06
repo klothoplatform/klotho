@@ -185,6 +185,8 @@ properties:
             default_value: none
   DefaultRootObject:
     type: string
+  aws:tags:
+    type: model
 
 path_satisfaction:
   as_source:
@@ -203,3 +205,9 @@ delete_context:
 
 views:
   dataflow: big
+
+
+aws:cloudfront_distribution:
+  deploy: ["cloudfront:CreateDistribution"]
+  tear_down: ["cloudfront:DeleteDistribution"]
+  update: ["cloudfront:UpdateDistribution"]

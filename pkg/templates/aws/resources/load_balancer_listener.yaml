@@ -37,8 +37,15 @@ properties:
           - aws:load_balancer
   DefaultActions:
     type: list(model(aws:load_balancer_listener:action))
-
+  aws:tags:
+    type: model
+    
 delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["elbv2:CreateListener"]
+  tear_down: ["elbv2:DeleteListener"]
+  update: ["elbv2:ModifyListener"]

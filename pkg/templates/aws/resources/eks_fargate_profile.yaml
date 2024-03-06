@@ -35,6 +35,8 @@ properties:
         type: string
       Labels:
         type: map(string,string)
+  aws:tags:
+    type: model
 
 classifications:
   is:
@@ -48,3 +50,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["eks:CreateFargateProfile"]
+  tear_down: ["eks:DeleteFargateProfile"]
+  update: ["eks:CreateFargateProfile"]

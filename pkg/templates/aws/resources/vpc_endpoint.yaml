@@ -35,8 +35,10 @@ properties:
     description: A list of route table IDs to which the endpoint will be associated
   SecurityGroups:
     type: list(resource(aws:security_group))
-
     description: A list of security group IDs that are associated with the VPC Endpoint
+  aws:tags:
+    type: model
+
 classification:
   is:
     - service_endpoint
@@ -47,3 +49,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["ec2:CreateVpcEndpoint"]
+  tear_down: ["ec2:DeleteVpcEndpoints"]
+  update: ["ec2:ModifyVpcEndpoint"]

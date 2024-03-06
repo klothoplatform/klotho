@@ -1,0 +1,118 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "apigateway:CreateStage",
+                "apigateway:DeleteStage",
+                "apigateway:UpdateStage"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateDeployment",
+                "apigateway:DeleteDeployment",
+                "apigateway:UpdateDeployment"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateRestApi",
+                "apigateway:DeleteRestApi",
+                "apigateway:UpdateRestApi"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:CreateResource",
+                "apigateway:DeleteResource",
+                "apigateway:UpdateResource"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:PutMethod",
+                "apigateway:DeleteMethod",
+                "apigateway:UpdateMethod"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "apigateway:PutIntegration",
+                "apigateway:DeleteIntegration",
+                "apigateway:UpdateIntegration"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "lambda:AddPermission",
+                "lambda:RemovePermission",
+                "lambda:AddPermission"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "lambda:CreateFunction",
+                "lambda:DeleteFunction",
+                "lambda:UpdateFunctionConfiguration"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "ecr:PutImage",
+                "ecr:BatchDeleteImage",
+                "ecr:PutImage"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:UpdateAssumeRolePolicy"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": null,
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "ecr:CreateRepository",
+                "ecr:DeleteRepository",
+                "ecr:PutLifecyclePolicy"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:DeleteLogGroup",
+                "logs:PutRetentionPolicy"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}

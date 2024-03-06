@@ -39,6 +39,8 @@ properties:
       Path:
         type: string
         default_value: /mnt/efs
+  aws:tags:
+    type: model
 
 classification:
   is:
@@ -48,3 +50,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["efs:CreateAccessPoint"]
+  tear_down: ["efs:DeleteAccessPoint"]
+  update: ["efs:CreateAccessPoint"]

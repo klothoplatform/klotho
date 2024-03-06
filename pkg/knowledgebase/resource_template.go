@@ -47,8 +47,20 @@ type (
 		// NoIac defines if the resource should be ignored by the IaC engine
 		NoIac bool `json:"no_iac" yaml:"no_iac"`
 
+		// DeploymentPermissions defines the permissions that are required to deploy and tear down the resource
+		DeploymentPermissions DeploymentPermissions `json:"deployment_permissions" yaml:"deployment_permissions"`
+
 		// SanitizeNameTmpl defines a template that is used to sanitize the name of the resource
 		SanitizeNameTmpl *SanitizeTmpl `yaml:"sanitize_name"`
+	}
+
+	DeploymentPermissions struct {
+		// Deploy defines the permissions that are required to deploy the resource
+		Deploy []string `json:"deploy" yaml:"deploy"`
+		// TearDown defines the permissions that are required to tear down the resource
+		TearDown []string `json:"tear_down" yaml:"tear_down"`
+		// Update defines the permissions that are required to update the resource
+		Update []string `json:"update" yaml:"update"`
 	}
 
 	// PropertyDetails defines the common details of a property
@@ -403,11 +415,11 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 						errs = errors.Join(errs, fmt.Errorf("could not cast property to set"))
 						continue
 					}
-					for k := range hs.ToMap() {
+					for i := range hs.ToSlice() {
 						subProperties := make(Properties)
 						for subK, subProp := range prop.SubProperties() {
 							propTemplate := subProp.Clone()
-							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%s]", prop.Details().Path, k))
+							ReplacePath(propTemplate, prop.Details().Path, fmt.Sprintf("%s[%d]", prop.Details().Path, i))
 							subProperties[subK] = propTemplate
 						}
 						if len(subProperties) > 0 {
@@ -422,4 +434,14 @@ func (tmpl ResourceTemplate) LoopProperties(res *construct.Resource, addProp fun
 		}
 	}
 	return errs
+}
+
+func IsCollectionProperty(p Property) bool {
+	if _, ok := p.(CollectionProperty); ok {
+		return true
+	}
+	if _, ok := p.(MapProperty); ok {
+		return true
+	}
+	return false
 }

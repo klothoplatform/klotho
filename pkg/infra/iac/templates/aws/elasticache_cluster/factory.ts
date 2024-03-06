@@ -1,4 +1,5 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -8,6 +9,7 @@ interface Args {
     SecurityGroups: aws.ec2.SecurityGroup[]
     NodeType: string
     NumCacheNodes: number
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 function create(args: Args): aws.elasticache.Cluster {
@@ -31,6 +33,9 @@ function create(args: Args): aws.elasticache.Cluster {
         ],
         subnetGroupName: args.SubnetGroup.name,
         securityGroupIds: args.SecurityGroups.map((sg) => sg.id),
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 

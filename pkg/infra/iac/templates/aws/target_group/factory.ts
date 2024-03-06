@@ -1,5 +1,6 @@
 import * as aws from '@pulumi/aws'
-import { TemplateWrapper } from '../../wrappers'
+import * as awsInputs from '@pulumi/aws/types/input'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -7,10 +8,10 @@ interface Args {
     Protocol: string
     Vpc: aws.ec2.Vpc
     TargetType: string
-    Tags: Record<string, string>
     Targets: { Id: string; Port: number }[]
-    HealthCheck: TemplateWrapper<Record<string, any>>
+    HealthCheck: TemplateWrapper<awsInputs.lb.TargetGroupHealthCheck>
     LambdaMultiValueHeadersEnabled?: boolean
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -21,12 +22,12 @@ function create(args: Args): aws.lb.TargetGroup {
             protocol: args.Protocol,
             targetType: args.TargetType,
             vpcId: args.Vpc.id,
-            //TMPL {{- if .Tags }}
-            tags: args.Tags,
-            //TMPL {{- end }}
             healthCheck: args.HealthCheck,
             //TMPL {{- if .LambdaMultiValueHeadersEnabled }}
             lambdaMultiValueHeadersEnabled: args.LambdaMultiValueHeadersEnabled,
+            //TMPL {{- end }}
+            //TMPL {{- if .Tags }}
+            tags: args.Tags,
             //TMPL {{- end }}
         })
 

@@ -12,6 +12,8 @@ properties:
   Name:
     type: string
     description: The name of the namespace
+  aws:tags:
+    type: model
   Id:
     type: string
     deploy_time: true
@@ -30,3 +32,9 @@ delete_context:
 
 views:
   dataflow: small
+
+
+aws:private_dns_namespace:
+  deploy: ["servicediscovery:CreatePrivateDnsNamespace"]
+  tear_down: ["servicediscovery:DeleteNamespace"]
+  update: ["servicediscovery:UpdatePrivateDnsNamespace"]

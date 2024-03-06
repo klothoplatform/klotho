@@ -29,6 +29,9 @@ type (
 		// Read operations come from the Dataflow graph.
 		// Write operations will update both the Dataflow and Deployment graphs.
 		RawView() construct.Graph
+
+		// GlobalTag returns the global tag for the solution context
+		GlobalTag() string
 	}
 
 	OperationalView interface {

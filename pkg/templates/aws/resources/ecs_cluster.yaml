@@ -1,9 +1,18 @@
 qualified_type_name: aws:ecs_cluster
 display_name: ECS Cluster
 
+properties:
+  aws:tags:
+    type: model
+
 classification:
   is:
     - cluster
 
 delete_context:
   requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["ecs:CreateCluster"]
+  tear_down: ["ecs:DeleteCluster"]
+  update: ["ecs:UpdateClusterSettings"]

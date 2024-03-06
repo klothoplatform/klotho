@@ -210,9 +210,13 @@ func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 				value = value.Elem()
 			}
 			if value.IsValid() && value.Kind() != reflect.Slice && value.Kind() != reflect.Array {
-				return nil, &PropertyPathError{
-					Path:  pathParts[:i-1],
-					Cause: fmt.Errorf("expected array, got %s", value.Type()),
+				if hs, ok := value.Interface().(set.HashedSet[string, any]); ok {
+					value = reflect.ValueOf(hs.ToSlice())
+				} else {
+					return nil, &PropertyPathError{
+						Path:  pathParts[:i-1],
+						Cause: fmt.Errorf("expected array, got %s", value.Type()),
+					}
 				}
 			}
 			if !value.IsValid() || value.IsZero() {

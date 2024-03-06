@@ -55,3 +55,8 @@ func (m *MockSolution) RawView() construct.Graph {
 	args := m.Called()
 	return args.Get(0).(construct.Graph)
 }
+
+func (m *MockSolution) GlobalTag() string {
+	args := m.Called()
+	return args.String(0)
+}

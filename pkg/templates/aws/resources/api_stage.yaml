@@ -20,6 +20,8 @@ properties:
         direction: downstream
         resources:
           - aws:api_deployment
+  aws:tags:
+    type: model
   StageInvokeUrl:
     type: string
     configuration_disabled: true
@@ -35,3 +37,8 @@ delete_context:
 
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["apigateway:CreateStage"]
+  tear_down: ["apigateway:DeleteStage"]
+  update: ["apigateway:UpdateStage"]

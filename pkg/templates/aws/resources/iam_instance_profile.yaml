@@ -12,3 +12,10 @@ properties:
         unique: true
     description: The role that is associated with the instance profile to be used
       by the EC2 instances
+  aws:tags:
+    type: model
+
+deployment_permissions:
+  deploy: ["iam:CreateInstanceProfile"]
+  tear_down: ["iam:DeleteInstanceProfile"]
+  update: ["iam:AddRoleToInstanceProfile"]

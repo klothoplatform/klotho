@@ -7,7 +7,7 @@ interface Args {
     DelaySeconds?: number
     MaxMessageSize?: number
     VisibilityTimeout?: number
-    Tags?: ModelCaseWrapper<Record<string, string>>
+    Tags: ModelCaseWrapper<Record<string, string>>
     protect: boolean
 }
 

@@ -21,6 +21,7 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -52,6 +53,7 @@ var architectureEngineCfg struct {
 	inputGraph  string
 	constraints string
 	outputDir   string
+	globalTag   string
 }
 
 var getValidEdgeTargetsCfg struct {
@@ -122,6 +124,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
+	flags.StringVarP(&architectureEngineCfg.globalTag, "global-tag", "t", "", "Global tag")
 	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	getPossibleEdgesCmd := &cobra.Command{
@@ -366,7 +369,9 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		return
 	}
 
-	context := &EngineContext{}
+	context := &EngineContext{
+		GlobalTag: architectureEngineCfg.globalTag,
+	}
 
 	if architectureEngineCfg.inputGraph != "" {
 		var input FileFormat
@@ -438,6 +443,20 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 			Content: b,
 		},
 	)
+
+	if architectureEngineCfg.provider == "aws" {
+		polictBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+		if err != nil {
+			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
+			return
+		}
+		files = append(files,
+			&kio.RawFile{
+				FPath:   "deployment_permissions_policy.json",
+				Content: polictBytes,
+			},
+		)
+	}
 
 	err = kio.OutputTo(files, architectureEngineCfg.outputDir)
 	if err != nil {

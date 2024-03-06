@@ -75,6 +75,8 @@ properties:
                     type: map(string,string)
                   Null:
                     type: map(string,string)
+  aws:tags:
+    type: model
   Arn:
     type: string
     configuration_disabled: true
@@ -92,3 +94,8 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["iam:CreateRole"]
+  tear_down: ["iam:DeleteRole"]
+  update: ["iam:UpdateAssumeRolePolicy"]

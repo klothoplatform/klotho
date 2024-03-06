@@ -153,10 +153,6 @@ properties:
             type: string
             description: The protocol used for the port mapping, such as TCP or UDP
         description: A set of port mappings between the container and host
-
-      
-      
-      
   ExecutionRole:
     type: resource(aws:iam_role)
     operational_rule:
@@ -215,7 +211,9 @@ properties:
         description: The authorization configuration details for the EFS volume
     description: An array of Amazon Elastic File System (EFS) volumes to be attached
       to containers
-  
+  aws:tags:
+    type: model  
+
 consumption:
   consumed:
     - model: EnvironmentVariables
@@ -235,3 +233,9 @@ delete_context:
   requires_no_upstream: true
 views:
   dataflow: small
+
+
+deployment_permissions:
+  deploy: ["ecs:RegisterTaskDefinition"]
+  tear_down: ["ecs:DeregisterTaskDefinition"]
+  update: ["ecs:RegisterTaskDefinition"]

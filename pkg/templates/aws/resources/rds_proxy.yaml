@@ -50,6 +50,8 @@ properties:
         type: string
       Secret:
         type: resource(aws:secret)
+  aws:tags:
+    type: model
   Endpoint:
     type: string
     configuration_disabled: true
@@ -72,3 +74,8 @@ delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: big
+
+deployment_permissions:
+  deploy: ["rds:CreateDBProxy"]
+  tear_down: ["rds:DeleteDBProxy"]
+  update: ["rds:ModifyDBProxy"]

@@ -4,8 +4,15 @@ display_name: VPC Link
 properties:
   Target:
     type: resource(aws:load_balancer)
+  aws:tags:
+    type: model
 
 delete_context:
   requires_no_upstream_or_downstream: true
 views:
   dataflow: small
+
+deployment_permissions:
+  deploy: ["apigateway:CreateVpcLink"]
+  tear_down: ["apigateway:DeleteVpcLink"]
+  update: ["apigateway:UpdateVpcLink"]

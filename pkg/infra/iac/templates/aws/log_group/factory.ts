@@ -1,9 +1,11 @@
 import * as aws from '@pulumi/aws'
+import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     LogGroupName: string
     RetentionInDays: number
+    Tags: ModelCaseWrapper<Record<string, string>>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -11,6 +13,9 @@ function create(args: Args): aws.cloudwatch.LogGroup {
     return new aws.cloudwatch.LogGroup(args.Name, {
         name: args.LogGroupName,
         retentionInDays: args.RetentionInDays,
+        //TMPL {{- if .Tags }}
+        tags: args.Tags,
+        //TMPL {{- end }}
     })
 }
 
