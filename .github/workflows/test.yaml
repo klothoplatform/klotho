@@ -30,9 +30,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install lang servers
+        run: |
+          python3 -m pip install python-lsp-server[all]
+
       - name: Run test
         run: |
           touch pkg/auth/auth0_client_secret.key
+          export PATH=$HOME/.local/bin:$PATH
           go test -race -v -coverprofile=c.out ./...
 
       - name: Update coverage report
