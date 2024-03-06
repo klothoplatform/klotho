@@ -1,5 +1,13 @@
 provider: aws
 resources:
+  aws:api_integration:rest_api_4/rest_api_4_integration_0:
+    parent: rest_api/rest_api_4
+    tag: big
+
+  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integbcc77100:
+    path:
+        - aws:vpc_link:rest_api_4_integration_0-pod2
+
   eks_cluster/eks_cluster-0:
     children:
         - aws:iam_role:ClusterRole-eks_cluster-0
@@ -48,15 +56,6 @@ resources:
     parent: eks_cluster/eks_cluster-0
     tag: big
 
-  kubernetes:pod:eks_cluster-0/pod2:
-    children:
-        - aws:ecr_image:pod2-ecr_image
-        - aws:ecr_repo:pod2-ecr_image-ecr_repo
-        - aws:iam_role:ClusterRole-eks_cluster-0
-        - kubernetes:service_account:eks_cluster-0:pod2
-    parent: eks_cluster/eks_cluster-0
-    tag: big
-
   load_balancer/rest-api-4-integbcc77100:
     children:
         - aws:load_balancer_listener:rest-api-4-integbcc77100:rest_api_4_integration_0-pod2
@@ -71,11 +70,12 @@ resources:
         - kubernetes:service:eks_cluster-0:restapi4integration0-pod2
         - kubernetes:target_group_binding:eks_cluster-0:restapi4integration0-pod2
 
-  aws:api_integration:rest_api_4/rest_api_4_integration_0:
-    parent: rest_api/rest_api_4
+  kubernetes:pod:eks_cluster-0/pod2:
+    children:
+        - aws:ecr_image:pod2-ecr_image
+        - aws:ecr_repo:pod2-ecr_image-ecr_repo
+        - aws:iam_role:ClusterRole-eks_cluster-0
+        - kubernetes:service_account:eks_cluster-0:pod2
+    parent: eks_cluster/eks_cluster-0
     tag: big
-
-  aws:api_integration:rest_api_4/rest_api_4_integration_0 -> load_balancer/rest-api-4-integbcc77100:
-    path:
-        - aws:vpc_link:rest_api_4_integration_0-pod2
 

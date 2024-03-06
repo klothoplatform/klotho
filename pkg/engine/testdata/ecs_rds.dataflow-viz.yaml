@@ -1,10 +1,20 @@
 provider: aws
 resources:
-  rds_instance/rds-instance-2:
+  ecs_service/ecs_service_0:
     children:
-        - aws:rds_subnet_group:rds_subnet_group-0
+        - aws:ecr_image:ecs_service_0-ecs_service_0
+        - aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo
+        - aws:ecs_task_definition:ecs_service_0
+        - aws:iam_role:ecs_service_0-execution-role
+        - aws:log_group:ecs_service_0-log-group
     parent: vpc/vpc-0
     tag: big
+
+  ecs_service/ecs_service_0 -> rds_instance/rds-instance-2:
+    path:
+        - aws:ecs_task_definition:ecs_service_0
+        - aws:iam_role:ecs_service_0-execution-role
+        - aws:security_group:vpc-0:rds-instance-2-security_group
 
   vpc/vpc-0:
     children:
@@ -21,19 +31,9 @@ resources:
         - aws:subnet:vpc-0:subnet-3
     tag: parent
 
-  ecs_service/ecs_service_0:
+  rds_instance/rds-instance-2:
     children:
-        - aws:ecr_image:ecs_service_0-ecs_service_0
-        - aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo
-        - aws:ecs_task_definition:ecs_service_0
-        - aws:iam_role:ecs_service_0-execution-role
-        - aws:log_group:ecs_service_0-log-group
+        - aws:rds_subnet_group:rds_subnet_group-0
     parent: vpc/vpc-0
     tag: big
-
-  ecs_service/ecs_service_0 -> rds_instance/rds-instance-2:
-    path:
-        - aws:ecs_task_definition:ecs_service_0
-        - aws:iam_role:ecs_service_0-execution-role
-        - aws:security_group:vpc-0:rds-instance-2-security_group
 

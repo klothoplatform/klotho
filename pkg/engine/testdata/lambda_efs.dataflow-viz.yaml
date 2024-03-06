@@ -1,28 +1,5 @@
 provider: aws
 resources:
-  efs_file_system/test-efs-fs:
-    children:
-        - aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs
-        - aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs
-        - aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs
-    tag: big
-
-  vpc/vpc-0:
-    children:
-        - aws:internet_gateway:vpc-0:internet_gateway-0
-        - aws:route_table:vpc-0:lambda_test_app-test-efs-fs-route_table
-        - aws:route_table:vpc-0:subnet-1-route_table
-        - aws:route_table:vpc-0:subnet-2-route_table
-        - aws:route_table:vpc-0:subnet-3-route_table
-        - aws:security_group:vpc-0:lambda_test_app-security_group
-        - aws:security_group:vpc-0:lambda_test_app-test-efs-fs
-        - aws:security_group:vpc-0:subnet-1-test-efs-fs
-        - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
-        - aws:subnet:vpc-0:subnet-1
-        - aws:subnet:vpc-0:subnet-2
-        - aws:subnet:vpc-0:subnet-3
-    tag: parent
-
   lambda_function/lambda_test_app:
     children:
         - aws:ecr_image:lambda_test_app-image
@@ -41,4 +18,27 @@ resources:
         - aws:security_group:vpc-0:subnet-1-test-efs-fs
         - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
         - aws:subnet:vpc-0:subnet-1
+
+  vpc/vpc-0:
+    children:
+        - aws:internet_gateway:vpc-0:internet_gateway-0
+        - aws:route_table:vpc-0:lambda_test_app-test-efs-fs-route_table
+        - aws:route_table:vpc-0:subnet-1-route_table
+        - aws:route_table:vpc-0:subnet-2-route_table
+        - aws:route_table:vpc-0:subnet-3-route_table
+        - aws:security_group:vpc-0:lambda_test_app-security_group
+        - aws:security_group:vpc-0:lambda_test_app-test-efs-fs
+        - aws:security_group:vpc-0:subnet-1-test-efs-fs
+        - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
+        - aws:subnet:vpc-0:subnet-1
+        - aws:subnet:vpc-0:subnet-2
+        - aws:subnet:vpc-0:subnet-3
+    tag: parent
+
+  efs_file_system/test-efs-fs:
+    children:
+        - aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs
+        - aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs
+        - aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs
+    tag: big
 

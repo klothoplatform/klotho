@@ -37,7 +37,7 @@ func (f *File) WriteTo(w io.Writer) (n int64, err error) {
 	wh.Writef("provider: %s\n", f.Provider)
 	wh.Write("resources:\n")
 
-	resourceIds, err := construct.ReverseTopologicalSort(f.Graph)
+	resourceIds, err := construct.TopologicalSort(f.Graph)
 	if err != nil {
 		return
 	}

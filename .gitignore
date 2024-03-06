@@ -48,3 +48,4 @@ go.work.sum
 *.key
 
 /logs
+__debug_bin*
