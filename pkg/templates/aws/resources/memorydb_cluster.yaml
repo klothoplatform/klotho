@@ -118,7 +118,7 @@ consumption:
 classification:
   is:
     - redis
-    - cluster
+    - redis_cluster
     - storage
 
 path_satisfaction:

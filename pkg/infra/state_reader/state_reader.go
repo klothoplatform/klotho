@@ -1,7 +1,7 @@
 package statereader
 
 import (
-	"bytes"
+	"io"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
@@ -13,7 +13,7 @@ type (
 	// StateReader is an interface for reading state from a state store
 	StateReader interface {
 		// ReadState reads the state from the state store
-		ReadState([]byte, construct.Graph) (construct.Graph, error)
+		ReadState(io.Reader, construct.Graph) (construct.Graph, error)
 	}
 
 	stateReader struct {
@@ -27,10 +27,9 @@ func NewPulumiReader(templates map[string]statetemplate.StateTemplate, kb knowle
 	return &stateReader{templates: templates, kb: kb, converter: stateconverter.NewStateConverter("pulumi", templates)}
 }
 
-func (p stateReader) ReadState(state []byte, graph construct.Graph) (construct.Graph, error) {
+func (p stateReader) ReadState(reader io.Reader, graph construct.Graph) (construct.Graph, error) {
 	returnGraph := construct.NewGraph()
-	stateReader := bytes.NewReader(state)
-	internalState, err := p.converter.ConvertState(stateReader)
+	internalState, err := p.converter.ConvertState(reader)
 	if err != nil {
 		return nil, err
 	}

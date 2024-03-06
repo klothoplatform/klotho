@@ -67,7 +67,8 @@ func (p pulumiStateConverter) convertResource(resource Resource, template statet
 	for k, v := range resource.Outputs {
 		if mapping, ok := template.PropertyMappings[k]; ok {
 			if strings.Contains(mapping, "#") {
-				// TODO: Determine how to cross correlate references/resource properties
+				// TODO: Determine how to cross correlate references/resource properties.
+				// an example of this is the subnets vpcId field (value = vpc-123456789), to where internally its modeld as a "resource".
 				continue
 			}
 			properties[mapping] = v

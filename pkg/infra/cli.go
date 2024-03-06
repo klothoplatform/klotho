@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -128,8 +129,8 @@ func GetLiveState(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-
-	result, err := reader.ReadState(stateBytes, input.Graph)
+	bytesReader := bytes.NewReader(stateBytes)
+	result, err := reader.ReadState(bytesReader, input.Graph)
 	if err != nil {
 		return err
 	}

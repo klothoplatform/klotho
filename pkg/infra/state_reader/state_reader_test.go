@@ -67,7 +67,8 @@ func Test_stateReader_ReadState(t *testing.T) {
 				kb:        mockKB,
 				converter: mockConverter,
 			}
-			got, err := p.ReadState(tt.state, tt.graph)
+			byteReader := bytes.NewReader(tt.state)
+			got, err := p.ReadState(byteReader, tt.graph)
 			if !assert.NoError(err) {
 				return
 			}
