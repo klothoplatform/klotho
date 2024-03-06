@@ -1,33 +1,17 @@
 package statereader
 
 import (
-	"errors"
-
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
 	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 type (
-	DriftError struct {
-		Err      error
-		ref      construct.PropertyRef
-		oldValue interface{}
-		newValue interface{}
-	}
-
 	// StateReader is an interface for reading state from a state store
 	StateReader interface {
 		// ReadState reads the state from the state store
 		ReadState([]byte, construct.Graph) (construct.Graph, error)
-
-		// DetectDrift detects drift between the state and the IaC
-		DetectDrift([]byte, construct.Graph) []DriftError
-
-		// ConvertToImports converts the state to imports
-		ConvertToImports([]*construct.Resource) []constraints.Constraint
 	}
 
 	stateReader struct {
@@ -46,16 +30,6 @@ func (p stateReader) ReadState(state []byte, graph construct.Graph) (construct.G
 	internalState, err := p.converter.ConvertState(state)
 	if err != nil {
 		return nil, err
-	}
-	if graph != nil {
-		driftErrors := p.DetectDrift(state, graph)
-		if len(driftErrors) > 0 {
-			var joinedDriftErrors error
-			for _, err := range driftErrors {
-				joinedDriftErrors = errors.Join(joinedDriftErrors, err.Err)
-			}
-			return nil, joinedDriftErrors
-		}
 	}
 	for id, properties := range internalState {
 		var resource *construct.Resource
@@ -77,31 +51,10 @@ func (p stateReader) ReadState(state []byte, graph construct.Graph) (construct.G
 				return nil, err
 			}
 		}
-		returnGraph.AddVertex(resource)
-	}
-	return returnGraph, nil
-}
-
-func (p stateReader) DetectDrift(state []byte, graph construct.Graph) []DriftError {
-	return nil
-}
-
-func (p stateReader) ConvertToImports(resources []*construct.Resource) []constraints.Constraint {
-	importConstraints := make([]constraints.Constraint, 0)
-	for _, res := range resources {
-		// Convert the resource to an import
-		importConstraints = append(importConstraints, &constraints.ApplicationConstraint{
-			Operator: constraints.ImportConstraintOperator,
-			Node:     res.ID,
-		})
-		for key, value := range res.Properties {
-			importConstraints = append(importConstraints, &constraints.ResourceConstraint{
-				Operator: constraints.ImportConstraintOperator,
-				Target:   res.ID,
-				Property: key,
-				Value:    value,
-			})
+		err = returnGraph.AddVertex(resource)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return importConstraints
+	return returnGraph, nil
 }

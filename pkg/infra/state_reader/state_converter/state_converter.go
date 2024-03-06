@@ -6,6 +6,8 @@ import (
 	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
 )
 
+//go:generate mockgen -source=./state_converter.go --destination=../state_converter_mock_test.go --package=statereader
+
 type (
 	State map[construct.ResourceId]construct.Properties
 
@@ -25,7 +27,13 @@ func convertKeysToCamelCase(data construct.Properties) construct.Properties {
 		camelCaseKey := strcase.ToCamel(key)
 		switch v := value.(type) {
 		case map[string]interface{}:
-			result[camelCaseKey] = convertKeysToCamelCase(v)
+			resultingProperties := convertKeysToCamelCase(v)
+			// convert properties to map[string]any
+			mapResult := make(map[string]interface{})
+			for k, v := range resultingProperties {
+				mapResult[k] = v
+			}
+			result[camelCaseKey] = mapResult
 		default:
 			result[camelCaseKey] = v
 		}

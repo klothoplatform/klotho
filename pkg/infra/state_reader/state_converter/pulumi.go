@@ -25,8 +25,10 @@ type (
 
 func (p pulumiStateConverter) ConvertState(data []byte) (State, error) {
 	var pulumiState PulumiState
-	json.Unmarshal(data, &pulumiState)
-
+	err := json.Unmarshal(data, &pulumiState)
+	if err != nil {
+		return nil, err
+	}
 	internalModel := make(State)
 	var errs error
 	// Convert the Pulumi state to the internal model
