@@ -1,5 +1,13 @@
 provider: aws
 resources:
+  lambda_function/lambda_function_3:
+    children:
+        - aws:ecr_image:lambda_function_3-image
+        - aws:ecr_repo:ecr_repo-0
+        - aws:iam_role:lambda_function_3-ExecutionRole
+    parent: vpc/vpc-0
+    tag: big
+
   rds_instance/rds-instance-1:
     children:
         - aws:rds_subnet_group:rds_subnet_group-0
@@ -21,14 +29,6 @@ resources:
         - aws:subnet:vpc-0:subnet-2
         - aws:subnet:vpc-0:subnet-3
     tag: parent
-
-  lambda_function/lambda_function_3:
-    children:
-        - aws:ecr_image:lambda_function_3-image
-        - aws:ecr_repo:ecr_repo-0
-        - aws:iam_role:lambda_function_3-ExecutionRole
-    parent: vpc/vpc-0
-    tag: big
 
   lambda_function/lambda_function_0:
     children:

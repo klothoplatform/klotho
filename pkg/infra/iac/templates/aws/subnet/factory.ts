@@ -8,6 +8,7 @@ interface Args {
     Vpc: aws.ec2.Vpc
     AvailabilityZone: pulumi.Output<string>
     MapPublicIpOnLaunch: boolean
+    Id?: string
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -22,4 +23,8 @@ function create(args: Args): aws.ec2.Subnet {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function importResource(args: Args): aws.ec2.Subnet {
+    return aws.ec2.Subnet.get(args.Name, args.Id)
 }

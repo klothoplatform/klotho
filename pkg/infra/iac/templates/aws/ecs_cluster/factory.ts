@@ -4,6 +4,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 interface Args {
     Name: string
     Tags: ModelCaseWrapper<Record<string, string>>
+    Id?: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -13,4 +14,8 @@ function create(args: Args): aws.ecs.Cluster {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function importResource(args: Args): aws.ecs.Cluster {
+    return aws.ecs.Cluster.get(args.Name, args.Id)
 }

@@ -1,5 +1,20 @@
 provider: aws
 resources:
+  lambda_function/lambda_function_0:
+    children:
+        - aws:ecr_image:lambda_function_0-image
+        - aws:ecr_repo:ecr_repo-0
+        - aws:iam_role:lambda_function_0-ExecutionRole
+    tag: big
+
+  lambda_function/lambda_function_2:
+    children:
+        - aws:ecr_image:lambda_function_2-image
+        - aws:ecr_repo:lambda_function_2-image-ecr_repo
+        - aws:iam_role:lambda_function_2-ExecutionRole
+    parent: vpc/vpc_1
+    tag: big
+
   vpc/vpc_1:
     children:
         - aws:internet_gateway:vpc_1:internet_gateway-0
@@ -13,19 +28,4 @@ resources:
         - aws:subnet:vpc_1:subnet-2
         - aws:subnet:vpc_1:subnet-3
     tag: parent
-
-  lambda_function/lambda_function_2:
-    children:
-        - aws:ecr_image:lambda_function_2-image
-        - aws:ecr_repo:lambda_function_2-image-ecr_repo
-        - aws:iam_role:lambda_function_2-ExecutionRole
-    parent: vpc/vpc_1
-    tag: big
-
-  lambda_function/lambda_function_0:
-    children:
-        - aws:ecr_image:lambda_function_0-image
-        - aws:ecr_repo:ecr_repo-0
-        - aws:iam_role:lambda_function_0-ExecutionRole
-    tag: big
 

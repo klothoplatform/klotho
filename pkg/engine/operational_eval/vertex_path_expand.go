@@ -537,7 +537,7 @@ func (runner *pathExpandVertexRunner) handleResultProperties(
 							knowledgebase.DynamicValueData{Resource: res.ID},
 							targetRes,
 						)
-						if canUse && err == nil {
+						if canUse && err == nil && !res.Imported {
 							err = opRuleCtx.SetField(res, targetRes, step)
 							if err != nil {
 								errs = errors.Join(errs, err)

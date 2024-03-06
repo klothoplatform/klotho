@@ -10,7 +10,6 @@ import (
 
 var (
 	nonTaggableResource = []string{
-
 		"aws:SERVICE_API",
 		"aws:ecr_image",
 		"aws:security_group_rule",

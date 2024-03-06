@@ -1,8 +1,11 @@
 package infra
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
+
 	"path/filepath"
 	"runtime/pprof"
 
@@ -11,7 +14,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	"github.com/klothoplatform/klotho/pkg/infra/kubernetes"
-	"github.com/klothoplatform/klotho/pkg/io"
+	statereader "github.com/klothoplatform/klotho/pkg/infra/state_reader"
+	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
+	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/templates"
@@ -33,6 +38,12 @@ var generateIacCfg struct {
 	verbose    bool
 	jsonLog    bool
 	profileTo  string
+}
+
+var getImportConstraintsCfg struct {
+	provider   string
+	inputGraph string
+	stateFile  string
 }
 
 func AddIacCli(root *cobra.Command) error {
@@ -65,7 +76,66 @@ func AddIacCli(root *cobra.Command) error {
 	flags.StringVarP(&generateIacCfg.appName, "app-name", "a", "", "App name to use")
 	flags.StringVar(&generateIacCfg.profileTo, "profiling", "", "Profile to file")
 	root.AddCommand(generateCmd)
+
+	getLiveStateCmd := &cobra.Command{
+		Use:   "GetLiveState",
+		Short: "Reads the state file from the provider specified and translates it to Klotho Engine state graph.",
+		RunE:  GetLiveState,
+	}
+	flags = getLiveStateCmd.Flags()
+	flags.StringVarP(&getImportConstraintsCfg.provider, "provider", "p", "pulumi", "Provider to use")
+	flags.StringVarP(&getImportConstraintsCfg.inputGraph, "input-graph", "i", "", "Input graph to use to provide additional context to the state file.")
+	flags.StringVarP(&getImportConstraintsCfg.stateFile, "state-file", "s", "", "State file to use")
+	root.AddCommand(getLiveStateCmd)
+
 	return nil
+}
+
+func GetLiveState(cmd *cobra.Command, args []string) error {
+	log := zap.S().Named("LiveState")
+
+	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+	if err != nil {
+		return err
+	}
+	log.Info("Loaded knowledge base")
+	templates, err := statetemplate.LoadStateTemplates(getImportConstraintsCfg.provider)
+	if err != nil {
+		return err
+	}
+	log.Info("Loaded state templates")
+	reader := statereader.NewPulumiReader(templates, kb)
+	// read in the state file
+	if getImportConstraintsCfg.stateFile == "" {
+		log.Error("State file path is empty")
+		return errors.New("state file path is empty")
+	}
+	log.Info("Reading state file")
+	stateBytes, err := os.ReadFile(getImportConstraintsCfg.stateFile)
+	if err != nil {
+		log.Error("Failed to read state file", zap.Error(err))
+		return err
+	}
+	var input engine.FileFormat
+	if getImportConstraintsCfg.inputGraph != "" {
+		inputF, err := os.Open(getImportConstraintsCfg.inputGraph)
+		if err != nil {
+			return err
+		}
+		defer inputF.Close()
+		err = yaml.NewDecoder(inputF).Decode(&input)
+		if err != nil {
+			log.Error("Failed to decode input graph", zap.Error(err))
+			return err
+		}
+	}
+	bytesReader := bytes.NewReader(stateBytes)
+	result, err := reader.ReadState(bytesReader, input.Graph)
+	if err != nil {
+		return err
+	}
+	enc := yaml.NewEncoder(os.Stdout)
+	return enc.Encode(construct.YamlGraph{Graph: result})
 }
 
 func GenerateIac(cmd *cobra.Command, args []string) error {
@@ -88,7 +158,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	var files []io.File
+	var files []kio.File
 	if generateIacCfg.inputGraph == "" {
 		return fmt.Errorf("input graph required")
 	}
@@ -137,7 +207,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("provider %s not supported", generateIacCfg.provider)
 	}
 
-	err = io.OutputTo(files, generateIacCfg.outputDir)
+	err = kio.OutputTo(files, generateIacCfg.outputDir)
 	if err != nil {
 		return err
 	}

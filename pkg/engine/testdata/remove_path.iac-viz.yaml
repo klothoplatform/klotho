@@ -1,35 +1,59 @@
 provider: aws
 resources:
-  vpc/vpc-0:
+  ecr_repo/ecr_repo-0:
+
+  elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
+
+  elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
+
+  log_group/lambda_function_0-log-group:
+
+  log_group/lambda_function_3-log-group:
 
   region/region-0:
 
-  aws:internet_gateway:vpc-0/internet_gateway-0:
+  vpc/vpc-0:
 
-  aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
+  ecr_image/lambda_function_0-image:
+
+  ecr_image/lambda_function_0-image -> ecr_repo/ecr_repo-0:
+  ecr_image/lambda_function_3-image:
+
+  ecr_image/lambda_function_3-image -> ecr_repo/ecr_repo-0:
+  iam_role/lambda_function_3-executionrole:
+
+  iam_role/lambda_function_3-executionrole -> log_group/lambda_function_3-log-group:
   aws:availability_zone:region-0/availability_zone-0:
 
   aws:availability_zone:region-0/availability_zone-0 -> region/region-0:
+  aws:availability_zone:region-0/availability_zone-1:
+
+  aws:availability_zone:region-0/availability_zone-1 -> region/region-0:
+  aws:internet_gateway:vpc-0/internet_gateway-0:
+
+  aws:internet_gateway:vpc-0/internet_gateway-0 -> vpc/vpc-0:
+  aws:security_group:vpc-0/lambda_function_0-security_group:
+
+  aws:security_group:vpc-0/lambda_function_0-security_group -> vpc/vpc-0:
+  aws:security_group:vpc-0/lambda_function_3-security_group:
+
+  aws:security_group:vpc-0/lambda_function_3-security_group -> vpc/vpc-0:
+  aws:security_group:vpc-0/rds-instance-1-security_group:
+
+  aws:security_group:vpc-0/rds-instance-1-security_group -> vpc/vpc-0:
   aws:route_table:vpc-0/subnet-2-route_table:
 
   aws:route_table:vpc-0/subnet-2-route_table -> aws:internet_gateway:vpc-0/internet_gateway-0:
   aws:route_table:vpc-0/subnet-2-route_table -> vpc/vpc-0:
-  aws:availability_zone:region-0/availability_zone-1:
-
-  aws:availability_zone:region-0/availability_zone-1 -> region/region-0:
   aws:route_table:vpc-0/subnet-3-route_table:
 
   aws:route_table:vpc-0/subnet-3-route_table -> aws:internet_gateway:vpc-0/internet_gateway-0:
   aws:route_table:vpc-0/subnet-3-route_table -> vpc/vpc-0:
-  elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
-
   aws:subnet:vpc-0/subnet-2:
 
   aws:subnet:vpc-0/subnet-2 -> aws:availability_zone:region-0/availability_zone-0:
   aws:subnet:vpc-0/subnet-2 -> aws:route_table:vpc-0/subnet-2-route_table:
   aws:subnet:vpc-0/subnet-2 -> vpc/vpc-0:
-  elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
-
   aws:subnet:vpc-0/subnet-3:
 
   aws:subnet:vpc-0/subnet-3 -> aws:availability_zone:region-0/availability_zone-1:
@@ -39,17 +63,22 @@ resources:
 
   aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway -> elastic_ip/subnet-0-route_table-nat_gateway-elastic_ip:
   aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-2:
+  route_table_association/subnet-2-subnet-2-route_table:
+
+  route_table_association/subnet-2-subnet-2-route_table -> aws:route_table:vpc-0/subnet-2-route_table:
+  route_table_association/subnet-2-subnet-2-route_table -> aws:subnet:vpc-0/subnet-2:
   aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway:
 
   aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway -> elastic_ip/subnet-1-route_table-nat_gateway-elastic_ip:
   aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway -> aws:subnet:vpc-0/subnet-3:
+  route_table_association/subnet-3-subnet-3-route_table:
+
+  route_table_association/subnet-3-subnet-3-route_table -> aws:route_table:vpc-0/subnet-3-route_table:
+  route_table_association/subnet-3-subnet-3-route_table -> aws:subnet:vpc-0/subnet-3:
   aws:route_table:vpc-0/subnet-0-route_table:
 
   aws:route_table:vpc-0/subnet-0-route_table -> aws:nat_gateway:subnet-2/subnet-0-route_table-nat_gateway:
   aws:route_table:vpc-0/subnet-0-route_table -> vpc/vpc-0:
-  aws:security_group:vpc-0/rds-instance-1-security_group:
-
-  aws:security_group:vpc-0/rds-instance-1-security_group -> vpc/vpc-0:
   aws:route_table:vpc-0/subnet-1-route_table:
 
   aws:route_table:vpc-0/subnet-1-route_table -> aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway:
@@ -66,55 +95,26 @@ resources:
   aws:subnet:vpc-0/subnet-1 -> aws:route_table:vpc-0/subnet-1-route_table:
   aws:subnet:vpc-0/subnet-1 -> aws:security_group:vpc-0/rds-instance-1-security_group:
   aws:subnet:vpc-0/subnet-1 -> vpc/vpc-0:
-  rds_subnet_group/rds_subnet_group-0:
-
-  rds_subnet_group/rds_subnet_group-0 -> aws:subnet:vpc-0/subnet-0:
-  rds_subnet_group/rds_subnet_group-0 -> aws:subnet:vpc-0/subnet-1:
-  ecr_repo/ecr_repo-0:
-
-  log_group/lambda_function_3-log-group:
-
-  log_group/lambda_function_0-log-group:
-
-  rds_instance/rds-instance-1:
-
-  rds_instance/rds-instance-1 -> rds_subnet_group/rds_subnet_group-0:
-  rds_instance/rds-instance-1 -> aws:security_group:vpc-0/rds-instance-1-security_group:
-  ecr_image/lambda_function_3-image:
-
-  ecr_image/lambda_function_3-image -> ecr_repo/ecr_repo-0:
-  iam_role/lambda_function_3-executionrole:
-
-  iam_role/lambda_function_3-executionrole -> log_group/lambda_function_3-log-group:
-  aws:security_group:vpc-0/lambda_function_3-security_group:
-
-  aws:security_group:vpc-0/lambda_function_3-security_group -> vpc/vpc-0:
-  ecr_image/lambda_function_0-image:
-
-  ecr_image/lambda_function_0-image -> ecr_repo/ecr_repo-0:
-  iam_role/lambda_function_0-executionrole:
-
-  iam_role/lambda_function_0-executionrole -> log_group/lambda_function_0-log-group:
-  iam_role/lambda_function_0-executionrole -> rds_instance/rds-instance-1:
-  aws:security_group:vpc-0/lambda_function_0-security_group:
-
-  aws:security_group:vpc-0/lambda_function_0-security_group -> vpc/vpc-0:
-  route_table_association/subnet-3-subnet-3-route_table:
-
-  route_table_association/subnet-3-subnet-3-route_table -> aws:route_table:vpc-0/subnet-3-route_table:
-  route_table_association/subnet-3-subnet-3-route_table -> aws:subnet:vpc-0/subnet-3:
-  route_table_association/subnet-2-subnet-2-route_table:
-
-  route_table_association/subnet-2-subnet-2-route_table -> aws:route_table:vpc-0/subnet-2-route_table:
-  route_table_association/subnet-2-subnet-2-route_table -> aws:subnet:vpc-0/subnet-2:
-  route_table_association/subnet-1-subnet-1-route_table:
-
-  route_table_association/subnet-1-subnet-1-route_table -> aws:route_table:vpc-0/subnet-1-route_table:
-  route_table_association/subnet-1-subnet-1-route_table -> aws:subnet:vpc-0/subnet-1:
   route_table_association/subnet-0-subnet-0-route_table:
 
   route_table_association/subnet-0-subnet-0-route_table -> aws:route_table:vpc-0/subnet-0-route_table:
   route_table_association/subnet-0-subnet-0-route_table -> aws:subnet:vpc-0/subnet-0:
+  rds_subnet_group/rds_subnet_group-0:
+
+  rds_subnet_group/rds_subnet_group-0 -> aws:subnet:vpc-0/subnet-0:
+  rds_subnet_group/rds_subnet_group-0 -> aws:subnet:vpc-0/subnet-1:
+  route_table_association/subnet-1-subnet-1-route_table:
+
+  route_table_association/subnet-1-subnet-1-route_table -> aws:route_table:vpc-0/subnet-1-route_table:
+  route_table_association/subnet-1-subnet-1-route_table -> aws:subnet:vpc-0/subnet-1:
+  rds_instance/rds-instance-1:
+
+  rds_instance/rds-instance-1 -> rds_subnet_group/rds_subnet_group-0:
+  rds_instance/rds-instance-1 -> aws:security_group:vpc-0/rds-instance-1-security_group:
+  iam_role/lambda_function_0-executionrole:
+
+  iam_role/lambda_function_0-executionrole -> log_group/lambda_function_0-log-group:
+  iam_role/lambda_function_0-executionrole -> rds_instance/rds-instance-1:
   lambda_function/lambda_function_3:
 
   lambda_function/lambda_function_3 -> ecr_image/lambda_function_3-image:
