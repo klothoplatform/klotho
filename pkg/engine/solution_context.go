@@ -101,6 +101,20 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	}
 	for _, edge := range edges {
 		edgeTemplate := ctx.KB.GetEdgeTemplate(edge.Source, edge.Target)
+		src, err := graph.Vertex(edge.Source)
+		if err != nil {
+			return err
+		}
+		dst, err := graph.Vertex(edge.Target)
+		if err != nil {
+			return err
+		}
+		if src.Imported && dst.Imported {
+			if err := raw.AddEdge(edge.Source, edge.Target); err != nil {
+				return err
+			}
+			continue
+		}
 		if edgeTemplate == nil {
 			return fmt.Errorf("edge template %s -> %s not found", edge.Source, edge.Target)
 		}
