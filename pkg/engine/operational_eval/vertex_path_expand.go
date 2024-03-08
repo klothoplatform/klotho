@@ -58,8 +58,7 @@ func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
 		return fmt.Errorf("could not find target resource %s: %w", v.SatisfactionEdge.Target, err)
 	}
 	if sourceRes.Imported && targetRes.Imported {
-		eval.Solution.RawView().AddEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
-		return nil
+		return eval.Solution.RawView().AddEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
 	}
 
 	runner := &pathExpandVertexRunner{Eval: eval}

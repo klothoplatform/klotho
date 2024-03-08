@@ -16,6 +16,7 @@ interface Args {
     Subnets: aws.ec2.Subnet[]
     TaskDefinition: aws.ecs.TaskDefinition
     Name: string
+    HealthCheckGracePeriodSeconds: number
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
@@ -38,6 +39,9 @@ function create(args: Args): aws.ecs.Service {
             desiredCount: args.DesiredCount,
             //TMPL {{- if .EnableExecuteCommand }}
             enableExecuteCommand: args.EnableExecuteCommand,
+            //TMPL {{- end }}
+            //TMPL {{- if .HealthCheckGracePeriodSeconds }}
+            healthCheckGracePeriodSeconds: args.HealthCheckGracePeriodSeconds,
             //TMPL {{- end }}
             forceNewDeployment: args.ForceNewDeployment,
             //TMPL {{- if .LoadBalancers }}

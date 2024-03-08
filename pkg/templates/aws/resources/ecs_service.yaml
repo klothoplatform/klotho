@@ -31,6 +31,9 @@ properties:
     type: bool
     default_value: false
     description: Whether to enable Amazon ECS Exec for the service. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-exec.html
+  HealthCheckGracePeriodSeconds:
+    type: int
+    description: Seconds to ignore failing load balancer health checks on newly instantiated tasks to prevent premature shutdown, up to 2147483647. Only valid for services configured to use load balancers.
   ForceNewDeployment:
     type: bool
     default_value: true
@@ -77,7 +80,6 @@ properties:
         resources:
           - aws:ecs_task_definition:{{ .Self.Name }}
         unique: true
-
     description: The family and revision (family:revision) or full Amazon Resource
       Name (ARN) of the task definition to run in the service
   ServiceRegistries:
