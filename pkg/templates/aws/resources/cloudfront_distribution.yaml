@@ -187,6 +187,18 @@ properties:
     type: string
   aws:tags:
     type: model
+  DomainName:
+    type: string
+    description: |
+      The domain name of the distribution. For example: d111111abcdef8.cloudfront.net.
+    deploy_time: true
+    configuration_disabled: true
+  URLBase:
+    type: string
+    description: |
+      The base URL for the distribution. For example: https://d111111abcdef8.cloudfront.net.
+    deploy_time: true
+    configuration_disabled: true
 
 path_satisfaction:
   as_source:

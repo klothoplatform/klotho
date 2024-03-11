@@ -47,6 +47,20 @@ func (v *pathExpandVertex) Key() Key {
 }
 
 func (v *pathExpandVertex) Evaluate(eval *Evaluator) error {
+	// if both the source and target are imported resources we can skip the evaluation since its just for context
+	// we will ensure the edge remains
+	sourceRes, err := eval.Solution.RawView().Vertex(v.SatisfactionEdge.Source)
+	if err != nil {
+		return fmt.Errorf("could not find source resource %s: %w", v.SatisfactionEdge.Source, err)
+	}
+	targetRes, err := eval.Solution.RawView().Vertex(v.SatisfactionEdge.Target)
+	if err != nil {
+		return fmt.Errorf("could not find target resource %s: %w", v.SatisfactionEdge.Target, err)
+	}
+	if sourceRes.Imported && targetRes.Imported {
+		return eval.Solution.RawView().AddEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
+	}
+
 	runner := &pathExpandVertexRunner{Eval: eval}
 	edgeExpander := &path_selection.EdgeExpand{Ctx: eval.Solution}
 	return v.runEvaluation(eval, runner, edgeExpander)

@@ -107,6 +107,16 @@ properties:
     description: The endpoints of the cluster as a string.
     configuration_disabled: true
     deploy_time: true
+  PrimaryAddress:
+    type: string
+    description: The address of the primary node.
+    configuration_disabled: true
+    deploy_time: true
+  PrimaryPort:
+    type: int
+    description: The port number of the primary node.
+    configuration_disabled: true
+    deploy_time: true
 
 consumption:
   emitted:

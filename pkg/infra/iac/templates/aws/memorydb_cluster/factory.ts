@@ -99,5 +99,11 @@ function properties(object: aws.memorydb.Cluster, args: Args) {
             }
             return endpointStrings.join(',')
         })}`,
+        PrimaryAddress: pulumi.interpolate`${object.clusterEndpoints.apply(
+            (endpoint) => endpoint[0].address
+        )}`,
+        PrimaryPort: pulumi.interpolate`${object.clusterEndpoints.apply(
+            (endpoint) => endpoint[0].port
+        )}`,
     }
 }

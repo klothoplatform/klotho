@@ -101,6 +101,21 @@ func (view RawAccessView) RemoveVertex(hash construct.ResourceId) error {
 func (view RawAccessView) AddEdge(source, target construct.ResourceId, options ...func(*graph.EdgeProperties)) error {
 	dfErr := view.inner.DataflowGraph().AddEdge(source, target, options...)
 
+	// check to see if both resources are imported and if so allow the edge
+	src, err := view.inner.DataflowGraph().Vertex(source)
+	if err != nil {
+		return err
+	}
+	dst, err := view.inner.DataflowGraph().Vertex(target)
+	if err != nil {
+		return err
+	}
+	if src.Imported && dst.Imported {
+		// don't need to add it to the deployment graph - if both resources are imported, then
+		// they don't need each other since neither are technically being deployed.
+		return nil
+	}
+
 	var deplErr error
 	et := view.inner.KnowledgeBase().GetEdgeTemplate(source, target)
 	srcRt, terr := view.inner.KnowledgeBase().GetResourceTemplate(source)
@@ -122,7 +137,6 @@ func (view RawAccessView) AddEdge(source, target construct.ResourceId, options .
 		}
 	}
 
-	var err error
 	if dfErr != nil && !errors.Is(dfErr, graph.ErrEdgeAlreadyExists) {
 		err = errors.Join(err, dfErr)
 	}

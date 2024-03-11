@@ -47,7 +47,12 @@ function create(args: Args): aws.cloudfront.Distribution {
     })
 }
 
-function properties(object: ReturnType<typeof create>, args: Args) {}
+function properties(object: ReturnType<typeof create>, args: Args) {
+    return {
+        DomainName: object.domainName,
+        URLBase: pulumi.interpolate`https://${object.domainName}`,
+    }
+}
 
 function infraExports(
     object: ReturnType<typeof create>,
