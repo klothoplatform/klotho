@@ -94,54 +94,58 @@ properties:
       Enabled:
         type: bool
       LogConfiguration:
-        LogDriver:
-          type: string
-          description: The log driver to use for the container
-          default_value: awslogs
-        Options:
-          type: map(string,string)
-          description: The configuration options to send to the log driver
-          properties:
-            awslogs-group:
-              type: string
-              description: The log group to send stdout to
-              operational_rule:
-                if: |
-                  {{ hasField "ServiceConnectConfiguration" .Self }}
-                step:
-                  direction: downstream
-                  resources:
-                    - aws:log_group:{{ .Self.Name }}-log-group
-                  unique: true
-                  use_property_ref: LogGroupName
-            awslogs-region:
-              type: string
-              description: The region which your log group will exist in
-              operational_rule:
+        type: map
+        description: The log configuration specification for the container
+        properties:
+          LogDriver:
+            type: string
+            description: The log driver to use for the container
+            operational_rule:
               if: |
                 {{ hasField "ServiceConnectConfiguration" .Self }}
-              
-              default_value: '{{ fieldRef "Name" (downstream "aws:region" (upstream "aws:ecs_service" .Self)) }}'
-        SecretOptions:
-          type: list
-          properties:
-            Name:
-              type: string
-              description: The name of the secret
-            ValueFrom:
-              type: string
-              description: The secret to expose to the container
-          description: The secrets to pass to the log configuration
-        description: The log configuration specification for the container
+              value: awslogs
+          Options:
+            type: map(string,string)
+            description: The configuration options to send to the log driver
+            properties:
+              awslogs-group:
+                type: string
+                description: The log group to send stdout to
+                operational_rule:
+                  if: |
+                    {{ hasField "ServiceConnectConfiguration" .Self }}
+                  step:
+                    direction: downstream
+                    resources:
+                      - aws:log_group:{{ .Self.Name }}-log-group
+                    unique: true
+                    use_property_ref: LogGroupName
+              awslogs-region:
+                type: string
+                description: The region which your log group will exist in
+                operational_rule:
+                  if: |
+                    {{ hasField "ServiceConnectConfiguration" .Self }}
+                  value: '{{ fieldRef "Name" (downstream "aws:region" .Self) }}'
+          SecretOptions:
+            type: list
+            properties:
+              Name:
+                type: string
+                description: The name of the secret
+              ValueFrom:
+                type: string
+                description: The secret to expose to the container
+            description: The secrets to pass to the log configuration
       Namespace:
         type: string
         description: The namespace name or ARN of the aws.servicediscovery.HttpNamespace for use with Service Connect.
         operational_rule:
           if: |
-            {{ hasField "ServiceConnectDefaults" (downstream "aws:ecs_cluster" .Self) }}
+            {{ hasField "ServiceConnectConfiguration" .Self }}
           value: '{{ fieldRef "Arn" (downstream "aws:service_discovery_http_namespace" (downstream "aws:ecs_cluster" .Self)) }}'
       Services:
-        type: set
+        type: list
         properties:
           PortName:
             type: string
@@ -212,7 +216,7 @@ consumption:
 path_satisfaction:
   as_target:
     - network
-    - service_endpoint
+    - service_discovery
   as_source:
     - network#Subnets
 

@@ -75,7 +75,7 @@ func (v *resourceRuleVertex) evaluateResourceRule(
 	err := opCtx.HandleOperationalRule(knowledgebase.OperationalRule{
 		If:    v.Rule.If,
 		Steps: v.Rule.Steps,
-	})
+	}, operational_rule.AddConfiguruationOperator)
 	if err != nil {
 		return fmt.Errorf(
 			"could not apply resource %s operational rule: %w",

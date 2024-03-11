@@ -1,5 +1,5 @@
-qualified_type_name: aws:private_dns_namespace
-display_name: Private DNS Namespace
+qualified_type_name: aws:service_discovery_http_namespace
+display_name: Service Discovery HTTP Namespace
 
 properties:
   Description:

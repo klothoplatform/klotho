@@ -6,33 +6,39 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ downstream "aws:ecs_task_definition" .Target }}'
         configuration:
-          field: PortMappings
+          field: ContainerDefinitions[0].PortMappings
           value: | 
             [
-              {{ range $i, $portMapping := (fieldValue "PortMappings" (downstream "aws:ecs_task_definition" .Target)) -}}
+              {{ $portMappings := (fieldValue "ContainerDefinitions[0].PortMappings" (fieldValue "TaskDefinition" .Target)) }}
+              {{ range $i, $portMapping := $portMappings }}
               {
                 "ContainerPort": {{ $portMapping.ContainerPort }},
                 "HostPort": {{ $portMapping.HostPort }},
                 "Protocol": "{{ $portMapping.Protocol }}",
-                "AppProtocol": "http"
-                "Name": {{ .Target.Name }}-port-{{ $i }}
-              }{{ if ne $i (sub (len (fieldValue "PortMappings")) 1) }},{{ end }}
+                "AppProtocol": "http",
+                "Name": "{{ $.Target.Name }}-port-{{ $i }}"
+              }{{ if ne $i (sub (len $portMappings) 1) }},{{ end }}
+              {{ end }}
             ]
       - resource: '{{ .Target }}'
         configuration:
           field: ServiceConnectConfiguration
           value: | 
             {
-                "Enabled": true
+                "Enabled": true,
                 "Services": [
-                  {{ range $i, $portMapping := (fieldValue "PortMappings") -}}
+                {{ $portMappings := (fieldValue "ContainerDefinitions[0].PortMappings" (fieldValue "TaskDefinition" .Target)) }}
+                {{ range $i, $portMapping := $portMappings }}
                   {
-                    "PortName": {{ .Target.Name }}-port-{{ $i }},
+                    "PortName": "{{ $.Target.Name }}-port-{{ $i }}",
                     "ClientAliases": [
-                      "{{ .Target.Name }}-{{ .Target.Namespace }}.{{ .Target.DNSName }}"
-                    ],
-                  }{{ if ne $i (sub (len (fieldValue "PortMappings")) 1) }},{{ end }}
-                  {{ end -}}
+                      {
+                        "Port": {{ $portMapping.HostPort }},
+                        "DnsName": "{{ $.Source.Name }}"
+                      }
+                    ]
+                  }{{ if ne $i (sub (len $portMappings) 1) }},{{ end }}
+                  {{ end }}
                 ]
             }
             

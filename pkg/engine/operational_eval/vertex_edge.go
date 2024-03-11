@@ -75,6 +75,13 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 	if ev.Edge != otherEdge.Edge {
 		panic(fmt.Sprintf("cannot merge edges with different refs: %s != %s", ev.Edge, otherEdge.Edge))
 	}
+	// OTHER:
+	// for _, rule := range otherEdge.Rules {
+	// 	for _, evRule := range ev.Rules {
+	// 		if rule.Hash() == evRule.Hash() {
+	// 			continue OTHER
+	// 		}
+	// 	}
 	ev.Rules = append(ev.Rules, otherEdge.Rules...)
 }
 
@@ -95,7 +102,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		rule.ConfigurationRules = nil
 
 		if len(rule.Steps) > 0 {
-			err := opCtx.HandleOperationalRule(rule)
+			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s operational rule: %w",
@@ -125,7 +132,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		for res, configRules := range configuration {
 			opCtx.Data.Resource = res
 			rule.ConfigurationRules = configRules
-			err := opCtx.HandleOperationalRule(rule)
+			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s (res: %s) operational rule: %w",

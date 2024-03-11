@@ -1,8 +1,3 @@
 source: aws:ecs_cluster
 target: aws:service_discovery_http_namespace
-operational_rules:
-  - configuration_rules:
-    - resource: '{{ .Source }}'
-      configuration:
-        field: ServiceConnectDefaults.Namespace
-        value: '{{ fieldRef 'Arn' .Target}}'
+unique: many-to-one

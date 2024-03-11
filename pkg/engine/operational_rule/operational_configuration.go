@@ -7,7 +7,20 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
-func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
+type (
+	ConfigurationOperator string
+)
+
+const (
+	AddConfiguruationOperator   ConfigurationOperator = "add"
+	RemoveConfigurationOperator ConfigurationOperator = "remove"
+	SetConfigurationOperator    ConfigurationOperator = "set"
+)
+
+func (ctx OperationalRuleContext) HandleConfigurationRule(
+	config knowledgebase.ConfigurationRule,
+	configurationOperator ConfigurationOperator,
+) error {
 	dyn := solution_context.DynamicCtx(ctx.Solution)
 	res, err := knowledgebase.ExecuteDecodeAsResourceId(dyn, config.Resource, ctx.Data)
 	if err != nil {
@@ -26,7 +39,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	config.Config.Field = resolvedField
 	configurer := &solution_context.Configurer{Ctx: ctx.Solution}
 
-	err = configurer.ConfigureResource(resource, config.Config, ctx.Data, "add", false)
+	err = configurer.ConfigureResource(resource, config.Config, ctx.Data, string(configurationOperator), false)
 	if err != nil {
 		return err
 	}

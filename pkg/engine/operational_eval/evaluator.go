@@ -314,6 +314,9 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 				errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 				continue
 			}
+			if v.Key().keyType() == keyTypeEdge {
+				fmt.Println("test")
+			}
 			if v != existing {
 				existing.UpdateFrom(v)
 			}

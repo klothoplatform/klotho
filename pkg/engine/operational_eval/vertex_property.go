@@ -11,15 +11,18 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/set"
 )
 
 type (
 	propertyVertex struct {
 		Ref construct.PropertyRef
 
-		Template      knowledgebase.Property
-		EdgeRules     map[construct.SimpleEdge][]knowledgebase.OperationalRule
-		ResourceRules map[string][]knowledgebase.OperationalRule
+		Template  knowledgebase.Property
+		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
+		// TransformRules are a subset of EdgeRules where the property depends on itself, thus transforming the existing value
+		TransformRules map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]
+		ResourceRules  map[string][]knowledgebase.OperationalRule
 	}
 )
 
@@ -53,19 +56,50 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 	}
 
 	if prop.shouldEvalEdges(eval.Solution.Constraints().Resources) {
+		current_edges := make(map[Key]set.Set[Key])
+		for k, v := range propCtx.GetChanges().edges {
+			current_edges[k] = v
+		}
+
 		for edge, rule := range prop.EdgeRules {
 			edgeData := knowledgebase.DynamicValueData{
 				Resource: prop.Ref.Resource,
 				Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
 			}
+			var corrected_edge_rules []knowledgebase.OperationalRule
 			for _, opRule := range rule {
+				addRule := true
 				if err := propCtx.ExecuteOpRule(edgeData, opRule); err != nil {
 					return fmt.Errorf("could not execute edge operational rule for %s: %w", prop.Ref, err)
 				}
+
+				// Analyze the changes to ensure there are no self dependencies
+				// If there are then we want to label the operational rule as a transform rule to be operated on at the end
+				curr_deps := propCtx.GetChanges().edges[prop.Key()]
+				existing_deps := current_edges[prop.Key()]
+				for v := range curr_deps {
+					if v == prop.Key() && !existing_deps.Contains(v) {
+						current_set := prop.TransformRules[edge]
+						if current_set == nil {
+							current_set = &set.HashedSet[string, knowledgebase.OperationalRule]{
+								Hasher: func(s knowledgebase.OperationalRule) string {
+									return fmt.Sprintf("%v", s)
+								},
+							}
+						}
+						current_set.Add(opRule)
+						prop.TransformRules[edge] = current_set
+						propCtx.GetChanges().edges[prop.Key()].Remove(v)
+						addRule = false
+					}
+				}
+				if addRule {
+					corrected_edge_rules = append(corrected_edge_rules, opRule)
+				}
 			}
+			prop.EdgeRules[edge] = corrected_edge_rules
 		}
 	}
-
 	return nil
 }
 
@@ -139,6 +173,10 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
 			return err
 		}
+	}
+
+	if err := v.evaluateTransforms(res, &opCtx); err != nil {
+		return err
 	}
 
 	if err := eval.UpdateId(v.Ref.Resource, res.ID); err != nil {
@@ -312,11 +350,38 @@ func (v *propertyVertex) evaluateEdgeOperational(
 				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
 			})
 
-			err := opCtx.HandleOperationalRule(rule)
+			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s -> %s operational rule for %s: %w",
 					edge.Source, edge.Target, v.Ref, err,
+				))
+			}
+		}
+	}
+	return errs
+}
+
+func (v *propertyVertex) evaluateTransforms(
+	res *construct.Resource,
+	opCtx operational_rule.OpRuleHandler,
+) error {
+	var errs error
+	oldId := v.Ref.Resource
+	for edge, rules := range v.TransformRules {
+		for _, rule := range rules.ToSlice() {
+			// In case one of the previous rules changed the ID, update it
+			edge = UpdateEdgeId(edge, oldId, res.ID)
+			opCtx.SetData(knowledgebase.DynamicValueData{
+				Resource: res.ID,
+				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
+			})
+
+			err := opCtx.HandleOperationalRule(rule, operational_rule.SetConfigurationOperator)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf(
+					"could not apply transform rule for %s: %w",
+					v.Ref, err,
 				))
 			}
 		}

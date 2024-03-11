@@ -116,6 +116,24 @@ func (rule AdditionalRule) Hash() (string, error) {
 	return hashString, nil
 }
 
+func (rule OperationalRule) Hash() (string, error) {
+	// Convert the struct to a byte slice.
+	// Note that the struct must be able to be converted to JSON,
+	// so all fields must be exported (i.e., start with a capital letter).
+	byteSlice, err := json.Marshal(rule)
+	if err != nil {
+		return "", err
+	}
+
+	// Hash the byte slice.
+	hash := sha256.Sum256(byteSlice)
+
+	// Convert the hash to a hexadecimal string.
+	hashString := hex.EncodeToString(hash[:])
+
+	return hashString, nil
+}
+
 func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge {
 	if d == DirectionUpstream {
 		return construct.SimpleEdge{Source: dep, Target: resource}
