@@ -111,6 +111,8 @@ func (view RawAccessView) AddEdge(source, target construct.ResourceId, options .
 		return err
 	}
 	if src.Imported && dst.Imported {
+		// don't need to add it to the deployment graph - if both resources are imported, then
+		// they don't need each other since neither are technically being deployed.
 		return nil
 	}
 
