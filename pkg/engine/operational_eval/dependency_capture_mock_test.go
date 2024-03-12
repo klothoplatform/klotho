@@ -12,8 +12,8 @@ package operational_eval
 import (
 	reflect "reflect"
 
-	construct2 "github.com/klothoplatform/klotho/pkg/construct"
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,10 +41,10 @@ func (m *MockdependencyCapturer) EXPECT() *MockdependencyCapturerMockRecorder {
 }
 
 // DAG mocks base method.
-func (m *MockdependencyCapturer) DAG() construct2.Graph {
+func (m *MockdependencyCapturer) DAG() construct.Graph {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DAG")
-	ret0, _ := ret[0].(construct2.Graph)
+	ret0, _ := ret[0].(construct.Graph)
 	return ret0
 }
 
@@ -55,7 +55,7 @@ func (mr *MockdependencyCapturerMockRecorder) DAG() *gomock.Call {
 }
 
 // ExecuteDecode mocks base method.
-func (m *MockdependencyCapturer) ExecuteDecode(tmpl string, data knowledgebase2.DynamicValueData, value any) error {
+func (m *MockdependencyCapturer) ExecuteDecode(tmpl string, data knowledgebase.DynamicValueData, value any) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExecuteDecode", tmpl, data, value)
 	ret0, _ := ret[0].(error)
@@ -69,7 +69,7 @@ func (mr *MockdependencyCapturerMockRecorder) ExecuteDecode(tmpl, data, value an
 }
 
 // ExecuteOpRule mocks base method.
-func (m *MockdependencyCapturer) ExecuteOpRule(data knowledgebase2.DynamicValueData, rule knowledgebase2.OperationalRule) error {
+func (m *MockdependencyCapturer) ExecuteOpRule(data knowledgebase.DynamicValueData, rule knowledgebase.OperationalRule) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExecuteOpRule", data, rule)
 	ret0, _ := ret[0].(error)
@@ -83,7 +83,7 @@ func (mr *MockdependencyCapturerMockRecorder) ExecuteOpRule(data, rule any) *gom
 }
 
 // ExecutePropertyRule mocks base method.
-func (m *MockdependencyCapturer) ExecutePropertyRule(data knowledgebase2.DynamicValueData, rule knowledgebase2.PropertyRule) error {
+func (m *MockdependencyCapturer) ExecutePropertyRule(data knowledgebase.DynamicValueData, rule knowledgebase.PropertyRule) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ExecutePropertyRule", data, rule)
 	ret0, _ := ret[0].(error)
@@ -111,10 +111,10 @@ func (mr *MockdependencyCapturerMockRecorder) GetChanges() *gomock.Call {
 }
 
 // KB mocks base method.
-func (m *MockdependencyCapturer) KB() knowledgebase2.TemplateKB {
+func (m *MockdependencyCapturer) KB() knowledgebase.TemplateKB {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "KB")
-	ret0, _ := ret[0].(knowledgebase2.TemplateKB)
+	ret0, _ := ret[0].(knowledgebase.TemplateKB)
 	return ret0
 }
 

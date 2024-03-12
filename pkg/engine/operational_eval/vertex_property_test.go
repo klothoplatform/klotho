@@ -9,6 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
+	operational_rule "github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 	"github.com/stretchr/testify/assert"
@@ -188,7 +189,7 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 				Resource: tt.args.v.Ref.Resource,
 				Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
 			}).Times(1)
-			opctx.EXPECT().HandleOperationalRule(rule).Return(nil).Times(1)
+			opctx.EXPECT().HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator).Return(nil).Times(1)
 			err := tt.args.v.evaluateEdgeOperational(tt.args.res, opctx)
 			if tt.wantErr {
 				assert.Error(err)

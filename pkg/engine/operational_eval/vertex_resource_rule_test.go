@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/assert"
 	gomock "go.uber.org/mock/gomock"
@@ -151,7 +152,7 @@ func Test_resourceRuleVertex_evaluateResourceRule(t *testing.T) {
 			mocks: func() {
 				opctx.EXPECT().HandleOperationalRule(knowledgebase.OperationalRule{
 					If: "test",
-				}).Return(nil)
+				}, operational_rule.AddConfiguruationOperator).Return(nil)
 			},
 		},
 		{
@@ -165,7 +166,7 @@ func Test_resourceRuleVertex_evaluateResourceRule(t *testing.T) {
 			mocks: func() {
 				opctx.EXPECT().HandleOperationalRule(knowledgebase.OperationalRule{
 					If: "test",
-				}).Return(fmt.Errorf("err"))
+				}, operational_rule.AddConfiguruationOperator).Return(fmt.Errorf("err"))
 			},
 			wantErr: true,
 		},

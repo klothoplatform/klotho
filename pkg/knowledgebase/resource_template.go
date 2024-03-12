@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:generate 	mockgen -source=./resource_template.go --destination=./resource_template_mock_test.go --package=knowledgebase2
+//go:generate 	mockgen -source=./resource_template.go --destination=./resource_template_mock_test.go --package=knowledgebase
 //go:generate mockgen -source=./resource_template.go --destination=../engine2/operational_eval/resource_template_mock_test.go --package=operational_eval
 
 type (
