@@ -14,7 +14,18 @@ import (
 type edgeVertex struct {
 	Edge construct.SimpleEdge
 
-	Rules []knowledgebase.OperationalRule
+	Rules map[string]knowledgebase.OperationalRule
+}
+
+func edgeVertexWithRules(edge construct.SimpleEdge, rules []knowledgebase.OperationalRule) *edgeVertex {
+	ev := &edgeVertex{
+		Edge:  edge,
+		Rules: make(map[string]knowledgebase.OperationalRule),
+	}
+	for _, rule := range rules {
+		ev.Rules[rule.Hash()] = rule
+	}
+	return ev
 }
 
 func (ev edgeVertex) Key() Key {
@@ -75,14 +86,9 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 	if ev.Edge != otherEdge.Edge {
 		panic(fmt.Sprintf("cannot merge edges with different refs: %s != %s", ev.Edge, otherEdge.Edge))
 	}
-	// OTHER:
-	// for _, rule := range otherEdge.Rules {
-	// 	for _, evRule := range ev.Rules {
-	// 		if rule.Hash() == evRule.Hash() {
-	// 			continue OTHER
-	// 		}
-	// 	}
-	ev.Rules = append(ev.Rules, otherEdge.Rules...)
+	for hash, rule := range otherEdge.Rules {
+		ev.Rules[hash] = rule
+	}
 }
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
