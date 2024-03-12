@@ -3,7 +3,6 @@ package operational_eval
 import (
 	"errors"
 	"fmt"
-	"sort"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -15,18 +14,8 @@ import (
 type edgeVertex struct {
 	Edge construct.SimpleEdge
 
-	Rules map[string]knowledgebase.OperationalRule
-}
-
-func edgeVertexWithRules(edge construct.SimpleEdge, rules []knowledgebase.OperationalRule) *edgeVertex {
-	ev := &edgeVertex{
-		Edge:  edge,
-		Rules: make(map[string]knowledgebase.OperationalRule),
-	}
-	for _, rule := range rules {
-		ev.Rules[rule.Hash()] = rule
-	}
-	return ev
+	// Rules are run in order of how they exist in the template so that the order of operations handles the rules inter dependencies
+	Rules []knowledgebase.OperationalRule
 }
 
 func (ev edgeVertex) Key() Key {
@@ -87,9 +76,7 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 	if ev.Edge != otherEdge.Edge {
 		panic(fmt.Sprintf("cannot merge edges with different refs: %s != %s", ev.Edge, otherEdge.Edge))
 	}
-	for hash, rule := range otherEdge.Rules {
-		ev.Rules[hash] = rule
-	}
+	ev.Rules = otherEdge.Rules
 }
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
@@ -104,21 +91,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	}
 
 	var errs error
-	rules := make([]knowledgebase.OperationalRule, 0, len(ev.Rules))
-	// Create a slice for the keys to sort so that we can add the rules in a deterministic order
-	keys := make([]string, 0, len(ev.Rules))
-	for k := range ev.Rules {
-		keys = append(keys, k)
-	}
-
-	// Sort the keys
-	sort.Strings(keys)
-
-	// Create a slice for the sorted values
-	for _, k := range keys {
-		rules = append(rules, ev.Rules[k])
-	}
-	for _, rule := range rules {
+	for _, rule := range ev.Rules {
 		configRules := rule.ConfigurationRules
 		rule.ConfigurationRules = nil
 

@@ -25,11 +25,11 @@ func Test_edgeVertex_Dependencies(t *testing.T) {
 					Source: construct.ResourceId{Name: "source"},
 					Target: construct.ResourceId{Name: "target"},
 				},
-				Rules: map[string]knowledgebase.OperationalRule{
-					"1": {
+				Rules: []knowledgebase.OperationalRule{
+					{
 						If: "First",
 					},
-					"2": {
+					{
 						If: "Second",
 					},
 				},
@@ -37,10 +37,10 @@ func Test_edgeVertex_Dependencies(t *testing.T) {
 			mocks: func(dcap *MockdependencyCapturer, v *edgeVertex) {
 				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
 					Edge: &construct.Edge{Source: v.Edge.Source, Target: v.Edge.Target},
-				}, v.Rules["1"]).Times(1)
+				}, v.Rules[0]).Times(1)
 				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
 					Edge: &construct.Edge{Source: v.Edge.Source, Target: v.Edge.Target},
-				}, v.Rules["2"]).Times(1)
+				}, v.Rules[1]).Times(1)
 				dcap.EXPECT().GetChanges().Times(1)
 			},
 		},

@@ -12,6 +12,7 @@ import (
 	operational_rule "github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	gomock "go.uber.org/mock/gomock"
@@ -208,6 +209,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 		v           *propertyVertex
 		constraints constraints.Constraints
 		mocks       func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath)
+		want        *propertyVertex
 		wantErr     bool
 	}{
 		{
@@ -236,6 +238,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 						If: "test",
 					},
 				).Return(nil)
+				dcap.EXPECT().GetChanges().Times(1)
 			},
 		},
 		{
@@ -263,6 +266,79 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				}, knowledgebase.OperationalRule{
 					If: "testE",
 				}).Return(nil)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{},
+				}).Times(2)
+			},
+		},
+		{
+			name: "property vertex with edge rules that depend on itself",
+			v: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						{
+							If: "testE",
+						},
+					},
+				},
+				TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{},
+			},
+			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
+				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
+					Resource: resource.ID,
+					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
+				}, knowledgebase.OperationalRule{
+					If: "testE",
+				}).Return(nil)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{},
+				}).Times(1)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{
+						{Ref: construct.PropertyRef{
+							Resource: construct.ResourceId{Name: "test"},
+							Property: "test",
+						}}: set.SetOf(
+							Key{Ref: construct.PropertyRef{
+								Resource: construct.ResourceId{Name: "test"},
+								Property: "test",
+							}}),
+					},
+				}).Times(2)
+			},
+			want: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: nil,
+				},
+				TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						Hasher: func(s knowledgebase.OperationalRule) string {
+							return fmt.Sprintf("%v", s)
+						},
+						M: map[string]knowledgebase.OperationalRule{
+							"{testE [] []}": {
+								If: "testE",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -296,6 +372,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
 				// expect no calls to ExecuteOpRule due to shouldEvalEdges returning false
 				dcap.EXPECT().ExecuteOpRule(gomock.Any(), gomock.Any()).Times(0)
+				dcap.EXPECT().GetChanges().Times(0)
 			},
 		},
 	}
@@ -327,6 +404,12 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+			if tt.want != nil {
+				assert.Equal(t, tt.want.EdgeRules, tt.v.EdgeRules)
+				for k, v := range tt.want.TransformRules {
+					assert.Equal(t, v.M, tt.v.TransformRules[k].M)
+				}
+			}
 			ctrl.Finish()
 		})
 	}

@@ -15,7 +15,6 @@ resources:
         - aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs
         - aws:iam_role:lambda_test_app-ExecutionRole
         - aws:security_group:vpc-0:lambda_test_app-test-efs-fs
-        - aws:security_group:vpc-0:subnet-1-test-efs-fs
         - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
         - aws:subnet:vpc-0:subnet-1
 
@@ -28,7 +27,6 @@ resources:
         - aws:route_table:vpc-0:subnet-3-route_table
         - aws:security_group:vpc-0:lambda_test_app-security_group
         - aws:security_group:vpc-0:lambda_test_app-test-efs-fs
-        - aws:security_group:vpc-0:subnet-1-test-efs-fs
         - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
         - aws:subnet:vpc-0:subnet-1
         - aws:subnet:vpc-0:subnet-2

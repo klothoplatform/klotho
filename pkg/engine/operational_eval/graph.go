@@ -175,10 +175,10 @@ func (eval *Evaluator) edgeVertices(
 ) (graphChanges, error) {
 	changes := newChanges()
 
-	opVertex := edgeVertexWithRules(
-		construct.SimpleEdge{Source: edge.Source, Target: edge.Target},
-		tmpl.OperationalRules,
-	)
+	opVertex := &edgeVertex{
+		Edge:  construct.SimpleEdge{Source: edge.Source, Target: edge.Target},
+		Rules: tmpl.OperationalRules,
+	}
 
 	return changes, changes.AddVertexAndDeps(eval, opVertex)
 }

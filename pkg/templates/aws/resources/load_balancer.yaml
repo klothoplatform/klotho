@@ -62,7 +62,6 @@ properties:
                 {{- else}}
                   private
                 {{- end}}
-          - aws:subnet
         num_needed: 2
     description: A list of subnets for the load balancer, with at least two required
   Tags:
