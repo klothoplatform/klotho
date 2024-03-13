@@ -508,7 +508,7 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					false).Times(1)
 			},
 		},
@@ -540,7 +540,7 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					true).Times(1)
 			},
 		},
@@ -571,17 +571,17 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					false).Times(1)
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"add",
+					constraints.AddConstraintOperator,
 					true).Times(1)
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test2"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"add",
+					constraints.AddConstraintOperator,
 					true).Times(1)
 			},
 		},

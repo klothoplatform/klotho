@@ -255,7 +255,7 @@ func (v *propertyVertex) evaluateConstraints(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: defaultVal},
 			dynData,
-			"set",
+			constraints.EqualsConstraintOperator,
 			false,
 		)
 		if err != nil {
@@ -267,7 +267,7 @@ func (v *propertyVertex) evaluateConstraints(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: setConstraint.Value},
 			dynData,
-			"set",
+			constraints.EqualsConstraintOperator,
 			true,
 		)
 		if err != nil {
