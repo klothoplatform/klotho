@@ -96,7 +96,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		rule.ConfigurationRules = nil
 
 		if len(rule.Steps) > 0 {
-			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
+			err := opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s operational rule: %w",
@@ -126,7 +126,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		for res, configRules := range configuration {
 			opCtx.Data.Resource = res
 			rule.ConfigurationRules = configRules
-			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
+			err := opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s (res: %s) operational rule: %w",

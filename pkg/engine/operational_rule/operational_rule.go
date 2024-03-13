@@ -6,6 +6,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -23,7 +24,7 @@ type (
 	}
 
 	OpRuleHandler interface {
-		HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator ConfigurationOperator) error
+		HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator constraints.ConstraintOperator) error
 		HandlePropertyRule(rule knowledgebase.PropertyRule) error
 		SetData(data knowledgebase.DynamicValueData)
 	}
@@ -31,7 +32,7 @@ type (
 
 func (ctx *OperationalRuleContext) HandleOperationalRule(
 	rule knowledgebase.OperationalRule,
-	configurationOperator ConfigurationOperator,
+	configurationOperator constraints.ConstraintOperator,
 ) error {
 	shouldRun, err := EvaluateIfCondition(rule.If, ctx.Solution, ctx.Data)
 	if err != nil {

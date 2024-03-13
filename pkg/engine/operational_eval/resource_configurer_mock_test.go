@@ -12,8 +12,9 @@ package operational_eval
 import (
 	reflect "reflect"
 
-	construct2 "github.com/klothoplatform/klotho/pkg/construct"
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	construct "github.com/klothoplatform/klotho/pkg/construct"
+	constraints "github.com/klothoplatform/klotho/pkg/engine/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,7 +42,7 @@ func (m *MockResourceConfigurer) EXPECT() *MockResourceConfigurerMockRecorder {
 }
 
 // ConfigureResource mocks base method.
-func (m *MockResourceConfigurer) ConfigureResource(resource *construct2.Resource, configuration knowledgebase2.Configuration, data knowledgebase2.DynamicValueData, action string, userInitiated bool) error {
+func (m *MockResourceConfigurer) ConfigureResource(resource *construct.Resource, configuration knowledgebase.Configuration, data knowledgebase.DynamicValueData, action constraints.ConstraintOperator, userInitiated bool) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConfigureResource", resource, configuration, data, action, userInitiated)
 	ret0, _ := ret[0].(error)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
@@ -75,7 +76,7 @@ func (v *resourceRuleVertex) evaluateResourceRule(
 	err := opCtx.HandleOperationalRule(knowledgebase.OperationalRule{
 		If:    v.Rule.If,
 		Steps: v.Rule.Steps,
-	}, operational_rule.AddConfiguruationOperator)
+	}, constraints.AddConstraintOperator)
 	if err != nil {
 		return fmt.Errorf(
 			"could not apply resource %s operational rule: %w",

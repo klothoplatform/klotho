@@ -12,7 +12,7 @@ package operational_eval
 import (
 	reflect "reflect"
 
-	operational_rule "github.com/klothoplatform/klotho/pkg/engine/operational_rule"
+	constraints "github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -41,7 +41,7 @@ func (m *MockOpRuleHandler) EXPECT() *MockOpRuleHandlerMockRecorder {
 }
 
 // HandleOperationalRule mocks base method.
-func (m *MockOpRuleHandler) HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator operational_rule.ConfigurationOperator) error {
+func (m *MockOpRuleHandler) HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator constraints.ConstraintOperator) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleOperationalRule", rule, configurationOperator)
 	ret0, _ := ret[0].(error)

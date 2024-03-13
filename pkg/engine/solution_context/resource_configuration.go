@@ -20,7 +20,7 @@ type (
 			resource *construct.Resource,
 			configuration knowledgebase.Configuration,
 			data knowledgebase.DynamicValueData,
-			action string,
+			action constraints.ConstraintOperator,
 			userInitiated bool,
 		) error
 	}
@@ -34,7 +34,7 @@ func (c *Configurer) ConfigureResource(
 	resource *construct.Resource,
 	configuration knowledgebase.Configuration,
 	data knowledgebase.DynamicValueData,
-	action string,
+	action constraints.ConstraintOperator,
 	userInitiated bool,
 ) error {
 	if resource == nil {
@@ -67,7 +67,7 @@ func (c *Configurer) ConfigureResource(
 	}
 
 	switch action {
-	case "set":
+	case constraints.EqualsConstraintOperator:
 		err = property.SetProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to set property %s on resource %s: %w", field, resource.ID, err)
@@ -76,7 +76,7 @@ func (c *Configurer) ConfigureResource(
 		if err != nil {
 			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
 		}
-	case "add":
+	case constraints.AddConstraintOperator:
 		err = property.AppendProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to add property %s on resource %s: %w", field, resource.ID, err)
@@ -85,7 +85,7 @@ func (c *Configurer) ConfigureResource(
 		if err != nil {
 			return fmt.Errorf("failed to add deployment dependencies from property %s on resource %s: %w", field, resource.ID, err)
 		}
-	case "remove":
+	case constraints.RemoveConstraintOperator:
 		err = property.RemoveProperty(resource, val)
 		if err != nil {
 			return fmt.Errorf("failed to remove property %s on resource %s: %w", field, resource.ID, err)
@@ -118,19 +118,6 @@ func AddDeploymentDependenciesFromVal(
 		}
 	}
 	return errs
-}
-
-func ConstraintOperatorToAction(op constraints.ConstraintOperator) (string, error) {
-	switch op {
-	case constraints.AddConstraintOperator:
-		return "add", nil
-	case constraints.RemoveConstraintOperator:
-		return "remove", nil
-	case constraints.EqualsConstraintOperator:
-		return "set", nil
-	default:
-		return "", fmt.Errorf("invalid operator %s", op)
-	}
 }
 
 func getResourcesFromValue(val any) (ids []construct.ResourceId) {

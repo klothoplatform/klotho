@@ -20,7 +20,9 @@ type (
 
 		Template  knowledgebase.Property
 		EdgeRules map[construct.SimpleEdge][]knowledgebase.OperationalRule
-		// TransformRules are a subset of EdgeRules where the property depends on itself, thus transforming the existing value
+		// TransformRules are Rules found in edge templates where the property depends on itself, thus transforming the existing value
+		// Transform rules are initially a part of the edge vertex
+		// when a TransformRule is found it is removed from the EdgeRules and added to the TransformRules
 		TransformRules map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]
 		ResourceRules  map[string][]knowledgebase.OperationalRule
 	}
@@ -279,16 +281,11 @@ func (v *propertyVertex) evaluateConstraints(
 		if c.Operator == constraints.EqualsConstraintOperator {
 			continue
 		}
-		action, err := solution_context.ConstraintOperatorToAction(c.Operator)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("could not apply constraint for %s: %w", v.Ref, err))
-			continue
-		}
 		errs = errors.Join(errs, rc.ConfigureResource(
 			res,
 			knowledgebase.Configuration{Field: v.Ref.Property, Value: c.Value},
 			dynData,
-			action,
+			c.Operator,
 			true,
 		))
 		dynData.Resource = res.ID
@@ -350,7 +347,7 @@ func (v *propertyVertex) evaluateEdgeOperational(
 				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
 			})
 
-			err := opCtx.HandleOperationalRule(rule, operational_rule.AddConfiguruationOperator)
+			err := opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s -> %s operational rule for %s: %w",
@@ -377,7 +374,7 @@ func (v *propertyVertex) evaluateTransforms(
 				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
 			})
 
-			err := opCtx.HandleOperationalRule(rule, operational_rule.SetConfigurationOperator)
+			err := opCtx.HandleOperationalRule(rule, constraints.EqualsConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply transform rule for %s: %w",

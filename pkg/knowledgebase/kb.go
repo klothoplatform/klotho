@@ -12,7 +12,7 @@ import (
 )
 
 //go:generate mockgen --source=./kb.go -destination=./template_kb_mock_test.go -package=knowledgebase
-//go:generate mockgen --source=./kb.go -destination=../engine2/operational_eval/template_kb_mock_test.go -package=operational_eval
+//go:generate mockgen --source=./kb.go -destination=../engine/operational_eval/template_kb_mock_test.go -package=operational_eval
 
 type (
 	TemplateKB interface {
