@@ -143,7 +143,11 @@ properties:
         operational_rule:
           if: |
             {{ hasField "ServiceConnectConfiguration" .Self }}
-          value: '{{ fieldRef "Arn" (downstream "aws:service_discovery_http_namespace" (downstream "aws:ecs_cluster" .Self)) }}'
+          step:
+            direction: upstream
+            resources:
+              - aws:service_discovery_http_namespace
+            use_property_ref: Arn
       Services:
         type: list
         properties:

@@ -16,28 +16,37 @@ operational_rules:
                 "HostPort": {{ $portMapping.HostPort }},
                 "Protocol": "{{ $portMapping.Protocol }}",
                 "AppProtocol": "http",
+                {{ if $portMapping.Name }}
+                "Name": "{{ $portMapping.Name }}"
+                {{ else }}
                 "Name": "{{ $.Target.Name }}-port-{{ $i }}"
+                {{ end }}
               }{{ if ne $i (sub (len $portMappings) 1) }},{{ end }}
               {{ end }}
             ]
       - resource: '{{ .Target }}'
         configuration:
           field: ServiceConnectConfiguration
+          # the first value call to ContainerDefinitions[0].PortMappings is just here to force the dependency on the first portmapping
           value: | 
             {
                 "Enabled": true,
                 "Services": [
-                {{ $portMappings := (fieldValue "ContainerDefinitions[0].PortMappings" (fieldValue "TaskDefinition" .Target)) }}
-                {{ range $i, $portMapping := $portMappings }}
-                  {
-                    "PortName": "{{ $.Target.Name }}-port-{{ $i }}",
-                    "ClientAliases": [
-                      {
-                        "Port": {{ $portMapping.HostPort }},
-                        "DnsName": "{{ $.Source.Name }}"
-                      }
-                    ]
-                  }{{ if ne $i (sub (len $portMappings) 1) }},{{ end }}
+                {{ $pms := (fieldValue "ContainerDefinitions[0].PortMappings" (fieldValue "TaskDefinition" .Target)) }}
+                {{ $containerDefinitions := (fieldValue "ContainerDefinitions" (fieldValue "TaskDefinition" .Target))}}
+                {{ range $j, $containerDefinition := $containerDefinitions }}
+                  {{ $portMappings := $containerDefinition.PortMappings }}
+                  {{ range $i, $portMapping := $portMappings }}
+                    {
+                      "PortName": "{{ $portMapping.Name}}",
+                      "ClientAliases": [
+                        {
+                          "Port": {{ $portMapping.HostPort }},
+                          "DnsName": "{{ $portMapping.Name }}"
+                        }
+                      ]
+                    }{{ if ne $j (sub (len $containerDefinitions) 1) }},{{ end }}
+                    {{ end }}
                   {{ end }}
                 ]
             }
