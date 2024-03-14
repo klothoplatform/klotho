@@ -1,0 +1,92 @@
+qualified_type_name: aws:auto_scaling_group
+display_name: Auto Scaling Group
+
+properties:  
+  AvailabilityZones: 
+    type: list(string)
+    description: A list of Availability Zones where instances in the Auto Scaling group can be created.
+  CapacityRebalance: 
+    type: bool
+    description: Indicates whether Capacity Rebalancing is enabled. When you turn on Capacity Rebalancing, Amazon EC2 Auto Scaling attempts to launch a Spot Instance whenever Amazon EC2 notifies that a Spot Instance is at an elevated risk of interruption. After launching a new instance, it then terminates an old instance.
+    default_value: false
+  Cooldown: 
+    type: string
+    default_value: 300
+    description: The amount of time, in seconds, after a scaling activity completes before another scaling activity can start.
+  DesiredCapacity: 
+    type: string
+    description: The desired capacity is the initial capacity of the Auto Scaling group at the time of its creation and the capacity it attempts to maintain. It can scale beyond this capacity if you configure automatic scaling.
+    default_value: 2
+    sanitize: |
+      {{ . 
+        | replace `^[0-9]+$` "" 
+      }}
+  DesiredCapacityType: 
+    type: string
+    description: The unit of measurement for the value specified for desired capacity.
+    default_value: units
+    allowed_values: 
+      - units
+      - vcpu
+      - memory-mib
+  HealthCheckGracePeriod: 
+    type: int
+    description: The amount of time, in seconds, that Amazon EC2 Auto Scaling waits before checking the health status of an EC2 instance that has come into service.
+    default_value: 0
+  InstanceId: 
+    type: string
+    description: The ID of the instance used to base the launch configuration on. If you specify LaunchTemplate, MixedInstancesPolicy, or LaunchConfigurationName, don't specify InstanceId.
+  LaunchTemplate: 
+    type: map
+    properties:
+        LaunchTemplateId: 
+          type: string
+          description: The ID of the launch template. You must specify either a template ID or a template name.
+        LaunchTemplateName: 
+          type: string
+          description: The name of the launch template. You must specify either a template name or a template ID.
+        Version: 
+          type: string
+          description: The version number, $Latest, or $Default. If the value is $Latest, Amazon EC2 Auto Scaling selects the latest version of the launch template when launching instances. If the value is $Default, Amazon EC2 Auto Scaling selects the default version of the launch template when launching instances. The default value is $Default.
+          default_value: $Latest
+  MaxSize: 
+    type: string
+    required: true
+    description: The maximum size of the Auto Scaling group.
+    sanitize: |
+      {{ . 
+        | replace `^[0-9]+$` "" 
+      }}
+  MinSize: 
+    type: string
+    required: true
+    description: The minimum size of the Auto Scaling group.
+    sanitize: |
+      {{ . 
+        | replace `^[0-9]+$` "" 
+      }}
+  VPCZoneIdentifier: 
+    type: list(string)
+    description: A comma-separated list of subnet IDs for a virtual private cloud (VPC). If you specify VPCZoneIdentifier with AvailabilityZones, the subnets that you specify for this parameter must reside in those Availability Zones.
+    required: true
+  aws:tags:
+    type: model
+  Id:
+    type: string
+    description: The unique identifier for the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+
+classification:
+  is:
+    - auto_scaling
+    - ecs
+
+delete_context:
+  requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["autoscaling-plans:CreateScalingPlan", "autoscaling-plans:DescribeScalingPlanResources", "autoscaling-plans:DescribeScalingPlans", "autoscaling-plans:GetScalingPlanResourceForecastData"]
+  tear_down: ["autoscaling-plans:DeleteScalingPlan"]
+  update: ["autoscaling-plans:UpdateScalingPlan"]

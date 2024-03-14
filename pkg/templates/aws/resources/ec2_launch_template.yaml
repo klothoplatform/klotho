@@ -1,0 +1,83 @@
+qualified_type_name: aws:ec2_launch_template
+display_name: Ec2 Launch Template
+
+properties:  
+  LaunchTemplateData:
+    type: map
+    description: The information for the launch template.
+    required: true
+    properties:
+      IamInstanceProfile: 
+        type: map
+        description: The name or Amazon Resource Name (ARN) of an IAM instance profile.
+        properties: 
+          Arn: 
+            type: string
+          Name: 
+            type: string
+      ImageId: 
+        type: string
+        description: The ID of the AMI.
+      InstanceRequirements: 
+        type: map
+        description: The instance requirements for the launch template. You must specify VCpuCount and MemoryMiB. If you specify InstanceRequirements, you can't specify InstanceType.
+        properties:
+          AllowedInstanceTypes: 
+            type: list(string)
+            description: The instance types that can be launched. You can specify instance families to launch any instance type within those families (for example, c5 or m5). If you specify instance types, you can't specify a value for InstanceType.
+          ExcludedInstanceTypes:
+            type: list(string)
+            description: The instance types that aren't allowed to be launched. You can specify instance families to launch any instance type within those families (for example, c5 or m5). If you specify instance types, you can't specify a value for InstanceType.
+          MemoryMiB: 
+            type: map
+            description: The amount of memory, in MiB, that's required for the instance type. You must specify a value for MemoryMiB, and you can't specify a value for InstanceType.
+            properties:
+              Max:
+                type: int
+                description: The maximum number of vCPUs that are required for the instance type.
+              Min:
+                type: int
+                description: The minimum number of vCPUs that are required for the instance type.
+          VCpuCount:
+            type: map
+            description: The number of vCPUs that are required for the instance type. You must specify a value for VCpuCount, and you can't specify a value for InstanceType.
+            properties:
+              Max:
+                type: int
+                description: The maximum number of vCPUs that are required for the instance type.
+              Min:
+                type: int
+                description: The minimum number of vCPUs that are required for the instance type.
+      InstanceType: 
+        type: string
+        description: The instance type. If you specify InstanceType, you can't specify InstanceRequirements.
+        allowed_values:
+      SecurityGroupIds: 
+        type: list(string)
+        description: The IDs of the security groups.
+  aws:tags:
+    type: model
+  Arn:
+    type: string
+    description: The Amazon Resource Name (ARN) of the launch template.
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    description: The unique identifier for the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+
+classification:
+  is:
+    - launch_template
+    - ec2
+
+delete_context:
+  requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["ec2:CreateLaunchTemplate", "ec2:CreateLaunchTemplateVersion", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "ec2:GetLaunchTemplateData"]
+  tear_down: ["ec2:DeleteLaunchTemplate", "ec2:DeleteLaunchTemplateVersions"]
+  update: ["ec2:ModifyLaunchTemplate"]

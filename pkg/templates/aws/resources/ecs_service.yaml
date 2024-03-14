@@ -7,6 +7,18 @@ properties:
     default_value: false
     description: Indicates whether the task's elastic network interface receives a
       public IP address
+  CapacityProviderStrategies:
+    type: set
+    properties:
+      CapacityProvider:
+        type: string
+        description: Short name of the capacity provider.
+      Weight:
+        type: int
+        description: Relative percentage of the total number of launched tasks that should use the specified capacity provider.
+      Base:
+        type: int
+        description: Number of tasks, at a minimum, to run on the specified capacity provider.
   Cluster:
     type: resource(aws:ecs_cluster)
     operational_rule:
@@ -41,6 +53,10 @@ properties:
   LaunchType:
     type: string
     default_value: FARGATE
+    allowed_values:
+      - EC2
+      - FARGATE
+      - EXTERNAL
     description: The launch type on which to run your service
   LoadBalancers:
     type: list(map)

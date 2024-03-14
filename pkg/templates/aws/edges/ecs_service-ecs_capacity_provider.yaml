@@ -1,0 +1,10 @@
+source: aws:ecs_service
+target: aws:ecs_capacity_provider
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: CapacityProviderStrategies
+        value:
+          - CapacityProvider: '{{ fieldRef "Id" .Target }}'
