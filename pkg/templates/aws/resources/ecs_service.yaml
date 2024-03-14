@@ -88,6 +88,112 @@ properties:
       RegistryArn:
         type: string
         description: ARN of the Service Registry. The currently supported service registry is Amazon Route 53 Auto Naming Service
+  ServiceConnectConfiguration:
+    type: map
+    properties:
+      Enabled:
+        type: bool
+      LogConfiguration:
+        type: map
+        description: The log configuration specification for the container
+        properties:
+          LogDriver:
+            type: string
+            description: The log driver to use for the container
+            operational_rule:
+              if: |
+                {{ hasField "ServiceConnectConfiguration" .Self }}
+              value: awslogs
+          Options:
+            type: map(string,string)
+            description: The configuration options to send to the log driver
+            properties:
+              awslogs-group:
+                type: string
+                description: The log group to send stdout to
+                operational_rule:
+                  if: |
+                    {{ hasField "ServiceConnectConfiguration" .Self }}
+                  step:
+                    direction: downstream
+                    resources:
+                      - aws:log_group:{{ .Self.Name }}-log-group
+                    unique: true
+                    use_property_ref: LogGroupName
+              awslogs-region:
+                type: string
+                description: The region which your log group will exist in
+                operational_rule:
+                  if: |
+                    {{ hasField "ServiceConnectConfiguration" .Self }}
+                  value: '{{ fieldRef "Name" (downstream "aws:region" .Self) }}'
+          SecretOptions:
+            type: list
+            properties:
+              Name:
+                type: string
+                description: The name of the secret
+              ValueFrom:
+                type: string
+                description: The secret to expose to the container
+            description: The secrets to pass to the log configuration
+      Namespace:
+        type: string
+        description: The namespace name or ARN of the aws.servicediscovery.HttpNamespace for use with Service Connect.
+        operational_rule:
+          if: |
+            {{ hasField "ServiceConnectConfiguration" .Self }}
+          step:
+            direction: upstream
+            resources:
+              - aws:service_discovery_http_namespace
+            use_property_ref: Arn
+      Services:
+        type: list
+        properties:
+          PortName:
+            type: string
+            description: The name of one of the portMappings from all the containers in the task definition of this Amazon ECS service.
+          ClientAlias:
+            type: set
+            properties:
+              Port:
+                type: int
+                description: The listening port number for the Service Connect proxy. This port is available inside of all of the tasks within the same namespace.
+              DnsName:
+                type: string
+                description: The name that you use in the applications of client tasks to connect to this service.
+          DiscoveryName:
+            type: string
+            description: The name of the new AWS Cloud Map service that Amazon ECS creates for this Amazon ECS service.
+          IngressPortOverride:
+            type: int
+            description: The port number for the Service Connect proxy to listen on.
+          Timeout:
+            type: map
+            properties:
+              IdleTimeoutSeconds:
+                type: int
+                description: The amount of time in seconds a connection will stay active while idle. A value of 0 can be set to disable idleTimeout.
+              PerRequestTimeoutSeconds:
+                type: int
+                description: The amount of time in seconds for the upstream to respond with a complete response per request. A value of 0 can be set to disable perRequestTimeout. Can only be set when appProtocol isn't TCP.
+          Tls:
+            type: map
+            properties:
+              IssuerCertAuthority:
+                type: map
+                description: The details of the certificate authority which will issue the certificate.
+                properties:
+                  AwsPcaAuthorityArn:
+                    type: string
+                    description: The ARN of the aws.acmpca.CertificateAuthority used to create the TLS Certificates.
+              KmsKey:
+                type: string
+                description: The KMS key used to encrypt the private key in Secrets Manager.
+              RoleArn:
+                type: string
+                description: The ARN of the IAM Role that's associated with the Service Connect TLS.
   aws:tags:
     type: model
 
@@ -114,7 +220,7 @@ consumption:
 path_satisfaction:
   as_target:
     - network
-    - service_endpoint
+    - service_discovery
   as_source:
     - network#Subnets
 

@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
+	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	gomock "go.uber.org/mock/gomock"
@@ -188,8 +189,68 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 				Resource: tt.args.v.Ref.Resource,
 				Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
 			}).Times(1)
-			opctx.EXPECT().HandleOperationalRule(rule).Return(nil).Times(1)
+			opctx.EXPECT().HandleOperationalRule(rule, constraints.AddConstraintOperator).Return(nil).Times(1)
 			err := tt.args.v.evaluateEdgeOperational(tt.args.res, opctx)
+			if tt.wantErr {
+				assert.Error(err)
+				return
+			}
+			assert.NoError(err)
+			ctrl.Finish()
+		})
+	}
+}
+
+func Test_propertyVertex_evaluateTransforms(t *testing.T) {
+	rule := knowledgebase.OperationalRule{
+		If: "test",
+	}
+	type args struct {
+		v   *propertyVertex
+		res *construct.Resource
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "property rule",
+			args: args{
+				v: &propertyVertex{
+					Ref: construct.PropertyRef{
+						Property: "test",
+						Resource: construct.ResourceId{Name: "test"},
+					},
+					TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{
+						{
+							Source: construct.ResourceId{Name: "test"},
+							Target: construct.ResourceId{Name: "test2"},
+						}: {
+							Hasher: func(s knowledgebase.OperationalRule) string {
+								return fmt.Sprintf("%v", s)
+							},
+							M: map[string]knowledgebase.OperationalRule{
+								"{testE [] []}": rule,
+							},
+						},
+					},
+				},
+				res: &construct.Resource{ID: construct.ResourceId{Name: "test"}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert := assert.New(t)
+			ctrl := gomock.NewController(t)
+			opctx := NewMockOpRuleHandler(ctrl)
+			opctx.EXPECT().SetData(knowledgebase.DynamicValueData{
+				Resource: tt.args.v.Ref.Resource,
+				Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
+			}).Times(1)
+			opctx.EXPECT().HandleOperationalRule(rule, constraints.EqualsConstraintOperator).Return(nil).Times(1)
+			err := tt.args.v.evaluateTransforms(tt.args.res, opctx)
 			if tt.wantErr {
 				assert.Error(err)
 				return
@@ -207,6 +268,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 		v           *propertyVertex
 		constraints constraints.Constraints
 		mocks       func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath)
+		want        *propertyVertex
 		wantErr     bool
 	}{
 		{
@@ -235,6 +297,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 						If: "test",
 					},
 				).Return(nil)
+				dcap.EXPECT().GetChanges().Times(1)
 			},
 		},
 		{
@@ -262,6 +325,79 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				}, knowledgebase.OperationalRule{
 					If: "testE",
 				}).Return(nil)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{},
+				}).Times(2)
+			},
+		},
+		{
+			name: "property vertex with edge rules that depend on itself",
+			v: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						{
+							If: "testE",
+						},
+					},
+				},
+				TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{},
+			},
+			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
+				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
+					Resource: resource.ID,
+					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
+				}, knowledgebase.OperationalRule{
+					If: "testE",
+				}).Return(nil)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{},
+				}).Times(1)
+				dcap.EXPECT().GetChanges().Return(graphChanges{
+					edges: map[Key]set.Set[Key]{
+						{Ref: construct.PropertyRef{
+							Resource: construct.ResourceId{Name: "test"},
+							Property: "test",
+						}}: set.SetOf(
+							Key{Ref: construct.PropertyRef{
+								Resource: construct.ResourceId{Name: "test"},
+								Property: "test",
+							}}),
+					},
+				}).Times(2)
+			},
+			want: &propertyVertex{
+				Ref: construct.PropertyRef{
+					Property: "test",
+					Resource: construct.ResourceId{Name: "test"},
+				},
+				EdgeRules: map[construct.SimpleEdge][]knowledgebase.OperationalRule{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: nil,
+				},
+				TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{
+					{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					}: {
+						Hasher: func(s knowledgebase.OperationalRule) string {
+							return fmt.Sprintf("%v", s)
+						},
+						M: map[string]knowledgebase.OperationalRule{
+							"{testE [] []}": {
+								If: "testE",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -295,6 +431,7 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
 				// expect no calls to ExecuteOpRule due to shouldEvalEdges returning false
 				dcap.EXPECT().ExecuteOpRule(gomock.Any(), gomock.Any()).Times(0)
+				dcap.EXPECT().GetChanges().Times(0)
 			},
 		},
 	}
@@ -326,6 +463,12 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+			if tt.want != nil {
+				assert.Equal(t, tt.want.EdgeRules, tt.v.EdgeRules)
+				for k, v := range tt.want.TransformRules {
+					assert.Equal(t, v.M, tt.v.TransformRules[k].M)
+				}
+			}
 			ctrl.Finish()
 		})
 	}
@@ -365,7 +508,7 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					false).Times(1)
 			},
 		},
@@ -397,7 +540,7 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					true).Times(1)
 			},
 		},
@@ -428,17 +571,17 @@ func Test_propertyVertex_evaluateConstraints(t *testing.T) {
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"set",
+					constraints.EqualsConstraintOperator,
 					false).Times(1)
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"add",
+					constraints.AddConstraintOperator,
 					true).Times(1)
 				mockRc.EXPECT().ConfigureResource(data.res,
 					knowledgebase.Configuration{Field: "test", Value: "test2"},
 					knowledgebase.DynamicValueData{Resource: id},
-					"add",
+					constraints.AddConstraintOperator,
 					true).Times(1)
 			},
 		},

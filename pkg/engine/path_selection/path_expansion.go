@@ -435,16 +435,19 @@ func expandPath(
 			return
 		}
 
-		// if the edge doesnt exist in the actual graph we need to check uniqueness validity
+		// if the edge doesnt exist in the actual graph and there is any uniqueness constraint,
+		// then we need to check uniqueness validity
 		_, err := ctx.RawView().Edge(source.id, target.id)
 		if errors.Is(err, graph.ErrEdgeNotFound) {
-			valid, err := checkUniquenessValidity(ctx, source.id, target.id)
-			if err != nil {
-				errs = errors.Join(errs, err)
-				return
-			}
-			if !valid {
-				return
+			if tmpl.Unique.Source || tmpl.Unique.Target {
+				valid, err := checkUniquenessValidity(ctx, source.id, target.id)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					return
+				}
+				if !valid {
+					return
+				}
 			}
 		} else if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("unexpected error from raw edge: %v", err))

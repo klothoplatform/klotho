@@ -6,6 +6,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -23,13 +24,16 @@ type (
 	}
 
 	OpRuleHandler interface {
-		HandleOperationalRule(rule knowledgebase.OperationalRule) error
+		HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator constraints.ConstraintOperator) error
 		HandlePropertyRule(rule knowledgebase.PropertyRule) error
 		SetData(data knowledgebase.DynamicValueData)
 	}
 )
 
-func (ctx *OperationalRuleContext) HandleOperationalRule(rule knowledgebase.OperationalRule) error {
+func (ctx *OperationalRuleContext) HandleOperationalRule(
+	rule knowledgebase.OperationalRule,
+	configurationOperator constraints.ConstraintOperator,
+) error {
 	shouldRun, err := EvaluateIfCondition(rule.If, ctx.Solution, ctx.Data)
 	if err != nil {
 		return err
@@ -48,7 +52,7 @@ func (ctx *OperationalRuleContext) HandleOperationalRule(rule knowledgebase.Oper
 	}
 
 	for i, operationalConfig := range rule.ConfigurationRules {
-		err := ctx.HandleConfigurationRule(operationalConfig)
+		err := ctx.HandleConfigurationRule(operationalConfig, configurationOperator)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("could not apply configuration rule %d: %w", i, err))
 		}

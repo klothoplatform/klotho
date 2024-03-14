@@ -98,22 +98,23 @@ const (
 	ClosestSelectionOperator SelectionOperator = ""
 )
 
-func (rule AdditionalRule) Hash() (string, error) {
-	// Convert the struct to a byte slice.
-	// Note that the struct must be able to be converted to JSON,
-	// so all fields must be exported (i.e., start with a capital letter).
-	byteSlice, err := json.Marshal(rule)
+func hashStruct(s any) string {
+	hash := sha256.New()
+	err := json.NewEncoder(hash).Encode(s)
 	if err != nil {
-		return "", err
+		// All types that use this function should be able to be encoded to JSON.
+		// If this panic occurs, there's a programming error.
+		panic(fmt.Errorf("error hashing struct %v (%[1]T): %w", s, err))
 	}
+	return hex.EncodeToString(hash.Sum(nil))
+}
 
-	// Hash the byte slice.
-	hash := sha256.Sum256(byteSlice)
+func (rule AdditionalRule) Hash() string {
+	return hashStruct(rule)
+}
 
-	// Convert the hash to a hexadecimal string.
-	hashString := hex.EncodeToString(hash[:])
-
-	return hashString, nil
+func (rule OperationalRule) Hash() string {
+	return hashStruct(rule)
 }
 
 func (d Direction) Edge(resource, dep construct.ResourceId) construct.SimpleEdge {

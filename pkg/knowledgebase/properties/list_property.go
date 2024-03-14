@@ -113,9 +113,11 @@ func (list *ListProperty) Parse(value any, ctx knowledgebase.DynamicContext, dat
 		if strVal, ok := value.(string); ok {
 			var result []any
 			err := ctx.ExecuteDecode(strVal, data, &result)
-			return result, err
+			if err != nil {
+				return nil, fmt.Errorf("invalid list value %v: %w", value, err)
+			}
+			val = result
 		}
-		return nil, fmt.Errorf("invalid list value %v", value)
 	}
 
 	for _, v := range val {

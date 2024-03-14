@@ -3,11 +3,15 @@ package operational_rule
 import (
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
-func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.ConfigurationRule) error {
+func (ctx OperationalRuleContext) HandleConfigurationRule(
+	config knowledgebase.ConfigurationRule,
+	configurationOperator constraints.ConstraintOperator,
+) error {
 	dyn := solution_context.DynamicCtx(ctx.Solution)
 	res, err := knowledgebase.ExecuteDecodeAsResourceId(dyn, config.Resource, ctx.Data)
 	if err != nil {
@@ -26,7 +30,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(config knowledgebase.C
 	config.Config.Field = resolvedField
 	configurer := &solution_context.Configurer{Ctx: ctx.Solution}
 
-	err = configurer.ConfigureResource(resource, config.Config, ctx.Data, "add", false)
+	err = configurer.ConfigureResource(resource, config.Config, ctx.Data, configurationOperator, false)
 	if err != nil {
 		return err
 	}

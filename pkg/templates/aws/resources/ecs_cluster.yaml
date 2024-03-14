@@ -2,6 +2,21 @@ qualified_type_name: aws:ecs_cluster
 display_name: ECS Cluster
 
 properties:
+  ServiceConnectDefaults:
+    type: map
+    properties:
+      Namespace:
+        type: string
+        operational_rule:
+          if: |
+            {{ gt (len (allUpstream "aws:ecs_service" .Self)) 1 }}
+          step:
+            direction: downstream
+            resources:
+              - aws:service_discovery_http_namespace
+            unique: true
+            use_property_ref: Arn
+        description: The ARN of the aws.servicediscovery.HttpNamespace that's used when you create a service and don't specify a Service Connect configuration.
   aws:tags:
     type: model
   Arn:

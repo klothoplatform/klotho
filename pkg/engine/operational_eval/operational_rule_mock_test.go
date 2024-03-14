@@ -12,7 +12,8 @@ package operational_eval
 import (
 	reflect "reflect"
 
-	knowledgebase2 "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	constraints "github.com/klothoplatform/klotho/pkg/engine/constraints"
+	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -40,21 +41,21 @@ func (m *MockOpRuleHandler) EXPECT() *MockOpRuleHandlerMockRecorder {
 }
 
 // HandleOperationalRule mocks base method.
-func (m *MockOpRuleHandler) HandleOperationalRule(rule knowledgebase2.OperationalRule) error {
+func (m *MockOpRuleHandler) HandleOperationalRule(rule knowledgebase.OperationalRule, configurationOperator constraints.ConstraintOperator) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleOperationalRule", rule)
+	ret := m.ctrl.Call(m, "HandleOperationalRule", rule, configurationOperator)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // HandleOperationalRule indicates an expected call of HandleOperationalRule.
-func (mr *MockOpRuleHandlerMockRecorder) HandleOperationalRule(rule any) *gomock.Call {
+func (mr *MockOpRuleHandlerMockRecorder) HandleOperationalRule(rule, configurationOperator any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleOperationalRule", reflect.TypeOf((*MockOpRuleHandler)(nil).HandleOperationalRule), rule)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleOperationalRule", reflect.TypeOf((*MockOpRuleHandler)(nil).HandleOperationalRule), rule, configurationOperator)
 }
 
 // HandlePropertyRule mocks base method.
-func (m *MockOpRuleHandler) HandlePropertyRule(rule knowledgebase2.PropertyRule) error {
+func (m *MockOpRuleHandler) HandlePropertyRule(rule knowledgebase.PropertyRule) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandlePropertyRule", rule)
 	ret0, _ := ret[0].(error)
@@ -68,7 +69,7 @@ func (mr *MockOpRuleHandlerMockRecorder) HandlePropertyRule(rule any) *gomock.Ca
 }
 
 // SetData mocks base method.
-func (m *MockOpRuleHandler) SetData(data knowledgebase2.DynamicValueData) {
+func (m *MockOpRuleHandler) SetData(data knowledgebase.DynamicValueData) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetData", data)
 }

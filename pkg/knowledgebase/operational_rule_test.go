@@ -75,7 +75,7 @@ func TestAdditionalRule_Hash(t *testing.T) {
 					},
 				},
 			},
-			want: "02c61dd3cd718a1cb28439705f2291018dbffe8aaa110f4e5eb72b67f0963b4f",
+			want: "121890af892b7324a133b58b36e4e54a03a192f5268546a56f799cd60ba3fbdb",
 		},
 		{
 			name: "simple rule 2",
@@ -87,14 +87,13 @@ func TestAdditionalRule_Hash(t *testing.T) {
 					},
 				},
 			},
-			want: "ec11f23efba8646d56563e96ddf8d7963d09cede7290b6242efe49bb68e91c40",
+			want: "a23bc24879d4b78eddef0f4c779fd7b26cc7c8c04cc65cd4b29683342b36961c",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
-			got, err := tt.rule.Hash()
-			assert.NoError(err)
+			got := tt.rule.Hash()
 			assert.Equal(tt.want, got)
 		})
 	}

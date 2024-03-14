@@ -197,9 +197,9 @@ resources:
             spec:
                 ports:
                     - name: pod2-pod2-80
-                      port: "80"
+                      port: 80
                       protocol: TCP
-                      targetPort: "80"
+                      targetPort: 80
                 selector:
                     KLOTHO_ID_LABEL: pod2
                     elbv2.k8s.aws/pod-readiness-gate-inject: enabled

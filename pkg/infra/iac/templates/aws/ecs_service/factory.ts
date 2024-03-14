@@ -20,6 +20,7 @@ interface Args {
     LoadBalancers: TemplateWrapper<any[]>
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
+    ServiceConnectConfiguration: pulumi.Input<awsInputs.ecs.ServiceServiceConnectConfiguration>
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -65,6 +66,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL {{- if .ServiceRegistries }}
             serviceRegistries: args.ServiceRegistries,
             //TMPL {{- end }}
+            //TMP {{- if .ServiceConnectConfiguration }}
+            serviceConnectConfiguration: args.ServiceConnectConfiguration,
+            //TMP {{- end }}
             //TMPL {{- if .Tags }}
             tags: args.Tags,
             //TMPL {{- end }}

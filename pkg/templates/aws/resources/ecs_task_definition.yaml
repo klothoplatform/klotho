@@ -143,6 +143,16 @@ properties:
             HostPort: 80
             Protocol: TCP
         properties:
+          Name:
+            type: string
+            description: The name of the port mapping
+          AppProtocol:
+            type: string
+            description: The application protocol that's used for the port mapping. This parameter only applies to Service Connect. 
+            allowed_values:
+              - http
+              - http2
+              - grpc
           ContainerPort:
             type: int
             description: The port number on the container
