@@ -8,7 +8,7 @@ interface Args {
     ViewerCertificate: TemplateWrapper<aws.types.input.cloudfront.DistributionViewerCertificate>
     Enabled: boolean
     DefaultCacheBehavior: aws.types.input.cloudfront.DistributionDefaultCacheBehavior
-    CacheBehaviors: aws.types.input.cloudfront.DistributionCacheBehavior[]
+    CacheBehaviors: aws.types.input.cloudfront.DistributionOrderedCacheBehavior[]
     Restrictions: aws.types.input.cloudfront.DistributionRestrictions
     DefaultRootObject: string
     Aliases: string[]
