@@ -11,5 +11,6 @@ targets:
   - aws:sqs_queue
   - aws:secret
   - aws:private_dns_namespace
+  - aws:ses_email_identity
 
 edge_weight_multiplier: 1.08
