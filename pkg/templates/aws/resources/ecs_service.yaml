@@ -9,6 +9,10 @@ properties:
       public IP address
   CapacityProviderStrategies:
     type: set
+    operational_rule:
+      if: '{{ hasUpstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self) }}'
+      value: 
+        - CapacityProvider: '{{ fieldRef "Id" (upstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self)) }}'
     properties:
       CapacityProvider:
         type: string
@@ -52,12 +56,14 @@ properties:
     description: Specifies whether to force a new deployment of the service
   LaunchType:
     type: string
-    default_value: FARGATE
     allowed_values:
       - EC2
       - FARGATE
       - EXTERNAL
     description: The launch type on which to run your service
+    operational_rule:
+      if: '{{ not hasField "CapacityProviderStrategies" .Self }}'
+      value: FARGATE
   LoadBalancers:
     type: list(map)
     properties:

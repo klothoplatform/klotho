@@ -184,7 +184,8 @@ properties:
     description: The Docker networking mode to use for the containers in the task
   RequiresCompatibilities:
     type: list(string)
-    default_value:
+    allowed_values:
+      - EC2
       - FARGATE
     description: A list of launch types required by the task
   EfsVolumes:

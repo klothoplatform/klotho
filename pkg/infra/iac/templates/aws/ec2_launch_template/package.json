@@ -1,0 +1,6 @@
+{
+    "name": "ec2_launch_template",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

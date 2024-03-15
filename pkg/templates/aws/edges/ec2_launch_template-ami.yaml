@@ -1,0 +1,9 @@
+source: aws:ec2_launch_template
+target: aws:ami
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{.Source}}'
+      configuration:
+        field: LaunchTemplateData.ImageId
+        value: '{{ fieldRef "Id" .Target}}'

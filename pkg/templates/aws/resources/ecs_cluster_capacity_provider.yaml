@@ -5,6 +5,7 @@ properties:
   Cluster:
     type: string
     required: true
+    namespace: true
     min_length: 1
     max_length: 2048
     description: The short name or full Amazon Resource Name (ARN) of the cluster that hosts the capacity provider.

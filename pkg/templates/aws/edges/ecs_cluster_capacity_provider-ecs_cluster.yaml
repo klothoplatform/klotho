@@ -1,0 +1,9 @@
+source: aws:ecs_cluster_capacity_provider
+target: aws:ecs_cluster
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Cluster
+        value: '{{ fieldRef "Id" .Target }}'

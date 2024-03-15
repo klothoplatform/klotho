@@ -1,0 +1,2 @@
+source: aws:ecs_capacity_provider
+target: aws:auto_scaling_group

@@ -28,7 +28,7 @@ properties:
           ExcludedInstanceTypes:
             type: list(string)
             description: The instance types that aren't allowed to be launched. You can specify instance families to launch any instance type within those families (for example, c5 or m5). If you specify instance types, you can't specify a value for InstanceType.
-          MemoryMiB: 
+          MemoryMib: 
             type: map
             description: The amount of memory, in MiB, that's required for the instance type. You must specify a value for MemoryMiB, and you can't specify a value for InstanceType.
             properties:
@@ -51,10 +51,12 @@ properties:
       InstanceType: 
         type: string
         description: The instance type. If you specify InstanceType, you can't specify InstanceRequirements.
-        allowed_values:
       SecurityGroupIds: 
         type: list(string)
         description: The IDs of the security groups.
+      UserData:
+        type: string
+        description: The Base64-encoded user data to make available to the instance.
   aws:tags:
     type: model
   Arn:

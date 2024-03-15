@@ -9,9 +9,15 @@ properties:
         type: string
         required: true
         description: The Amazon Resource Name (ARN) that identifies the Auto Scaling group.
+        operational_rule:
+          step:
+            direction: downstream
+            resources:
+              - aws:auto_scaling_group
+            unique: true
+            use_property_ref: Arn
       ManagedDraining: 
         type: string
-        default_value: "ENABLED"
         allowed_values: ["ENABLED", "DISABLED"]
         description: The managed draining option for the Auto Scaling group capacity provider. When you enable this, Amazon ECS manages and gracefully drains the EC2 container instances that are in the Auto Scaling group capacity provider.
       ManagedScaling: 

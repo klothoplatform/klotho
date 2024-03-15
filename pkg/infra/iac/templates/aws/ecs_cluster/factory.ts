@@ -16,6 +16,12 @@ function create(args: Args): aws.ecs.Cluster {
     })
 }
 
+function properties(object: aws.ecs.Cluster, args: Args) {
+    return {
+        Id: object.name,
+    }
+}
+
 function importResource(args: Args): aws.ecs.Cluster {
     return aws.ecs.Cluster.get(args.Name, args.Id)
 }
