@@ -1,0 +1,5 @@
+qualified_type_name: aws:ecs_cluster_capacity_provider
+iac_qualified_type: aws:ecs/clusterCapacityProviders:ClusterCapacityProviders
+
+property_mappings:
+  id: Id

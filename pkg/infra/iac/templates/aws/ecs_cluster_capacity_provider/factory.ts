@@ -23,3 +23,7 @@ function properties(object: aws.ecs.ClusterCapacityProviders, args: Args) {
         Id: object.id,
     }
 }
+
+function importResource(args: Args): aws.ecs.ClusterCapacityProviders {
+    return aws.ecs.ClusterCapacityProviders.get(args.Name, args.Id)
+}

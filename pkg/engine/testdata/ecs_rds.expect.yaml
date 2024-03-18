@@ -67,8 +67,6 @@ resources:
         ExecutionRole: aws:iam_role:ecs_service_0-execution-role
         Memory: "512"
         NetworkMode: awsvpc
-        RequiresCompatibilities:
-            - FARGATE
         Tags:
             GLOBAL_KLOTHO_TAG: ""
             RESOURCE_NAME: ecs_service_0

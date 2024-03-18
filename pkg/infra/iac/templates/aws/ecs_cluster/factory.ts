@@ -19,6 +19,9 @@ function create(args: Args): aws.ecs.Cluster {
 function properties(object: aws.ecs.Cluster, args: Args) {
     return {
         Id: object.name,
+        UserDataScript: pulumi.interpolate`#!/bin/bash
+echo ECS_CLUSTER=${object.name} >> /etc/ecs/ecs.config
+`.apply((userData) => Buffer.from(userData).toString('base64')),
     }
 }
 

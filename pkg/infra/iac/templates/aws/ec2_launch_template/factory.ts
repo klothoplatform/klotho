@@ -20,10 +20,10 @@ function create(args: Args): aws.ec2.LaunchTemplate {
         //TMPL    filters: [
         //TMPL        {
         //TMPL            name: "name",
-        //TMPL            values: ["amzn2-ami-hvm-*-x86_64-gp2"],
+        //TMPL            values: ["amzn2-ami-ecs-hvm-*-x86_64-ebs"],
         //TMPL        },
         //TMPL    ],
-        //TMPL    owners: ["137112412989"], // AWS account ID for Amazon AMIs
+        //TMPL    owners: ["amazon"], // AWS account ID for Amazon AMIs
         //TMPL    mostRecent: true,
         //TMPL }).then(ami => ami.id),
         //TMPL {{- end }}
@@ -31,7 +31,7 @@ function create(args: Args): aws.ec2.LaunchTemplate {
         //TMPL instanceRequirements: {{ .LaunchTemplateData.instanceRequirements }},
         //TMPL {{- end }}
         //TMPL {{- if .LaunchTemplateData.instanceType }}
-        //TMPL instanceType: args.LaunchTemplateData.instanceType,
+        //TMPL instanceType: {{ .LaunchTemplateData.instanceType}},
         //TMPL {{- end }}
         //TMPL {{- if .LaunchTemplateData.securityGroupIds }}
         //TMPL securityGroupIds: {{ .LaunchTemplateData.securityGroupIds }},

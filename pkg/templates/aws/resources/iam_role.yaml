@@ -1,5 +1,16 @@
 qualified_type_name: aws:iam_role
 display_name: IAM Role
+sanitize_name:
+  # https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html#RDS_Limits.Constraints
+  # Identifiers have these naming constraints:
+  # - Must contain 1–63 alphanumeric characters or hyphens.
+  # - First character must be a letter.
+  # - Can't end with a hyphen or contain two consecutive hyphens.
+  # - Must be unique for all DB instances per AWS account, per AWS Region.
+  |
+  {{ . 
+    | length 1 55
+  }}
 
 properties:
   AssumeRolePolicyDoc:

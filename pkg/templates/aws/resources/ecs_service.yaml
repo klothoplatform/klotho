@@ -13,6 +13,7 @@ properties:
       if: '{{ hasUpstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self) }}'
       value: 
         - CapacityProvider: '{{ fieldRef "Id" (upstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self)) }}'
+          Weight: 1
     properties:
       CapacityProvider:
         type: string
@@ -62,7 +63,7 @@ properties:
       - EXTERNAL
     description: The launch type on which to run your service
     operational_rule:
-      if: '{{ not hasField "CapacityProviderStrategies" .Self }}'
+      if: '{{ not (hasField "CapacityProviderStrategies" .Self) }}'
       value: FARGATE
   LoadBalancers:
     type: list(map)

@@ -50,16 +50,16 @@ function create(args: Args): aws.autoscaling.Group {
             //TMPL {{- end }}
             //TMPL {{- if .LaunchTemplate.Version }}
             //TMPL version: {{ .LaunchTemplate.Version }},
-            //TMPL {{- end }}    
+            //TMPL {{- end }}
         },
         tags: [
-        //TMPL {{- range $key, $value := .Tags }}
-        //TMPL    {
-        //TMPL        key: "{{ $key }}",
-        //TMPL        value: {{ $value }},
-        //TMPL        propagateAtLaunch: true,
-        //TMPL    },
-        //TMPL{{- end }}
+            //TMPL {{- range $key, $value := .Tags }}
+            //TMPL    {
+            //TMPL        key: "{{ $key }}",
+            //TMPL        value: {{ $value }},
+            //TMPL        propagateAtLaunch: true,
+            //TMPL    },
+            //TMPL{{- end }}
         ],
         maxSize: args.MaxSize,
         minSize: args.MinSize,

@@ -16,7 +16,6 @@ properties:
   DesiredCapacity: 
     type: int
     description: The desired capacity is the initial capacity of the Auto Scaling group at the time of its creation and the capacity it attempts to maintain. It can scale beyond this capacity if you configure automatic scaling.
-    default_value: 2
   DesiredCapacityType: 
     type: string
     description: The unit of measurement for the value specified for desired capacity.

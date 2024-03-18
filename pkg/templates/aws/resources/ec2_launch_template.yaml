@@ -13,6 +13,13 @@ properties:
         properties: 
           Arn: 
             type: string
+            operational_rule:
+              step:
+                direction: downstream
+                resources: 
+                  - aws:iam_instance_profile
+                unique: true
+                use_property_ref: Arn
           Name: 
             type: string
       ImageId: 

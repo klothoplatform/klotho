@@ -14,3 +14,13 @@ function create(args: Args): pulumi.Output<pulumi.UnwrappedObject<aws.GetAvailab
         })
     ).names[args.Index]
 }
+
+function importResource(
+    args: Args
+): pulumi.Output<pulumi.UnwrappedObject<aws.GetAvailabilityZonesArgs>> {
+    return pulumi.output(
+        aws.getAvailabilityZones({
+            state: 'available',
+        })
+    ).names[args.Index]
+}

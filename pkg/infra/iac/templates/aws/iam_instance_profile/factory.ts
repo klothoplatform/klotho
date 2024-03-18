@@ -15,3 +15,9 @@ function create(args: Args): aws.iam.InstanceProfile {
         //TMPL {{- end }}
     })
 }
+
+function properties(object: aws.ecs.Cluster, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}

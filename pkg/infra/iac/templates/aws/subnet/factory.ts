@@ -31,7 +31,6 @@ function properties(object: aws.ec2.Subnet, args: Args) {
     }
 }
 
-
 function importResource(args: Args): aws.ec2.Subnet {
     return aws.ec2.Subnet.get(args.Name, args.Id)
 }

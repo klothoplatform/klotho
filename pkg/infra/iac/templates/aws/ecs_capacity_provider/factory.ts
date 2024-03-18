@@ -21,6 +21,10 @@ function create(args: Args): aws.ecs.CapacityProvider {
 function properties(object: aws.ecs.CapacityProvider, args: Args) {
     return {
         Arn: object.arn,
-        Id: object.id,
+        Id: object.name,
     }
+}
+
+function importResource(args: Args): aws.ecs.CapacityProvider {
+    return aws.ecs.CapacityProvider.get(args.Name, args.Id)
 }

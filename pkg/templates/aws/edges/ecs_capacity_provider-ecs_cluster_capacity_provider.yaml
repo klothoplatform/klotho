@@ -9,10 +9,8 @@ operational_rules:
         field: CapacityProviders
         value:
           - '{{ fieldRef "Id" .Source }}'
-  - if: '{{ not (hasField "DefaultCapacityProviderStrategy" .Target)}}'
-    configuration_rules:
     - resource: '{{ .Target }}'
       configuration:
         field: DefaultCapacityProviderStrategy
         value:
-          - capacityProvider: '{{ fieldRef "Id" .Source }}'
+          - CapacityProvider: '{{ fieldRef "Id" .Source }}'

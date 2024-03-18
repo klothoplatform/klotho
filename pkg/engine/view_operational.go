@@ -101,6 +101,10 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 			return fmt.Errorf("cannot add edge %s -> %s: %w", source, target, err)
 		}
 	}
+	// If both resources are imported we dont need to evaluate the edge vertex since we cannot modify the resources properties
+	if dep.Source.Imported && dep.Target.Imported {
+		return nil
+	}
 	return view.propertyEval.AddEdges(graph.Edge[construct.ResourceId]{Source: source, Target: target})
 }
 

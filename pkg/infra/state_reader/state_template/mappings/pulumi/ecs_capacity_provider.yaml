@@ -1,0 +1,7 @@
+qualified_type_name: aws:ecs_capacity_provider
+iac_qualified_type: aws:ecs/capacityProvider:CapacityProvider
+
+property_mappings:
+  arn: Arn
+  name: Id
+  tags: Tags
