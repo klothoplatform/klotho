@@ -181,6 +181,9 @@ resources:
             RESOURCE_NAME: internet_gateway-0
         Vpc: aws:vpc:vpc
     aws:vpc:vpc:
+        Tags:
+            GLOBAL_KLOTHO_TAG: ""
+            RESOURCE_NAME: vpc
         imported: true
 edges:
     aws:security_group:vpc:lambda_function-security_group -> aws:lambda_function:lambda_function:
