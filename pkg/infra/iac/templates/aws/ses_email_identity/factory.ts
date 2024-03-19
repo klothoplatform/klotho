@@ -11,3 +11,9 @@ function create(args: Args): aws.ses.EmailIdentity {
         email: args.EmailIdentity,
     })
 }
+
+function properties(object: aws.ses.EmailIdentity, args: Args) {
+    return {
+        Arn: object.arn,
+    }
+}
