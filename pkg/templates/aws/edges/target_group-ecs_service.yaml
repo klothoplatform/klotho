@@ -15,4 +15,4 @@ operational_rules:
           field: TargetType
           value: ip
 classification:
-  - service_endpoint
+  - service_discovery
