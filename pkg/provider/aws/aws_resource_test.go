@@ -30,6 +30,7 @@ var (
 		"aws:api_method",
 		"aws:api_resource",
 		"aws:ses_email_identity",
+		"aws:ecs_cluster_capacity_provider",
 	}
 )
 

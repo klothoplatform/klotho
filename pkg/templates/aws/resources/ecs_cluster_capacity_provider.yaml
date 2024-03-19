@@ -1,0 +1,54 @@
+qualified_type_name: aws:ecs_cluster_capacity_provider
+display_name: ECS Cluster Capacity Provider
+
+properties:
+  Cluster:
+    type: string
+    required: true
+    namespace: true
+    min_length: 1
+    max_length: 2048
+    description: The short name or full Amazon Resource Name (ARN) of the cluster that hosts the capacity provider.
+  CapacityProviders:
+    type: list(string)
+    required: true
+    description: The capacity providers to associate with the cluster.
+  DefaultCapacityProviderStrategy:
+    required: true
+    type: list
+    properties:
+      Base: 
+        type: int
+        description: The base value designates how many tasks, at a minimum, to run on the specified capacity provider. Only one capacity provider in a capacity provider strategy can have a base defined.
+        min_value: 0
+        max_value: 10000
+        default_value: 0
+      CapacityProvider: 
+        type: string
+        description: The short name or full Amazon Resource Name (ARN) of the capacity provider.
+        required: true
+      Weight: 
+        type: int
+        description: The weight value designates the relative percentage of the total number of tasks launched that should use the specified capacity provider.
+        min_value: 0
+        max_value: 10000
+        default_value: 0
+  Id:
+    type: string
+    description: The unique identifier for the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+
+classification:
+  is:
+    - auto_scaling
+    - ecs
+
+delete_context:
+  requires_no_upstream: true
+
+deployment_permissions:
+  deploy: ["ecs:PutClusterCapacityProviders"]
+  tear_down: ["ecs:DeleteCapacityProvider"]
+  update: ["ecs:UpdateCapacityProvider"]

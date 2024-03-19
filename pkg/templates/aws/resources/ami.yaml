@@ -2,8 +2,34 @@ qualified_type_name: aws:ami
 display_name: AMI
 
 properties:
+  Architecture:
+    type: string
+    description: Machine architecture for created instances.
+    default_value: x86_64
+  ImageLocation:
+    type: string
+    description: Path to an S3 object containing an image manifest.
+  RootDeviceName:
+    type: string
+    description: The root device name (e.g. /dev/sda1).
+    default_value: /dev/xvda
+  VirtualizationType:
+    type: string
+    description: Keyword to choose what virtualization mode created instances will use.
+    allowed_values:
+      - hvm
+      - paravirtual
   aws:tags:
     type: model
+  Arn:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
+  Id:
+    type: string
+    required: true
+    deploy_time: true
+    configuration_disabled: true
 
 classification:
   is:

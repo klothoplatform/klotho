@@ -42,6 +42,9 @@ func (tc *TemplatesCompiler) RenderResource(out io.Writer, rid construct.Resourc
 		}
 	}
 	if r.Imported {
+		if resTmpl.ImportResource == nil {
+			return fmt.Errorf("resource %s is imported but has no import resource template", rid)
+		}
 		err = resTmpl.ImportResource.Execute(out, inputs)
 		if err != nil {
 			return fmt.Errorf("could not render resource %s: %w", rid, err)

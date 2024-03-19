@@ -1,0 +1,16 @@
+source: aws:ecs_capacity_provider
+target: aws:ecs_cluster_capacity_provider
+deployment_order_reversed: true
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Target }}'
+      configuration:
+        field: CapacityProviders
+        value:
+          - '{{ fieldRef "Id" .Source }}'
+    - resource: '{{ .Target }}'
+      configuration:
+        field: DefaultCapacityProviderStrategy
+        value:
+          - CapacityProvider: '{{ fieldRef "Id" .Source }}'

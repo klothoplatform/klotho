@@ -30,7 +30,12 @@ properties:
     configuration_disabled: true
     deploy_time: true
     required: true
-
+  UserDataScript:
+    type: string
+    description: The user data script to run on the instances in the cluster.
+    deploy_time: true
+    configuration_disabled: true
+    
 classification:
   is:
     - cluster

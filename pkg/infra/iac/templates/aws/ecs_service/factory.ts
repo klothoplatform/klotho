@@ -21,6 +21,7 @@ interface Args {
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     ServiceRegistries: pulumi.Input<awsInputs.ecs.ServiceServiceRegistries>
     ServiceConnectConfiguration: pulumi.Input<awsInputs.ecs.ServiceServiceConnectConfiguration>
+    CapacityProviderStrategies: pulumi.Input<awsInputs.ecs.ServiceCapacityProviderStrategy[]>
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -29,7 +30,12 @@ function create(args: Args): aws.ecs.Service {
     return new aws.ecs.Service(
         args.Name,
         {
+            //TMPL {{- if .LaunchType }}
             launchType: args.LaunchType,
+            //TMPL {{- end }}
+            //TMPL {{- if .CapacityProviderStrategies }}
+            capacityProviderStrategies: args.CapacityProviderStrategies,
+            //TMPL {{- end }}
             cluster: args.Cluster.arn,
             //TMPL {{- if .DeploymentCircuitBreaker }}
             //TMPL deploymentCircuitBreaker: {

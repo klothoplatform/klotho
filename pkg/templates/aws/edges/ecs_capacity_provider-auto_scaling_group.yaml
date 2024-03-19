@@ -1,0 +1,29 @@
+source: aws:ecs_capacity_provider
+target: aws:auto_scaling_group
+
+operational_rules:
+  - if: '{{ hasDownstream "aws:iam_role" .Target }}'
+    configuration_rules:
+      - resource: '{{ downstream "aws:iam_role" .Target }}'
+        configuration:
+          field: ManagedPolicies
+          value:
+            - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      - resource: '{{ downstream "aws:iam_role" .Target }}'
+        configuration:
+          field: AssumeRolePolicyDoc
+          value:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - sts:AssumeRole
+                Effect: Allow
+                Principal:
+                  Service:
+                    - ec2.amazonaws.com
+  - if: '{{ hasDownstream "aws:ec2_launch_template" .Target }}'
+    configuration_rules:
+      - resource: '{{ downstream "aws:ec2_launch_template" .Target }}'
+        configuration:
+          field: LaunchTemplateData.UserData
+          value: '{{ fieldRef "UserDataScript" (downstream "aws:ecs_cluster" .Source)}}'

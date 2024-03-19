@@ -1,0 +1,2 @@
+source: aws:ec2_launch_template
+target: aws:iam_instance_profile

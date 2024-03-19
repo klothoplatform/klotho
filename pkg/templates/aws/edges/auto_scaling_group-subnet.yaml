@@ -1,0 +1,2 @@
+source: aws:auto_scaling_group
+target: aws:subnet
