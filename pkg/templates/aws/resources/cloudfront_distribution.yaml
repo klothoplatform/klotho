@@ -72,13 +72,11 @@ properties:
         properties:
           QueryString:
             type: bool
-            default_value: true
           Cookies:
             type: map
             properties:
               Forward:
                 type: string
-                default_value: none
       MinTtl:
         type: int
         default_value: 0
@@ -88,6 +86,10 @@ properties:
       DefaultTtl:
         type: int
         default_value: 3600
+      CachePolicyId:
+        type: string
+      OriginRequestPolicyId:
+        type: string
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
@@ -171,6 +173,10 @@ properties:
       DefaultTtl:
         type: int
         default_value: 3600
+      CachePolicyId:
+        type: string
+      OriginRequestPolicyId:
+          type: string
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
