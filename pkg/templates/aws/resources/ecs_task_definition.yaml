@@ -63,6 +63,36 @@ properties:
         description: If the essential parameter of a container is marked as true, and
           that container fails or stops for any reason, all other containers that
           are part of the task are stopped
+      HealthCheck:
+        type: map
+        description: The health check configuration for the container
+        properties:
+          Command:
+            type: list(string)
+            description: A string array representing the command that the container runs to determine if it is healthy.
+              The string array must start with "CMD" to run the command arguments directly, or "CMD-SHELL" to run the command with the container's default shell.
+          Interval:
+            type: int
+            description: The time period in seconds between each health check execution
+            min_value: 5
+            max_value: 300
+          Retries:
+            type: int
+            description: The number of times to retry a failed health check before the
+              container is considered unhealthy
+            min_value: 1
+            max_value: 10
+          StartPeriod:
+            type: int
+            description: The optional grace period to wait before failed health checks
+              are retried
+            min_value: 0
+            max_value: 300
+          Timeout:
+            type: int
+            description: The time period in seconds to wait for a health check to succeed
+            min_value: 2
+            max_value: 60
       Image:
         type: resource(aws:ecr_image)
         required: true
