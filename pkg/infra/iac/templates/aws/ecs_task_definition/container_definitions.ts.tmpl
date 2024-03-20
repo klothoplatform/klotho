@@ -35,6 +35,27 @@
         entryPoint: {{ $cd.EntryPoint }},
         {{- end }}
         essential: {{ $cd.Essential }},
+        {{- if $cd.HealthCheck }}
+        healthCheck: {
+            command: [
+                {{- range $i, $cmd := $cd.HealthCheck.Command }}
+                "{{ $cmd }}",
+                {{- end }}
+            ],
+            {{- if $cd.HealthCheck.Interval }}
+            interval: {{ $cd.HealthCheck.Interval }},
+            {{- end }}
+            {{- if $cd.HealthCheck.Retries }}
+            retries: {{ $cd.HealthCheck.Retries }},
+            {{- end }}
+            {{- if $cd.HealthCheck.StartPeriod }}
+            startPeriod: {{ $cd.HealthCheck.StartPeriod }},
+            {{- end }}
+            {{- if $cd.HealthCheck.Timeout }}
+            timeout: {{ $cd.HealthCheck.Timeout }},
+            {{- end }}
+        },
+        {{- end }}
         {{- if $cd.Image }}
         image: {{ getVar $cd.Image }}.imageName,
         {{- end }}
