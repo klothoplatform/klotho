@@ -19,8 +19,7 @@ properties:
   DesiredCapacityType: 
     type: string
     description: The unit of measurement for the value specified for desired capacity.
-    default_value: units
-    allowed_values: 
+    allowed_values:
       - units
       - vcpu
       - memory-mib
