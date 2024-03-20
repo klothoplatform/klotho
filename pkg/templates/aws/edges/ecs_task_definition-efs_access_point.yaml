@@ -4,14 +4,15 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: EfsVolumes
+          field: Volumes
           value:
-            - FileSystem: '{{ fieldValue "FileSystem" .Target }}'
-              AuthorizationConfig:
-                AccessPoint: '{{ .Target}}'
-                Iam: ENABLED
-              TransitEncryption: ENABLED
-              Name: '{{ .Target.Name }}'
+            - Name: '{{ .Target.Name }}'
+              EfsVolumeConfiguration:
+                FileSystem: '{{ fieldValue "FileSystem" .Target }}'
+                AuthorizationConfig:
+                  AccessPoint: '{{ .Target}}'
+                  Iam: ENABLED
+                TransitEncryption: ENABLED
       - resource: '{{ .Source }}'
         configuration:
           field: ContainerDefinitions[0].MountPoints

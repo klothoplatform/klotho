@@ -218,40 +218,68 @@ properties:
       - EC2
       - FARGATE
     description: A list of launch types required by the task
-  EfsVolumes:
+  Volumes:
     type: set
     properties:
       Name:
         type: string
         description: The name of the volume, used as a reference within the task definition
-      FileSystem:
-        type: resource(aws:efs_file_system)
-        description: The Amazon EFS file system ID to use
-      RootDirectory:
-        type: string
-        description: The directory within the Amazon EFS file system to mount as the
-          root directory inside the host
-      TransitEncryption:
-        type: string
-        description: Whether to enable in-transit encryption for the EFS volume's
-          data
-      TransitEncryptionPort:
-        type: int
-        description: The port to use for transit encryption of the EFS volume
-      AuthorizationConfig:
+      Host:
+        type: map
+        description: The host details for the volume
+        properties:
+          SourcePath:
+            type: string
+            description: The path on the host container instance that is presented
+              to the container
+      EfsVolumeConfiguration:
+        description: The Amazon Elastic File System (EFS) volume configuration details for the volume
         type: map
         properties:
-          AccessPoint:
-            type: resource(aws:efs_access_point)
-            description: The access point to use to mount the EFS file system
-          Iam:
+          FileSystem:
+            type: resource(aws:efs_file_system)
+            description: The Amazon EFS file system ID to use
+          RootDirectory:
             type: string
-
-            description: Whether or not to use IAM authorization for access to the
-              EFS volume
-        description: The authorization configuration details for the EFS volume
-    description: An array of Amazon Elastic File System (EFS) volumes to be attached
-      to containers
+            description: The directory within the Amazon EFS file system to mount as the
+              root directory inside the host
+          TransitEncryption:
+            type: string
+            description: Whether to enable in-transit encryption for the EFS volume's
+              data
+          TransitEncryptionPort:
+            type: int
+            description: The port to use for transit encryption of the EFS volume
+          AuthorizationConfig:
+            type: map
+            properties:
+              AccessPoint:
+                type: resource(aws:efs_access_point)
+                description: The access point to use to mount the EFS file system
+              Iam:
+                type: string
+                description: Whether or not to use IAM authorization for access to the
+                  EFS volume
+            description: The authorization configuration details for the EFS volume
+      DockerVolumeConfiguration:
+        type: map
+        description: The Docker volume configuration details for the volume (not supported for Fargate tasks)
+        properties:
+          Scope:
+            type: string
+            description: The scope for the Docker volume, which determines its lifecycle
+          Autoprovision:
+            type: bool
+            description: Whether to create the Docker volume automatically
+          Driver:
+            type: string
+            description: The driver to use for the Docker volume
+          DriverOpts:
+            type: map(string,string)
+            description: The driver options to use for the Docker volume
+          Labels:
+            type: map(string,string)
+            description: The labels to use for the Docker volume
   aws:tags:
     type: model  
 
