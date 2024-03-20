@@ -87,7 +87,9 @@
             {{- range $key, $value := $cd.MountPoints.M }}
             {
                 containerPath: "{{ $value.ContainerPath }}",
+                {{- if $value.ReadOnly }}
                 readOnly: {{ $value.ReadOnly }},
+                {{- end }}
                 sourceVolume: "{{ $value.SourceVolume }}",
             },
             {{- end }}

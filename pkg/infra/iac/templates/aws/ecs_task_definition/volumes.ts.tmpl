@@ -1,0 +1,49 @@
+[
+    {{- range $i, $volume := .M }}
+    { 
+        name: "{{ $volume.Name }}",
+        {{- if $volume.Host }}
+        hostPath: "{{ $volume.Host.SourcePath }}"
+        {{- end }}
+        {{- if $volume.DockerVolumeConfiguration }}
+        dockerVolumeConfiguration: {
+            scope: "{{ $volume.DockerVolumeConfiguration.Scope }}",
+            autoprovision: {{ $volume.DockerVolumeConfiguration.Autoprovision }},
+            driver: "{{ $volume.DockerVolumeConfiguration.Driver }}",
+            driverOpts: {
+                {{- range $key, $value := $volume.DockerVolumeConfiguration.DriverOpts }}
+                "{{ $key }}": "{{ $value }}",
+                {{- end }}
+            },
+            labels: {
+                {{- range $key, $value := $volume.DockerVolumeConfiguration.Labels }}
+                "{{ $key }}": "{{ $value }}",
+                {{- end }}
+            },
+        },
+        {{- end }}
+        {{- if $volume.EfsVolumeConfiguration }}
+        efsVolumeConfiguration: {
+            fileSystemId: {{ getVar $volume.EfsVolumeConfiguration.FileSystem }}.id,
+            {{- if $volume.AuthorizationConfig }}
+            authorizationConfig: {
+                accessPointId: {{ getVar $volume.EfsVolumeConfiguration.AuthorizationConfig.AccessPoint }}.id,
+                {{- if $volume.EfsVolumeConfiguration.AuthorizationConfig.Iam }}
+                iam: "{{ $volume.EfsVolumeConfiguration.AuthorizationConfig.Iam }}",
+                {{- end }}
+            },
+            {{- end }}
+            {{- if $volume.EfsVolumeConfiguration.RootDirectory }}
+            rootDirectory: "{{$volume.EfsVolumeConfiguration.RootDirectory}}",
+            {{- end }}
+            {{- if $volume.EfsVolumeConfiguration.TransitEncryption }}
+            transitEncryption: "{{$volume.EfsVolumeConfiguration.TransitEncryption}}",
+            {{- end }}
+            {{- if $volume.EfsVolumeConfiguration.TransitEncryptionPort }}
+            transitEncryptionPort: {{$volume.EfsVolumeConfiguration.TransitEncryptionPort}},
+            {{- end }}
+        },
+        {{- end }}
+    },
+    {{- end }}
+]

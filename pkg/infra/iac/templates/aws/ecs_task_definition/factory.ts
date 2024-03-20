@@ -12,7 +12,7 @@ interface Args {
     ExecutionRole: aws.iam.Role
     TaskRole: aws.iam.Role
     RequiresCompatibilities?: string[]
-    EfsVolumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolume[]>
+    Volumes: TemplateWrapper<awsInputs.ecs.TaskDefinitionVolume[]>
     ContainerDefinitions: TemplateWrapper<any[]>
     Tags: ModelCaseWrapper<Record<string, string>>
 }
@@ -37,8 +37,8 @@ function create(args: Args): aws.ecs.TaskDefinition {
         //TMPL {{- if .TaskRole }}
         taskRoleArn: args.TaskRole.arn,
         //TMPL {{- end }}
-        //TMPL {{- if .EfsVolumes }}
-        volumes: args.EfsVolumes,
+        //TMPL {{- if .Volumes }}
+        volumes: args.Volumes,
         //TMPL {{- end }}
         containerDefinitions: pulumi.jsonStringify(args.ContainerDefinitions),
         //TMPL {{- if .Tags }}

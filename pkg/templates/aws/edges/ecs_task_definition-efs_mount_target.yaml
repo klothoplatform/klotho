@@ -4,12 +4,13 @@ operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: EfsVolumes
+          field: Volumes
           value:
-            - FileSystem: '{{ fieldValue "FileSystem" .Target }}'
-              TransitEncryption: ENABLED
-              RootDirectory: /mnt/efs
-              Name: '{{ .Target.Name }}'
+            - Name: '{{ .Target.Name }}'
+              EfsVolumeConfiguration:
+                FileSystem: '{{ fieldValue "FileSystem" .Target }}'
+                RootDirectory: /mnt/efs
+                TransitEncryption: ENABLED
       - resource: '{{ .Source }}'
         configuration:
           field: MountPoints
