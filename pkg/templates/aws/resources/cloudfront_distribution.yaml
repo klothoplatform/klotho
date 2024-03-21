@@ -103,17 +103,29 @@ properties:
     default_value:
       CloudfrontDefaultCertificate: true
     properties:
-      ACMCertificateArn:
+      AcmCertificateArn:
         type: string
-      SSLSupportMethod:
+      SslSupportMethod:
         type: string
+        allowed_values:
+          - sni-only
+          - vip
+          - static-ip
       MinimumProtocolVersion:
         type: string
+        allowed_values:
+          - SSLv3
+          - TLSv1
+          - TLSv1_2016
+          - TLSv1.1_2016
+          - TLSv1.2_2018
+          - TLSv1.2_2019
+          - TLSv1.2_2021
       CloudfrontDefaultCertificate:
         type: bool
-      IAMCertificateId:
+      IamCertificateId:
         type: string
-  CNAMEs:
+  Aliases:
     type: list(string)
     description: |
       A list of CNAMEs (aliases) that you want CloudFront to use for this
