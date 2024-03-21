@@ -1,0 +1,20 @@
+source: aws:cloudwatch_alarm
+target: aws:cloudwatch_dashboard
+deployment_order_reversed: true
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Target }}'
+      configuration:
+        field: DashboardBody.Widgets
+        value:
+          - Type: 'metric'
+            Properties:
+              Region: '{{ fieldRef "Name" (downstream "aws:region" .Source) }}' 
+              Annotations:
+                Alarms:
+                  - '{{ fieldRef "Arn" .Source }}'
+          - Type: 'alarm'
+            Properties:
+              Alarms:
+                - '{{ fieldRef "Arn" .Source }}'

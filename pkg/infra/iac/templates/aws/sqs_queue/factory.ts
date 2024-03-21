@@ -43,3 +43,7 @@ function properties(object: aws.sqs.Queue, args: Args) {
         Arn: object.arn,
     }
 }
+
+function importResource(args: Args): aws.sqs.Queue {
+    return aws.sqs.Queue.get(args.Name, args.Id)
+}

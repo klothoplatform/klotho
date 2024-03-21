@@ -1,0 +1,24 @@
+source: aws:cloudwatch_alarm
+target: aws:sns_topic
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{.Source}}'
+      configuration:
+        field: AlarmActions
+        value: 
+          - '{{ fieldRef "Arn" .Target }}'
+    - resource: '{{.Source}}'
+      configuration:
+        field: InsufficientDataActions
+        value: 
+          - '{{ fieldRef "Arn" .Target }}'
+    - resource: '{{.Source}}'
+      configuration:
+        field: OKActions
+        value: 
+          - '{{ fieldRef "Arn" .Target }}'
+
+classification:
+  - network
+  - permissions

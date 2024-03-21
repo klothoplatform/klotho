@@ -1,5 +1,8 @@
 source: aws:lambda_event_source_mapping
 target: aws:lambda_function
 
-unique:
-  Destination: true
+unique: many-to-one
+
+classification:
+  - network
+  - permissions

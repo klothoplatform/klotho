@@ -1,0 +1,11 @@
+qualified_type_name: aws:sqs_queue
+iac_qualified_type: aws:sqs/queue:Queue
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags
+  delaySeconds: DelaySeconds
+  fifoQueue: FifoQueue
+  maxMessageSize: MaxMessageSize
+  visibilityTimeoutSeconds: VisibilityTimeoutSeconds

@@ -2,10 +2,6 @@ qualified_type_name: aws:sqs_queue
 display_name: SQS Queue
 
 properties:
-  Arn:
-    type: string
-    configuration_disabled: true
-    deploy_time: true
   FifoQueue:
     type: bool
     description: Designates whether the queue is a FIFO queue
@@ -23,6 +19,16 @@ properties:
       from receiving and processing a message
   aws:tags:
     type: model
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    description: The unique identifier for the queue
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 path_satisfaction:
   as_target:

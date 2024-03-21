@@ -1,0 +1,7 @@
+qualified_type_name: aws:sns_topic
+iac_qualified_type: aws:sns/topic:Topic
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags

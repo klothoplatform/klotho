@@ -1,0 +1,10 @@
+qualified_type_name: aws:lambda_function
+iac_qualified_type: aws:lambda/function:Function
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags
+  memorySize: MemorySize
+  timeout: Timeout
+  name: Name

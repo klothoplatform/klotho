@@ -1,0 +1,102 @@
+qualified_type_name: aws:cloudwatch_alarm
+display_name: Cloudwatch Alarm
+
+properties:
+  ComparisonOperator:
+    type: string
+    required: true
+    description: The arithmetic operation to use when comparing the specified Statistic and Threshold
+    allowed_values:
+        - GreaterThanOrEqualToThreshold
+        - GreaterThanThreshold
+        - LessThanThreshold
+        - LessThanOrEqualToThreshold
+  EvaluationPeriods:
+    type: int
+    required: true
+    description: The number of periods over which data is compared to the specified threshold
+  ActionsEnabled:
+    type: bool
+    default_value: true
+    description: Indicates whether or not actions should be executed during any changes to the alarm's state
+  AlarmActions:
+    type: list(string)
+    description: The list of actions to execute when this alarm transitions into an ALARM state from any other state. Each action is specified as an Amazon Resource Name (ARN)
+  AlarmDescription:
+    type: string
+    description: The description for the alarm
+  DatapointsToAlarm:
+    type: string
+    description: The number of data points that must be breaching to trigger the alarm
+  Dimensions:
+    type: map(string,string)
+    description: The dimensions for the alarm's associated metric
+  ExtendedStatistic:
+    type: string
+    description: The percentile statistic for the metric associated with the alarm. Specify a value between p0.0 and p100.
+  InsufficientDataActions:
+    type: list(string)
+    description: The list of actions to execute when this alarm transitions into an INSUFFICIENT_DATA state from any other state. Each action is specified as an Amazon Resource Name (ARN)
+  MetricName:
+    type: string
+    description: The name for the alarm's associated metric
+  Namespace:
+    type: string
+    description: The namespace for the alarm's associated metric
+  OKActions:
+    type: list(string)
+    description: The list of actions to execute when this alarm transitions into an OK state from any other state. Each action is specified as an Amazon Resource Name (ARN)
+  Period:
+    type: int
+    description: The period in seconds over which the specified Statistic is applied. Valid values are 10, 30, or any multiple of 60.
+  Statistic:
+    type: string
+    description: The statistic to apply to the alarm's associated metric
+    allowed_values:
+        - SampleCount
+        - Average
+        - Sum
+        - Minimum
+        - Maximum
+  Threshold:
+    type: int
+    description: The value against which the specified Statistic is compared
+  TreatMissingData:
+    type: string
+    description: Sets how this alarm is to handle missing data points
+    allowed_values:
+        - breaching
+        - notBreaching
+        - ignore
+        - missing
+  Unit:
+    type: string
+    description: The unit for the alarm's associated metric
+  aws:tags:
+    type: model
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+additional_rules:
+  - steps:
+      - direction: downstream
+        resources:
+          - aws:cloudwatch_dashboard
+      - direction: downstream
+        resources:
+          - aws:region
+
+classification:
+  is:
+    - alarm
+    - monitoring
+
+
+
+
+deployment_permissions:
+  deploy: ["dynamodb:CreateTable"]
+  tear_down: ["dynamodb:DeleteTable"]
+  update: ["dynamodb:UpdateTable"]
