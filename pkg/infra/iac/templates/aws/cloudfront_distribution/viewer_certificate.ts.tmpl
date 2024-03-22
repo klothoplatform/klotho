@@ -6,7 +6,7 @@
     iamCertificateId: "{{ .IamCertificateId }}",
     {{- end }}
     {{- if and .CloudfrontDefaultCertificate (not .AcmCertificateArn) (not .IamCertificateId) }}
-    cloudfrontDefaultCertificate: "{{ .CloudfrontDefaultCertificate }}",
+    cloudfrontDefaultCertificate: {{ .CloudfrontDefaultCertificate }},
     {{- end }}
     {{- if .SslSupportMethod }}
     sslSupportMethod: "{{ .SslSupportMethod }}",
