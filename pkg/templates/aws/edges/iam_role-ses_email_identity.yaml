@@ -15,4 +15,4 @@ operational_rules:
                       - ses:SendRawEmail
                     Effect: Allow
                     Resource:
-                      - '{{ .Target  }}#Arn'
+                      - '*'

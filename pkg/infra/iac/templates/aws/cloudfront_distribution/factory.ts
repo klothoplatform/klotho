@@ -1,17 +1,17 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
-import { ModelCaseWrapper } from '../../wrappers'
+import { ModelCaseWrapper, TemplateWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
     Origins: aws.types.input.cloudfront.DistributionOrigin[]
-    ViewerCertificate: aws.types.input.cloudfront.DistributionViewerCertificate
+    ViewerCertificate: TemplateWrapper<aws.types.input.cloudfront.DistributionViewerCertificate>
     Enabled: boolean
     DefaultCacheBehavior: aws.types.input.cloudfront.DistributionDefaultCacheBehavior
     CacheBehaviors: aws.types.input.cloudfront.DistributionCacheBehavior[]
     Restrictions: aws.types.input.cloudfront.DistributionRestrictions
     DefaultRootObject: string
-    CNAMEs: string[]
+    Aliases: string[]
     CustomErrorResponses: aws.types.input.cloudfront.DistributionCustomErrorResponse[]
     Tags: ModelCaseWrapper<Record<string, string>>
 }
@@ -23,8 +23,8 @@ function create(args: Args): aws.cloudfront.Distribution {
         enabled: args.Enabled,
         viewerCertificate: args.ViewerCertificate,
         orderedCacheBehaviors: args.CacheBehaviors,
-        //TMPL {{- if .CNAMEs }}
-        aliases: args.CNAMEs,
+        //TMPL {{- if .Aliases }}
+        aliases: args.Aliases,
         //TMPL {{- end }}
         //TMPL {{- if .CustomErrorResponses }}
         customErrorResponses: args.CustomErrorResponses,
