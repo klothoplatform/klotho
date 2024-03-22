@@ -1,12 +1,11 @@
 provider: aws
 resources:
-  ecs_service/ecs_service_0:
+  cloudwatch_dashboard/cloudwatch_dashboard-0:
 
-  ecs_service/ecs_service_0 -> ecs_cluster/ecs_cluster-0:
-  ecs_service/ecs_service_0 -> ecs_task_definition/ecs_service_0:
-  ecs_service/ecs_service_0 -> aws:security_group:vpc-0/ecs_service_0-security_group:
-  ecs_service/ecs_service_0 -> aws:subnet:vpc-0/subnet-0:
-  ecs_service/ecs_service_0 -> aws:subnet:vpc-0/subnet-1:
+  cloudwatch_dashboard/cloudwatch_dashboard-0 -> cloudwatch_alarm/ecs_service_0-cpuutilization:
+  cloudwatch_dashboard/cloudwatch_dashboard-0 -> cloudwatch_alarm/ecs_service_0-memoryutilization:
+  cloudwatch_dashboard/cloudwatch_dashboard-0 -> cloudwatch_alarm/ecs_service_0-runningtaskcount:
+  cloudwatch_dashboard/cloudwatch_dashboard-0 -> region/region-0:
   route_table_association/subnet-0-subnet-0-route_table:
 
   route_table_association/subnet-0-subnet-0-route_table -> aws:route_table:vpc-0/subnet-0-route_table:
@@ -23,6 +22,25 @@ resources:
 
   route_table_association/subnet-3-subnet-3-route_table -> aws:route_table:vpc-0/subnet-3-route_table:
   route_table_association/subnet-3-subnet-3-route_table -> aws:subnet:vpc-0/subnet-3:
+  cloudwatch_alarm/ecs_service_0-cpuutilization:
+
+  cloudwatch_alarm/ecs_service_0-cpuutilization -> ecs_service/ecs_service_0:
+  cloudwatch_alarm/ecs_service_0-cpuutilization -> region/region-0:
+  cloudwatch_alarm/ecs_service_0-memoryutilization:
+
+  cloudwatch_alarm/ecs_service_0-memoryutilization -> ecs_service/ecs_service_0:
+  cloudwatch_alarm/ecs_service_0-memoryutilization -> region/region-0:
+  cloudwatch_alarm/ecs_service_0-runningtaskcount:
+
+  cloudwatch_alarm/ecs_service_0-runningtaskcount -> ecs_service/ecs_service_0:
+  cloudwatch_alarm/ecs_service_0-runningtaskcount -> region/region-0:
+  ecs_service/ecs_service_0:
+
+  ecs_service/ecs_service_0 -> ecs_cluster/ecs_cluster-0:
+  ecs_service/ecs_service_0 -> ecs_task_definition/ecs_service_0:
+  ecs_service/ecs_service_0 -> aws:security_group:vpc-0/ecs_service_0-security_group:
+  ecs_service/ecs_service_0 -> aws:subnet:vpc-0/subnet-0:
+  ecs_service/ecs_service_0 -> aws:subnet:vpc-0/subnet-1:
   ecs_cluster/ecs_cluster-0:
 
   ecs_task_definition/ecs_service_0:

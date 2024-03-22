@@ -20,6 +20,15 @@
         },
         {
             "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:UpdateTable"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        },
+        {
+            "Action": [
                 "ecs:CreateCluster",
                 "ecs:DeleteCluster",
                 "ecs:UpdateClusterSettings"

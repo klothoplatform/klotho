@@ -7,6 +7,9 @@ resources:
             GLOBAL_KLOTHO_TAG: ""
             RESOURCE_NAME: api_stage-0
     aws:ecs_cluster:ecs_cluster-0:
+        ClusterSettings:
+            - Name: containerInsights
+              Value: enabled
         Tags:
             GLOBAL_KLOTHO_TAG: ""
             RESOURCE_NAME: ecs_cluster-0

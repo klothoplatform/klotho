@@ -267,24 +267,9 @@ additional_rules:
             Dimensions:
               ServiceName: '{{ fieldRef "Name" .Self }}'
               ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
-  - if: |
-      {{- if and (hasDownstream "aws:ecs_cluster" .Self) (hasField "DesiredCount" .Self) (hasField "ClusterSettings" (downstream "aws:ecs_cluster" .Self))  }}
-        {{ $insightsEnabled := false }}
-        {{ $clusterSettings := (fieldValue "ClusterSettings" (downstream "aws:ecs_cluster" .Self)) }}
-        {{ range $i, $clusterSetting := $clusterSettings }}
-          {{- if and (eq $clusterSetting.Name "containerInsights") (eq $clusterSetting.Value "enabled") }}
-            {{ $insightsEnabled := true }}
-          {{ end }}
-        {{ end }}
-        {{- if $insightsEnabled }}
-          true
-        {{- else }}
-          false
-        {{- end }}
-      {{- else }}
-        false
-      {{- end }}
-    steps:
+
+  # TODO: Make this only apply if the cluster has container insights enabled. Currently not supported in operational eval
+
     - direction: downstream
       unique: true
       resources:
