@@ -1,0 +1,11 @@
+source: aws:sns_topic
+target: aws:sns_topic_subscription
+deployment_order_reversed: true
+unique: one_to_many
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Target }}'
+      configuration:
+        field: Topic
+        value: '{{ fieldRef "Arn" .Source }}'

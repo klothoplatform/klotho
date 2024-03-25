@@ -1,0 +1,6 @@
+{
+    "name": "cloudwatch_alarm",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

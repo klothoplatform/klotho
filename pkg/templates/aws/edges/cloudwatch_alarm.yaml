@@ -1,0 +1,6 @@
+resource: aws:cloudwatch_alarm
+deployment_order_reversed: true
+
+sources:
+  - aws:ecs_service
+  - aws:lambda_function

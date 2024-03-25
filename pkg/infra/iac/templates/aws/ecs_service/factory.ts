@@ -82,3 +82,10 @@ function create(args: Args): aws.ecs.Service {
         { dependsOn: args.dependsOn }
     )
 }
+
+function properties(object: aws.cloudwatch.MetricAlarm, args: Args) {
+    return {
+        Arn: object.arn,
+        Name: object.name,
+    }
+}

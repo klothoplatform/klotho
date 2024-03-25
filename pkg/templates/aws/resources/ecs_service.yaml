@@ -219,6 +219,74 @@ properties:
                 description: The ARN of the IAM Role that's associated with the Service Connect TLS.
   aws:tags:
     type: model
+  Arn:
+    type: string
+    description: The Amazon Resource Name (ARN) that identifies the service
+    deploy_time: true
+    configuration_disabled: true
+  Name:
+    type: string
+    description: The name of the service
+    deploy_time: true
+    configuration_disabled: true
+    required: true
+
+
+additional_rules:
+  - if: '{{ (hasDownstream "aws:ecs_cluster" .Self) }}'
+    steps:
+    - direction: downstream
+      unique: true
+      resources:
+        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-MemoryUtilization'
+          properties:
+            Namespace: AWS/ECS
+            MetricName: MemoryUtilization
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            Threshold: 90
+            Period: 60
+            EvaluationPeriods: 2
+            Statistic: Average
+            AlarmDescription: This metric checks for MemoryUtilization in the ECS service
+            Dimensions:
+              ServiceName: '{{ fieldRef "Name" .Self }}'
+              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
+    - direction: downstream
+      unique: true
+      resources:
+        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-CPUUtilization'
+          properties:
+            Namespace: AWS/ECS
+            MetricName: CPUUtilization
+            ComparisonOperator: GreaterThanOrEqualToThreshold
+            Threshold: 90
+            Period: 60
+            EvaluationPeriods: 2
+            Statistic: Average
+            AlarmDescription: This metric checks for CPUUtilization in the ECS service
+            Dimensions:
+              ServiceName: '{{ fieldRef "Name" .Self }}'
+              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
+
+  # TODO: Make this only apply if the cluster has container insights enabled. Currently not supported in operational eval
+
+    - direction: downstream
+      unique: true
+      resources:
+        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-RunningTaskCount'
+          properties:
+            Namespace: AWS/ECS
+            MetricName: RunningTaskCount
+            ComparisonOperator: LessThanThreshold
+            Threshold: '{{ fieldValue "DesiredCount" .Self }}'
+            Period: 60
+            EvaluationPeriods: 1
+            Statistic: Average
+            AlarmDescription: This metric checks for any stopped tasks in the ECS service
+            Dimensions:
+              ServiceName: '{{ fieldRef "Name" .Self }}'
+              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
+
 
 consumption:
   consumed:

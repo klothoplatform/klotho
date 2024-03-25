@@ -31,6 +31,8 @@ var (
 		"aws:api_resource",
 		"aws:ses_email_identity",
 		"aws:ecs_cluster_capacity_provider",
+		"aws:sns_topic_subscription",
+		"aws:cloudwatch_dashboard",
 	}
 )
 

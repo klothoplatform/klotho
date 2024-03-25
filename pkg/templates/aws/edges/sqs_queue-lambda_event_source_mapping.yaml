@@ -12,3 +12,8 @@ operational_rules:
         direction: upstream
         resources:
           - '{{ .Source }}'
+    configuration_rules: 
+      - resource: '{{ .Source }}'
+        configuration:
+          field: VisibilityTimeout
+          value: '{{ add (fieldValue "Timeout" (downstream "aws:lambda_function" .Target)) 10 }}'

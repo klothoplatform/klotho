@@ -287,6 +287,11 @@ func (eval *Evaluator) RemoveResource(id construct.ResourceId) error {
 
 		case *graphStateVertex:
 			checkStates.Add(v.Key())
+
+		case *resourceRuleVertex:
+			if v.Resource == id {
+				errs = errors.Join(errs, eval.removeKey(v.Key()))
+			}
 		}
 	}
 	if errs != nil {

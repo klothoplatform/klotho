@@ -1,0 +1,73 @@
+qualified_type_name: aws:sns_topic_subscription
+display_name: SNS Topic Subscription
+
+
+properties:
+  Endpoint:
+    required: true
+    type: string
+    description: Endpoint to send data to. The contents vary with the protocol. See details below.
+  Protocol:
+    required: true
+    type: string
+    description: Protocol to use. Valid values are, sqs, sms, lambda, firehose, and application. Protocols email, email-json, http and https are also valid but partially supported. See details below.
+    allowed_values:
+      - sqs
+      - sms
+      - lambda
+      - firehose
+      - application
+      - email
+      - email-json
+      - http
+      - https  
+  Topic:
+    required: true
+    type: string
+    description: ARN of the SNS topic to subscribe to.
+  ConfirmationTimeoutInMinutes:
+    type: int
+    description: Integer indicating number of minutes to wait in retrying mode for fetching subscription arn before marking it as failure. Only applicable for http and https protocols. Default is 1.
+  DeliveryPolicy:
+    type: string
+    description: JSON String with the delivery policy (retries, backoff, etc.) that will be used in the subscription - this only applies to HTTP/S subscriptions. Refer to the SNS docs for more details.
+  EndpointAutoConfirms:
+    type: bool
+    description: Whether the endpoint is capable of auto confirming subscription (e.g., PagerDuty). Default is false.
+  FilterPolicy:
+    type: string
+    description: JSON String with the filter policy that will be used in the subscription to filter messages seen by the target resource. Refer to the SNS docs for more details.
+  FilterPolicyScope:
+    type: string
+    description: Whether the filter_policy applies to MessageAttributes (default) or MessageBody.
+  RawMessageDelivery:
+    type: bool
+    description: Whether to enable raw message delivery (the original message is directly passed, not wrapped in JSON with the original message in the message property). Default is false.
+  RedrivePolicy:
+    type: string
+    description: JSON String with the redrive policy that will be used in the subscription. Refer to the SNS docs for more details.
+  ReplayPolicy:
+    type: string
+    description: JSON String with the archived message replay policy that will be used in the subscription. Refer to the SNS docs for more details.
+  SubscriptionRoleArn:
+    type: string
+    description: ARN of the IAM role to publish to Kinesis Data Firehose delivery stream. Refer to SNS docs.
+  Id:
+    type: string
+    description: The ID of the SNS topic
+    deploy_time: true
+    configuration_disabled: true
+    required: true
+
+
+classification:
+  is:
+    - sns
+
+delete_context:
+  requires_no_upstream_or_downstream: true
+
+  deployment_permissions:
+  deploy: ["sqs:SetSubscriptionAttributes", "sns:Subscribe", "sns:ListSubscriptions", "sqs:ListSubscriptionsByTopic", "sns:GetSubscriptionAttributes"]
+  tear_down: ["sqs:Unsubscribe"]
+  update: ["sqs:SetSubscriptionAttributes"]

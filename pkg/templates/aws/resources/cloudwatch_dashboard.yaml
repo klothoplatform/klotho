@@ -1,0 +1,78 @@
+qualified_type_name: aws:cloudwatch_dashboard
+display_name: Cloudwatch Dashboard
+
+properties:
+  DashboardBody:
+    type: map
+    description: The number of periods over which data is compared to the specified threshold
+    properties:
+      Widgets:
+        type: list
+        required: true
+        description: The type of widget to display
+        properties:
+          Type:
+            type: string
+            required: true
+            description: The type of widget
+            allowed_values:
+              - metric
+              - text
+              - log
+              - alarm
+              - explorer
+          X:
+            type: int
+            description: The horizontal position of the widget on the 24-column dashboard grid. The default is the next available position.
+            min_value: 0
+            max_value: 23
+          Y:
+            type: int
+            description: The vertical position of the widget on the 24-column dashboard grid. The default is the next available position.
+            min_value: 0
+            max_value: 23
+          Width:
+            type: int
+            description: The width of the widget in grid units (in a 24-column grid).
+            min_value: 1
+            max_value: 24
+            default_value: 6
+          Height:
+            type: int
+            description: The height of the widget in grid units (in a 24-column grid).
+            min_value: 1
+            max_value: 1000
+            default_value: 6
+          Properties:
+            type: map
+            properties:
+              Annotations:
+                type: map
+                properties:
+                  Alarms:
+                    type: list(string)
+                    description: The list of alarms to display in the widget, if applicable. If you specify an alarm annotation, you cannot also specify a metrics array in the same widget.
+              Region:
+                type: string
+                description: The region of the metric.
+              Alarms:
+                type: list(string)
+                description: The list of alarms to display in the widget, if applicable (only for alarm widgets).
+  Arn:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+
+
+classification:
+  is:
+    - alarm
+    - monitoring
+
+
+
+
+deployment_permissions:
+  deploy: ["dynamodb:CreateTable"]
+  tear_down: ["dynamodb:DeleteTable"]
+  update: ["dynamodb:UpdateTable"]

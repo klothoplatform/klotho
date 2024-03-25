@@ -1,8 +1,11 @@
 import * as aws from '@pulumi/aws'
 import { ModelCaseWrapper } from '../../wrappers'
+import * as awsInputs from '@pulumi/aws/types/input'
 
 interface Args {
     Name: string
+    ClusterSettings?: awsInputs.ecs.ClusterSetting[]
+    ServiceConnectDefaults: awsInputs.ecs.ClusterServiceConnectDefaults
     Tags: ModelCaseWrapper<Record<string, string>>
     Id?: string
 }
@@ -10,6 +13,12 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.ecs.Cluster {
     return new aws.ecs.Cluster(args.Name, {
+        //TMPL {{- if .ClusterSettings }}
+        settings: args.ClusterSettings,
+        //TMPL {{- end }}
+        //TMPL {{- if .ServiceConnectDefaults }}
+        serviceConnectDefaults: args.ServiceConnectDefaults,
+        //TMPL {{- end }}
         //TMPL {{- if .Tags }}
         tags: args.Tags,
         //TMPL {{- end }}

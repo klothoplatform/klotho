@@ -1,0 +1,20 @@
+source: aws:sns_topic
+target: aws:lambda_permission
+deployment_order_reversed: true
+unique: one_to_many
+
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Source
+          value: |
+            {{ fieldRef "Arn" .Source }}
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Principal
+          value: sns.amazonaws.com
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Action
+          value: lambda:InvokeFunction

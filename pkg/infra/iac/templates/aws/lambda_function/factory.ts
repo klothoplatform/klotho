@@ -65,3 +65,7 @@ function properties(object: aws.lambda.Function, args: Args) {
         Arn: object.arn,
     }
 }
+
+function importResource(args: Args): aws.lambda.Function {
+    return aws.lambda.Function.get(args.Name, args.Id)
+}

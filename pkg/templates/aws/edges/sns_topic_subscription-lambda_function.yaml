@@ -1,0 +1,17 @@
+source: aws:sns_topic_subscription
+target: aws:lambda_function
+unique: many_to_one
+
+operational_rules:
+  - configuration_rules:
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Endpoint
+        value: '{{ fieldRef "Arn" .Target }}'
+    - resource: '{{ .Source }}'
+      configuration:
+        field: Protocol
+        value: lambda
+
+classification:
+  - network

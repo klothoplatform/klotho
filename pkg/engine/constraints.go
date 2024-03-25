@@ -138,6 +138,15 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 		}
 	}
 
+	if constraint.Target.Source.Name == "" || constraint.Target.Target.Name == "" {
+		if constraint.Target.Source.Name == "" && constraint.Target.Target.Name == "" {
+			return fmt.Errorf("source and target names are empty")
+		}
+		// This is considered a global constraint for the type which does not have a name and
+		// will be applied anytime a new resource is added to the graph
+		return nil
+	}
+
 	switch constraint.Operator {
 	case constraints.AddConstraintOperator:
 		return ctx.OperationalView().AddEdge(constraint.Target.Source, constraint.Target.Target)

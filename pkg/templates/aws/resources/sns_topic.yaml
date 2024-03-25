@@ -1,0 +1,105 @@
+qualified_type_name: aws:sns_topic
+display_name: SNS Topic
+
+
+properties:
+  ApplicationFailureFeedbackRoleArn:
+    type: string
+    description: IAM role for failure feedback
+  ApplicationSuccessFeedbackRoleArn:
+    type: string
+    description: The IAM role permitted to receive success feedback for this topic
+  ApplicationSuccessFeedbackSampleRate:
+    type: int
+    description: Percentage of success to sample
+  ArchivePolicy:
+    type: string
+    description: The message archive policy for FIFO topics. More details in the AWS documentation.
+  ContentBasedDeduplication:
+    type: bool
+    description: Enables content-based deduplication for FIFO topics. For more information, see the related documentation
+  DeliveryPolicy:
+    type: string
+    description: The SNS delivery policy. More details in the AWS documentation.
+  FifoTopic:
+    type: bool
+    description: Boolean indicating whether or not to create a FIFO (first-in-first-out) topic (default is false).
+  FirehoseFailureFeedbackRoleArn:
+    type: string
+    description: IAM role for failure feedback
+  FirehoseSuccessFeedbackRoleArn:
+    type: string
+    description: The IAM role permitted to receive success feedback for this topic
+  FirehoseSuccessFeedbackSampleRate:
+    type: int
+    description: Percentage of success to sample
+  HttpFailureFeedbackRoleArn:
+    type: string
+    description: IAM role for failure feedback
+  HttpSuccessFeedbackRoleArn:
+    type: string
+    description: The IAM role permitted to receive success feedback for this topic
+  HttpSuccessFeedbackSampleRate:
+    type: int
+    description: Percentage of success to sample
+  KmsMasterKeyId:
+    type: string
+    description: The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK. For more information, see Key Terms
+  LambdaFailureFeedbackRoleArn:
+    type: string
+    description: IAM role for failure feedback
+  LambdaSuccessFeedbackRoleArn:
+    type: string
+    description: The IAM role permitted to receive success feedback for this topic
+  LambdaSuccessFeedbackSampleRate:
+    type: int
+    description: Percentage of success to sample
+  Policy:
+    type: string
+    description: The fully-formed AWS policy as JSON.
+  SignatureVersion:
+    type: int
+    description: If SignatureVersion should be 1 (SHA1) or 2 (SHA256). The signature version corresponds to the hashing algorithm used while creating the signature of the notifications, subscription confirmations, or unsubscribe confirmation messages sent by Amazon SNS.
+  SqsFailureFeedbackRoleArn:
+    type: string
+    description: IAM role for failure feedback
+  SqsSuccessFeedbackRoleArn:
+    type: string
+    description: The IAM role permitted to receive success feedback for this topic
+  SqsSuccessFeedbackSampleRate:
+    type: int
+    description: Percentage of success to sample
+  aws:tags:
+    type: model
+  TracingConfig:
+    type: string
+    description: Tracing mode of an Amazon SNS topic. Valid values, "PassThrough", "Active".
+  Arn:
+    type: string
+    description: The ARN of the SNS topic
+    deploy_time: true
+    configuration_disabled: true
+  Id:
+    type: string
+    description: The ID of the SNS topic
+    deploy_time: true
+    configuration_disabled: true
+    required: true
+
+path_satisfaction:
+  as_target:
+    - network
+    - permissions
+
+classification:
+  is:
+    - notification
+    - messaging
+
+views:
+  dataflow: big
+
+deployment_permissions:
+  deploy: ["sqs:CreateTopic", "sns:AddPermission", "sns:SetTopicAttributes", "sqs:ListSubscriptionsByTopic", "sns:GetTopicAttributes", "sns:TagResource"]
+  tear_down: ["sqs:DeleteTopic"]
+  update: ["sqs:SetTopicAttributes", "sns:AddPermission", "sns:GetTopicAttributes", "sns:TagResource", "sns:UntagResource"]

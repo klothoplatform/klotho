@@ -20,7 +20,28 @@ func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...
 	if err != nil {
 		return err
 	}
-	return view.MakeResourcesOperational([]*construct.Resource{value})
+	err = view.MakeResourcesOperational([]*construct.Resource{value})
+	if err != nil {
+		return err
+	}
+
+	// Look for any global edge constraints to the type of resource we are adding and enforce them
+	for _, edgeConstraint := range view.constraints.Edges {
+		if edgeConstraint.Target.Source.Name == "" &&
+			edgeConstraint.Target.Source.QualifiedTypeName() == value.ID.QualifiedTypeName() {
+			err = view.AddEdge(value.ID, edgeConstraint.Target.Target)
+			if err != nil {
+				return err
+			}
+		} else if edgeConstraint.Target.Target.Name == "" &&
+			edgeConstraint.Target.Target.QualifiedTypeName() == value.ID.QualifiedTypeName() {
+			err = view.AddEdge(edgeConstraint.Target.Source, value.ID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {

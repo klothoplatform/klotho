@@ -14,6 +14,7 @@ operational_rules:
                   - Action:
                       - sqs:ReceiveMessage
                       - sqs:DeleteMessage
+                      - sqs:GetQueueAttributes
                     Effect: Allow
                     Resource:
                       - '{{ .Source  }}#Arn'
