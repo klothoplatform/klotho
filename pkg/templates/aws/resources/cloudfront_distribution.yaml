@@ -86,10 +86,6 @@ properties:
       DefaultTtl:
         type: int
         default_value: 3600
-      CachePolicyId:
-        type: string
-      OriginRequestPolicyId:
-        type: string
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
@@ -194,7 +190,7 @@ properties:
       CachePolicyId:
         type: string
       OriginRequestPolicyId:
-          type: string
+        type: string
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
