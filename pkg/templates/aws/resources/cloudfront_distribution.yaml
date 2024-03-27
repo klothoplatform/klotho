@@ -171,13 +171,11 @@ properties:
         properties:
           QueryString:
             type: bool
-            default_value: true
           Cookies:
             type: map
             properties:
               Forward:
                 type: string
-                default_value: none
       MinTtl:
         type: int
         default_value: 0
@@ -194,6 +192,12 @@ properties:
       ViewerProtocolPolicy:
         type: string
         default_value: allow-all
+      CachePolicyId:
+        type: string
+        default_value: '4135ea2d-6df8-44a3-9df3-4b5a84be39ad' # Managed-CachingDisabled
+      OriginRequestPolicyId:
+        type: string
+        default_value: 'b689b0a8-53d0-40ab-baf2-68738e2966ac' # Managed-AllViewerExceptHostHeader
   Restrictions:
     type: map
     properties:
