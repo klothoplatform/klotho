@@ -131,20 +131,6 @@ resources:
                   Properties:
                     Annotations:
                         Alarms:
-                            - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
-                    Region: aws:region:region-0#Name
-                  Type: metric
-                  Width: 6
-                - Height: 6
-                  Properties:
-                    Alarms:
-                        - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
-                  Type: alarm
-                  Width: 6
-                - Height: 6
-                  Properties:
-                    Annotations:
-                        Alarms:
                             - aws:cloudwatch_alarm:ecs_service_0-CPUUtilization#Arn
                     Region: aws:region:region-0#Name
                   Type: metric
@@ -167,6 +153,20 @@ resources:
                   Properties:
                     Alarms:
                         - aws:cloudwatch_alarm:ecs_service_0-MemoryUtilization#Arn
+                  Type: alarm
+                  Width: 6
+                - Height: 6
+                  Properties:
+                    Annotations:
+                        Alarms:
+                            - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
+                    Region: aws:region:region-0#Name
+                  Type: metric
+                  Width: 6
+                - Height: 6
+                  Properties:
+                    Alarms:
+                        - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
                   Type: alarm
                   Width: 6
     aws:ecr_image:ecs_service_0-ecs_service_0:
