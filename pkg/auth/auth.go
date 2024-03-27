@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/pkg/browser"
@@ -31,7 +32,7 @@ func env(name, dflt string) string {
 
 var (
 	domain     = env("AUTH_DOMAIN", "klotho.us.auth0.com")
-	clientId   = env("AUTH_CLIENT_ID", "AeIvquQVLg9jy2V6Jq5Bz48cKQOmIPDw")
+	clientId   = env("AUTH_CLIENT_ID", "6KQhBRK03c5FWOiJvVZUsEZSjWJ0dvQ1")
 	browserEnv = env("BROWSER", "")
 
 	//go:embed auth0_client_secret.key
@@ -46,7 +47,7 @@ func GetAuthToken(ctx context.Context) (*oauth2.Token, *http.Client, error) {
 		return nil, nil, err
 	}
 
-	if token := readCachedToken(auth); token != nil {
+	if token := readCachedToken(ctx, auth); token != nil {
 		return token, auth.HTTPClient(ctx, token), nil
 	}
 
@@ -138,7 +139,7 @@ func GetAuthToken(ctx context.Context) (*oauth2.Token, *http.Client, error) {
 	}
 }
 
-func readCachedToken(auth *Authenticator) *oauth2.Token {
+func readCachedToken(ctx context.Context, auth *Authenticator) *oauth2.Token {
 	log := zap.S().Named("auth.cache")
 
 	cacheDir, err := os.UserCacheDir()
@@ -154,8 +155,24 @@ func readCachedToken(auth *Authenticator) *oauth2.Token {
 	}
 	var token oauth2.Token
 	if err := json.NewDecoder(cacheFile).Decode(&token); err == nil {
-		log.Debugf("using cached token")
-		return &token
+		oidcConfig := &oidc.Config{ClientID: auth.ClientID}
+		// ID token replaces access token, so use that for verification
+		idToken, err := auth.Verifier(oidcConfig).Verify(ctx, token.AccessToken)
+		if err != nil {
+			log.Debugf("failed to verify token: %v", err)
+			return nil
+		}
+		if token.Valid() && idToken.Expiry.After(time.Now()) {
+			log.Debugf("using cached token")
+			return &token
+		}
+		if idToken.Issuer != auth.Config.Endpoint.AuthURL {
+			log.Debugf("token issuer does not match auth endpoint")
+		}
+		if token.RefreshToken == "" {
+			log.Debugf("token is invalid and has no refresh token")
+			return nil
+		}
 	} else {
 		log.Debugf("failed to decode token: %v", err)
 	}
@@ -209,7 +226,7 @@ func newAuth(ctx context.Context) (*Authenticator, error) {
 	conf := oauth2.Config{
 		ClientID:     clientId,
 		ClientSecret: clientSecret,
-		RedirectURL:  "http://localhost:3000/callback",
+		RedirectURL:  "http://localhost:3104/callback",
 		Endpoint:     provider.Endpoint(),
 		Scopes:       []string{oidc.ScopeOpenID, "profile"},
 	}
@@ -247,7 +264,8 @@ func generateRandomState() (string, error) {
 }
 
 type idTokenSource struct {
-	src oauth2.TokenSource
+	src  oauth2.TokenSource
+	auth *Authenticator
 }
 
 func (s *idTokenSource) Token() (*oauth2.Token, error) {
@@ -255,12 +273,17 @@ func (s *idTokenSource) Token() (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	id, ok := t.Extra("id_token").(string)
-	if ok {
+	if id, ok := t.Extra("id_token").(string); ok {
+		idToken, err := s.auth.VerifyIDToken(context.Background(), t)
+		if err != nil {
+			return nil, err
+		}
+
 		// per TokenSource contract, we must return a copy if modifying
 		tCopy := *t
 		t = &tCopy
 		t.AccessToken = id
+		t.Expiry = idToken.Expiry
 	}
 	return t, nil
 }

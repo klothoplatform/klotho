@@ -42,8 +42,8 @@ type (
 
 	// Edge is a struct that represents how we take in data about an edge in the resource graph
 	Edge struct {
-		Source construct.ResourceId `yaml:"source"`
-		Target construct.ResourceId `yaml:"target"`
+		Source construct.ResourceId `yaml:"source" json:"source"`
+		Target construct.ResourceId `yaml:"target" json:"target"`
 	}
 
 	// ConstraintScope is an enum that represents the different scopes that a constraint can be applied to
@@ -114,6 +114,12 @@ func (cs ConstraintList) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		// HACK: because json omitempty doesn't work on structs (resourceid)
+		for k, v := range m {
+			if vs, ok := v.(string); ok && vs == "" {
+				delete(m, k)
+			}
+		}
 		list[i] = m
 	}
 	return json.Marshal(list)
@@ -166,7 +172,7 @@ func (cs *ConstraintList) UnmarshalYAML(node *yaml.Node) error {
 			continue
 		}
 		if err := c.Validate(); err != nil {
-			errs = errors.Join(errs, err)
+			errs = errors.Join(errs, fmt.Errorf("Constraint %d %+v failed: %w", i, c, err))
 			continue
 		}
 		(*cs)[i] = c

@@ -7,13 +7,15 @@ concurrency:
   cancel-in-progress: true
   group: linter-${{ github.ref }}
 name: golangci-lint
+env:
+  GOEXPERIMENT: 'rangefunc'
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: '1.21.5'
+          go-version: '1.22.0'
       - uses: actions/checkout@v3
       - uses: actions/cache@v2
         with:

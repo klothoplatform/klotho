@@ -11,3 +11,9 @@ tab-width = 2
 [run]
 # Don't bother linting test files
 skip-files = ["pkg/.*_test.go"]
+
+[[issues.exclude-rules]]
+# Temporarily disable linting rangefunc until it's supported
+# https://github.com/dominikh/go-tools/issues/1494
+linters = ["typecheck"]
+text = "cannot range over"
