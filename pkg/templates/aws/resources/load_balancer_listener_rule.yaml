@@ -78,6 +78,6 @@ path_satisfaction:
     - network#Listener#LoadBalancer#Subnets
 
 deployment_permissions:
-  deploy: ["elbv2:CreateRule"]
-  tear_down: ["elbv2:DeleteRule"]
-  update: ["elbv2:ModifyRule"]
+  deploy: ['elasticloadbalancing:CreateRule']
+  tear_down: ['elasticloadbalancing:DeleteRule']
+  update: ['elasticloadbalancing:ModifyRule']

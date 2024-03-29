@@ -109,8 +109,6 @@ delete_context:
 views:
   dataflow: big
 
-
 deployment_permissions:
-  deploy: ["lambda:CreateFunction"]
-  tear_down: ["lambda:DeleteFunction"]
-  update: ["lambda:UpdateFunctionConfiguration"]
+  deploy: ['lambda:*Function', 'lambda:TagResource']
+  update: ['lambda:UpdateFunctionConfiguration', 'lambda:UntagResource']

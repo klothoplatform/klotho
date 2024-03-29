@@ -5,7 +5,7 @@ properties:
   AutoScalingGroupProvider:
     type: map
     properties:
-      AutoScalingGroupArn: 
+      AutoScalingGroupArn:
         type: string
         required: true
         description: The Amazon Resource Name (ARN) that identifies the Auto Scaling group.
@@ -16,47 +16,47 @@ properties:
               - aws:auto_scaling_group
             unique: true
             use_property_ref: Arn
-      ManagedDraining: 
+      ManagedDraining:
         type: string
-        allowed_values: ["ENABLED", "DISABLED"]
+        allowed_values: ['ENABLED', 'DISABLED']
         description: The managed draining option for the Auto Scaling group capacity provider. When you enable this, Amazon ECS manages and gracefully drains the EC2 container instances that are in the Auto Scaling group capacity provider.
-      ManagedScaling: 
+      ManagedScaling:
         type: map
         description: The managed scaling settings for the Auto Scaling group capacity provider.
         properties:
-          InstanceWarmupPeriod: 
+          InstanceWarmupPeriod:
             type: int
             default_value: 300
             min_value: 0
             max_value: 10000
             description: The period of time, in seconds, after a newly launched Amazon EC2 instance can contribute to CloudWatch metrics for Auto Scaling group.
-          MaximumScalingStepSize:  
+          MaximumScalingStepSize:
             type: int
             description: The maximum number of Amazon EC2 instances that Amazon ECS will scale out at one time. The scale in process is not affected by this parameter.
             default_value: 10000
             min_value: 1
             max_value: 10000
-          MinimumScalingStepSize:  
+          MinimumScalingStepSize:
             type: int
             description: The minimum number of Amazon EC2 instances that Amazon ECS will scale out at one time.
             default_value: 1
             min_value: 1
             max_value: 10000
-          Status: 
+          Status:
             type: string
             description: Determines whether to use managed scaling for the capacity provider.
-            default_value: "ENABLED"
-            allowed_values: ["ENABLED", "DISABLED"]
-          TargetCapacity:  
+            default_value: 'ENABLED'
+            allowed_values: ['ENABLED', 'DISABLED']
+          TargetCapacity:
             type: int
             description: The target capacity utilization as a percentage for the capacity provider.
             default_value: 100
             min_value: 1
             max_value: 100
-    ManagedTerminationProtection: 
+    ManagedTerminationProtection:
       type: string
-      allowed_values: ["ENABLED", "DISABLED"]
-      default_value: "DISABLED"
+      allowed_values: ['ENABLED', 'DISABLED']
+      default_value: 'DISABLED'
       description: The managed termination protection setting to use for the Auto Scaling group capacity provider. This determines whether the Auto Scaling group has managed termination protection.
   aws:tags:
     type: model
@@ -81,6 +81,11 @@ delete_context:
   requires_no_upstream: true
 
 deployment_permissions:
-  deploy: ["ecs:CreateCapacityProvider", "ecs:DescribeCapacityProviders", "PutClusterCapacityProviders"]
-  tear_down: ["ecs:DeleteCapacityProvider"]
-  update: ["ecs:UpdateCapacityProvider"]
+  deploy:
+    [
+      'ecs:CreateCapacityProvider',
+      'ecs:DescribeCapacityProviders',
+      'ecs:PutClusterCapacityProviders',
+    ]
+  tear_down: ['ecs:DeleteCapacityProvider']
+  update: ['ecs:UpdateCapacityProvider']

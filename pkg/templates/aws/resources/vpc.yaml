@@ -42,6 +42,5 @@ views:
   dataflow: parent
 
 deployment_permissions:
-  deploy: ["ec2:CreateVpc"]
-  tear_down: ["ec2:DeleteVpc"]
-  update: ["ec2:ModifyVpcAttribute"]
+  deploy: ['ec2:*Vpc', 'ec2:*Vpc*', 'ec2:*Tags']
+  update: ['ec2:ModifyVpcAttribute']

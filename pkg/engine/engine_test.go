@@ -66,6 +66,7 @@ func (tc engineTestCase) Test(t *testing.T) {
 	context := &EngineContext{
 		Constraints:  inputFile.Constraints,
 		InitialState: inputFile.Graph,
+		GlobalTag:    "test",
 	}
 	returnCode, engineErrs := main.Run(context)
 	// TODO find a convenient way to specify the return code in the testdata
@@ -89,8 +90,10 @@ func (tc engineTestCase) Test(t *testing.T) {
 		return
 	}
 
+	sol := context.Solutions[0]
+
 	// Check to make sure that we produce a policy for deployment roles
-	deploymentPolicyBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+	deploymentPolicyBytes, err := aws.DeploymentPermissionsPolicy(sol)
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
 	}
@@ -103,7 +106,6 @@ func (tc engineTestCase) Test(t *testing.T) {
 	}
 	assertDeploymentPolicy(t, deploymentPolicyFile, deploymentPolicyBytes)
 
-	sol := context.Solutions[0]
 	actualContent, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to marshal actual output: %w", err))

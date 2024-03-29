@@ -11,7 +11,7 @@ operational_rules:
                 Version: '2012-10-17'
                 Statement:
                   - Action:
-                      - efs:Client*
+                      - elasticfilesystem:Client*
                     Effect: Allow
                     Resource:
                       - '{{ .Target  }}#Arn'

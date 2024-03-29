@@ -107,6 +107,15 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["iam:CreateRole"]
-  tear_down: ["iam:DeleteRole"]
-  update: ["iam:UpdateAssumeRolePolicy"]
+  deploy:
+    # Note: don't use '*Role' here - PassRole with '*' resource is flagged in AWS as a security risk
+    [
+      'iam:CreateRole',
+      'iam:GetRole*',
+      'iam:PutRole*',
+      'iam:TagRole',
+      'iam:*RolePolicy',
+      'iam:List*',
+    ]
+  tear_down: ['iam:DeleteRole*']
+  update: ['iam:UntagRole', 'iam:Update*']

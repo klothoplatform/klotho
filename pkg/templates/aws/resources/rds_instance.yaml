@@ -142,6 +142,5 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ["rds:CreateDBInstance"]
-  tear_down: ["rds:DeleteDBInstance"]
-  update: ["rds:ModifyDBInstance"]
+  deploy: ['rds:*DBInstance', 'rds:AddTagsToResource', 'rds:Describe*']
+  update: ['rds:List*', 'rds:RemoveTagsFromResource']

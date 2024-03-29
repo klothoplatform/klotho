@@ -16,8 +16,14 @@ delete_context:
 views:
   dataflow: small
 
-
 deployment_permissions:
-  deploy: ["ecr:CreateRepository"]
-  tear_down: ["ecr:DeleteRepository"]
-  update: ["ecr:PutLifecyclePolicy"]
+  deploy:
+    [
+      'ecr:*Repository',
+      'ecr:Get*',
+      'ecr:TagResource',
+      'ecr:Describe*',
+      'ecr:List*',
+      'ecr:*RepositoryPolicy',
+    ]
+  tear_down: ['kms:RetireGrant']

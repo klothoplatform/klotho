@@ -24,6 +24,4 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ec2:CreateInternetGateway"]
-  tear_down: ["ec2:DeleteInternetGateway"]
-  update: ["ec2:AttachInternetGateway"]
+  deploy: ['ec2:*InternetGateway', 'ec2:Describe*']

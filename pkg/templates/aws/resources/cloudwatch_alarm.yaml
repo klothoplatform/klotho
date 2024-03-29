@@ -7,10 +7,10 @@ properties:
     required: true
     description: The arithmetic operation to use when comparing the specified Statistic and Threshold
     allowed_values:
-        - GreaterThanOrEqualToThreshold
-        - GreaterThanThreshold
-        - LessThanThreshold
-        - LessThanOrEqualToThreshold
+      - GreaterThanOrEqualToThreshold
+      - GreaterThanThreshold
+      - LessThanThreshold
+      - LessThanOrEqualToThreshold
   EvaluationPeriods:
     type: int
     required: true
@@ -53,11 +53,11 @@ properties:
     type: string
     description: The statistic to apply to the alarm's associated metric
     allowed_values:
-        - SampleCount
-        - Average
-        - Sum
-        - Minimum
-        - Maximum
+      - SampleCount
+      - Average
+      - Sum
+      - Minimum
+      - Maximum
   Threshold:
     type: int
     description: The value against which the specified Statistic is compared
@@ -65,10 +65,10 @@ properties:
     type: string
     description: Sets how this alarm is to handle missing data points
     allowed_values:
-        - breaching
-        - notBreaching
-        - ignore
-        - missing
+      - breaching
+      - notBreaching
+      - ignore
+      - missing
   Unit:
     type: string
     description: The unit for the alarm's associated metric
@@ -93,10 +93,13 @@ classification:
     - alarm
     - monitoring
 
-
-
-
 deployment_permissions:
-  deploy: ["dynamodb:CreateTable"]
-  tear_down: ["dynamodb:DeleteTable"]
-  update: ["dynamodb:UpdateTable"]
+  deploy: ['cloudwatch:PutMetricAlarm', 'cloudwatch:TagResource']
+  tear_down: ['cloudwatch:DeleteAlarms']
+  update:
+    [
+      'cloudwatch:DescribeAlarms',
+      'cloudwatch:UntagResource',
+      'cloudwatch:List*',
+      'cloudwatch:Describe*',
+    ]

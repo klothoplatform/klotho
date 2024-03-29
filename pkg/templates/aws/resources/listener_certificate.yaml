@@ -16,7 +16,6 @@ properties:
     type: resource(aws:load_balancer_listener)
     required: true
 
-
     description: Reference to an AWS load balancer listener resource where the certificate
       will be attached.
 delete_context:
@@ -25,6 +24,6 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["elbv2:AddListenerCertificates"]
-  tear_down: ["elbv2:RemoveListenerCertificates"]
-  update: ["elbv2:AddListenerCertificates"]
+  deploy: ['elasticloadbalancing:AddListenerCertificates']
+  tear_down: ['elasticloadbalancing:RemoveListenerCertificates']
+  update: ['elasticloadbalancing:AddListenerCertificates']

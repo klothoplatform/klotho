@@ -22,6 +22,4 @@ properties:
     required: true
 
 deployment_permissions:
-  deploy: ["iam:CreateInstanceProfile"]
-  tear_down: ["iam:DeleteInstanceProfile"]
-  update: ["iam:AddRoleToInstanceProfile"]
+  deploy: ['iam:*InstanceProfile', 'iam:PassRole']

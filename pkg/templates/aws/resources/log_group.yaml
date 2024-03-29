@@ -35,6 +35,5 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["logs:CreateLogGroup"]
-  tear_down: ["logs:DeleteLogGroup"]
-  update: ["logs:PutRetentionPolicy"]
+  deploy: ['logs:*LogGroup', 'logs:*LogGroups']
+  update: ['logs:PutRetentionPolicy']

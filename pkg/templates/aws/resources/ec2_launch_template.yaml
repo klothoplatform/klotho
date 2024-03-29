@@ -1,41 +1,41 @@
 qualified_type_name: aws:ec2_launch_template
 display_name: Ec2 Launch Template
 
-properties:  
+properties:
   LaunchTemplateData:
     type: map
     description: The information for the launch template.
     required: true
     properties:
-      IamInstanceProfile: 
+      IamInstanceProfile:
         type: map
         description: The name or Amazon Resource Name (ARN) of an IAM instance profile.
-        properties: 
-          Arn: 
+        properties:
+          Arn:
             type: string
             operational_rule:
               step:
                 direction: downstream
-                resources: 
+                resources:
                   - aws:iam_instance_profile
                 unique: true
                 use_property_ref: Arn
-          Name: 
+          Name:
             type: string
-      ImageId: 
+      ImageId:
         type: string
         description: The ID of the AMI.
-      InstanceRequirements: 
+      InstanceRequirements:
         type: map
         description: The instance requirements for the launch template. You must specify VCpuCount and MemoryMiB. If you specify InstanceRequirements, you can't specify InstanceType.
         properties:
-          AllowedInstanceTypes: 
+          AllowedInstanceTypes:
             type: list(string)
             description: The instance types that can be launched. You can specify instance families to launch any instance type within those families (for example, c5 or m5). If you specify instance types, you can't specify a value for InstanceType.
           ExcludedInstanceTypes:
             type: list(string)
             description: The instance types that aren't allowed to be launched. You can specify instance families to launch any instance type within those families (for example, c5 or m5). If you specify instance types, you can't specify a value for InstanceType.
-          MemoryMib: 
+          MemoryMib:
             type: map
             description: The amount of memory, in MiB, that's required for the instance type. You must specify a value for MemoryMiB, and you can't specify a value for InstanceType.
             properties:
@@ -55,10 +55,10 @@ properties:
               Min:
                 type: int
                 description: The minimum number of vCPUs that are required for the instance type.
-      InstanceType: 
+      InstanceType:
         type: string
         description: The instance type. If you specify InstanceType, you can't specify InstanceRequirements.
-      SecurityGroupIds: 
+      SecurityGroupIds:
         type: list(string)
         description: The IDs of the security groups.
       UserData:
@@ -87,6 +87,14 @@ delete_context:
   requires_no_upstream: true
 
 deployment_permissions:
-  deploy: ["ec2:CreateLaunchTemplate", "ec2:CreateLaunchTemplateVersion", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "ec2:GetLaunchTemplateData"]
-  tear_down: ["ec2:DeleteLaunchTemplate", "ec2:DeleteLaunchTemplateVersions"]
-  update: ["ec2:ModifyLaunchTemplate"]
+  deploy:
+    [
+      'ec2:CreateLaunchTemplate',
+      'ec2:CreateLaunchTemplateVersion',
+      'ec2:DescribeLaunchTemplates',
+      'ec2:DescribeLaunchTemplateVersions',
+      'ec2:GetLaunchTemplateData',
+      'ec2:DescribeImages',
+    ]
+  tear_down: ['ec2:DeleteLaunchTemplate', 'ec2:DeleteLaunchTemplateVersions']
+  update: ['ec2:ModifyLaunchTemplate']

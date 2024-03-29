@@ -2,7 +2,7 @@ qualified_type_name: aws:efs_file_system
 display_name: EFS File System
 
 properties:
-  PerformanceMode: 
+  PerformanceMode:
     type: string
     default_value: generalPurpose
     description: The file system's performance mode, which determines the throughput
@@ -77,9 +77,11 @@ delete_context:
 views:
   dataflow: big
 
-
-
 deployment_permissions:
-  deploy: ["efs:CreateFileSystem"]
-  tear_down: ["efs:DeleteFileSystem"]
-  update: ["efs:CreateFileSystem"]
+  deploy:
+    [
+      'elasticfilesystem:*FileSystem',
+      'elasticfilesystem:TagResource',
+      'elasticfilesystem:Describe*',
+    ]
+  update: ['elasticfilesystem:UntagResource']

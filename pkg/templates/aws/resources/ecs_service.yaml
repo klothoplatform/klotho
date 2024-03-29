@@ -11,7 +11,7 @@ properties:
     type: set
     operational_rule:
       if: '{{ hasUpstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self) }}'
-      value: 
+      value:
         - CapacityProvider: '{{ fieldRef "Id" (upstream "aws:ecs_capacity_provider" (downstream "aws:ecs_cluster" .Self)) }}'
           Weight: 1
     properties:
@@ -231,62 +231,60 @@ properties:
     configuration_disabled: true
     required: true
 
-
 additional_rules:
   - if: '{{ (hasDownstream "aws:ecs_cluster" .Self) }}'
     steps:
-    - direction: downstream
-      unique: true
-      resources:
-        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-MemoryUtilization'
-          properties:
-            Namespace: AWS/ECS
-            MetricName: MemoryUtilization
-            ComparisonOperator: GreaterThanOrEqualToThreshold
-            Threshold: 90
-            Period: 60
-            EvaluationPeriods: 2
-            Statistic: Average
-            AlarmDescription: This metric checks for MemoryUtilization in the ECS service
-            Dimensions:
-              ServiceName: '{{ fieldRef "Name" .Self }}'
-              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
-    - direction: downstream
-      unique: true
-      resources:
-        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-CPUUtilization'
-          properties:
-            Namespace: AWS/ECS
-            MetricName: CPUUtilization
-            ComparisonOperator: GreaterThanOrEqualToThreshold
-            Threshold: 90
-            Period: 60
-            EvaluationPeriods: 2
-            Statistic: Average
-            AlarmDescription: This metric checks for CPUUtilization in the ECS service
-            Dimensions:
-              ServiceName: '{{ fieldRef "Name" .Self }}'
-              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
+      - direction: downstream
+        unique: true
+        resources:
+          - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-MemoryUtilization'
+            properties:
+              Namespace: AWS/ECS
+              MetricName: MemoryUtilization
+              ComparisonOperator: GreaterThanOrEqualToThreshold
+              Threshold: 90
+              Period: 60
+              EvaluationPeriods: 2
+              Statistic: Average
+              AlarmDescription: This metric checks for MemoryUtilization in the ECS service
+              Dimensions:
+                ServiceName: '{{ fieldRef "Name" .Self }}'
+                ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
+      - direction: downstream
+        unique: true
+        resources:
+          - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-CPUUtilization'
+            properties:
+              Namespace: AWS/ECS
+              MetricName: CPUUtilization
+              ComparisonOperator: GreaterThanOrEqualToThreshold
+              Threshold: 90
+              Period: 60
+              EvaluationPeriods: 2
+              Statistic: Average
+              AlarmDescription: This metric checks for CPUUtilization in the ECS service
+              Dimensions:
+                ServiceName: '{{ fieldRef "Name" .Self }}'
+                ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
 
-  # TODO: Make this only apply if the cluster has container insights enabled. Currently not supported in operational eval
+      # TODO: Make this only apply if the cluster has container insights enabled. Currently not supported in operational eval
 
-    - direction: downstream
-      unique: true
-      resources:
-        - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-RunningTaskCount'
-          properties:
-            Namespace: AWS/ECS
-            MetricName: RunningTaskCount
-            ComparisonOperator: LessThanThreshold
-            Threshold: '{{ fieldValue "DesiredCount" .Self }}'
-            Period: 60
-            EvaluationPeriods: 1
-            Statistic: Average
-            AlarmDescription: This metric checks for any stopped tasks in the ECS service
-            Dimensions:
-              ServiceName: '{{ fieldRef "Name" .Self }}'
-              ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
-
+      - direction: downstream
+        unique: true
+        resources:
+          - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-RunningTaskCount'
+            properties:
+              Namespace: AWS/ECS
+              MetricName: RunningTaskCount
+              ComparisonOperator: LessThanThreshold
+              Threshold: '{{ fieldValue "DesiredCount" .Self }}'
+              Period: 60
+              EvaluationPeriods: 1
+              Statistic: Average
+              AlarmDescription: This metric checks for any stopped tasks in the ECS service
+              Dimensions:
+                ServiceName: '{{ fieldRef "Name" .Self }}'
+                ClusterName: '{{ fieldRef "Id" (downstream "aws:ecs_cluster" .Self) }}'
 
 consumption:
   consumed:
@@ -328,6 +326,5 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ['ecs:CreateService']
-  tear_down: ['ecs:DeleteService']
-  update: ['ecs:UpdateService']
+  deploy: ['ecs:*Service']
+  update: ['ecs:Describe*']
