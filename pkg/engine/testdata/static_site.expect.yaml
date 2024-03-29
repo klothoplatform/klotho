@@ -29,7 +29,7 @@ resources:
             GeoRestriction:
                 RestrictionType: none
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: cloudfront_distribution_1
         ViewerCertificate:
             CloudfrontDefaultCertificate: true
@@ -52,7 +52,7 @@ resources:
         ForceDestroy: true
         SSEAlgorithm: AES256
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: s3-bucket-0
 edges:
     ? aws:cloudfront_distribution:cloudfront_distribution_1 -> aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0

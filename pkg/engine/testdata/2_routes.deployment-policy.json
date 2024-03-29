@@ -2,112 +2,50 @@
     "Statement": [
         {
             "Action": [
-                "apigateway:CreateStage",
-                "apigateway:DeleteStage",
-                "apigateway:UpdateStage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
                 "apigateway:CreateDeployment",
-                "apigateway:DeleteDeployment",
-                "apigateway:UpdateDeployment"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:CreateRestApi",
-                "apigateway:DeleteRestApi",
-                "apigateway:UpdateRestApi"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
                 "apigateway:CreateResource",
-                "apigateway:DeleteResource",
-                "apigateway:UpdateResource"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:PutMethod",
-                "apigateway:DeleteMethod",
-                "apigateway:UpdateMethod"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:PutIntegration",
+                "apigateway:CreateRestApi",
+                "apigateway:CreateStage",
+                "apigateway:DeleteDeployment",
                 "apigateway:DeleteIntegration",
-                "apigateway:UpdateIntegration"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "lambda:AddPermission",
-                "lambda:RemovePermission",
-                "lambda:AddPermission"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "lambda:CreateFunction",
-                "lambda:DeleteFunction",
-                "lambda:UpdateFunctionConfiguration"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:PutImage",
-                "ecr:BatchDeleteImage",
-                "ecr:PutImage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
+                "apigateway:DeleteMethod",
+                "apigateway:DeleteResource",
+                "apigateway:DeleteRestApi",
+                "apigateway:DeleteStage",
+                "apigateway:PutIntegration",
+                "apigateway:PutMethod",
+                "apigateway:UpdateDeployment",
+                "apigateway:UpdateIntegration",
+                "apigateway:UpdateMethod",
+                "apigateway:UpdateResource",
+                "apigateway:UpdateRestApi",
+                "apigateway:UpdateStage",
+                "ecr:*Image",
+                "ecr:*Layer*",
+                "ecr:*Repository",
+                "ecr:*RepositoryPolicy",
+                "ecr:Describe*",
+                "ecr:Get*",
+                "ecr:List*",
+                "ecr:TagResource",
+                "iam:*RolePolicy",
                 "iam:CreateRole",
-                "iam:DeleteRole",
-                "iam:UpdateAssumeRolePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": null,
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:CreateRepository",
-                "ecr:DeleteRepository",
-                "ecr:PutLifecyclePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:DeleteLogGroup",
+                "iam:DeleteRole*",
+                "iam:GetRole*",
+                "iam:List*",
+                "iam:PutRole*",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:Update*",
+                "kms:RetireGrant",
+                "lambda:*Function",
+                "lambda:*Permission",
+                "lambda:*Policy",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:UpdateFunctionConfiguration",
+                "logs:*LogGroup",
+                "logs:*LogGroups",
                 "logs:PutRetentionPolicy"
             ],
             "Effect": "Allow",

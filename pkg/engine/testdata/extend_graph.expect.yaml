@@ -4,7 +4,7 @@ resources:
         RestApi: aws:rest_api:rest_api_1
         StageName: stage
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: api_stage-0
     aws:dynamodb_table:dynamodb_table_3:
         Attributes:
@@ -13,7 +13,7 @@ resources:
         BillingMode: PAY_PER_REQUEST
         HashKey: id
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: dynamodb_table_3
     aws:api_deployment:rest_api_1:api_deployment-0:
         RestApi: aws:rest_api:rest_api_1
@@ -27,7 +27,7 @@ resources:
         Stages:
             - aws:api_stage:rest_api_1:api_stage-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rest_api_1
     aws:api_resource:rest_api_1:api_resource-0:
         FullPath: /{proxy+}
@@ -62,7 +62,7 @@ resources:
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0
         Timeout: 180
     aws:SERVICE_API:lambda_function_0_lambda_function_0-log-group:
@@ -84,18 +84,18 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-ExecutionRole
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecr_repo-0
     aws:log_group:lambda_function_0-log-group:
         LogGroupName: /aws/lambda/lambda_function_0
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-log-group
 edges:
     aws:api_stage:rest_api_1:api_stage-0 -> aws:api_deployment:rest_api_1:api_deployment-0:

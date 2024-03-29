@@ -4,7 +4,7 @@ resources:
         RestApi: aws:rest_api:rest_api_0
         StageName: stage
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: api_stage-0
     aws:api_deployment:rest_api_0:api_deployment-0:
         RestApi: aws:rest_api:rest_api_0
@@ -20,7 +20,7 @@ resources:
             - application/octet-stream
             - image/*
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rest_api_0
     aws:api_resource:rest_api_0:api_resource-1:
         FullPath: /html
