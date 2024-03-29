@@ -109,8 +109,11 @@ delete_context:
 views:
   dataflow: parent
 
-
 deployment_permissions:
-  deploy: ["elbv2:CreateLoadBalancer"]
-  tear_down: ["elbv2:DeleteLoadBalancer"]
-  update: ["elbv2:ModifyLoadBalancerAttributes"]
+  deploy:
+    [
+      'elasticloadbalancing:*LoadBalancer',
+      'elasticloadbalancing:*LoadBalancerAttributes',
+      'elasticloadbalancing:*Tags',
+    ]
+  update: ['elasticloadbalancing:SetSecurityGroups']

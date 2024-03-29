@@ -25,8 +25,5 @@ delete_context:
 views:
   dataflow: small
 
-
 deployment_permissions:
-  deploy: ["lambda:AddPermission"]
-  tear_down: ["lambda:RemovePermission"]
-  update: ["lambda:AddPermission"]
+  deploy: ['lambda:*Permission', 'lambda:*Policy']

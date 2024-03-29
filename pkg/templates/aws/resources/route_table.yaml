@@ -38,6 +38,4 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ec2:CreateRouteTable"]
-  tear_down: ["ec2:DeleteRouteTable"]
-  update: ["ec2:ReplaceRouteTableAssociation"]
+  deploy: ['ec2:*RouteTable*', 'ec2:*Route']

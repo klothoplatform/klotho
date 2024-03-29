@@ -49,7 +49,7 @@ properties:
     description: The user data script to run on the instances in the cluster.
     deploy_time: true
     configuration_disabled: true
-    
+
 classification:
   is:
     - cluster
@@ -58,6 +58,5 @@ delete_context:
   requires_no_upstream: true
 
 deployment_permissions:
-  deploy: ["ecs:CreateCluster"]
-  tear_down: ["ecs:DeleteCluster"]
-  update: ["ecs:UpdateClusterSettings"]
+  deploy: ['ecs:*Cluster', 'ecs:*Clusters', 'ecs:TagResource', 'ecs:ListTagsForResource']
+  update: ['ecs:UpdateClusterSettings', 'ecs:UntagResource']

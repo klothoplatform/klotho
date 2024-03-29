@@ -49,8 +49,7 @@ classification:
 views:
   dataflow: small
 
-
 deployment_permissions:
-  deploy: ["efs:CreateMountTarget"]
-  tear_down: ["efs:DeleteMountTarget"]
-  update: ["efs:CreateMountTarget"]
+  deploy: ['elasticfilesystem:CreateMountTarget']
+  tear_down: ['elasticfilesystem:DeleteMountTarget']
+  update: ['elasticfilesystem:CreateMountTarget']

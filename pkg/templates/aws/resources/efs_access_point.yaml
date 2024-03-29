@@ -51,8 +51,7 @@ delete_context:
 views:
   dataflow: small
 
-
 deployment_permissions:
-  deploy: ["efs:CreateAccessPoint"]
-  tear_down: ["efs:DeleteAccessPoint"]
-  update: ["efs:CreateAccessPoint"]
+  deploy: ['elasticfilesystem:CreateAccessPoint']
+  tear_down: ['elasticfilesystem:DeleteAccessPoint']
+  update: ['elasticfilesystem:CreateAccessPoint']

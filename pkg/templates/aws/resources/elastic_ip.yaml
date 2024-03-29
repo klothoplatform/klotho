@@ -15,6 +15,4 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ec2:AllocateAddress"]
-  tear_down: ["ec2:ReleaseAddress"]
-  update: ["ec2:AssociateAddress"]
+  deploy: ['ec2:*Address', 'ec2:*Addresses', 'ec2:*Tags']

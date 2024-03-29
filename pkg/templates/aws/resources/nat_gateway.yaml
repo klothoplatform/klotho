@@ -36,6 +36,4 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ec2:CreateNatGateway"]
-  tear_down: ["ec2:DeleteNatGateway"]
-  update: ["ec2:CreateNatGateway"]
+  deploy: ['ec2:*NatGateway*']

@@ -18,6 +18,7 @@ set +e
 go run ./cmd/engine Run \
   -i "$1" \
   -c "$1" \
+  -t "test" \
   -o "$out_dir" > $out_dir/error_details.json 2> $out_dir/err.log
 
 # note: 'go run' always returns exit code 1 if the program returns any non-zero

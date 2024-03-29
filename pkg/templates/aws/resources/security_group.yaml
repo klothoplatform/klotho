@@ -73,6 +73,6 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ec2:CreateSecurityGroup"]
-  tear_down: ["ec2:DeleteSecurityGroup"]
-  update: ["ec2:ModifySecurityGroupRules"]
+  deploy: ['ec2:*SecurityGroup*']
+  tear_down: ['ec2:DeleteSecurityGroup']
+  update: ['ec2:ModifySecurityGroupRules', 'ec2:RevokeSecurityGroupEgress']

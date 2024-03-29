@@ -47,6 +47,4 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["ecr:PutImage"]
-  tear_down: ["ecr:BatchDeleteImage"]
-  update: ["ecr:PutImage"]
+  deploy: ['ecr:*Image', 'ecr:*Layer*']

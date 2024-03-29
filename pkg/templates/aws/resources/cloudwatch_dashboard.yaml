@@ -63,16 +63,11 @@ properties:
     configuration_disabled: true
     deploy_time: true
 
-
 classification:
   is:
     - alarm
     - monitoring
 
-
-
-
 deployment_permissions:
-  deploy: ["dynamodb:CreateTable"]
-  tear_down: ["dynamodb:DeleteTable"]
-  update: ["dynamodb:UpdateTable"]
+  deploy: ['cloudwatch:*Dashboard*', 'cloudwatch:TagResource']
+  update: ['cloudwatch:UntagResource', 'cloudwatch:Get*']

@@ -47,7 +47,6 @@ properties:
     description: The server-side encryption algorithm to use to encrypt data stored
       in the S3 bucket
 
-
 path_satisfaction:
   as_target:
     - network
@@ -74,6 +73,6 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ["s3:CreateBucket"]
-  tear_down: ["s3:DeleteBucket"]
-  update: ["s3:PutBucketAcl"]
+  deploy: ['s3:Create*', 's3:Put*']
+  tear_down: ['s3:Delete*']
+  update: ['s3:List*', 's3:Get*']

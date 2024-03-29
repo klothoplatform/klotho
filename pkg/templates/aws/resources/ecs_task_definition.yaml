@@ -69,7 +69,8 @@ properties:
         properties:
           Command:
             type: list(string)
-            description: A string array representing the command that the container runs to determine if it is healthy.
+            description:
+              A string array representing the command that the container runs to determine if it is healthy.
               The string array must start with "CMD" to run the command arguments directly, or "CMD-SHELL" to run the command with the container's default shell.
           Interval:
             type: int
@@ -178,7 +179,7 @@ properties:
             description: The name of the port mapping
           AppProtocol:
             type: string
-            description: The application protocol that's used for the port mapping. This parameter only applies to Service Connect. 
+            description: The application protocol that's used for the port mapping. This parameter only applies to Service Connect.
             allowed_values:
               - http
               - http2
@@ -281,7 +282,7 @@ properties:
             type: map(string,string)
             description: The labels to use for the Docker volume
   aws:tags:
-    type: model  
+    type: model
 
 consumption:
   consumed:
@@ -303,8 +304,5 @@ delete_context:
 views:
   dataflow: small
 
-
 deployment_permissions:
-  deploy: ["ecs:RegisterTaskDefinition"]
-  tear_down: ["ecs:DeregisterTaskDefinition"]
-  update: ["ecs:RegisterTaskDefinition"]
+  deploy: ['ecs:*TaskDefinition']

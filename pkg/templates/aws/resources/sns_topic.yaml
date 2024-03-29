@@ -1,7 +1,6 @@
 qualified_type_name: aws:sns_topic
 display_name: SNS Topic
 
-
 properties:
   ApplicationFailureFeedbackRoleArn:
     type: string
@@ -100,6 +99,13 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ["sqs:CreateTopic", "sns:AddPermission", "sns:SetTopicAttributes", "sqs:ListSubscriptionsByTopic", "sns:GetTopicAttributes", "sns:TagResource"]
-  tear_down: ["sqs:DeleteTopic"]
-  update: ["sqs:SetTopicAttributes", "sns:AddPermission", "sns:GetTopicAttributes", "sns:TagResource", "sns:UntagResource"]
+  deploy:
+    [
+      'sns:*Topic',
+      'sns:AddPermission',
+      'sns:SetTopicAttributes',
+      'sns:List*',
+      'sns:Get*',
+      'sns:TagResource',
+    ]
+  update: ['sns:SetTopicAttributes', 'sns:AddPermission', 'sns:TagResource', 'sns:UntagResource']
