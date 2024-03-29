@@ -9,9 +9,9 @@ properties:
   Protocol:
     required: true
     type: string
-    description: Protocol to use. Valid values are, sns, sms, lambda, firehose, and application. Protocols email, email-json, http and https are also valid but partially supported. See details below.
+    description: Protocol to use. Valid values are, sqs, sms, lambda, firehose, and application. Protocols email, email-json, http and https are also valid but partially supported. See details below.
     allowed_values:
-      - sns
+      - sqs
       - sms
       - lambda
       - firehose
