@@ -5,7 +5,7 @@ resources:
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0
         Timeout: 180
     aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
@@ -27,18 +27,18 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-ExecutionRole
     aws:ecr_repo:lambda_function_0-image-ecr_repo:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-image-ecr_repo
     aws:log_group:lambda_function_0-log-group:
         LogGroupName: /aws/lambda/lambda_function_0
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-log-group
 edges:
     aws:lambda_function:lambda_function_0 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:

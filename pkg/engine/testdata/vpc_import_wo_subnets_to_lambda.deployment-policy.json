@@ -2,129 +2,54 @@
     "Statement": [
         {
             "Action": [
-                "ec2:CreateSecurityGroup",
-                "ec2:DeleteSecurityGroup",
-                "ec2:ModifySecurityGroupRules"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "lambda:CreateFunction",
-                "lambda:DeleteFunction",
-                "lambda:UpdateFunctionConfiguration"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:PutImage",
-                "ecr:BatchDeleteImage",
-                "ecr:PutImage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "iam:CreateRole",
-                "iam:DeleteRole",
-                "iam:UpdateAssumeRolePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:CreateSubnet",
-                "ec2:DeleteSubnet",
-                "ec2:ModifySubnetAttribute"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:CreateRepository",
-                "ecr:DeleteRepository",
-                "ecr:PutLifecyclePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
+                "ec2:*Address",
+                "ec2:*Addresses",
+                "ec2:*InternetGateway",
+                "ec2:*NatGateway*",
+                "ec2:*Route",
+                "ec2:*RouteTable*",
+                "ec2:*SecurityGroup*",
+                "ec2:*Subnet",
+                "ec2:*Subnets",
+                "ec2:*Tags",
+                "ec2:*Vpc",
+                "ec2:*Vpc*",
                 "ec2:AssociateRouteTable",
+                "ec2:DeleteSecurityGroup",
+                "ec2:Describe*",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeRegions",
                 "ec2:DisassociateRouteTable",
-                "ec2:ReplaceRouteTableAssociation"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": null,
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:CreateRouteTable",
-                "ec2:DeleteRouteTable",
-                "ec2:ReplaceRouteTableAssociation"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:DeleteLogGroup",
+                "ec2:ModifySecurityGroupRules",
+                "ec2:ModifySubnetAttribute",
+                "ec2:ModifyVpcAttribute",
+                "ec2:ReplaceRouteTableAssociation",
+                "ec2:RevokeSecurityGroupEgress",
+                "ecr:*Image",
+                "ecr:*Layer*",
+                "ecr:*Repository",
+                "ecr:*RepositoryPolicy",
+                "ecr:Describe*",
+                "ecr:Get*",
+                "ecr:List*",
+                "ecr:TagResource",
+                "iam:*RolePolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole*",
+                "iam:GetRole*",
+                "iam:List*",
+                "iam:PutRole*",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:Update*",
+                "kms:RetireGrant",
+                "lambda:*Function",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:UpdateFunctionConfiguration",
+                "logs:*LogGroup",
+                "logs:*LogGroups",
                 "logs:PutRetentionPolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:CreateNatGateway",
-                "ec2:DeleteNatGateway",
-                "ec2:CreateNatGateway"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:AllocateAddress",
-                "ec2:ReleaseAddress",
-                "ec2:AssociateAddress"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:DescribeAvailabilityZones"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:CreateInternetGateway",
-                "ec2:DeleteInternetGateway",
-                "ec2:AttachInternetGateway"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ec2:CreateVpc",
-                "ec2:DeleteVpc",
-                "ec2:ModifyVpcAttribute"
             ],
             "Effect": "Allow",
             "Resource": "*"

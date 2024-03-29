@@ -4,7 +4,7 @@ resources:
         RestApi: aws:rest_api:rest_api_0
         StageName: stage
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: api_stage-0
     aws:lambda_function:lambda_function_2:
         ExecutionRole: aws:iam_role:lambda_function_2-ExecutionRole
@@ -12,7 +12,7 @@ resources:
         LogGroup: aws:log_group:lambda_function_2-log-group
         MemorySize: 512
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_2
         Timeout: 180
     aws:api_deployment:rest_api_0:api_deployment-0:
@@ -39,25 +39,25 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_2-ExecutionRole
     aws:rest_api:rest_api_0:
         BinaryMediaTypes:
             - application/octet-stream
             - image/*
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rest_api_0
     aws:ecr_repo:ecr_repo-0:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecr_repo-0
     aws:log_group:lambda_function_2-log-group:
         LogGroupName: /aws/lambda/lambda_function_2
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_2-log-group
     aws:api_resource:rest_api_0:api_resource-0:
         FullPath: /{proxy+}

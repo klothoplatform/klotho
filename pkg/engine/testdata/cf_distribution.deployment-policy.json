@@ -1,51 +1,27 @@
 {
     "Statement": [
         {
-            "Action": null,
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:CreateStage",
-                "apigateway:DeleteStage",
-                "apigateway:UpdateStage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
             "Action": [
                 "apigateway:CreateDeployment",
-                "apigateway:DeleteDeployment",
-                "apigateway:UpdateDeployment"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "s3:PutBucketPolicy",
-                "s3:DeleteBucketPolicy",
-                "s3:PutBucketPolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
                 "apigateway:CreateRestApi",
+                "apigateway:CreateStage",
+                "apigateway:DeleteDeployment",
                 "apigateway:DeleteRestApi",
-                "apigateway:UpdateRestApi"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "s3:CreateBucket",
-                "s3:DeleteBucket",
-                "s3:PutBucketAcl"
+                "apigateway:DeleteStage",
+                "apigateway:UpdateDeployment",
+                "apigateway:UpdateRestApi",
+                "apigateway:UpdateStage",
+                "cloudfront:*Distribution",
+                "cloudfront:List*",
+                "cloudfront:TagResource",
+                "cloudfront:UntagResource",
+                "s3:Create*",
+                "s3:Delete*",
+                "s3:DeleteBucketPolicy",
+                "s3:Get*",
+                "s3:List*",
+                "s3:Put*",
+                "s3:PutBucketPolicy"
             ],
             "Effect": "Allow",
             "Resource": "*"

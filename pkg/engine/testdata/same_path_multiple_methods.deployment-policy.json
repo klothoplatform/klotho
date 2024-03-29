@@ -2,54 +2,24 @@
     "Statement": [
         {
             "Action": [
-                "apigateway:CreateStage",
-                "apigateway:DeleteStage",
-                "apigateway:UpdateStage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
                 "apigateway:CreateDeployment",
-                "apigateway:DeleteDeployment",
-                "apigateway:UpdateDeployment"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:CreateRestApi",
-                "apigateway:DeleteRestApi",
-                "apigateway:UpdateRestApi"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
                 "apigateway:CreateResource",
-                "apigateway:DeleteResource",
-                "apigateway:UpdateResource"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:PutMethod",
-                "apigateway:DeleteMethod",
-                "apigateway:UpdateMethod"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "apigateway:PutIntegration",
+                "apigateway:CreateRestApi",
+                "apigateway:CreateStage",
+                "apigateway:DeleteDeployment",
                 "apigateway:DeleteIntegration",
-                "apigateway:UpdateIntegration"
+                "apigateway:DeleteMethod",
+                "apigateway:DeleteResource",
+                "apigateway:DeleteRestApi",
+                "apigateway:DeleteStage",
+                "apigateway:PutIntegration",
+                "apigateway:PutMethod",
+                "apigateway:UpdateDeployment",
+                "apigateway:UpdateIntegration",
+                "apigateway:UpdateMethod",
+                "apigateway:UpdateResource",
+                "apigateway:UpdateRestApi",
+                "apigateway:UpdateStage"
             ],
             "Effect": "Allow",
             "Resource": "*"

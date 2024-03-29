@@ -14,7 +14,7 @@ resources:
               Self: true
               ToPort: 0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-security_group
         Vpc: aws:vpc:vpc
     aws:lambda_function:lambda_function:
@@ -28,7 +28,7 @@ resources:
             - aws:subnet:vpc:lambda_function-vpc
             - aws:subnet:vpc:subnet-1
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function
         Timeout: 180
     aws:ecr_image:lambda_function-image:
@@ -50,7 +50,7 @@ resources:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-ExecutionRole
     aws:subnet:vpc:lambda_function-vpc:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
@@ -58,7 +58,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc:lambda_function-vpc-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-vpc
         Type: private
         Vpc: aws:vpc:vpc
@@ -68,14 +68,14 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc:subnet-1-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1
         Type: private
         Vpc: aws:vpc:vpc
     aws:ecr_repo:lambda_function-image-ecr_repo:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-image-ecr_repo
     aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table:
         RouteTable: aws:route_table:vpc:lambda_function-vpc-route_table
@@ -89,38 +89,38 @@ resources:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-2:lambda_function-vpc-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-vpc-route_table
         Vpc: aws:vpc:vpc
     aws:log_group:lambda_function-log-group:
         LogGroupName: /aws/lambda/lambda_function
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-log-group
     aws:route_table:vpc:subnet-1-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table
         Vpc: aws:vpc:vpc
     aws:nat_gateway:subnet-2:lambda_function-vpc-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:lambda_function-vpc-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc:subnet-2
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-vpc-route_table-nat_gateway
     aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc:subnet-3
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway
     aws:elastic_ip:lambda_function-vpc-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-vpc-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc:subnet-2:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
@@ -128,13 +128,13 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc:subnet-2-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2
         Type: public
         Vpc: aws:vpc:vpc
     aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc:subnet-3:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
@@ -142,7 +142,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc:subnet-3-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3
         Type: public
         Vpc: aws:vpc:vpc
@@ -163,7 +163,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2-route_table
         Vpc: aws:vpc:vpc
     aws:region:region-0:
@@ -172,17 +172,17 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3-route_table
         Vpc: aws:vpc:vpc
     aws:internet_gateway:vpc:internet_gateway-0:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: internet_gateway-0
         Vpc: aws:vpc:vpc
     aws:vpc:vpc:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: vpc
         imported: true
 edges:

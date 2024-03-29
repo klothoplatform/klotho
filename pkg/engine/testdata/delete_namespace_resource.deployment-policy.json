@@ -2,49 +2,30 @@
     "Statement": [
         {
             "Action": [
-                "lambda:CreateFunction",
-                "lambda:DeleteFunction",
-                "lambda:UpdateFunctionConfiguration"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": null,
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:PutImage",
-                "ecr:BatchDeleteImage",
-                "ecr:PutImage"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
+                "ecr:*Image",
+                "ecr:*Layer*",
+                "ecr:*Repository",
+                "ecr:*RepositoryPolicy",
+                "ecr:Describe*",
+                "ecr:Get*",
+                "ecr:List*",
+                "ecr:TagResource",
+                "iam:*RolePolicy",
                 "iam:CreateRole",
-                "iam:DeleteRole",
-                "iam:UpdateAssumeRolePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "ecr:CreateRepository",
-                "ecr:DeleteRepository",
-                "ecr:PutLifecyclePolicy"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
-        },
-        {
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:DeleteLogGroup",
+                "iam:DeleteRole*",
+                "iam:GetRole*",
+                "iam:List*",
+                "iam:PutRole*",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:Update*",
+                "kms:RetireGrant",
+                "lambda:*Function",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:UpdateFunctionConfiguration",
+                "logs:*LogGroup",
+                "logs:*LogGroups",
                 "logs:PutRetentionPolicy"
             ],
             "Effect": "Allow",

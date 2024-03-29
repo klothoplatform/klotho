@@ -14,7 +14,7 @@ resources:
               Self: true
               ToPort: 0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-security_group
         Vpc: aws:vpc:vpc-0
     aws:lambda_function:lambda_test_app:
@@ -29,7 +29,7 @@ resources:
             - aws:subnet:vpc-0:lambda_test_app-test-efs-fs
             - aws:subnet:vpc-0:subnet-1
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app
         Timeout: 180
     aws:ecr_image:lambda_test_app-image:
@@ -49,7 +49,7 @@ resources:
                 Permissions: "777"
             Path: /mnt/efs
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs
     aws:iam_role:lambda_test_app-ExecutionRole:
         AssumeRolePolicyDoc:
@@ -66,7 +66,7 @@ resources:
               Policy:
                 Statement:
                     - Action:
-                        - efs:Client*
+                        - elasticfilesystem:Client*
                       Effect: Allow
                       Resource:
                         - aws:efs_file_system:test-efs-fs#Arn
@@ -75,12 +75,12 @@ resources:
             - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
             - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-ExecutionRole
     aws:ecr_repo:lambda_test_app-image-ecr_repo:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-image-ecr_repo
     aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs:
         FileSystem: aws:efs_file_system:test-efs-fs
@@ -93,7 +93,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:lambda_test_app-test-efs-fs-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs
         Type: private
         Vpc: aws:vpc:vpc-0
@@ -105,18 +105,18 @@ resources:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-2:lambda_test_app-test-efs-fs-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs-route_table
         Vpc: aws:vpc:vpc-0
     aws:nat_gateway:subnet-2:lambda_test_app-test-efs-fs-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:lambda_test_app-test-efs-fs-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-2
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs-route_table-nat_gateway
     aws:elastic_ip:lambda_test_app-test-efs-fs-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc-0:subnet-2:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
@@ -124,7 +124,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-2-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2
         Type: public
         Vpc: aws:vpc:vpc-0
@@ -136,7 +136,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2-route_table
         Vpc: aws:vpc:vpc-0
     aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
@@ -144,7 +144,7 @@ resources:
         LogGroupName: /aws/lambda/lambda_test_app
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-log-group
     aws:availability_zone:region-0:availability_zone-1:
         Index: 1
@@ -154,7 +154,7 @@ resources:
         Encrypted: true
         PerformanceMode: generalPurpose
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: test-efs-fs
         ThroughputMode: bursting
     aws:availability_zone:region-0:availability_zone-0:
@@ -172,7 +172,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-1-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1
         Type: private
         Vpc: aws:vpc:vpc-0
@@ -206,7 +206,7 @@ resources:
               Self: true
               ToPort: 0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-test-efs-fs
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-1-route_table:
@@ -214,18 +214,18 @@ resources:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table
         Vpc: aws:vpc:vpc-0
     aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-3
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway
     aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway-elastic_ip
     aws:subnet:vpc-0:subnet-3:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
@@ -233,7 +233,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-3-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3
         Type: public
         Vpc: aws:vpc:vpc-0
@@ -245,12 +245,12 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3-route_table
         Vpc: aws:vpc:vpc-0
     aws:internet_gateway:vpc-0:internet_gateway-0:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: internet_gateway-0
         Vpc: aws:vpc:vpc-0
     aws:vpc:vpc-0:
@@ -258,7 +258,7 @@ resources:
         EnableDnsHostnames: true
         EnableDnsSupport: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: vpc-0
 edges:
     aws:security_group:vpc-0:lambda_test_app-security_group -> aws:lambda_function:lambda_test_app:

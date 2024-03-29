@@ -14,7 +14,7 @@ resources:
               Self: true
               ToPort: 0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-security_group
         Vpc: aws:vpc:vpc-0
     aws:ecs_service:ecs_service_0:
@@ -30,7 +30,7 @@ resources:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0
         TaskDefinition: aws:ecs_task_definition:ecs_service_0
     aws:cloudwatch_alarm:ecs_service_0-CPUUtilization:
@@ -46,7 +46,7 @@ resources:
         Period: 60
         Statistic: Average
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-CPUUtilization
         Threshold: 90
     aws:cloudwatch_alarm:ecs_service_0-MemoryUtilization:
@@ -62,7 +62,7 @@ resources:
         Period: 60
         Statistic: Average
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-MemoryUtilization
         Threshold: 90
     aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount:
@@ -78,7 +78,7 @@ resources:
         Period: 60
         Statistic: Average
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-RunningTaskCount
         Threshold: 1
     aws:ecs_cluster:ecs_cluster-0:
@@ -86,7 +86,7 @@ resources:
             - Name: containerInsights
               Value: enabled
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_cluster-0
     aws:ecs_task_definition:ecs_service_0:
         ContainerDefinitions:
@@ -121,12 +121,26 @@ resources:
         RequiresCompatibilities:
             - FARGATE
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0
         TaskRole: aws:iam_role:ecs_service_0-execution-role
     aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
         DashboardBody:
             Widgets:
+                - Height: 6
+                  Properties:
+                    Annotations:
+                        Alarms:
+                            - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
+                    Region: aws:region:region-0#Name
+                  Type: metric
+                  Width: 6
+                - Height: 6
+                  Properties:
+                    Alarms:
+                        - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
+                  Type: alarm
+                  Width: 6
                 - Height: 6
                   Properties:
                     Annotations:
@@ -153,20 +167,6 @@ resources:
                   Properties:
                     Alarms:
                         - aws:cloudwatch_alarm:ecs_service_0-MemoryUtilization#Arn
-                  Type: alarm
-                  Width: 6
-                - Height: 6
-                  Properties:
-                    Annotations:
-                        Alarms:
-                            - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
-                    Region: aws:region:region-0#Name
-                  Type: metric
-                  Width: 6
-                - Height: 6
-                  Properties:
-                    Alarms:
-                        - aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount#Arn
                   Type: alarm
                   Width: 6
     aws:ecr_image:ecs_service_0-ecs_service_0:
@@ -197,32 +197,32 @@ resources:
         ManagedPolicies:
             - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-execution-role
     aws:log_group:ecs_service_0-log-group:
         LogGroupName: /aws/ecs/ecs_service_0
         RetentionInDays: 5
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-log-group
     aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo:
         ForceDelete: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0-ecs_service_0-ecr_repo
     aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-0-route_table-nat_gateway-elastic_ip
     aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway-elastic_ip
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-2
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-0-route_table-nat_gateway
     aws:subnet:vpc-0:subnet-2:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
@@ -230,7 +230,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-2-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2
         Type: public
         Vpc: aws:vpc:vpc-0
@@ -242,7 +242,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2-route_table
         Vpc: aws:vpc:vpc-0
     aws:availability_zone:region-0:availability_zone-0:
@@ -250,14 +250,14 @@ resources:
         Region: aws:region:region-0
     aws:internet_gateway:vpc-0:internet_gateway-0:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: internet_gateway-0
         Vpc: aws:vpc:vpc-0
     aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
         ElasticIp: aws:elastic_ip:subnet-1-route_table-nat_gateway-elastic_ip
         Subnet: aws:subnet:vpc-0:subnet-3
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table-nat_gateway
     aws:subnet:vpc-0:subnet-3:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
@@ -265,7 +265,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-3-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3
         Type: public
         Vpc: aws:vpc:vpc-0
@@ -277,7 +277,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               Gateway: aws:internet_gateway:vpc-0:internet_gateway-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-3-route_table
         Vpc: aws:vpc:vpc-0
     aws:availability_zone:region-0:availability_zone-1:
@@ -296,14 +296,14 @@ resources:
         SkipFinalSnapshot: true
         SubnetGroup: aws:rds_subnet_group:rds_subnet_group-0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rds-instance-2
     aws:rds_subnet_group:rds_subnet_group-0:
         Subnets:
             - aws:subnet:vpc-0:subnet-0
             - aws:subnet:vpc-0:subnet-1
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rds_subnet_group-0
     aws:subnet:vpc-0:subnet-0:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
@@ -311,7 +311,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-0-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-0
         Type: private
         Vpc: aws:vpc:vpc-0
@@ -321,7 +321,7 @@ resources:
         MapPublicIpOnLaunch: false
         RouteTable: aws:route_table:vpc-0:subnet-1-route_table
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1
         Type: private
         Vpc: aws:vpc:vpc-0
@@ -358,7 +358,7 @@ resources:
               Self: true
               ToPort: 0
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: rds-instance-2-security_group
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-0-route_table:
@@ -366,7 +366,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-0-route_table
         Vpc: aws:vpc:vpc-0
     aws:route_table:vpc-0:subnet-1-route_table:
@@ -374,7 +374,7 @@ resources:
             - CidrBlock: 0.0.0.0/0
               NatGateway: aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-1-route_table
         Vpc: aws:vpc:vpc-0
     aws:vpc:vpc-0:
@@ -382,7 +382,7 @@ resources:
         EnableDnsHostnames: true
         EnableDnsSupport: true
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: vpc-0
 edges:
     aws:security_group:vpc-0:ecs_service_0-security_group -> aws:ecs_service:ecs_service_0:

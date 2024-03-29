@@ -1,35 +1,35 @@
 resources:
     aws:subnet:vpc:subnet1:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet1
         Type: private
         Vpc: aws:vpc:vpc
         imported: true
     aws:subnet:vpc:subnet2:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet2
         Type: private
         Vpc: aws:vpc:vpc
         imported: true
     aws:subnet:vpc:subnet3:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet3
         Type: public
         Vpc: aws:vpc:vpc
         imported: true
     aws:subnet:vpc:subnet4:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet4
         Type: public
         Vpc: aws:vpc:vpc
         imported: true
     aws:vpc:vpc:
         Tags:
-            GLOBAL_KLOTHO_TAG: ""
+            GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: vpc
         imported: true
 edges:
