@@ -9,12 +9,12 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
-	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
 func (eval *Evaluator) Evaluate() error {
 	defer eval.writeGraph("property_deps")
+	defer eval.writeExecOrder()
 	for {
 		size, err := eval.unevaluated.Order()
 		if err != nil {
@@ -26,8 +26,7 @@ func (eval *Evaluator) Evaluate() error {
 
 		// add to evaluatedOrder so that in popReady it has the correct group number
 		// which is based on `len(eval.evaluatedOrder)`
-		evaluated := make(set.Set[Key])
-		eval.evaluatedOrder = append(eval.evaluatedOrder, evaluated)
+		eval.evaluatedOrder = append(eval.evaluatedOrder, []Key{})
 
 		ready, err := eval.pollReady()
 		if err != nil {
@@ -52,7 +51,7 @@ func (eval *Evaluator) Evaluate() error {
 				continue
 			}
 			log.Debugf("Evaluating %s", k)
-			evaluated.Add(k)
+			eval.evaluatedOrder[len(eval.evaluatedOrder)-1] = append(eval.evaluatedOrder[len(eval.evaluatedOrder)-1], k)
 			eval.currentKey = &k
 			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
 			err = v.Evaluate(eval)

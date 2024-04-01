@@ -197,3 +197,14 @@ func (e SimpleEdge) ToEdge() Edge {
 		Target: e.Target,
 	}
 }
+
+func EdgeKeys[V any](m map[SimpleEdge]V) []SimpleEdge {
+	keys := make([]SimpleEdge, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].Less(keys[j])
+	})
+	return keys
+}

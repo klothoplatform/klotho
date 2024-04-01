@@ -78,5 +78,4 @@ delete_context:
   requires_no_upstream: true
 
 deployment_permissions:
-  deploy: ['ec2:*Subnet', 'ec2:*Subnets']
-  update: ['ec2:ModifySubnetAttribute']
+  deploy: ['ec2:*Subnet*']

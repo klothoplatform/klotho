@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/dot"
@@ -89,7 +90,7 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 			var noDeps []Key
 			var onlyDownstream []Key
 			var hasUpstream []Key
-			for key := range keys {
+			for _, key := range keys {
 				switch {
 				case len(pred[key]) == 0 && len(adj[key]) == 0:
 					noDeps = append(noDeps, key)
@@ -115,14 +116,14 @@ func toRanks(eval *Evaluator) ([]evalRank, error) {
 				}
 			}
 		} else {
-			rank.SubRanks = [][]Key{keys.ToSlice()}
+			rank.SubRanks = [][]Key{keys}
 		}
 	}
 	var unevaluated []Key
 	for key := range pred {
 		evaluated := false
 		for _, keys := range eval.evaluatedOrder {
-			if keys.Contains(key) {
+			if slices.Contains(keys, key) {
 				evaluated = true
 				break
 			}
@@ -240,7 +241,7 @@ func graphToDOT(eval *Evaluator, out io.Writer) error {
 
 	evalOrder := make(map[Key]int)
 	for i, keys := range eval.evaluatedOrder {
-		for key := range keys {
+		for _, key := range keys {
 			evalOrder[key] = i
 		}
 	}
