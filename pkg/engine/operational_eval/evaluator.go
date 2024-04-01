@@ -23,7 +23,7 @@ type (
 
 		unevaluated Graph
 
-		evaluatedOrder []set.Set[Key]
+		evaluatedOrder [][]Key
 		errored        set.Set[Key]
 
 		currentKey *Key
@@ -183,6 +183,10 @@ func (r ReadyPriority) String() string {
 	default:
 		return fmt.Sprintf("ReadyPriority(%d)", r)
 	}
+}
+
+func (eval *Evaluator) EvalutedOrder() [][]Key {
+	return eval.evaluatedOrder
 }
 
 func (eval *Evaluator) Log() *zap.SugaredLogger {
@@ -501,15 +505,14 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 	}
 
 	for i, keys := range eval.evaluatedOrder {
-		for key := range keys {
+		for j, key := range keys {
 			oldKey := key
 			if key.Ref.Resource == oldId {
 				key.Ref.Resource = newId
 			}
 			key.Edge = UpdateEdgeId(key.Edge, oldId, newId)
 			if key != oldKey {
-				eval.evaluatedOrder[i].Remove(oldKey)
-				eval.evaluatedOrder[i].Add(key)
+				eval.evaluatedOrder[i][j] = key
 			}
 		}
 	}

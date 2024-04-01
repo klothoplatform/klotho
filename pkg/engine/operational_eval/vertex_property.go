@@ -63,7 +63,9 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 			current_edges[k] = v
 		}
 
-		for edge, rule := range prop.EdgeRules {
+		for _, edge := range construct.EdgeKeys(prop.EdgeRules) {
+			rule := prop.EdgeRules[edge]
+
 			edgeData := knowledgebase.DynamicValueData{
 				Resource: prop.Ref.Resource,
 				Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
@@ -337,8 +339,8 @@ func (v *propertyVertex) evaluateEdgeOperational(
 ) error {
 	oldId := v.Ref.Resource
 	var errs error
-	for edge, rules := range v.EdgeRules {
-		for _, rule := range rules {
+	for _, edge := range construct.EdgeKeys(v.EdgeRules) {
+		for _, rule := range v.EdgeRules[edge] {
 			// In case one of the previous rules changed the ID, update it
 			edge = UpdateEdgeId(edge, oldId, res.ID)
 
@@ -365,8 +367,9 @@ func (v *propertyVertex) evaluateTransforms(
 ) error {
 	var errs error
 	oldId := v.Ref.Resource
-	for edge, rules := range v.TransformRules {
-		for _, rule := range rules.ToSlice() {
+	for _, edge := range construct.EdgeKeys(v.TransformRules) {
+		rules := v.TransformRules[edge].ToSlice()
+		for _, rule := range rules {
 			// In case one of the previous rules changed the ID, update it
 			edge = UpdateEdgeId(edge, oldId, res.ID)
 			opCtx.SetData(knowledgebase.DynamicValueData{
@@ -502,7 +505,7 @@ func addConfigurationRuleToPropertyVertex(
 				))
 			}
 			continue
-		} else if err != nil {
+		} else if unevalErr != nil {
 			errs = errors.Join(errs, fmt.Errorf("could not get existing unevaluated vertex for %s: %w", ref, err))
 			continue
 		}

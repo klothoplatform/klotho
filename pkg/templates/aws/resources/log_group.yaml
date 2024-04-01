@@ -35,5 +35,5 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ['logs:*LogGroup', 'logs:*LogGroups']
+  deploy: ['logs:*LogGroup*']
   update: ['logs:PutRetentionPolicy']

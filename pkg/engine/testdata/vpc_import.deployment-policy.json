@@ -2,12 +2,10 @@
     "Statement": [
         {
             "Action": [
-                "ec2:*Subnet",
-                "ec2:*Subnets",
+                "ec2:*Subnet*",
                 "ec2:*Tags",
                 "ec2:*Vpc",
                 "ec2:*Vpc*",
-                "ec2:ModifySubnetAttribute",
                 "ec2:ModifyVpcAttribute"
             ],
             "Effect": "Allow",

@@ -11,6 +11,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/dot"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -87,4 +88,35 @@ func writeGraph(eval *Evaluator, filename string, toDot func(*Evaluator, io.Writ
 	}
 	defer svgFile.Close()
 	fmt.Fprint(svgFile, svgContent)
+}
+
+func (eval *Evaluator) writeExecOrder() {
+	path := "exec-order.yaml"
+	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
+		path = filepath.Join(debugDir, path)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		zap.S().Errorf("could not create debug directory %s: %v", filepath.Dir(path), err)
+		return
+	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		zap.S().Errorf("could not create file %s: %v", path, err)
+		return
+	}
+	defer f.Close()
+
+	order := make([][]string, len(eval.evaluatedOrder))
+	for i, group := range eval.evaluatedOrder {
+		order[i] = make([]string, len(group))
+		for j, key := range group {
+			order[i][j] = key.String()
+		}
+	}
+
+	err = yaml.NewEncoder(f).Encode(order)
+	if err != nil {
+		zap.S().Errorf("could not write exec order to file %s: %v", path, err)
+	}
 }

@@ -105,5 +105,5 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ['elasticloadbalancing:*TargetGroup', 'elasticloadbalancing:*TargetGroups']
-  update: ['elasticloadbalancing:ModifyTargetGroupAttributes', 'elasticloadbalancing:Describe*']
+  deploy: ['elasticloadbalancing:*TargetGroup*']
+  update: ['elasticloadbalancing:Describe*']

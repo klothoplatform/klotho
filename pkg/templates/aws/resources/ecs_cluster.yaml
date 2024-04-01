@@ -58,5 +58,5 @@ delete_context:
   requires_no_upstream: true
 
 deployment_permissions:
-  deploy: ['ecs:*Cluster', 'ecs:*Clusters', 'ecs:TagResource', 'ecs:ListTagsForResource']
+  deploy: ['ecs:*Cluster*', 'ecs:TagResource', 'ecs:ListTagsForResource']
   update: ['ecs:UpdateClusterSettings', 'ecs:UntagResource']
