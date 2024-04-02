@@ -140,6 +140,11 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ["memorydb:CreateCluster"] 
-  tear_down: ["memorydb:DeleteCluster"]
-  update: ["memorydb:ModifyCluster"]
+  deploy:
+    [
+      'memorydb:*Cluster*',
+      'memorydb:TagResource',
+      'memorydb:UntagResource',
+      'memorydb:Describe*',
+      'memorydb:List*',
+    ]
