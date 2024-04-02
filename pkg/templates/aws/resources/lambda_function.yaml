@@ -110,5 +110,5 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ['lambda:*Function', 'lambda:TagResource']
-  update: ['lambda:UpdateFunctionConfiguration', 'lambda:UntagResource']
+  deploy: ['lambda:*Function*', 'lambda:TagResource']
+  update: ['lambda:UntagResource']
