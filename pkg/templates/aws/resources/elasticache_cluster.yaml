@@ -84,8 +84,11 @@ delete_context:
 views:
   dataflow: big
 
-
 deployment_permissions:
-  deploy: ["elasticache:CreateCacheCluster"]
-  tear_down: ["elasticache:DeleteCacheCluster"]
-  update: ["elasticache:ModifyCacheCluster"]
+  deploy:
+    [
+      'elasticache:*CacheCluster',
+      'elasticache:*Tags*',
+      'elasticache:*SubnetGroup*',
+      'elasticache:Describe*',
+    ]
