@@ -38,12 +38,11 @@
                 "iam:UntagRole",
                 "iam:Update*",
                 "kms:RetireGrant",
-                "lambda:*Function",
+                "lambda:*Function*",
                 "lambda:*Permission",
                 "lambda:*Policy",
                 "lambda:TagResource",
                 "lambda:UntagResource",
-                "lambda:UpdateFunctionConfiguration",
                 "logs:*LogGroup*",
                 "logs:PutRetentionPolicy"
             ],
