@@ -90,8 +90,8 @@ func Test_pulumiStateConverter_convertResource(t *testing.T) {
 				QualifiedTypeName: "aws:lambda_function",
 				IaCQualifiedType:  "aws:lambda/Function:Function",
 				PropertyMappings: map[string]string{
-					"arn": "arn",
-					"id":  "id",
+					"arn": "Arn",
+					"id":  "Id",
 				},
 			},
 			resource: Resource{
@@ -133,8 +133,9 @@ func Test_pulumiStateConverter_convertResource(t *testing.T) {
 			want: construct.Resource{
 				ID: construct.ResourceId{Provider: "aws", Type: "lambda_function", Name: "my_lambda"},
 				Properties: construct.Properties{
-					"Arn": "arn",
-					"Id":  "id",
+					"Arn":    "arn",
+					"Id":     "id",
+					"Vpc#Id": "vpc-1",
 				},
 			},
 		},

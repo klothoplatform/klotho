@@ -61,6 +61,13 @@ properties:
       SecurityGroupIds:
         type: list(string)
         description: The IDs of the security groups.
+        operational_rule:
+          step:
+            direction: upstream
+            resources: 
+              - aws:security_group
+            unique: true
+            use_property_ref: Id
       UserData:
         type: string
         description: The Base64-encoded user data to make available to the instance.

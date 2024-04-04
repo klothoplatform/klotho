@@ -1,0 +1,7 @@
+qualified_type_name: aws:security_group
+iac_qualified_type: aws:ec2/securityGroup:SecurityGroup
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags

@@ -3,12 +3,92 @@ package path_selection
 import (
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/enginetesting"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_checkDoesNotModifyImportedResource(t *testing.T) {
+	tests := []struct {
+		name   string
+		source *construct.Resource
+		target *construct.Resource
+		et     *knowledgebase.EdgeTemplate
+		mocks  func(*enginetesting.MockKB)
+		want   bool
+	}{
+		{
+			name:   "no imported resource returns true",
+			source: &construct.Resource{ID: graphtest.ParseId(t, "p:a:a")},
+			target: &construct.Resource{ID: graphtest.ParseId(t, "p:b:b")},
+			et:     &knowledgebase.EdgeTemplate{},
+			want:   true,
+		},
+		{
+			name:   "imported resource with no modifications returns true",
+			source: &construct.Resource{ID: graphtest.ParseId(t, "p:a:a"), Imported: true},
+			target: &construct.Resource{ID: graphtest.ParseId(t, "p:b:b")},
+			et: &knowledgebase.EdgeTemplate{
+				OperationalRules: []knowledgebase.OperationalRule{
+					{
+						ConfigurationRules: []knowledgebase.ConfigurationRule{
+							{
+								Resource: "{{ .Target }}",
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:   "imported resource with modifications returns false",
+			source: &construct.Resource{ID: graphtest.ParseId(t, "p:a:a"), Imported: true},
+			target: &construct.Resource{ID: graphtest.ParseId(t, "p:b:b")},
+			et: &knowledgebase.EdgeTemplate{
+				OperationalRules: []knowledgebase.OperationalRule{
+					{
+						ConfigurationRules: []knowledgebase.ConfigurationRule{
+							{
+								Resource: "{{ .Source }}",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "gets edge template if not provided",
+			source: &construct.Resource{ID: graphtest.ParseId(t, "p:a:a"), Imported: true},
+			target: &construct.Resource{ID: graphtest.ParseId(t, "p:b:b")},
+			mocks: func(kb *enginetesting.MockKB) {
+				kb.On("GetEdgeTemplate", graphtest.ParseId(t, "p:a:a"), graphtest.ParseId(t, "p:b:b")).Return(&knowledgebase.EdgeTemplate{})
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sol := enginetesting.NewTestSolution()
+			sol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+			if tt.mocks != nil {
+				tt.mocks(&sol.KB)
+			}
+			err := sol.RawView().AddVertex(tt.source)
+			require.NoError(t, err)
+			err = sol.RawView().AddVertex(tt.target)
+			require.NoError(t, err)
+
+			got, err := checkDoesNotModifyImportedResource(tt.source.ID, tt.target.ID, sol, tt.et)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+			sol.KB.AssertExpectations(t)
+		})
+	}
+}
 
 func Test_checkAsTargetValidity(t *testing.T) {
 	type testResource struct {

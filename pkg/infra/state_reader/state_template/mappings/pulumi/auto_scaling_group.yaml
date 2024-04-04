@@ -1,0 +1,7 @@
+qualified_type_name: aws:auto_scaling_group
+iac_qualified_type: aws:autoscaling/group:Group
+
+property_mappings:
+  arn: Arn
+  id: Id
+  vpcZoneIdentifiers: VPCZoneIdentifier

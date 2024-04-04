@@ -83,6 +83,10 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 path_satisfaction:
   as_target:

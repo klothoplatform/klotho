@@ -21,6 +21,12 @@ function importResource(
     return pulumi.output(
         aws.getAvailabilityZones({
             state: 'available',
+            filters: [
+                {
+                    name: 'zone-name',
+                    values: [args.Name],
+                },
+            ],
         })
-    ).names[args.Index]
+    ).names[0]
 }

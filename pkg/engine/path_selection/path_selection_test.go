@@ -92,6 +92,7 @@ func TestBuildPathSelectionGraph(t *testing.T) {
 				construct.SimpleEdge{Source: dep.Source, Target: dep.Target},
 				kb,
 				tt.args.classification,
+				true,
 			)
 			if tt.wantErr {
 				require.Error(t, err)

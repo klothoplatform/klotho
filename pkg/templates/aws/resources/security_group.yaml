@@ -62,6 +62,21 @@ properties:
           to itself
   aws:tags:
     type: model
+  Arn:
+    type: string
+    description: The Amazon Resource Name (ARN) of the Auto Scaling group.
+    configuration_disabled: true
+    deploy_time: true
+  Id:
+    type: string
+    description: The unique identifier for the cluster.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+
+path_satisfaction:
+  deny_classifications:
+    - permissions
 
 classification:
   is:

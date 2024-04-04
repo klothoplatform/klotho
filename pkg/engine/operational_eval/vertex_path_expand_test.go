@@ -110,163 +110,49 @@ func Test_pathExpandVertex_runEvaluation(t *testing.T) {
 	}
 }
 
-func Test_pathExpandVertex_addDepsFromProps(t *testing.T) {
-	tests := []struct {
-		name         string
-		v            *pathExpandVertex
-		res          construct.ResourceId
-		dependencies []construct.ResourceId
-		mocks        func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty) error
-		want         graphChanges
-		wantErr      bool
-	}{
-		{
-			name: "add deps from props",
-			v: &pathExpandVertex{
-				SatisfactionEdge: construct.SimpleEdge{
-					Source: construct.ResourceId{Name: "s"},
-					Target: construct.ResourceId{Name: "t"},
-				},
-			},
-			res: construct.ResourceId{Name: "s"},
-			dependencies: []construct.ResourceId{
-				{Name: "u"},
-			},
-			mocks: func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty) error {
-				resource := &construct.Resource{ID: construct.ResourceId{Name: "s"}}
-				resultGraph := construct.NewGraph()
-				err := resultGraph.AddVertex(resource)
-				if err != nil {
-					return err
-				}
-
-				mockSol.On("KnowledgeBase").Return(mockKB).Times(2)
-				mockSol.On("DataflowGraph").Return(resultGraph).Once()
-				mockKB.EXPECT().GetResourceTemplate(construct.ResourceId{Name: "s"}).Return(
-					&knowledgebase.ResourceTemplate{
-						Properties: knowledgebase.Properties{
-							"test": mockProperty,
-						},
-					}, nil).Times(1)
-				mockProperty.EXPECT().Details().Return(&knowledgebase.PropertyDetails{
-					OperationalRule: &knowledgebase.PropertyRule{},
-				}).Times(1)
-
-				mockSol.On("RawView").Return(resultGraph).Once()
-				mockProperty.EXPECT().Validate(resource, construct.ResourceId{Name: "u"}, gomock.Any()).Return(nil).Times(1)
-				mockProperty.EXPECT().Type().Return("resource").Times(1)
-				return nil
-			},
-			want: graphChanges{
-				nodes: map[Key]Vertex{},
-				edges: map[Key]set.Set[Key]{
-					{Edge: construct.SimpleEdge{
-						Source: construct.ResourceId{Name: "s"},
-						Target: construct.ResourceId{Name: "t"},
-					}}: set.SetOf(
-						Key{Ref: construct.PropertyRef{
-							Resource: construct.ResourceId{Name: "s"},
-							Property: "test",
-						}},
-					),
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert := assert.New(t)
-			ctrl := gomock.NewController(t)
-			mockSol := &enginetesting.MockSolution{}
-			mockKB := NewMockTemplateKB(ctrl)
-			mockProperty := NewMockProperty(ctrl)
-			eval := &Evaluator{Solution: mockSol}
-			err := tt.mocks(mockSol, mockKB, mockProperty)
-			if !assert.NoError(err) {
-				return
-			}
-			changes := newChanges()
-			err = tt.v.addDepsFromProps(eval, changes, tt.res, tt.dependencies)
-			if tt.wantErr {
-				assert.Error(err)
-				return
-			}
-			assert.NoError(err)
-			assert.Equal(tt.want, changes)
-			mockSol.AssertExpectations(t)
-			ctrl.Finish()
-		})
-	}
-}
-
-func Test_pathExpandVertex_addDepsFromEdge(t *testing.T) {
+func Test_pathExpandVertex_getDepsForScripts(t *testing.T) {
 	tests := []struct {
 		name    string
 		v       *pathExpandVertex
-		edge    construct.Edge
-		mocks   func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty) error
-		want    graphChanges
+		mocks   func(dcap *MockdependencyCapturer)
 		wantErr bool
 	}{
 		{
-			name: "add deps from props",
+			name: "add deps from source script",
 			v: &pathExpandVertex{
 				SatisfactionEdge: construct.SimpleEdge{
 					Source: construct.ResourceId{Name: "s"},
 					Target: construct.ResourceId{Name: "t"},
 				},
-			},
-			edge: construct.Edge{
-				Source: construct.ResourceId{Name: "f"},
-				Target: construct.ResourceId{Name: "l"},
-			},
-			mocks: func(mockSol *enginetesting.MockSolution, mockKB *MockTemplateKB, mockProperty *MockProperty) error {
-				resource := &construct.Resource{ID: construct.ResourceId{Provider: "f", Type: "f", Name: "f"}}
-				resultGraph := construct.NewGraph()
-				err := resultGraph.AddVertex(resource)
-				if err != nil {
-					return err
-				}
-				mockSol.On("KnowledgeBase").Return(mockKB).Times(2)
-				mockSol.On("DataflowGraph").Return(resultGraph).Once()
-				mockSol.On("RawView").Return(resultGraph).Once()
-				mockKB.EXPECT().GetEdgeTemplate(construct.ResourceId{Name: "f"},
-					construct.ResourceId{Name: "l"}).Return(&knowledgebase.EdgeTemplate{
-					OperationalRules: []knowledgebase.OperationalRule{
-						{
-							ConfigurationRules: []knowledgebase.ConfigurationRule{
-								{
-									Resource: "f:f",
-									Config: knowledgebase.Configuration{
-										Field: "field1",
-									},
-								},
-							},
-						},
+				Satisfication: knowledgebase.EdgePathSatisfaction{
+					Source: knowledgebase.PathSatisfactionRoute{
+						Script: "myscript",
 					},
-				}).Times(1)
-				mockKB.EXPECT().GetResourceTemplate(construct.ResourceId{Provider: "f", Type: "f", Name: "f"}).Return(
-					&knowledgebase.ResourceTemplate{
-						Properties: knowledgebase.Properties{
-							"field1": mockProperty,
-						},
-					}, nil,
-				).Times(1)
-				return nil
-			},
-			want: graphChanges{
-				nodes: map[Key]Vertex{},
-				edges: map[Key]set.Set[Key]{
-					{Ref: construct.PropertyRef{
-						Resource: construct.ResourceId{Provider: "f", Type: "f", Name: "f"},
-						Property: "field1",
-					}}: set.SetOf(
-						Key{Edge: construct.SimpleEdge{
-							Source: construct.ResourceId{Name: "s"},
-							Target: construct.ResourceId{Name: "t"},
-						}},
-					),
 				},
+			},
+			mocks: func(dcap *MockdependencyCapturer) {
+				dcap.EXPECT().ExecuteDecode("myscript",
+					knowledgebase.DynamicValueData{Resource: construct.ResourceId{Name: "s"}},
+					&construct.ResourceList{}).Return(nil).Times(1)
+			},
+		},
+		{
+			name: "add deps from target script",
+			v: &pathExpandVertex{
+				SatisfactionEdge: construct.SimpleEdge{
+					Source: construct.ResourceId{Name: "s"},
+					Target: construct.ResourceId{Name: "t"},
+				},
+				Satisfication: knowledgebase.EdgePathSatisfaction{
+					Target: knowledgebase.PathSatisfactionRoute{
+						Script: "myscript",
+					},
+				},
+			},
+			mocks: func(dcap *MockdependencyCapturer) {
+				dcap.EXPECT().ExecuteDecode("myscript",
+					knowledgebase.DynamicValueData{Resource: construct.ResourceId{Name: "t"}},
+					&construct.ResourceList{}).Return(nil).Times(1)
 			},
 		},
 	}
@@ -274,23 +160,14 @@ func Test_pathExpandVertex_addDepsFromEdge(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 			ctrl := gomock.NewController(t)
-			mockSol := &enginetesting.MockSolution{}
-			mockKB := NewMockTemplateKB(ctrl)
-			mockProperty := NewMockProperty(ctrl)
-			eval := &Evaluator{Solution: mockSol}
-			err := tt.mocks(mockSol, mockKB, mockProperty)
-			if !assert.NoError(err) {
-				return
-			}
-			changes := newChanges()
-			err = tt.v.addDepsFromEdge(eval, changes, tt.edge)
+			dcap := NewMockdependencyCapturer(ctrl)
+			tt.mocks(dcap)
+			err := getDepsForScripts(tt.v, dcap)
 			if tt.wantErr {
 				assert.Error(err)
 				return
 			}
 			assert.NoError(err)
-			assert.Equal(tt.want, changes)
-			mockSol.AssertExpectations(t)
 			ctrl.Finish()
 		})
 	}

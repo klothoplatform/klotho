@@ -18,7 +18,6 @@ resources:
             RESOURCE_NAME: ecs_service_0-security_group
         Vpc: aws:vpc:vpc-0
     aws:ecs_service:ecs_service_0:
-        AssignPublicIp: false
         Cluster: aws:ecs_cluster:ecs_cluster-0
         DesiredCount: 1
         EnableExecuteCommand: false
@@ -115,13 +114,13 @@ resources:
                   HostPort: 80
                   Protocol: TCP
         Cpu: "256"
-        ExecutionRole: aws:iam_role:ecs_service_0-execution-role
+        ExecutionRole: aws:iam_role:ecs_service_0-rds-instance-2
         Memory: "512"
         NetworkMode: awsvpc
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: ecs_service_0
-        TaskRole: aws:iam_role:ecs_service_0-execution-role
+        TaskRole: aws:iam_role:ecs_service_0-rds-instance-2
     aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
         DashboardBody:
             Widgets:
@@ -172,7 +171,7 @@ resources:
         Dockerfile: ecs_service_0-ecs_service_0.Dockerfile
         Platform: linux/amd64
         Repo: aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo
-    aws:iam_role:ecs_service_0-execution-role:
+    aws:iam_role:ecs_service_0-rds-instance-2:
         AssumeRolePolicyDoc:
             Statement:
                 - Action:
@@ -196,7 +195,7 @@ resources:
             - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         Tags:
             GLOBAL_KLOTHO_TAG: test
-            RESOURCE_NAME: ecs_service_0-execution-role
+            RESOURCE_NAME: ecs_service_0-rds-instance-2
     aws:log_group:ecs_service_0-log-group:
         LogGroupName: /aws/ecs/ecs_service_0
         RetentionInDays: 5
@@ -399,10 +398,10 @@ edges:
     aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount -> aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
     aws:cloudwatch_alarm:ecs_service_0-RunningTaskCount -> aws:region:region-0:
     aws:ecs_task_definition:ecs_service_0 -> aws:ecr_image:ecs_service_0-ecs_service_0:
-    aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-execution-role:
+    aws:ecs_task_definition:ecs_service_0 -> aws:iam_role:ecs_service_0-rds-instance-2:
     aws:ecs_task_definition:ecs_service_0 -> aws:log_group:ecs_service_0-log-group:
     aws:ecr_image:ecs_service_0-ecs_service_0 -> aws:ecr_repo:ecs_service_0-ecs_service_0-ecr_repo:
-    aws:iam_role:ecs_service_0-execution-role -> aws:rds_instance:rds-instance-2:
+    aws:iam_role:ecs_service_0-rds-instance-2 -> aws:rds_instance:rds-instance-2:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:elastic_ip:subnet-0-route_table-nat_gateway-elastic_ip:
     aws:nat_gateway:subnet-2:subnet-0-route_table-nat_gateway -> aws:subnet:vpc-0:subnet-2:
     aws:subnet:vpc-0:subnet-2 -> aws:availability_zone:region-0:availability_zone-0:

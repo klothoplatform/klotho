@@ -163,12 +163,6 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 		Data:     dynData,
 	}
 
-	// we know we cannot change properties of imported resources only users through constraints
-	// we still want to be able to update ids in case they are setting the property of a namespaced resource
-	// so we just conditionally run the edge operational rules
-	//
-	// we still need to run the resource operational rules though,
-	// to make sure dependencies exist where properties have operational rules set
 	if err := v.evaluateResourceOperational(&opCtx); err != nil {
 		return err
 	}

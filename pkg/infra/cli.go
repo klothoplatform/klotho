@@ -104,7 +104,6 @@ func GetLiveState(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Info("Loaded state templates")
-	reader := statereader.NewPulumiReader(templates, kb)
 	// read in the state file
 	if getImportConstraintsCfg.stateFile == "" {
 		log.Error("State file path is empty")
@@ -130,7 +129,8 @@ func GetLiveState(cmd *cobra.Command, args []string) error {
 		}
 	}
 	bytesReader := bytes.NewReader(stateBytes)
-	result, err := reader.ReadState(bytesReader, input.Graph)
+	reader := statereader.NewPulumiReader(input.Graph, templates, kb)
+	result, err := reader.ReadState(bytesReader)
 	if err != nil {
 		return err
 	}

@@ -4,9 +4,7 @@ display_name: ECS Service
 properties:
   AssignPublicIp:
     type: bool
-    default_value: false
-    description: Indicates whether the task's elastic network interface receives a
-      public IP address
+    description: Indicates whether the task's elastic network interface receives a public IP address
   CapacityProviderStrategies:
     type: set
     operational_rule:
@@ -18,6 +16,12 @@ properties:
       CapacityProvider:
         type: string
         description: Short name of the capacity provider.
+        opertional_rule:
+          step:
+            direction: upstream
+            resources:
+              - aws:ecs_capacity_provider
+            use_property_ref: Id
       Weight:
         type: int
         description: Relative percentage of the total number of launched tasks that should use the specified capacity provider.
@@ -77,6 +81,7 @@ properties:
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
+      if: '{{ not (hasField "CapacityProviderStrategies" .Self) }}'
       step:
         direction: upstream
         resources:
@@ -86,6 +91,7 @@ properties:
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
+      if: '{{ not (hasField "CapacityProviderStrategies" .Self) }}'
       step:
         direction: downstream
         num_needed: 2
@@ -308,10 +314,40 @@ consumption:
 
 path_satisfaction:
   as_target:
-    - network
+    - classification: network
+      script: |
+        {{ if hasField "SecurityGroups" .Self }}
+          {{ .Self }}
+        {{ else }}
+          {{ $providers := fieldValue "CapacityProviderStrategies" .Self }}
+          [
+          {{ range $index, $provider := $providers.ToSlice }}
+            "{{ upstream "aws:security_group" (downstream "aws:ec2_launch_template" $provider.CapacityProvider.Resource) }}"{{ if ne $index (sub (len $providers.M) 1) }},{{ end }}
+          {{ end }}
+          ]
+        {{ end }}
     - service_discovery
   as_source:
-    - network#Subnets
+    - classification: network
+      script: |
+        {{ if hasField "Subnets" .Self }}
+          {{ $subnets := fieldValue "Subnets" .Self }}
+          [
+          {{ range $index, $subnet := $subnets }}
+            "{{ $subnet }}"{{ if ne $index (sub (len $subnets) 1) }},{{ end }}
+          {{ end }}
+          ]
+        {{ else }}
+          {{ $providers := fieldValue "CapacityProviderStrategies" .Self }}
+          [
+          {{ range $i, $provider := $providers.ToSlice }}
+            {{ $subnets := fieldValue "VPCZoneIdentifier" (downstream "aws:auto_scaling_group" $provider.CapacityProvider.Resource) }}
+            {{ range $index, $subnetRef := $subnets }}
+              "{{ $subnetRef.Resource }}"{{ if or (ne $i (sub (len $providers.M) 1)) (ne $index (sub (len $subnets) 1)) }},{{ end }}
+            {{ end }}
+          {{ end }}
+          ]
+        {{ end }}
 
 classification:
   is:

@@ -169,10 +169,25 @@ properties:
       PortMappings:
         type: list
         important: true
-        default_value:
-          - ContainerPort: 80
-            HostPort: 80
-            Protocol: TCP
+        operational_rule:
+          value: |
+            {{ if eq (fieldValue "NetworkMode" .Self) "bridge" }}
+              [
+                {
+                  "ContainerPort": 80,
+                  "HostPort": 0,
+                  "Protocol": "TCP"
+                }
+              ]
+            {{ else }}
+              [
+                {
+                  "ContainerPort": 80,
+                  "HostPort": 80,
+                  "Protocol": "TCP"
+                }
+              ]
+            {{ end }}
         properties:
           Name:
             type: string
@@ -202,8 +217,7 @@ properties:
         resources:
           - aws:iam_role:{{ .Self.Name }}-execution-role
         unique: true
-    description: The IAM role that allows Amazon ECS to make calls to AWS APIs on
-      your behalf
+    description: The IAM role that allows Amazon ECS to make calls to AWS APIs on your behalf
   TaskRole:
     type: resource(aws:iam_role)
     default_value: '{{ fieldValue "ExecutionRole" .Self }}'
@@ -211,8 +225,14 @@ properties:
       from within the ECS task
   NetworkMode:
     type: string
-    default_value: awsvpc
     description: The Docker networking mode to use for the containers in the task
+    operational_rule:
+      value: |
+        {{ if (hasField "CapacityProviderStrategies" (upstream "aws:ecs_service" .Self)) }}
+          bridge
+        {{ else }}
+          awsvpc
+        {{ end }}
   RequiresCompatibilities:
     type: list(string)
     allowed_values:
