@@ -1,0 +1,6 @@
+- module: os
+  name: os
+  statement: import os
+- module: boto3
+  name: boto3
+  statement: import boto3

@@ -6,6 +6,8 @@ on:
 concurrency:
   cancel-in-progress: true
   group: govulncheck-${{ github.ref }}
+env:
+  GOEXPERIMENT: 'rangefunc'
 name: govulncheck
 jobs:
   govulncheck:
