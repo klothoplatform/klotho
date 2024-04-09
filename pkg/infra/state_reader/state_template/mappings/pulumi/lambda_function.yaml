@@ -7,4 +7,3 @@ property_mappings:
   tags: Tags
   memorySize: MemorySize
   timeout: Timeout
-  name: Name

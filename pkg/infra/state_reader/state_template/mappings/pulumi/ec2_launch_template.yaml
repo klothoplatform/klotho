@@ -1,0 +1,8 @@
+qualified_type_name: aws:ec2_launch_template
+iac_qualified_type: aws:ec2/launchTemplate:LaunchTemplate
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags
+  vpcSecurityGroupIds: LaunchTemplateData.SecurityGroupIds

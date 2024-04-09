@@ -101,8 +101,8 @@ func DeterminePathSatisfactionInputs(
 	satisfaction knowledgebase.EdgePathSatisfaction,
 	edge construct.ResourceEdge,
 ) (expansions []ExpansionInput, errs error) {
-	srcIds := []construct.ResourceId{edge.Source.ID}
-	targetIds := []construct.ResourceId{edge.Target.ID}
+	srcIds := construct.ResourceList{edge.Source.ID}
+	targetIds := construct.ResourceList{edge.Target.ID}
 	var err error
 	if satisfaction.Source.PropertyReferenceChangesBoundary() {
 		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
@@ -121,6 +121,28 @@ func DeterminePathSatisfactionInputs(
 				edge.Target.ID, err,
 			))
 
+		}
+	}
+	if satisfaction.Source.Script != "" {
+		dynamicCtx := solution_context.DynamicCtx(sol)
+		err = dynamicCtx.ExecuteDecode(satisfaction.Source.Script,
+			knowledgebase.DynamicValueData{Resource: edge.Source.ID}, &srcIds)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"failed to determine path satisfaction source inputs. could not run script for %s: %w",
+				edge.Source.ID, err,
+			))
+		}
+	}
+	if satisfaction.Target.Script != "" {
+		dynamicCtx := solution_context.DynamicCtx(sol)
+		err = dynamicCtx.ExecuteDecode(satisfaction.Target.Script,
+			knowledgebase.DynamicValueData{Resource: edge.Target.ID}, &targetIds)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf(
+				"failed to determine path satisfaction target inputs. could not run script for %s: %w",
+				edge.Target.ID, err,
+			))
 		}
 	}
 

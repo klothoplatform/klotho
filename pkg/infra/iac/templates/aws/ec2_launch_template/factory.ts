@@ -34,7 +34,7 @@ function create(args: Args): aws.ec2.LaunchTemplate {
         //TMPL instanceType: {{ .LaunchTemplateData.instanceType}},
         //TMPL {{- end }}
         //TMPL {{- if .LaunchTemplateData.securityGroupIds }}
-        //TMPL securityGroupIds: {{ .LaunchTemplateData.securityGroupIds }},
+        //TMPL vpcSecurityGroupIds: {{ .LaunchTemplateData.securityGroupIds }},
         //TMPL {{- end }}
         //TMPL {{- if .LaunchTemplateData.userData }}
         //TMPL userData: {{ .LaunchTemplateData.userData }},
@@ -50,4 +50,8 @@ function properties(object: aws.ec2.LaunchTemplate, args: Args) {
         Arn: object.arn,
         Id: object.id,
     }
+}
+
+function importResource(args: Args): aws.ec2.LaunchTemplate {
+    return aws.ec2.LaunchTemplate.get(args.Name, args.Id)
 }

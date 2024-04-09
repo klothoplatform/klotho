@@ -1,9 +1,8 @@
 source: aws:security_group_rule
 target: aws:security_group
-deployment_order_reversed: true
 operational_rules:
   - configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
-          field: SecurityGroup
-          value: '{{ .Target }}'
+          field: SecurityGroupId
+          value: '{{ fieldRef "Id" .Target }}'

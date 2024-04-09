@@ -20,3 +20,14 @@ function create(args: Args): aws.ec2.SecurityGroup {
         //TMPL {{- end }}
     })
 }
+
+function properties(object: aws.ec2.SecurityGroup, args: Args) {
+    return {
+        Arn: object.arn,
+        Id: object.id,
+    }
+}
+
+function importResource(args: Args): aws.ec2.SecurityGroup {
+    return aws.ec2.SecurityGroup.get(args.Name, args.Id)
+}

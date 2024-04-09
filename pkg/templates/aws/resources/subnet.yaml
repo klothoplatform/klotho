@@ -69,7 +69,9 @@ properties:
 path_satisfaction:
   as_source:
     - network
-
+  deny_classifications:
+    - permissions
+    
 classification:
   is:
     - network

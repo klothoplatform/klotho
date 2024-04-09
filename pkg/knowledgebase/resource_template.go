@@ -15,6 +15,7 @@ import (
 
 //go:generate 	mockgen -source=./resource_template.go --destination=./resource_template_mock_test.go --package=knowledgebase
 //go:generate mockgen -source=./resource_template.go --destination=../engine2/operational_eval/resource_template_mock_test.go --package=operational_eval
+//go:generate 	mockgen -source=./resource_template.go --destination=../infra/state_reader/resource_template_mock_test.go --package=statereader
 
 type (
 	// ResourceTemplate defines how rules are handled by the engine in terms of making sure they are functional in the graph

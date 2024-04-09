@@ -91,7 +91,7 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 					return err
 				}
 			}
-			if len(uids) == 1 {
+			if len(uids) == 1 && uids[0].Matches(resource.ID) {
 				res, err := action.ruleCtx.Solution.RawView().Vertex(id)
 				if err != nil {
 					return err

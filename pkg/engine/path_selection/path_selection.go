@@ -3,6 +3,7 @@ package path_selection
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
@@ -21,12 +22,14 @@ func BuildPathSelectionGraph(
 	dep construct.SimpleEdge,
 	kb knowledgebase.TemplateKB,
 	classification string,
+	ignoreDirectEdge bool,
 ) (construct.Graph, error) {
 	zap.S().Debugf("Building path selection graph for %s", dep)
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 
 	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph
-	if et := kb.GetEdgeTemplate(dep.Source, dep.Target); et != nil && dep.Source.Namespace == dep.Target.Namespace {
+	et := kb.GetEdgeTemplate(dep.Source, dep.Target)
+	if !ignoreDirectEdge && et != nil && dep.Source.Namespace == dep.Target.Namespace {
 		directEdgeSatisfies := collectionutil.Contains(et.Classification, classification)
 
 		if !directEdgeSatisfies {
@@ -146,7 +149,7 @@ func PathSatisfiesClassification(
 	}
 	for i, res := range path {
 		resTemplate, err := kb.GetResourceTemplate(res)
-		if err != nil {
+		if err != nil || slices.Contains(resTemplate.PathSatisfaction.DenyClassifications, classification) {
 			return false
 		}
 		if collectionutil.Contains(resTemplate.Classification.Is, classification) {
