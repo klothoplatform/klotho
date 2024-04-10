@@ -15,7 +15,7 @@ operational_rules:
         configuration:
           field: TargetType
           value: ip
-  - if: '{{ eq (fieldValue "NetworkMode" (fieldValue "TaskDefinition" .Target)) "bridge" }}'
+  - if: '{{ ne (fieldValue "NetworkMode" (fieldValue "TaskDefinition" .Target)) "awsvpc" }}'
     configuration_rules:
       - resource: '{{ .Target }}'
         configuration:

@@ -5,5 +5,3 @@ property_mappings:
   arn: Arn
   id: Id
   tags: Tags
-  memorySize: MemorySize
-  timeout: Timeout

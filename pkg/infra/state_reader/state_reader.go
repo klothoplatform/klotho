@@ -290,10 +290,18 @@ func (p propertyCorrelator) checkValue(
 	}
 	if len(step.Resources) == 1 {
 		idToUse := possibleIds[0]
-		newRes := &construct.Resource{
-			ID: construct.ResourceId{Provider: idToUse.Provider, Type: idToUse.Type, Name: value},
+		id := construct.ResourceId{Provider: idToUse.Provider, Type: idToUse.Type, Name: value}
+		newRes, err := p.ctx.Graph.Vertex(id)
+		if err != nil && !errors.Is(err, graph.ErrVertexNotFound) {
+			return nil, nil, err
 		}
-		err := newRes.SetProperty(propertyRef, value)
+		if newRes == nil {
+			newRes = &construct.Resource{
+				ID: id,
+			}
+		}
+
+		err = newRes.SetProperty(propertyRef, value)
 		if err != nil {
 			return nil, nil, err
 		}
