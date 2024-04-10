@@ -30,7 +30,7 @@ type (
 			property string,
 			value any,
 		) error
-		checkValue(
+		checkValueForReferences(
 			step knowledgebase.OperationalStep,
 			value string,
 			src construct.ResourceId,
@@ -178,7 +178,7 @@ func (p propertyCorrelator) setProperty(
 
 	switch rval := reflect.ValueOf(value); rval.Kind() {
 	case reflect.String:
-		edge, pref, err := p.checkValue(opRule.Step, value.(string), resource.ID, ref)
+		edge, pref, err := p.checkValueForReferences(opRule.Step, value.(string), resource.ID, ref)
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func (p propertyCorrelator) setProperty(
 	case reflect.Slice, reflect.Array:
 		var val []any
 		for i := 0; i < rval.Len(); i++ {
-			edge, pref, err := p.checkValue(opRule.Step, rval.Index(i).Interface().(string), resource.ID, ref)
+			edge, pref, err := p.checkValueForReferences(opRule.Step, rval.Index(i).Interface().(string), resource.ID, ref)
 			if err != nil {
 				return err
 			}
@@ -244,7 +244,10 @@ func (p propertyCorrelator) setProperty(
 	return nil
 }
 
-func (p propertyCorrelator) checkValue(
+// checkValueForReferences checks if the value of a property is a reference to another resource
+// If it is a reference then it will substitute the live state value for a property ref or resource id
+// if no resource exists in the live state for the reference, then it will try to create a new resource representing the value
+func (p propertyCorrelator) checkValueForReferences(
 	step knowledgebase.OperationalStep,
 	value string,
 	src construct.ResourceId,

@@ -147,25 +147,23 @@ func PathSatisfiesClassification(
 	if classification == "" {
 		return true
 	}
+	metClassification := false
 	for i, res := range path {
 		resTemplate, err := kb.GetResourceTemplate(res)
 		if err != nil || slices.Contains(resTemplate.PathSatisfaction.DenyClassifications, classification) {
 			return false
 		}
 		if collectionutil.Contains(resTemplate.Classification.Is, classification) {
-			return true
+			metClassification = true
 		}
 		if i > 0 {
 			et := kb.GetEdgeTemplate(path[i-1], res)
 			if collectionutil.Contains(et.Classification, classification) {
-				return true
+				metClassification = true
 			}
 		}
-		if i == len(path)-1 {
-			return false
-		}
 	}
-	return true
+	return metClassification
 }
 
 func makePhantom(g construct.Graph, id construct.ResourceId) (construct.ResourceId, error) {

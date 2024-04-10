@@ -310,12 +310,12 @@ func expandPath(
 ) error {
 
 	if len(path) == 2 {
-		doesNotModifyImport, err := checkDoesNotModifyImportedResource(input.SatisfactionEdge.Source.ID,
+		modifiesImport, err := checkModifiesImportedResource(input.SatisfactionEdge.Source.ID,
 			input.SatisfactionEdge.Target.ID, ctx, nil)
 		if err != nil {
 			return err
 		}
-		if !doesNotModifyImport {
+		if modifiesImport {
 			// Because the direct edge will cause modifications to an imported resource, we need to remove the direct edge
 			return input.TempGraph.RemoveEdge(input.SatisfactionEdge.Source.ID,
 				input.SatisfactionEdge.Target.ID)
@@ -444,12 +444,12 @@ func expandPath(
 		if !tmpl.Unique.CanAdd(edges, source.id, target.id) {
 			return
 		}
-		doesNotModifyImport, err := checkDoesNotModifyImportedResource(source.id, target.id, ctx, tmpl)
+		modifiesImport, err := checkModifiesImportedResource(source.id, target.id, ctx, tmpl)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			return
 		}
-		if !doesNotModifyImport {
+		if modifiesImport {
 			return
 		}
 		// if the edge doesnt exist in the actual graph and there is any uniqueness constraint,

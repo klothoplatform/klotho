@@ -10,9 +10,10 @@ import (
 
 type (
 	PathSatisfaction struct {
-		AsTarget            []PathSatisfactionRoute `json:"as_target" yaml:"as_target"`
-		AsSource            []PathSatisfactionRoute `json:"as_source" yaml:"as_source"`
-		DenyClassifications []string                `yaml:"deny_classifications"`
+		AsTarget []PathSatisfactionRoute `json:"as_target" yaml:"as_target"`
+		AsSource []PathSatisfactionRoute `json:"as_source" yaml:"as_source"`
+		// DenyClassifications is a list of classifications that the resource cannot be included in paths during expansion
+		DenyClassifications []string `yaml:"deny_classifications"`
 	}
 
 	PathSatisfactionRoute struct {

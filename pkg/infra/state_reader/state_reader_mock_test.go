@@ -79,20 +79,20 @@ func (m *MockpropertyCorrelation) EXPECT() *MockpropertyCorrelationMockRecorder 
 	return m.recorder
 }
 
-// checkValue mocks base method.
-func (m *MockpropertyCorrelation) checkValue(step knowledgebase.OperationalStep, value string, src construct.ResourceId, propertyRef string) (*construct.Edge, *construct.PropertyRef, error) {
+// checkValueForReferences mocks base method.
+func (m *MockpropertyCorrelation) checkValueForReferences(step knowledgebase.OperationalStep, value string, src construct.ResourceId, propertyRef string) (*construct.Edge, *construct.PropertyRef, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "checkValue", step, value, src, propertyRef)
+	ret := m.ctrl.Call(m, "checkValueForReferences", step, value, src, propertyRef)
 	ret0, _ := ret[0].(*construct.Edge)
 	ret1, _ := ret[1].(*construct.PropertyRef)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
-// checkValue indicates an expected call of checkValue.
-func (mr *MockpropertyCorrelationMockRecorder) checkValue(step, value, src, propertyRef any) *gomock.Call {
+// checkValueForReferences indicates an expected call of checkValueForReferences.
+func (mr *MockpropertyCorrelationMockRecorder) checkValueForReferences(step, value, src, propertyRef any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "checkValue", reflect.TypeOf((*MockpropertyCorrelation)(nil).checkValue), step, value, src, propertyRef)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "checkValueForReferences", reflect.TypeOf((*MockpropertyCorrelation)(nil).checkValueForReferences), step, value, src, propertyRef)
 }
 
 // setProperty mocks base method.

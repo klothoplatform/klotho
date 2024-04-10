@@ -21,9 +21,9 @@ type (
 	}
 )
 
-// checkDoesNotModifyImportedResource checks if there is an imported resource that would be modified due to the edge
+// checkModifiesImportedResource checks if there is an imported resource that would be modified due to the edge
 // If there is an edge rule modifying the resource then we consider the edge to be invalid
-func checkDoesNotModifyImportedResource(
+func checkModifiesImportedResource(
 	source, target construct.ResourceId,
 	ctx solution_context.SolutionContext,
 	et *knowledgebase.EdgeTemplate,
@@ -33,7 +33,7 @@ func checkDoesNotModifyImportedResource(
 	// see if the target resource exists in the graph
 	targetResource, trgtErr := ctx.RawView().Vertex(target)
 	if errors.Is(srcErr, graph.ErrVertexNotFound) && errors.Is(trgtErr, graph.ErrVertexNotFound) {
-		return true, nil
+		return false, nil
 	}
 
 	if et == nil {
@@ -42,7 +42,7 @@ func checkDoesNotModifyImportedResource(
 
 	checkRules := func(resources construct.ResourceList) (bool, error) {
 		if len(resources) == 0 {
-			return true, nil
+			return false, nil
 		}
 		for _, rule := range et.OperationalRules {
 			for _, config := range rule.ConfigurationRules {
@@ -56,11 +56,11 @@ func checkDoesNotModifyImportedResource(
 					}}, &id)
 
 				if resources.MatchesAny(id) {
-					return false, nil
+					return true, nil
 				}
 			}
 		}
-		return true, nil
+		return false, nil
 	}
 
 	importedResources := construct.ResourceList{}

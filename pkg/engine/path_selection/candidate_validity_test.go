@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_checkDoesNotModifyImportedResource(t *testing.T) {
+func Test_checkModifiesImportedResource(t *testing.T) {
 	tests := []struct {
 		name   string
 		source *construct.Resource
@@ -25,7 +25,7 @@ func Test_checkDoesNotModifyImportedResource(t *testing.T) {
 			source: &construct.Resource{ID: graphtest.ParseId(t, "p:a:a")},
 			target: &construct.Resource{ID: graphtest.ParseId(t, "p:b:b")},
 			et:     &knowledgebase.EdgeTemplate{},
-			want:   true,
+			want:   false,
 		},
 		{
 			name:   "imported resource with no modifications returns true",
@@ -42,7 +42,7 @@ func Test_checkDoesNotModifyImportedResource(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name:   "imported resource with modifications returns false",
@@ -59,6 +59,7 @@ func Test_checkDoesNotModifyImportedResource(t *testing.T) {
 					},
 				},
 			},
+			want: true,
 		},
 		{
 			name:   "gets edge template if not provided",
@@ -67,7 +68,7 @@ func Test_checkDoesNotModifyImportedResource(t *testing.T) {
 			mocks: func(kb *enginetesting.MockKB) {
 				kb.On("GetEdgeTemplate", graphtest.ParseId(t, "p:a:a"), graphtest.ParseId(t, "p:b:b")).Return(&knowledgebase.EdgeTemplate{})
 			},
-			want: true,
+			want: false,
 		},
 	}
 	for _, tt := range tests {
@@ -82,7 +83,7 @@ func Test_checkDoesNotModifyImportedResource(t *testing.T) {
 			err = sol.RawView().AddVertex(tt.target)
 			require.NoError(t, err)
 
-			got, err := checkDoesNotModifyImportedResource(tt.source.ID, tt.target.ID, sol, tt.et)
+			got, err := checkModifiesImportedResource(tt.source.ID, tt.target.ID, sol, tt.et)
 			require.NoError(t, err)
 			require.Equal(t, tt.want, got)
 			sol.KB.AssertExpectations(t)
