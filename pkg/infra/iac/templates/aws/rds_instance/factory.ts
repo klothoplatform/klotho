@@ -70,3 +70,7 @@ function infraExports(
         Endpoint: object.endpoint,
     }
 }
+
+function importResource(args: Args): aws.rds.Instance {
+    return aws.rds.Instance.get(args.Name, args.Arn)
+}

@@ -1,0 +1,6 @@
+qualified_type_name: aws:rds_instance
+iac_qualified_type: aws:rds/instance:Instance
+
+property_mappings:
+  arn: Arn
+  tags: Tags

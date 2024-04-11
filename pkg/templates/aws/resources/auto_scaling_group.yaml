@@ -43,7 +43,6 @@ properties:
             direction: downstream
             resources:
               - aws:ec2_launch_template
-            unique: true
             use_property_ref: Id
       LaunchTemplateName:
         type: string
