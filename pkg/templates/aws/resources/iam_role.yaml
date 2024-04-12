@@ -101,6 +101,11 @@ classification:
     - permissions
     - security
 
+path_satisfaction:
+  deny_classifications:
+    - network
+    
+
 delete_context:
   requires_no_upstream: true
 views:
