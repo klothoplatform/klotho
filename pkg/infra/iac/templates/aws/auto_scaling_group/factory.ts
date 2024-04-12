@@ -73,3 +73,7 @@ function properties(object: aws.autoscaling.Group, args: Args) {
         Id: object.id,
     }
 }
+
+function importResource(args: Args): aws.autoscaling.Group {
+    return aws.autoscaling.Group.get(args.Name, args.Id)
+}

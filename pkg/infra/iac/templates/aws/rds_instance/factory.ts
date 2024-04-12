@@ -46,8 +46,8 @@ function create(args: Args): aws.rds.Instance {
 
 function properties(object: aws.rds.Instance, args: Args) {
     return {
-        Password: kloConfig.requireSecret(`${args.Name}-password`),
-        Username: kloConfig.requireSecret(`${args.Name}-username`),
+        Password: object.password.apply((pass) => pass!),
+        Username: object.username,
         CredentialsSecretValue: pulumi.jsonStringify({
             username: object.username,
             password: object.password,
@@ -69,4 +69,8 @@ function infraExports(
         Address: object.address,
         Endpoint: object.endpoint,
     }
+}
+
+function importResource(args: Args): aws.rds.Instance {
+    return aws.rds.Instance.get(args.Name, args.Arn)
 }

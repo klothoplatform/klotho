@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
@@ -19,6 +20,58 @@ type (
 		ctx solution_context.SolutionContext
 	}
 )
+
+// checkModifiesImportedResource checks if there is an imported resource that would be modified due to the edge
+// If there is an edge rule modifying the resource then we consider the edge to be invalid
+func checkModifiesImportedResource(
+	source, target construct.ResourceId,
+	ctx solution_context.SolutionContext,
+	et *knowledgebase.EdgeTemplate,
+) (bool, error) {
+	// see if the source resource exists in the graph
+	sourceResource, srcErr := ctx.RawView().Vertex(source)
+	// see if the target resource exists in the graph
+	targetResource, trgtErr := ctx.RawView().Vertex(target)
+	if errors.Is(srcErr, graph.ErrVertexNotFound) && errors.Is(trgtErr, graph.ErrVertexNotFound) {
+		return false, nil
+	}
+
+	if et == nil {
+		et = ctx.KnowledgeBase().GetEdgeTemplate(source, target)
+	}
+
+	checkRules := func(resources construct.ResourceList) (bool, error) {
+		if len(resources) == 0 {
+			return false, nil
+		}
+		for _, rule := range et.OperationalRules {
+			for _, config := range rule.ConfigurationRules {
+				dynamicCtx := solution_context.DynamicCtx(ctx)
+				id := construct.ResourceId{}
+				// we ignore the error since phantom resources will cause errors in the decoding of templates
+				_ = dynamicCtx.ExecuteDecode(config.Resource, knowledgebase.DynamicValueData{
+					Edge: &construct.Edge{
+						Source: source,
+						Target: target,
+					}}, &id)
+
+				if resources.MatchesAny(id) {
+					return true, nil
+				}
+			}
+		}
+		return false, nil
+	}
+
+	importedResources := construct.ResourceList{}
+	if sourceResource != nil && sourceResource.Imported {
+		importedResources = append(importedResources, source)
+	}
+	if targetResource != nil && targetResource.Imported {
+		importedResources = append(importedResources, target)
+	}
+	return checkRules(importedResources)
+}
 
 // checkCandidatesValidity checks if the candidate is valid based on the validity of its own path satisfaction rules and namespace
 func checkCandidatesValidity(

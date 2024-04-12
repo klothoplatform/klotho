@@ -28,7 +28,13 @@ properties:
     type: string
     description: Specifies the rule type, either 'ingress' or 'egress', defining the
       traffic direction
+    allowed_values:
+      - ingress
+      - egress
 
+classification:
+  is:
+    - network
 
 deployment_permissions:
   deploy: ["ec2:AuthorizeSecurityGroupIngress", "ec2:AuthorizeSecurityGroupEgress"]

@@ -1,0 +1,30 @@
+source: aws:subnet
+target: aws:security_group_rule
+unique: one-to-many
+operational_rules:
+  - configuration_rules:
+      - resource: '{{ .Target }}'
+        configuration:
+          field: CidrBlocks
+          value:
+            - '{{ fieldValue "CidrBlock" .Source }}'
+      - resource: '{{ .Target }}'
+        configuration:
+          field: FromPort
+          value: 0
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Protocol
+          value: -1
+      - resource: '{{ .Target }}'
+        configuration:
+          field: ToPort
+          value: 0    
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Type
+          value: ingress                     
+      - resource: '{{ .Target }}'
+        configuration:
+          field: Description
+          value: Allow ingress from {{ .Source.Name }}

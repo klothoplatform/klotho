@@ -1,6 +1,7 @@
 package knowledgebase
 
 import (
+	"fmt"
 	"strings"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -11,12 +12,15 @@ type (
 	PathSatisfaction struct {
 		AsTarget []PathSatisfactionRoute `json:"as_target" yaml:"as_target"`
 		AsSource []PathSatisfactionRoute `json:"as_source" yaml:"as_source"`
+		// DenyClassifications is a list of classifications that the resource cannot be included in paths during expansion
+		DenyClassifications []string `yaml:"deny_classifications"`
 	}
 
 	PathSatisfactionRoute struct {
 		Classification    string                            `json:"classification" yaml:"classification"`
 		PropertyReference string                            `json:"property_reference" yaml:"property_reference"`
 		Validity          PathSatisfactionValidityOperation `json:"validity" yaml:"validity"`
+		Script            string                            `json:"script" yaml:"script"`
 	}
 
 	PathSatisfactionValidityOperation string
@@ -42,6 +46,9 @@ func (p *PathSatisfactionRoute) UnmarshalYAML(n *yaml.Node) error {
 	}
 	p2.Validity = PathSatisfactionValidityOperation(strings.ToLower(string(p2.Validity)))
 	*p = PathSatisfactionRoute(p2)
+	if p.PropertyReference != "" && p.Script != "" {
+		return fmt.Errorf("path satisfaction route cannot have both property reference and script")
+	}
 	return nil
 }
 

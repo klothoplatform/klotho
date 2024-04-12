@@ -102,7 +102,7 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 			construct.SimpleEdge{
 				Source: tempSource,
 				Target: tempTarget,
-			}, ctx.KnowledgeBase(), classification)
+			}, ctx.KnowledgeBase(), classification, false)
 		if err != nil {
 			return false, cacheable, err
 		}

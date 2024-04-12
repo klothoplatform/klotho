@@ -1,0 +1,3 @@
+source: aws:security_group
+target: aws:ec2_launch_template
+deployment_order_reversed: true

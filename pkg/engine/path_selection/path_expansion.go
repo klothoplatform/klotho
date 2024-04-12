@@ -308,8 +308,18 @@ func expandPath(
 	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
+
 	if len(path) == 2 {
-		return nil
+		modifiesImport, err := checkModifiesImportedResource(input.SatisfactionEdge.Source.ID,
+			input.SatisfactionEdge.Target.ID, ctx, nil)
+		if err != nil {
+			return err
+		}
+		if modifiesImport {
+			// Because the direct edge will cause modifications to an imported resource, we need to remove the direct edge
+			return input.TempGraph.RemoveEdge(input.SatisfactionEdge.Source.ID,
+				input.SatisfactionEdge.Target.ID)
+		}
 	}
 	zap.S().Debugf("Resolving path %s", path)
 
@@ -434,10 +444,17 @@ func expandPath(
 		if !tmpl.Unique.CanAdd(edges, source.id, target.id) {
 			return
 		}
-
+		modifiesImport, err := checkModifiesImportedResource(source.id, target.id, ctx, tmpl)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			return
+		}
+		if modifiesImport {
+			return
+		}
 		// if the edge doesnt exist in the actual graph and there is any uniqueness constraint,
 		// then we need to check uniqueness validity
-		_, err := ctx.RawView().Edge(source.id, target.id)
+		_, err = ctx.RawView().Edge(source.id, target.id)
 		if errors.Is(err, graph.ErrEdgeNotFound) {
 			if tmpl.Unique.Source || tmpl.Unique.Target {
 				valid, err := checkUniquenessValidity(ctx, source.id, target.id)
@@ -527,7 +544,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			continue
 		}
 		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, "")
+		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, "", true)
 		if err != nil {
 			continue
 		}

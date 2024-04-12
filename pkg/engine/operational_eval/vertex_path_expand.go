@@ -202,7 +202,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return err
 	}
 
-	se := construct.SimpleEdge{Source: edge.Source, Target: edge.Target}
+	se := construct.Edge{Source: edge.Source, Target: edge.Target}
 	se.Source.Name = ""
 	se.Target.Name = ""
 
@@ -238,7 +238,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 	for i, rule := range tmpl.OperationalRules {
 		for j, cfg := range rule.ConfigurationRules {
 			var err error
-			data := knowledgebase.DynamicValueData{Edge: &edge}
+			data := knowledgebase.DynamicValueData{Edge: &se}
 			data.Resource, err = knowledgebase.ExecuteDecodeAsResourceId(dyn, cfg.Resource, data)
 
 			// We ignore the error because it just means that we cant resolve the resource yet
@@ -358,6 +358,7 @@ func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([
 	if err != nil {
 		errs = errors.Join(errs, err)
 	}
+	requireFullBuild := sourceRes.Imported || targetRes.Imported
 
 	result := make([]path_selection.ExpansionInput, len(expansions))
 	for i, expansion := range expansions {
@@ -369,7 +370,7 @@ func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([
 		}
 		if expansion.SatisfactionEdge.Source != edge.Source || expansion.SatisfactionEdge.Target != edge.Target {
 			simple := construct.SimpleEdge{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID}
-			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification)
+			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification, requireFullBuild)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
 				continue
