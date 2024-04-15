@@ -46,7 +46,7 @@ function create(args: Args): aws.rds.Instance {
 
 function properties(object: aws.rds.Instance, args: Args) {
     return {
-        Password: object.password.apply((pass) => pass!),
+        Password: kloConfig.requireSecret(`${args.Name}-password`),
         Username: object.username,
         CredentialsSecretValue: pulumi.jsonStringify({
             username: object.username,
