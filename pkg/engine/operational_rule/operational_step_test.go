@@ -110,6 +110,7 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 		initialState []any
 		want         enginetesting.ExpectedGraphs
 		wantIds      []construct.ResourceId
+		wantVals     []interface{}
 	}{
 		{
 			name: "downstream",
@@ -185,6 +186,43 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				graphtest.ParseId(t, "mock:resource2:test2"),
 			},
 		},
+		{
+			name: "string value",
+			resource: &construct.Resource{
+				ID: graphtest.ParseId(t, "a:a:a"),
+				Properties: map[string]interface{}{
+					"Res4": "resource4",
+				},
+			},
+			propertyName: "Res4",
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
+			want:         enginetesting.ExpectedGraphs{},
+			wantVals: []interface{}{
+				"resource4",
+			},
+		},
+		{
+			name: "mixed array",
+			resource: &construct.Resource{
+				ID: graphtest.ParseId(t, "a:a:a"),
+				Properties: map[string]interface{}{
+					"Res2s": []any{MockResource2("test").ID, "resource2"},
+				},
+			},
+			propertyName: "Res2s",
+			initialState: []any{"mock:resource2:test", "a:a:a"},
+			step:         knowledgebase.OperationalStep{Direction: knowledgebase.DirectionDownstream},
+			want: enginetesting.ExpectedGraphs{
+				Dataflow:   []any{"mock:resource2:test", "a:a:a", "a:a:a -> mock:resource2:test"},
+				Deployment: []any{"mock:resource2:test", "a:a:a", "a:a:a -> mock:resource2:test"},
+			},
+			wantIds: []construct.ResourceId{
+				graphtest.ParseId(t, "mock:resource2:test"),
+			},
+			wantVals: []interface{}{
+				"resource2",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -196,12 +234,13 @@ func Test_addDependenciesFromProperty(t *testing.T) {
 				Solution: testSol,
 			}
 
-			ids, err := ctx.addDependenciesFromProperty(tt.step, tt.resource, tt.propertyName)
+			ids, otherVals, err := ctx.addDependenciesFromProperty(tt.step, tt.resource, tt.propertyName)
 			if !assert.NoError(err) {
 				return
 			}
 			tt.want.AssertEqual(t, testSol)
 			assert.ElementsMatch(tt.wantIds, ids)
+			assert.ElementsMatch(tt.wantVals, otherVals)
 		})
 	}
 }

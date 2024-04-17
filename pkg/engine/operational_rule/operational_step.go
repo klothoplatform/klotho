@@ -37,9 +37,10 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	// If we are replacing we want to remove all dependencies and clear the property
 	// otherwise we want to add dependencies from the property and gather the resources which satisfy the step
 	var ids []construct.ResourceId
+	var otherValues []any
 	if ctx.Property != nil {
 		var err error
-		ids, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Details().Path)
+		ids, otherValues, err = ctx.addDependenciesFromProperty(step, resource, ctx.Property.Details().Path)
 		if err != nil {
 			return err
 		}
@@ -50,7 +51,9 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		}
 	}
 
-	if len(ids) >= step.NumNeeded && step.NumNeeded > 0 || resource.Imported {
+	numValues := len(ids) + len(otherValues)
+
+	if numValues >= step.NumNeeded && step.NumNeeded > 0 || resource.Imported {
 		return nil
 	}
 
@@ -61,7 +64,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 	action := operationalResourceAction{
 		Step:       step,
 		CurrentIds: ids,
-		numNeeded:  step.NumNeeded - len(ids),
+		numNeeded:  step.NumNeeded - numValues,
 		ruleCtx:    ctx,
 	}
 	return action.handleOperationalResourceAction(resource)
@@ -98,17 +101,19 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	return resourcesOfType, nil
 }
 
+// addDependenciesFromProperty adds dependencies from the property of the resource
+// and returns the resource ids and other values that were found in the property
 func (ctx OperationalRuleContext) addDependenciesFromProperty(
 	step knowledgebase.OperationalStep,
 	resource *construct.Resource,
 	propertyName string,
-) ([]construct.ResourceId, error) {
+) ([]construct.ResourceId, []any, error) {
 	val, err := resource.GetProperty(propertyName)
 	if err != nil {
-		return nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
+		return nil, nil, fmt.Errorf("error getting property %s on resource %s: %w", propertyName, resource.ID, err)
 	}
 	if val == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	addDep := func(id construct.ResourceId) error {
@@ -129,20 +134,21 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 	switch val := val.(type) {
 	case construct.ResourceId:
 		if val.IsZero() {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return []construct.ResourceId{val}, addDep(val)
+		return []construct.ResourceId{val}, nil, addDep(val)
 
 	case []construct.ResourceId:
 		var errs error
 		for _, id := range val {
 			errs = errors.Join(errs, addDep(id))
 		}
-		return val, errs
+		return val, nil, errs
 
 	case []any:
 		var errs error
 		var ids []construct.ResourceId
+		var otherValues []any
 		for _, elem := range val {
 			switch elem := elem.(type) {
 			case construct.ResourceId:
@@ -152,14 +158,17 @@ func (ctx OperationalRuleContext) addDependenciesFromProperty(
 			case construct.PropertyRef:
 				ids = append(ids, elem.Resource)
 				errs = errors.Join(errs, addDep(elem.Resource))
+			case any:
+				otherValues = append(otherValues, elem)
 			}
 		}
-		return ids, errs
+		return ids, otherValues, errs
 
 	case construct.PropertyRef:
-		return []construct.ResourceId{val.Resource}, addDep(val.Resource)
+		return []construct.ResourceId{val.Resource}, nil, addDep(val.Resource)
+	default:
+		return nil, []any{val}, nil
 	}
-	return nil, fmt.Errorf("cannot add dependencies from property %s on resource %s, due to it being type %s", propertyName, resource.ID, reflect.TypeOf(val))
 }
 
 func (ctx OperationalRuleContext) clearProperty(step knowledgebase.OperationalStep, resource *construct.Resource, propertyName string) error {

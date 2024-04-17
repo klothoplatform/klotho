@@ -104,8 +104,7 @@ properties:
               - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ if hasField (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}{{else}}image{{end}}
             unique: true
             use_property_ref: ImageName
-        description: Reference to an Amazon Elastic Container Registry (ECR) image that
-          will be used for the container within the task
+        description: Reference to the imageName that is used to pull the image from the image repository
       LogConfiguration:
         type: map
         properties:
