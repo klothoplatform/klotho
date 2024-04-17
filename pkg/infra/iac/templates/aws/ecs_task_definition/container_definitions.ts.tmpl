@@ -57,7 +57,7 @@
         },
         {{- end }}
         {{- if $cd.Image }}
-        image: {{ getVar $cd.Image }}.imageName,
+        image: {{ modelCase $cd.Image }},
         {{- end }}
         {{- if $cd.LogConfiguration }}
         logConfiguration: {

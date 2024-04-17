@@ -95,7 +95,7 @@ properties:
             min_value: 2
             max_value: 60
       Image:
-        type: resource(aws:ecr_image)
+        type: string
         required: true
         operational_rule:
           step:
@@ -103,6 +103,7 @@ properties:
             resources:
               - aws:ecr_image:{{ .Self.Name }}-{{ if pathAncestorExists .Path 1}}{{ if hasField (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{ fieldValue (printf "%s.Name" (pathAncestor .Path 1)) .Self}}{{else}}image{{end}}{{else}}image{{end}}
             unique: true
+            use_property_ref: ImageName
         description: Reference to an Amazon Elastic Container Registry (ECR) image that
           will be used for the container within the task
       LogConfiguration:

@@ -49,7 +49,7 @@ resources:
           - Name: RDS_INSTANCE_2_RDS_USERNAME
             Value: aws:rds_instance:rds-instance-2#Username
         Essential: true
-        Image: aws:ecr_image:ecs_service_0-ecs_service_0
+        Image: aws:ecr_image:ecs_service_0-ecs_service_0#ImageName
         LogConfiguration:
           LogDriver: awslogs
           Options:
