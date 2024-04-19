@@ -2,6 +2,7 @@
     "Statement": [
         {
             "Action": [
+                "ec2:DeleteNetworkInterface",
                 "ecr:*Image",
                 "ecr:*Layer*",
                 "ecr:*Repository",

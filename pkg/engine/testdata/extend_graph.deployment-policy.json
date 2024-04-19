@@ -23,6 +23,7 @@
                 "dynamodb:CreateTable",
                 "dynamodb:DeleteTable",
                 "dynamodb:UpdateTable",
+                "ec2:DeleteNetworkInterface",
                 "ecr:*Image",
                 "ecr:*Layer*",
                 "ecr:*Repository",
