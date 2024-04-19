@@ -116,3 +116,4 @@ views:
 deployment_permissions:
   deploy: ['lambda:*Function*', 'lambda:TagResource']
   update: ['lambda:UntagResource']
+  tear_down: ['ec2:DeleteNetworkInterface']
