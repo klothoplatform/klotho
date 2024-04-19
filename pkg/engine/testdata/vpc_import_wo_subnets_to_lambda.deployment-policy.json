@@ -14,6 +14,7 @@
                 "ec2:*Vpc",
                 "ec2:*Vpc*",
                 "ec2:AssociateRouteTable",
+                "ec2:DeleteNetworkInterface",
                 "ec2:DeleteSecurityGroup",
                 "ec2:Describe*",
                 "ec2:DescribeAvailabilityZones",

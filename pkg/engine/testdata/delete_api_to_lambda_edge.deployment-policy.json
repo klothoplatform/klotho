@@ -20,6 +20,7 @@
                 "apigateway:UpdateResource",
                 "apigateway:UpdateRestApi",
                 "apigateway:UpdateStage",
+                "ec2:DeleteNetworkInterface",
                 "ecr:*Image",
                 "ecr:*Layer*",
                 "ecr:*Repository",
