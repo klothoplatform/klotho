@@ -19,7 +19,7 @@ resources:
         Vpc: aws:vpc:vpc
     aws:lambda_function:lambda_function:
         ExecutionRole: aws:iam_role:lambda_function-ExecutionRole
-        Image: aws:ecr_image:lambda_function-image
+        Image: aws:ecr_image:lambda_function-image#ImageName
         LogGroup: aws:log_group:lambda_function-log-group
         MemorySize: 512
         SecurityGroups:

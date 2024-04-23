@@ -5,7 +5,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
-    Image: docker.Image
+    Image: string
     ExecutionRole: aws.iam.Role
     EnvironmentVariables: ModelCaseWrapper<Record<string, pulumi.Output<string>>>
     Subnets: aws.ec2.Subnet[]
@@ -23,7 +23,7 @@ function create(args: Args): aws.lambda.Function {
         args.Name,
         {
             packageType: 'Image',
-            imageUri: args.Image.imageName,
+            imageUri: args.Image,
             //TMPL {{- if .MemorySize }}
             memorySize: args.MemorySize,
             //TMPL {{- end }}
