@@ -274,7 +274,7 @@ additional_rules:
         resources:
           - selector: 'aws:cloudwatch_alarm:{{ .Self.Name }}-RunningTaskCount'
             properties:
-              Namespace: AWS/ECS
+              Namespace: ECS/ContainerInsights
               MetricName: RunningTaskCount
               ComparisonOperator: LessThanThreshold
               Threshold: '{{ fieldValue "DesiredCount" .Self }}'

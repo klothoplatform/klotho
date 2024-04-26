@@ -74,7 +74,7 @@ resources:
             ServiceName: aws:ecs_service:ecs_service_0#Name
         EvaluationPeriods: 1
         MetricName: RunningTaskCount
-        Namespace: AWS/ECS
+        Namespace: ECS/ContainerInsights
         Period: 60
         Statistic: Average
         Tags:

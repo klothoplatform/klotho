@@ -82,7 +82,7 @@ resources:
         Source: aws:rest_api:rest_api_1#ChildResources
     aws:lambda_function:lambda_function_0:
         ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
-        Image: aws:ecr_image:lambda_function_0-image
+        Image: aws:ecr_image:lambda_function_0-image#ImageName
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
         Tags:
@@ -91,7 +91,7 @@ resources:
         Timeout: 180
     aws:lambda_function:lambda_function_1:
         ExecutionRole: aws:iam_role:lambda_function_1-ExecutionRole
-        Image: aws:ecr_image:lambda_function_1-image
+        Image: aws:ecr_image:lambda_function_1-image#ImageName
         LogGroup: aws:log_group:lambda_function_1-log-group
         MemorySize: 512
         Tags:

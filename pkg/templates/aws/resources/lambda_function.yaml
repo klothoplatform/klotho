@@ -11,13 +11,14 @@ properties:
           - aws:iam_role:{{ .Self.Name }}-ExecutionRole
         unique: true
   Image:
-    type: resource(aws:ecr_image)
+    type: string
     operational_rule:
       step:
         direction: downstream
         resources:
           - aws:ecr_image:{{ .Self.Name }}-image
         unique: true
+        use_property_ref: ImageName
   EnvironmentVariables:
     type: map(string,string)
     important: true

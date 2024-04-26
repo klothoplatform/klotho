@@ -48,7 +48,7 @@ resources:
             RESOURCE_NAME: lambda_function_0-ExecutionRole
     aws:lambda_function:lambda_function_2:
         ExecutionRole: aws:iam_role:lambda_function_2-ExecutionRole
-        Image: aws:ecr_image:lambda_function_2-image
+        Image: aws:ecr_image:lambda_function_2-image#ImageName
         LogGroup: aws:log_group:lambda_function_2-log-group
         MemorySize: 512
         SecurityGroups:
