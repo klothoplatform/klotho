@@ -48,7 +48,7 @@ function create(args: Args): aws.ecs.Service {
             //TMPL {{- if .DeploymentMaximumPercent }}
             deploymentMaximumPercent: args.DeploymentMaximumPercent,
             //TMPL {{- end }}
-            //TMPL {{- if .DeploymentMinimumHealthyPercent }}
+            //TMPL {{- if (ne .DeploymentMinimumHealthyPercent nil ) }}
             deploymentMinimumHealthyPercent: args.DeploymentMinimumHealthyPercent,
             //TMPL {{- end }}
             desiredCount: args.DesiredCount,
