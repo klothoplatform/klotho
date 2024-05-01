@@ -39,6 +39,12 @@ properties:
         type: bool
       Rollback:
         type: bool
+  DeploymentMaximumPercent:
+    type: int
+    description: The upper limit (as a percentage of the service's desiredCount) of the number of running tasks that can be running in a service during a deployment
+  DeploymentMinimumHealthyPercent:
+    type: int
+    description: The lower limit (as a percentage of the service's desiredCount) of the number of running tasks that must remain running and healthy in a service during a deployment
   DesiredCount:
     type: int
     default_value: 1

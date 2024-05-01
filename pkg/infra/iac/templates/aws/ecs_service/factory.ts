@@ -7,6 +7,8 @@ import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
     DeploymentCircuitBreaker: pulumi.Input<awsInputs.ecs.ServiceDeploymentCircuitBreaker>
+    DeploymentMaximumPercent: number
+    DeploymentMinimumHealthyPercent: number
     EnableExecuteCommand: boolean
     ForceNewDeployment: boolean
     Cluster: aws.ecs.Cluster
@@ -42,6 +44,12 @@ function create(args: Args): aws.ecs.Service {
             //TMPL     enable: {{ .DeploymentCircuitBreaker.Enable }},
             //TMPL     rollback: {{ .DeploymentCircuitBreaker.Rollback }}
             //TMPL },
+            //TMPL {{- end }}
+            //TMPL {{- if .DeploymentMaximumPercent }}
+            deploymentMaximumPercent: args.DeploymentMaximumPercent,
+            //TMPL {{- end }}
+            //TMPL {{- if (ne .DeploymentMinimumHealthyPercent nil ) }}
+            deploymentMinimumHealthyPercent: args.DeploymentMinimumHealthyPercent,
             //TMPL {{- end }}
             desiredCount: args.DesiredCount,
             //TMPL {{- if .EnableExecuteCommand }}
