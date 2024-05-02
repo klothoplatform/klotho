@@ -14,10 +14,12 @@
         {{- if $cd.Environment }}
         environment: [
             {{- range $key, $value := $cd.Environment }}
+            {{- if not (eq $value.Value nil) }}
             {
                 name: "{{ $value.Name }}",
                 value: {{ modelCase $value.Value }},
             },
+            {{- end }}
             {{- end }}
         ],
         {{- end }}
