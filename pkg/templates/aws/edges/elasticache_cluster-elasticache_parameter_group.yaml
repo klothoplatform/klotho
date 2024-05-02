@@ -1,0 +1,2 @@
+source: aws:elasticache_cluster
+target: aws:elasticache_parameter_group

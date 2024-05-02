@@ -42,6 +42,15 @@ properties:
     type: int
     default_value: 1
     description: The number of cache nodes that the cache cluster should have.
+  ParameterGroupName:
+    type: string
+    description: The name of the parameter group associated with the cluster.
+    operational_rule:
+      step:
+        direction: downstream
+        resources:
+          - aws:elasticache_parameter_group
+        use_property_ref: Name
   aws:tags:
     type: model
   Port:
