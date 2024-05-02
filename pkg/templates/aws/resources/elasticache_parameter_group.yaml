@@ -1,0 +1,45 @@
+qualified_type_name: aws:elasticache_parameter_group
+display_name: ElastiCache Parameter Group
+
+properties:
+  Family:
+    type: string
+    description: The family of the parameter group corresponding to an engine version.
+    # TODO: make version configurable on elasticache clusters and determine the family based on the version
+    default_value: "redis7"
+    required: true
+    allowed_values:
+      - redis4.0
+      - redis5.0
+      - redis6.x
+      - redis7
+  Description:
+    type: string
+  Parameters:
+    type: list
+    properties:
+      Name:
+        type: string
+        description: The name of the ElastiCache parameter.
+      Value:
+        type: string
+        description: The value of the ElastiCache parameter.
+  aws:tags:
+    type: model
+  Arn:
+    type: string
+    description: The Amazon Resource Name (ARN) of the parameter group.
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+
+delete_context:
+  requires_no_upstream: true
+views:
+  dataflow: small
+
+deployment_permissions:
+  deploy:
+    [
+      'elasticache:*ParameterGroup',
+    ]

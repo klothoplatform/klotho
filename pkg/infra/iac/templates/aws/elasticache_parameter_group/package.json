@@ -1,0 +1,6 @@
+{
+    "name": "elasticache_parameter_group",
+    "dependencies": {
+        "@pulumi/aws": "^5.37.0"
+    }
+}

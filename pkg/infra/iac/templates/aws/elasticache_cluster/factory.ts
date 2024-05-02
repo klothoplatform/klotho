@@ -9,6 +9,7 @@ interface Args {
     SecurityGroups: aws.ec2.SecurityGroup[]
     NodeType: string
     NumCacheNodes: number
+    ParameterGroupName?: string
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -17,6 +18,9 @@ function create(args: Args): aws.elasticache.Cluster {
         engine: args.Engine,
         nodeType: args.NodeType,
         numCacheNodes: args.NumCacheNodes,
+        //TMPL {{- if .ParameterGroupName }}
+        parameterGroupName: args.ParameterGroupName,
+        //TMPL {{- end }}
         logDeliveryConfigurations: [
             {
                 destination: args.CloudwatchGroup.name,
