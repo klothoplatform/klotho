@@ -16,10 +16,8 @@ properties:
     properties:
       Gid:
         type: int
-        default_value: 1000
       Uid:
         type: int
-        default_value: 1000
   RootDirectory:
     type: map
     important: true
@@ -29,10 +27,8 @@ properties:
         properties:
           OwnerGid:
             type: int
-            default_value: 1000
           OwnerUid:
             type: int
-            default_value: 1000
           Permissions:
             type: string
             default_value: '777'
