@@ -17,37 +17,19 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): docker.Image {
     return (() => {
-        //TMPL {{- if .BaseImage }}
-        const pullBaseImage = new command.local.Command(
-            `${args.Name}-pull-base-image-${Date.now()}`,
-            {
-                create: pulumi.interpolate`docker pull ${args.BaseImage} --platform ${args.Platform}`,
-            }
-        )
-        //TMPL {{- end }}
-        const base = new docker.Image(
-            `${args.Name}-base`,
-            {
-                build: {
-                    context: args.Context,
-                    dockerfile: args.Dockerfile,
-                    platform: args.Platform,
-                },
-                skipPush: true,
-                imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:{{ if .Tag }}${args.Tag}-{{ end }}base`,
+        const base = new docker.Image(`${args.Name}-base`, {
+            build: {
+                context: args.Context,
+                dockerfile: args.Dockerfile,
+                platform: args.Platform,
             },
-            //TMPL {{- if .BaseImage }}
-            {
-                dependsOn: pullBaseImage,
-            }
-            //TMPL {{- end }}
-        )
+            skipPush: true,
+            imageName: pulumi.interpolate`${args.Repo.repositoryUrl}:{{ if .Tag }}${args.Tag}-{{ end }}base`,
+        })
 
-        const sha256 = new command.local.Command(
-            `${args.Name}-base-get-sha256-${Date.now()}`,
-            { create: pulumi.interpolate`docker image inspect -f ~~{{.ID}} ${base.imageName}` },
-            { parent: base }
-        ).stdout.apply((id) => id.substring(7))
+        const sha256 = base.repoDigest.apply((digest) => {
+            return digest.substring(digest.indexOf('sha256:') + 7)
+        })
 
         return new docker.Image(
             args.Name,
@@ -56,6 +38,9 @@ function create(args: Args): docker.Image {
                     context: args.Context,
                     dockerfile: args.Dockerfile,
                     platform: args.Platform,
+                    cacheFrom: {
+                        images: [base.imageName],
+                    },
                 },
                 registry: aws.ecr
                     .getAuthorizationTokenOutput(
