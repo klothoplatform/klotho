@@ -39,8 +39,13 @@ resources:
         Repo: aws:ecr_repo:lambda_test_app-image-ecr_repo
     aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs:
         FileSystem: aws:efs_file_system:test-efs-fs
+        PosixUser:
+            Gid: 1000
+            Uid: 1000
         RootDirectory:
             CreationInfo:
+                OwnerGid: 1000
+                OwnerUid: 1000
                 Permissions: "777"
             Path: /mnt/efs
         Tags:
