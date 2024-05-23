@@ -152,6 +152,7 @@ func readCachedToken(auth *Authenticator) *oauth2.Token {
 		log.Debugf("failed to open cache file: %v", err)
 		return nil
 	}
+	defer cacheFile.Close()
 	var token oauth2.Token
 	if err := json.NewDecoder(cacheFile).Decode(&token); err == nil {
 		log.Debugf("using cached token")
