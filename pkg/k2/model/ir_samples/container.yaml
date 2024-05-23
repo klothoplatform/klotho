@@ -1,0 +1,33 @@
+schemaVersion: '1.0'
+version: 1
+urn: 'urn:1234567890:my-project:dev:my-container-app'
+
+constructs:
+  my-container:
+    type: klotho.aws.Container
+    urn: 'urn:accountid:my-project:dev::construct/klotho.aws.Container:my-container'
+    version: 1
+    pulumi_stack: '4c3a0953-3d98-4215-ba09-533d98e215cd'
+    status: creating
+    inputs:
+      image:
+        type: string
+        value: 'my-docker-image:latest'
+        encrypted: false
+        status: resolved
+        dependsOn: []
+      cpu:
+        type: number
+        value: 256
+        encrypted: false
+        status: resolved
+        dependsOn: []
+    outputs:
+      taskArn: 'arn:aws:ecs:us-west-2:123456789012:task/my-cluster/1234567890123456789'
+    bindings:
+      - urn: 'urn:accountid:my-project:dev::construct/klotho.aws.Network:my-vpc'
+        binding_type: vpc
+    options:
+      forceDeploy: true
+    dependsOn:
+      - 'urn:accountid:my-project:dev::construct/klotho.aws.Network:my-vpc'
