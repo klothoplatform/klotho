@@ -4,27 +4,29 @@ import (
 	"os"
 
 	"github.com/google/uuid"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 type ApplicationEnvironment struct {
-	SchemaVersion string               `yaml:"schemaVersion"`
-	Version       int                  `yaml:"version"`
-	URN           string               `yaml:"urn"`
-	Constructs    map[string]Construct `yaml:"constructs"`
+	SchemaVersion int                  `yaml:"schemaVersion,omitempty"`
+	Version       int                  `yaml:"version,omitempty"`
+	ProjectURN    string               `yaml:"project_urn,omitempty"`
+	AppURN        string               `yaml:"app_urn,omitempty"`
+	Environment   string               `yaml:"environment,omitempty"`
+	Constructs    map[string]Construct `yaml:"constructs,omitempty"`
 }
 
 type Construct struct {
-	Type        ConstructType          `yaml:"type"`
-	URN         string                 `yaml:"urn"`
-	Version     int                    `yaml:"version"`
-	PulumiStack UUID                   `yaml:"pulumi_stack"`
-	Status      ConstructStatus        `yaml:"status"`
-	Inputs      map[string]Input       `yaml:"inputs"`
-	Outputs     map[string]string      `yaml:"outputs"`
-	Bindings    []Binding              `yaml:"bindings"`
-	Options     map[string]interface{} `yaml:"options"`
-	DependsOn   []string               `yaml:"dependsOn"`
+	Type        ConstructType          `yaml:"type,omitempty"`
+	URN         string                 `yaml:"urn,omitempty"`
+	Version     int                    `yaml:"version,omitempty"`
+	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
+	Status      ConstructStatus        `yaml:"status,omitempty"`
+	Inputs      map[string]Input       `yaml:"inputs,omitempty"`
+	Outputs     map[string]string      `yaml:"outputs,omitempty"`
+	Bindings    []Binding              `yaml:"bindings,omitempty"`
+	Options     map[string]interface{} `yaml:"options,omitempty"`
+	DependsOn   []string               `yaml:"dependsOn,omitempty"`
 }
 
 type UUID struct {
@@ -54,26 +56,26 @@ const (
 type ConstructStatus string
 
 const (
-	New                           ConstructStatus = "new"
-	Creating                      ConstructStatus = "creating"
-	Created                       ConstructStatus = "created"
-	Updating                      ConstructStatus = "updating"
-	Updated                       ConstructStatus = "updated"
-	Destroying                    ConstructStatus = "destroying"
-	Destroyed                     ConstructStatus = "destroyed"
-	CreateFailed                  ConstructStatus = "create_failed"
-	UpdateFailed                  ConstructStatus = "update_failed"
-	DestroyFailed                 ConstructStatus = "destroy_failed"
-	UpdatePending                 ConstructStatus = "update_pending"
-	DestroyPendingConstructStatus                 = "destroy_pending"
+	New            ConstructStatus = "new"
+	Creating       ConstructStatus = "creating"
+	Created        ConstructStatus = "created"
+	Updating       ConstructStatus = "updating"
+	Updated        ConstructStatus = "updated"
+	Destroying     ConstructStatus = "destroying"
+	Destroyed      ConstructStatus = "destroyed"
+	CreateFailed   ConstructStatus = "create_failed"
+	UpdateFailed   ConstructStatus = "update_failed"
+	DestroyFailed  ConstructStatus = "destroy_failed"
+	UpdatePending  ConstructStatus = "update_pending"
+	DestroyPending ConstructStatus = "destroy_pending"
 )
 
 type Input struct {
-	Type      string      `yaml:"type"`
-	Value     interface{} `yaml:"value"`
-	Encrypted bool        `yaml:"encrypted"`
+	Type      string      `yaml:"type,omitempty"`
+	Value     interface{} `yaml:"value,omitempty"`
+	Encrypted bool        `yaml:"encrypted,omitempty"`
 	Status    InputStatus `yaml:"status,omitempty"`
-	DependsOn []string    `yaml:"dependsOn"`
+	DependsOn []string    `yaml:"dependsOn,omitempty"`
 }
 
 type InputStatus string
@@ -85,8 +87,8 @@ const (
 )
 
 type Binding struct {
-	URN         string `yaml:"urn"`
-	BindingType string `yaml:"binding_type"`
+	URN         string `yaml:"urn,omitempty"`
+	BindingType string `yaml:"binding_type,omitempty"`
 }
 
 func ReadIRFile(filename string) (ApplicationEnvironment, error) {

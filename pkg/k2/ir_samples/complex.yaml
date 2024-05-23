@@ -1,0 +1,67 @@
+schemaVersion: 1
+version: 1
+project_urn: urn:accountid:project
+app_urn: urn:accountid:project:application::my-app
+environment: dev
+
+constructs:
+  my-bucket:
+    type: klotho.aws.S3
+    urn: urn:accountid:my-project:dev:construct/klotho.aws.S3:my-bucket
+    version: 1
+    pulumi_stack: 4c3a0953-3d98-4215-ba09-533d98e215cd
+    inputs:
+      bucketName:
+        type: string
+        value: my-bucket
+    outputs:
+      bucketName: my-bucket
+      bucketArn: arn:aws:s3:::my-bucket
+  my-postgres:
+    type: klotho.aws.Postgres
+    urn: urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres
+    version: 1
+    pulumi_stack: e3464e3e-2cf2-44e0-a0b5-a1594e4d1424
+    inputs:
+      username:
+        type: string
+        value: username
+        encrypted: true
+      password:
+        type: string
+        value: password
+      database:
+        type: string
+        value: database
+    outputs:
+      username: username
+      password: password
+      database: database
+      port: 5432
+      host: host
+  my-function:
+    type: klotho.aws.Function
+    urn: urn:accountid:my-project:dev:construct/klotho.aws.Function:my-function
+    version: 1
+    pulumi_stack: 7c79b570-42bf-4db9-b2c9-377a7d35ffa4
+    inputs:
+      source_hash:
+        type: string
+        value: 1234567890 # the hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
+      environment:
+        type: object
+        dependsOn:
+          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:host
+          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:port
+          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:username
+          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:password
+        value: null
+        status: pending
+    bindings:
+      - urn: urn:accountid:my-project:dev:construct/klotho.aws.S3:my-bucket
+        binding_type: read
+    options:
+      forceDeploy: true # force the deployment of the function even if it is not changed
+    dependsOn:
+      - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres
+      - urn:accountid:my-project:dev:construct/klotho.aws.S3:my-bucket
