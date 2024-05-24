@@ -16,6 +16,7 @@
                 "iam:DeleteRole*",
                 "iam:GetRole*",
                 "iam:List*",
+                "iam:PassRole",
                 "iam:PutRole*",
                 "iam:TagRole",
                 "iam:UntagRole",
