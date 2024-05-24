@@ -115,6 +115,6 @@ views:
   dataflow: big
 
 deployment_permissions:
-  deploy: ['lambda:*Function*', 'lambda:TagResource']
+  deploy: ['lambda:*Function*', 'lambda:TagResource', 'iam:PassRole']
   update: ['lambda:UntagResource']
   tear_down: ['ec2:DeleteNetworkInterface']
