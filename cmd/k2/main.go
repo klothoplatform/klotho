@@ -2,53 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"time"
 
-	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
-func initCmd() string {
-	return "Initialization view"
-}
-
-func deployCmd() string {
-	return "Deploy view"
-}
-
-func destroyCmd() string {
-	return "Destroy view"
-}
-
-func planCmd() string {
-	return "Plan view"
-}
-
-func irCmd(filePath string) string {
-	ir, err := model.ReadIRFile(filePath)
-	if err != nil {
-		return fmt.Sprintf("Error reading IR file: %s", err)
-	}
-	res, err := yaml.Marshal(ir)
-	if err != nil {
-		return fmt.Sprintf("Error marshalling IR: %s", err)
-	}
-	return string(res)
-}
-
-func executeCommand(cmd func() string) {
-	// Execute the command and print the view
-	result := cmd()
-	fmt.Println(result)
-}
-
-func executeIRCommand(filePath string) {
-	result := irCmd(filePath)
-	fmt.Println(result)
-}
-
-func main() {
+func cli() {
 	var rootCmd = &cobra.Command{Use: "app"}
 
 	var initCommand = &cobra.Command{
@@ -108,4 +69,18 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func main() {
+	go startGRPCServer()
+
+	// Wait for the server to be ready
+	if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
+		log.Fatalf("failed to start server: %v", err)
+	}
+
+	startPythonClient("./pkg/k2/language_host/python/infra.py")
+	select {}
+	cli()
+
 }

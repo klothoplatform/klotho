@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package example;
+
+option go_package = "github.com/klothoplatform/klotho/pkg/k2/language_host/go";
+
+service ExampleService {
+    rpc SayHello (HelloRequest) returns (HelloReply) {}
+    rpc GetPythonResponse (PythonRequest) returns (PythonReply) {}
+}
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloReply {
+    string message = 1;
+}
+
+message PythonRequest {
+    string query = 1;
+}
+
+message PythonReply {
+    string response = 1;
+}

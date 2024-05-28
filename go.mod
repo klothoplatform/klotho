@@ -26,10 +26,11 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/thessem/zap-prettyconsole v0.3.0
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.22.0
 	golang.org/x/oauth2 v0.13.0
+	google.golang.org/grpc v1.49.0
+	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.11.1
@@ -86,6 +87,7 @@ require (
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/genproto v0.0.0-20220502173005-c8bf987b8c21 // indirect
 )
