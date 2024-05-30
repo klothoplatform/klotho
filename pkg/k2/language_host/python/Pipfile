@@ -1,0 +1,15 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+grpcio = "==1.64.0"
+grpcio-tools = "*"
+protobuf = "==5.27.0"
+pyyaml = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
