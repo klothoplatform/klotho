@@ -1,0 +1,29 @@
+schemaVersion: 1
+version: 1
+project_urn: urn:accountid:project
+app_urn: urn:accountid:project:application::my-app
+environment: dev
+
+constructs:
+  my-function:
+    type: klotho.aws.Container
+    urn: urn:accountid:my-project:dev::construct/klotho.aws.Container:my-container
+    version: 1
+    pulumi_stack: null
+    inputs:
+      Cpu:
+        type: number
+        value: 512
+      source_hash:
+        type: string
+        value: 1234567890 # the hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
+#      environment:
+#        type: object
+#        dependsOn:
+#          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:host
+#          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:port
+#          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:username
+#          - urn:accountid:my-project:dev:construct/klotho.aws.Postgres:my-postgres:password
+#        value: null
+#        status: pending
+    bindings: []

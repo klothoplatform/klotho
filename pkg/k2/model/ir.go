@@ -1,10 +1,10 @@
 package model
 
 import (
+	"gopkg.in/yaml.v3"
 	"os"
 
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v2"
 )
 
 type ApplicationEnvironment struct {
@@ -18,7 +18,7 @@ type ApplicationEnvironment struct {
 
 type Construct struct {
 	Type        ConstructType          `yaml:"type,omitempty"`
-	URN         string                 `yaml:"urn,omitempty"`
+	URN         URN                    `yaml:"urn,omitempty"`
 	Version     int                    `yaml:"version,omitempty"`
 	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
 	Status      ConstructStatus        `yaml:"status,omitempty"`

@@ -3,6 +3,8 @@ package constructs
 import (
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"strings"
 )
 
 type (
@@ -37,4 +39,26 @@ func (e *Edge) PrettyPrint() string {
 
 func (e *Edge) String() string {
 	return e.PrettyPrint() + " :: " + fmt.Sprintf("%v", e.Data)
+}
+
+func (c *ConstructId) FromURN(urn model.URN) error {
+	if urn.Type != "construct" {
+		return fmt.Errorf("invalid URN type: %s", urn.Type)
+	}
+
+	parts := strings.Split(urn.Subtype, ".")
+	packageName := strings.Join(parts[:len(parts)-1], ".")
+	constructType := parts[len(parts)-1]
+
+	if packageName == "" || constructType == "" {
+		return fmt.Errorf("invalid URN subtype: %s", urn.Subtype)
+	}
+
+	c.TemplateId = ConstructTemplateId{
+		Package: packageName,
+		Name:    constructType,
+	}
+
+	c.InstanceId = urn.ResourceID
+	return nil
 }

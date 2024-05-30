@@ -21,6 +21,11 @@ resources:
       TaskDefinition: ${resources:TaskDefinition.Cpu}
 
 inputs:
+  SourceHash:
+    name: Source Hash
+    description: The hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
+    type: string
+    hidden: true
   Cpu:
     name: CPU
     description: The amount of CPU to allocate to the container

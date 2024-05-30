@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"time"
-
 	"github.com/spf13/cobra"
+	"os"
 )
+
+var irConfig struct {
+	constraints bool
+	filePath    string
+}
 
 func cli() {
 	var rootCmd = &cobra.Command{Use: "app"}
@@ -47,17 +49,20 @@ func cli() {
 	var irCommand = &cobra.Command{
 		Use:   "ir [file path]",
 		Short: "Run the IR command",
-		Args:  cobra.ExactArgs(1),
+		//Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			filePath := args[0]
 			if _, err := os.Stat(filePath); os.IsNotExist(err) {
 				fmt.Println("Invalid file path")
 				os.Exit(1)
 			}
+			irConfig.filePath = filePath
 
-			executeIRCommand(filePath)
+			executeIRCommand(irConfig)
 		},
 	}
+	flags := irCommand.Flags()
+	flags.BoolVarP(&irConfig.constraints, "constraints", "c", false, "Print constraints")
 
 	rootCmd.AddCommand(initCommand)
 	rootCmd.AddCommand(deployCommand)
@@ -72,15 +77,15 @@ func cli() {
 }
 
 func main() {
-	go startGRPCServer()
+	//go startGRPCServer()
 
 	// Wait for the server to be ready
-	if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
-		log.Fatalf("failed to start server: %v", err)
-	}
+	//if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
+	//	log.Fatalf("failed to start server: %v", err)
+	//}
 
-	startPythonClient("./pkg/k2/language_host/python/infra.py")
-	select {}
+	//startPythonClient("./pkg/k2/language_host/python/infra.py")
+	//select {}
 	cli()
 
 }

@@ -372,7 +372,7 @@ func (c *ConstructContext) evaluateInputRules() {
 	}
 }
 
-func (c *ConstructContext) evaluateConstruct() *Construct {
+func (c *ConstructContext) EvaluateConstruct() *Construct {
 	/*
 		Evaluation Order:
 			Construct Inputs

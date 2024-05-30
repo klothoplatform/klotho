@@ -3,7 +3,7 @@ package constructs
 func ResolveConstruct(inputs map[string]any, constructId ConstructId) (*Construct, error) {
 	inputs["Name"] = constructId.InstanceId
 	context := NewConstructContext(constructId, inputs)
-	return context.evaluateConstruct(), nil
+	return context.EvaluateConstruct(), nil
 }
 
 func NewContext(inputs map[string]any, constructId ConstructId) *ConstructContext {
