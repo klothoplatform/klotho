@@ -1,0 +1,107 @@
+id: klotho.aws.Container
+version: 1.0.0
+description: A construct for creating a docker container from an image or Dockerfile
+resources:
+  TaskDefinition:
+    type: aws:ecs_task_definition
+    name: ${inputs:Name}-task
+    properties:
+      Cpu: ${inputs:Cpu}
+      Memory: ${inputs:Memory}
+      ContainerDefinitions[0]:
+        PortMappings[0]:
+          ContainerPort: ${inputs:Port}
+          HostPort: ${inputs:Port}
+        Cpu: ${inputs:Cpu}
+        Memory: ${inputs:Memory}
+  Service:
+    type: aws:ecs_service
+    name: ${inputs:Name}-service
+    properties:
+      TaskDefinition: ${resources:TaskDefinition.Cpu}
+
+inputs:
+  Cpu:
+    name: CPU
+    description: The amount of CPU to allocate to the container
+    type: number
+    default: 256
+    validation:
+      minimum: 1
+      maximum: 4096
+  Memory:
+    name: Memory
+    description: The amount of memory to allocate to the container
+    type: number
+    default: 512
+    validation:
+      minimum: 1
+      maximum: 4096
+  Context:
+    name: Context
+    description: The context to use to build the container
+    type: string
+    default: .
+    validation:
+      minLength: 1
+      maxLength: 63
+  Dockerfile:
+    name: Dockerfile
+    description: The Dockerfile to use to build the container
+    type: string
+    default: Dockerfile
+    validation:
+      minLength: 1
+      maxLength: 63
+  Image:
+      name: Image
+      description: The image to use for the container
+      type: string
+      validation:
+          minLength: 1
+          maxLength: 63
+  Port:
+      name: Port
+      description: The port to expose on the container
+      type: number
+      default: 80
+      validation:
+          minimum: 1
+          maximum: 65535
+  Network:
+    name: Network
+    description: The network to deploy the container to
+    type: Construct<klotho.aws.Network>
+
+outputs:
+  ServiceArn:
+    description: The ARN of the service
+    value: ${resources:Service.Arn}
+  TaskDefinitionArn:
+    description: The ARN of the task definition
+    value: ${resources:TaskDefinition.Arn}
+edges:
+  - from: TaskDefinition
+    to: ${resources:Service}
+    data:
+      action: read
+      other: ${inputs:Cpu}
+
+input_rules:
+  - if: and (input "Dockerfile") (not (input "Image"))
+    then:
+      resources:
+        EcrRepository:
+          type: aws:ecr_repository
+          name: ${inputs:Name}-repository
+        EcrImage:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
+          properties:
+            ImageName: ${inputs:Name}
+            Dockerfile: ${inputs:Dockerfile}
+            Context: ${inputs:Context}
+            Repo: ${resources:EcrRepository#RegistryUrl}
+        TaskDefinition:
+          ContainerDefinitions[0]:
+            Image: ${resources:EcrImage.ImageUri}-test

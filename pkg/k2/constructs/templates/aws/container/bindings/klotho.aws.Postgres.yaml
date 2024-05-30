@@ -1,0 +1,38 @@
+- from: klotho.aws.Container
+  to: klotho.aws.Postgres
+  type: read
+  resources:
+    ${from:resources.TaskDefinition}:
+      ContainerDefinitions[0]:
+        Environment:
+        - Name: ${to:inputs.Name}_POSTGRES_ENDPOINT
+          Value: ${to:outputs.Endpoint}
+        - Name: ${to:inputs.Name}_POSTGRES_DATABASE
+          Value: ${to:outputs.DatabaseName}
+        - Name: ${to:inputs.Name}_POSTGRES_USER
+          Value: ${to:outputs.Username}
+        - Name: ${to:inputs.Name}_POSTGRES_PASSWORD
+          Value: ${to:outputs.Password}
+        - Name: ${to:inputs.Name}_POSTGRES_PORT
+          Value: ${to:outputs.Port}
+        - Name: ${to:inputs.Name}_POSTGRES_CONNECTION_STRING
+          Value: ${to:outputs.ConnectionString}
+
+  edges:
+    ${from:resources.Service} -> ${to:resources.RDSInstance}:
+      action: read
+
+
+- from: klotho.aws.Container
+  to: klotho.aws.Postgres
+  type: null # default
+
+  #... other config
+
+  edges:
+    ${from:resources.Service} -> ${to:resources.RDSInstance}:
+      action: read-write
+
+
+
+
