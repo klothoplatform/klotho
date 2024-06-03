@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
+	"path/filepath"
 )
 
 var irConfig struct {
@@ -18,7 +19,7 @@ func cli() {
 		Use:   "init",
 		Short: "Run the init command",
 		Run: func(cmd *cobra.Command, args []string) {
-			executeCommand(initCmd)
+			initCmd()
 		},
 	}
 
@@ -26,7 +27,18 @@ func cli() {
 		Use:   "deploy",
 		Short: "Run the deploy command",
 		Run: func(cmd *cobra.Command, args []string) {
-			executeCommand(deployCmd)
+			filePath := args[0]
+			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+				fmt.Println("Invalid file path")
+				os.Exit(1)
+			}
+			absolutePath, err := filepath.Abs(filePath)
+			if err != nil {
+				fmt.Println("couldn't convert to absolute path")
+				os.Exit(1)
+			}
+
+			deployCmd(absolutePath)
 		},
 	}
 
@@ -34,7 +46,7 @@ func cli() {
 		Use:   "destroy",
 		Short: "Run the destroy command",
 		Run: func(cmd *cobra.Command, args []string) {
-			executeCommand(destroyCmd)
+			destroyCmd()
 		},
 	}
 
@@ -42,7 +54,7 @@ func cli() {
 		Use:   "plan",
 		Short: "Run the plan command",
 		Run: func(cmd *cobra.Command, args []string) {
-			executeCommand(planCmd)
+			planCmd()
 		},
 	}
 
@@ -77,15 +89,5 @@ func cli() {
 }
 
 func main() {
-	//go startGRPCServer()
-
-	// Wait for the server to be ready
-	//if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
-	//	log.Fatalf("failed to start server: %v", err)
-	//}
-
-	//startPythonClient("./pkg/k2/language_host/python/infra.py")
-	//select {}
 	cli()
-
 }

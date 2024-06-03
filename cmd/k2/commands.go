@@ -5,6 +5,8 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"go.uber.org/zap"
+	"log"
+	"time"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"gopkg.in/yaml.v3"
@@ -14,8 +16,15 @@ func initCmd() string {
 	return "Initialization view"
 }
 
-func deployCmd() string {
-	return "Deploy view"
+func deployCmd(filePath string) string {
+	go startGRPCServer()
+	if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
+		log.Fatalf("failed to start server: %v", err)
+	}
+
+	startPythonClient(filePath)
+	time.Sleep(5 * time.Second)
+	return "success"
 }
 
 func destroyCmd() string {

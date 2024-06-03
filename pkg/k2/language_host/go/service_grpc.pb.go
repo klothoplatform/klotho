@@ -19,126 +19,89 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ExampleService_SayHello_FullMethodName          = "/example.ExampleService/SayHello"
-	ExampleService_GetPythonResponse_FullMethodName = "/example.ExampleService/GetPythonResponse"
+	KlothoService_SendIR_FullMethodName = "/klotho.KlothoService/SendIR"
 )
 
-// ExampleServiceClient is the client API for ExampleService service.
+// KlothoServiceClient is the client API for KlothoService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ExampleServiceClient interface {
-	SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error)
-	GetPythonResponse(ctx context.Context, in *PythonRequest, opts ...grpc.CallOption) (*PythonReply, error)
+type KlothoServiceClient interface {
+	SendIR(ctx context.Context, in *IRRequest, opts ...grpc.CallOption) (*IRReply, error)
 }
 
-type exampleServiceClient struct {
+type klothoServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewExampleServiceClient(cc grpc.ClientConnInterface) ExampleServiceClient {
-	return &exampleServiceClient{cc}
+func NewKlothoServiceClient(cc grpc.ClientConnInterface) KlothoServiceClient {
+	return &klothoServiceClient{cc}
 }
 
-func (c *exampleServiceClient) SayHello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloReply, error) {
-	out := new(HelloReply)
-	err := c.cc.Invoke(ctx, ExampleService_SayHello_FullMethodName, in, out, opts...)
+func (c *klothoServiceClient) SendIR(ctx context.Context, in *IRRequest, opts ...grpc.CallOption) (*IRReply, error) {
+	out := new(IRReply)
+	err := c.cc.Invoke(ctx, KlothoService_SendIR_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *exampleServiceClient) GetPythonResponse(ctx context.Context, in *PythonRequest, opts ...grpc.CallOption) (*PythonReply, error) {
-	out := new(PythonReply)
-	err := c.cc.Invoke(ctx, ExampleService_GetPythonResponse_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// ExampleServiceServer is the server API for ExampleService service.
-// All implementations must embed UnimplementedExampleServiceServer
+// KlothoServiceServer is the server API for KlothoService service.
+// All implementations must embed UnimplementedKlothoServiceServer
 // for forward compatibility
-type ExampleServiceServer interface {
-	SayHello(context.Context, *HelloRequest) (*HelloReply, error)
-	GetPythonResponse(context.Context, *PythonRequest) (*PythonReply, error)
-	mustEmbedUnimplementedExampleServiceServer()
+type KlothoServiceServer interface {
+	SendIR(context.Context, *IRRequest) (*IRReply, error)
+	mustEmbedUnimplementedKlothoServiceServer()
 }
 
-// UnimplementedExampleServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedExampleServiceServer struct {
+// UnimplementedKlothoServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedKlothoServiceServer struct {
 }
 
-func (UnimplementedExampleServiceServer) SayHello(context.Context, *HelloRequest) (*HelloReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SayHello not implemented")
+func (UnimplementedKlothoServiceServer) SendIR(context.Context, *IRRequest) (*IRReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendIR not implemented")
 }
-func (UnimplementedExampleServiceServer) GetPythonResponse(context.Context, *PythonRequest) (*PythonReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPythonResponse not implemented")
-}
-func (UnimplementedExampleServiceServer) mustEmbedUnimplementedExampleServiceServer() {}
+func (UnimplementedKlothoServiceServer) mustEmbedUnimplementedKlothoServiceServer() {}
 
-// UnsafeExampleServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ExampleServiceServer will
+// UnsafeKlothoServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to KlothoServiceServer will
 // result in compilation errors.
-type UnsafeExampleServiceServer interface {
-	mustEmbedUnimplementedExampleServiceServer()
+type UnsafeKlothoServiceServer interface {
+	mustEmbedUnimplementedKlothoServiceServer()
 }
 
-func RegisterExampleServiceServer(s grpc.ServiceRegistrar, srv ExampleServiceServer) {
-	s.RegisterService(&ExampleService_ServiceDesc, srv)
+func RegisterKlothoServiceServer(s grpc.ServiceRegistrar, srv KlothoServiceServer) {
+	s.RegisterService(&KlothoService_ServiceDesc, srv)
 }
 
-func _ExampleService_SayHello_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HelloRequest)
+func _KlothoService_SendIR_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IRRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ExampleServiceServer).SayHello(ctx, in)
+		return srv.(KlothoServiceServer).SendIR(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ExampleService_SayHello_FullMethodName,
+		FullMethod: KlothoService_SendIR_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExampleServiceServer).SayHello(ctx, req.(*HelloRequest))
+		return srv.(KlothoServiceServer).SendIR(ctx, req.(*IRRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ExampleService_GetPythonResponse_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PythonRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ExampleServiceServer).GetPythonResponse(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ExampleService_GetPythonResponse_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExampleServiceServer).GetPythonResponse(ctx, req.(*PythonRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// ExampleService_ServiceDesc is the grpc.ServiceDesc for ExampleService service.
+// KlothoService_ServiceDesc is the grpc.ServiceDesc for KlothoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ExampleService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "example.ExampleService",
-	HandlerType: (*ExampleServiceServer)(nil),
+var KlothoService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "klotho.KlothoService",
+	HandlerType: (*KlothoServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SayHello",
-			Handler:    _ExampleService_SayHello_Handler,
-		},
-		{
-			MethodName: "GetPythonResponse",
-			Handler:    _ExampleService_GetPythonResponse_Handler,
+			MethodName: "SendIR",
+			Handler:    _KlothoService_SendIR_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

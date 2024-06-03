@@ -30,7 +30,7 @@ if _version_not_supported:
     )
 
 
-class ExampleServiceStub(object):
+class KlothoServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -39,59 +39,43 @@ class ExampleServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.SayHello = channel.unary_unary(
-                '/example.ExampleService/SayHello',
-                request_serializer=service__pb2.HelloRequest.SerializeToString,
-                response_deserializer=service__pb2.HelloReply.FromString,
-                _registered_method=True)
-        self.GetPythonResponse = channel.unary_unary(
-                '/example.ExampleService/GetPythonResponse',
-                request_serializer=service__pb2.PythonRequest.SerializeToString,
-                response_deserializer=service__pb2.PythonReply.FromString,
+        self.SendIR = channel.unary_unary(
+                '/klotho.KlothoService/SendIR',
+                request_serializer=service__pb2.IRRequest.SerializeToString,
+                response_deserializer=service__pb2.IRReply.FromString,
                 _registered_method=True)
 
 
-class ExampleServiceServicer(object):
+class KlothoServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def SayHello(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetPythonResponse(self, request, context):
+    def SendIR(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_ExampleServiceServicer_to_server(servicer, server):
+def add_KlothoServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'SayHello': grpc.unary_unary_rpc_method_handler(
-                    servicer.SayHello,
-                    request_deserializer=service__pb2.HelloRequest.FromString,
-                    response_serializer=service__pb2.HelloReply.SerializeToString,
-            ),
-            'GetPythonResponse': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetPythonResponse,
-                    request_deserializer=service__pb2.PythonRequest.FromString,
-                    response_serializer=service__pb2.PythonReply.SerializeToString,
+            'SendIR': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendIR,
+                    request_deserializer=service__pb2.IRRequest.FromString,
+                    response_serializer=service__pb2.IRReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'example.ExampleService', rpc_method_handlers)
+            'klotho.KlothoService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('example.ExampleService', rpc_method_handlers)
+    server.add_registered_method_handlers('klotho.KlothoService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class ExampleService(object):
+class KlothoService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def SayHello(request,
+    def SendIR(request,
             target,
             options=(),
             channel_credentials=None,
@@ -104,36 +88,9 @@ class ExampleService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/example.ExampleService/SayHello',
-            service__pb2.HelloRequest.SerializeToString,
-            service__pb2.HelloReply.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def GetPythonResponse(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/example.ExampleService/GetPythonResponse',
-            service__pb2.PythonRequest.SerializeToString,
-            service__pb2.PythonReply.FromString,
+            '/klotho.KlothoService/SendIR',
+            service__pb2.IRRequest.SerializeToString,
+            service__pb2.IRReply.FromString,
             options,
             channel_credentials,
             insecure,

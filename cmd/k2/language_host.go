@@ -15,17 +15,12 @@ import (
 )
 
 type server struct {
-	pb.UnimplementedExampleServiceServer
+	pb.UnimplementedKlothoServiceServer
 }
 
-func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
-	log.Printf("Received SayHello request with name: %s", in.Name)
-	return &pb.HelloReply{Message: "Hello, " + in.Name}, nil
-}
-
-func (s *server) GetPythonResponse(ctx context.Context, in *pb.PythonRequest) (*pb.PythonReply, error) {
-	log.Printf("Received GetPythonResponse request with query: %s", in.Query)
-	return &pb.PythonReply{Response: "Python Response to: " + in.Query}, nil
+func (s *server) SendIR(ctx context.Context, in *pb.IRRequest) (*pb.IRReply, error) {
+	log.Printf("Received SendIR request with error: %v, yaml_payload: %s", in.Error, in.YamlPayload)
+	return &pb.IRReply{Message: "IR received successfully"}, nil
 }
 
 func startGRPCServer() {
@@ -35,7 +30,7 @@ func startGRPCServer() {
 	}
 
 	s := grpc.NewServer()
-	pb.RegisterExampleServiceServer(s, &server{})
+	pb.RegisterKlothoServiceServer(s, &server{})
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
@@ -43,7 +38,10 @@ func startGRPCServer() {
 	}
 }
 func healthCheck(addr string) bool {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithTimeout(2*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		return false
 	}
@@ -61,8 +59,9 @@ func waitForServer(addr string, retries int, delay time.Duration) error {
 	return fmt.Errorf("server not available after %d retries", retries)
 }
 
-func startPythonClient(f string) {
-	cmd := exec.Command("python3", f)
+func startPythonClient(infraScript string) {
+	cmd := exec.Command("pipenv", "run", "python3", "python_language_host.py", infraScript)
+	cmd.Dir = "pkg/k2/language_host/python" // Set the working directory to the directory containing the script
 
 	// Wire stdout and stderr
 	cmd.Stdout = os.Stdout
