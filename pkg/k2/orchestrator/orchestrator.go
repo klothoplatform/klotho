@@ -10,7 +10,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
+	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
@@ -38,16 +40,24 @@ type (
 	}
 )
 
+var cachedEngine *engine.Engine
+
 func (o *Orchestrator) AddEngine() error {
+	if cachedEngine != nil {
+		o.Engine = cachedEngine
+		return nil
+	}
+
 	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
 		return err
 	}
-	o.Engine = engine.NewEngine(kb)
+	cachedEngine = engine.NewEngine(kb)
+	o.Engine = cachedEngine
 	return nil
 }
 
-func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineError {
+func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, []engine_errs.EngineError) {
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
@@ -79,7 +89,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 	err := o.AddEngine()
 	if err != nil {
 		internalError(err)
-		return engErrs
+		return nil, engErrs
 	}
 
 	context := &engine.EngineContext{
@@ -90,7 +100,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 		clonedGraph, err := request.InputGraph.Clone()
 		if err != nil {
 			internalError(fmt.Errorf("failed to clone graph: %w", err))
-			return engErrs
+			return nil, engErrs
 		}
 		context.InitialState = clonedGraph
 	} else {
@@ -103,7 +113,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 	// All other assignments prior are via 'internalError' and return
 	exitCode, engErrs := o.Run(context)
 	if exitCode == 1 {
-		return engErrs
+		return nil, engErrs
 	}
 
 	var files []kio.File
@@ -112,7 +122,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 	err = writeEngineErrsJson(engErrs, configErrors)
 	if err != nil {
 		internalError(fmt.Errorf("failed to write config errors: %w", err))
-		return engErrs
+		return nil, engErrs
 	}
 	files = append(files, &kio.RawFile{
 		FPath:   "config_errors.json",
@@ -123,14 +133,14 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 	vizFiles, err := o.Engine.VisualizeViews(context.Solutions[0])
 	if err != nil {
 		internalError(fmt.Errorf("failed to generate views %w", err))
-		return engErrs
+		return nil, engErrs
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
 	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
-		return engErrs
+		return nil, engErrs
 	}
 	files = append(files,
 		&kio.RawFile{
@@ -143,7 +153,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 		policyBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
 		if err != nil {
 			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
-			return engErrs
+			return nil, engErrs
 		}
 		files = append(files,
 			&kio.RawFile{
@@ -156,9 +166,9 @@ func (o *Orchestrator) RunEngine(request EngineRequest) []engine_errs.EngineErro
 	err = kio.OutputTo(files, request.OutputDir)
 	if err != nil {
 		internalError(fmt.Errorf("failed to write output files: %w", err))
-		return engErrs
+		return nil, engErrs
 	}
-	return engErrs
+	return context, engErrs
 }
 
 func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
@@ -288,4 +298,44 @@ func ReadInputGraph(filePath string) (construct.Graph, error) {
 	}(inputF)
 	err = yaml.NewDecoder(inputF).Decode(&input)
 	return input.Graph, err
+}
+
+type IacRequest struct {
+	PulumiAppName string
+	Context       *engine.EngineContext
+	OutputDir     string
+}
+
+var cachedKb *knowledgebase.KnowledgeBase
+
+func (o *Orchestrator) GenerateIac(request IacRequest) error {
+	var files []kio.File
+
+	solCtx := request.Context.Solutions[0]
+	var kb *knowledgebase.KnowledgeBase
+	var err error
+	if cachedKb == nil {
+		kb, err = reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+		if err != nil {
+			return err
+		}
+		cachedKb = kb
+	}
+	kb = cachedKb
+
+	pulumiPlugin := iac.Plugin{
+		Config: &iac.PulumiConfig{AppName: request.PulumiAppName},
+		KB:     kb,
+	}
+	iacFiles, err := pulumiPlugin.Translate(solCtx)
+	if err != nil {
+		return err
+	}
+	files = append(files, iacFiles...)
+
+	err = kio.OutputTo(files, request.OutputDir)
+	if err != nil {
+		return err
+	}
+	return nil
 }

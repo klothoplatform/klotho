@@ -18,8 +18,17 @@ type server struct {
 	pb.UnimplementedKlothoServiceServer
 }
 
+type ProgramContext struct {
+	IRYaml string
+}
+
+// TODO: implement more robust context handling
+// Global context for the program (spike implementation)
+var programContext *ProgramContext = &ProgramContext{}
+
 func (s *server) SendIR(ctx context.Context, in *pb.IRRequest) (*pb.IRReply, error) {
 	log.Printf("Received SendIR request with error: %v, yaml_payload: %s", in.Error, in.YamlPayload)
+	programContext.IRYaml = in.YamlPayload
 	return &pb.IRReply{Message: "IR received successfully"}, nil
 }
 

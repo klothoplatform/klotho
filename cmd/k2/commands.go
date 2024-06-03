@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -17,47 +18,42 @@ func initCmd() string {
 	return "Initialization view"
 }
 
-func deployCmd(filePath string) string {
+func deployCmd(args struct {
+	inputPath  string
+	outputPath string
+}) string {
 	go startGRPCServer()
 	if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 
-	startPythonClient(filePath)
-	time.Sleep(5 * time.Second)
-	return "success"
-}
+	startPythonClient(args.inputPath)
+	for x := 0; x < 10; x++ {
+		if programContext.IRYaml != "" {
+			zap.S().Info("IR received")
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 
-func destroyCmd() string {
-	return "Destroy view"
-}
+	if programContext.IRYaml == "" {
+		zap.S().Warn("No IR received")
+	}
 
-func planCmd() string {
-	return "Plan view"
-}
-
-func irCmd(filePath string, outputPath string, outputConstraints bool) string {
-	ir, err := model.ReadIRFile(filePath)
+	ir, err := model.ParseIRFile([]byte(programContext.IRYaml))
 	if err != nil {
 		return fmt.Sprintf("Error reading IR file: %s", err)
 	}
 
-	if !outputConstraints {
-		res, err := yaml.Marshal(ir)
-		if err != nil {
-			return fmt.Sprintf("Error marshalling IR: %s", err)
-		}
-		return string(res)
-	}
-
 	// Apply constraints
-	var allConstraints constraints.ConstraintList
 	for _, c := range ir.Constructs {
+		var allConstraints constraints.ConstraintList
 		var id constructs.ConstructId
 		err = id.FromURN(c.URN)
 		if err != nil {
 			return fmt.Sprintf("Error parsing URN: %s", err)
 		}
+		constructOutDir := filepath.Join(args.outputPath, id.InstanceId)
 		inputs := make(map[string]interface{})
 		for k, v := range c.Inputs {
 			if v.Status != "" && v.Status != model.Resolved {
@@ -78,34 +74,68 @@ func irCmd(filePath string, outputPath string, outputConstraints bool) string {
 			return fmt.Sprintf("Error marshalling construct: %s", err)
 		}
 		allConstraints = append(allConstraints, cs...)
-	}
-	marshalledConstraints, err := allConstraints.ToConstraints()
-	if err != nil {
-		return fmt.Sprintf("Error marshalling constraints: %s", err)
-	}
-	out, err := yaml.Marshal(marshalledConstraints)
-	if err != nil {
-		return fmt.Sprintf("Error marshalling constraints2: %s", err)
+
+		// Marshal constructs to constraints
+		marshalledConstraints, err := allConstraints.ToConstraints()
+		if err != nil {
+			return fmt.Sprintf("Error marshalling constraints: %s", err)
+		}
+
+		// Read existing state
+		inputGraph, err := orchestrator.ReadInputGraph(constructOutDir)
+		if err != nil {
+			return fmt.Sprintf("Error reading input graph: %s", err)
+		}
+
+		// Run the engine
+		var o orchestrator.Orchestrator
+		engineContext, errs := o.RunEngine(orchestrator.EngineRequest{
+			Provider:    "aws",
+			InputGraph:  inputGraph,
+			Constraints: marshalledConstraints,
+			OutputDir:   constructOutDir,
+			GlobalTag:   "k2",
+		})
+		if errs != nil {
+			zap.S().Errorf("Engine returned with errors: %s", errs)
+			return fmt.Sprintf("Engine returned with errors: %s", errs)
+		}
+
+		// GenerateIac
+		err = o.GenerateIac(orchestrator.IacRequest{
+			PulumiAppName: id.InstanceId,
+			Context:       engineContext,
+			OutputDir:     constructOutDir,
+		})
+		if err != nil {
+			zap.S().Errorf("Error generating IaC: %s", err)
+			return fmt.Sprintf("Error generating IaC: %s", err)
+		}
+
 	}
 
-	inputGraph, err := orchestrator.ReadInputGraph(outputPath)
+	return "success"
+}
+
+func destroyCmd() string {
+	return "Destroy view"
+}
+
+func planCmd() string {
+	return "Plan view"
+}
+
+func irCmd(filePath string, outputPath string, outputConstraints bool) string {
+	ir, err := model.ReadIRFile(filePath)
 	if err != nil {
-		return fmt.Sprintf("Error reading input graph: %s", err)
+		return fmt.Sprintf("Error reading IR file: %s", err)
 	}
 
-	var o orchestrator.Orchestrator
-	errs := o.RunEngine(orchestrator.EngineRequest{
-		Provider:    "aws",
-		InputGraph:  inputGraph,
-		Constraints: marshalledConstraints,
-		OutputDir:   "./k2-output",
-		GlobalTag:   "k2",
-	})
-	if errs != nil {
-		zap.S().Warnf("Engine returned with errors: %s", errs)
+	res, err := yaml.Marshal(ir)
+	if err != nil {
+		return fmt.Sprintf("Error marshalling IR: %s", err)
 	}
-
-	return string(out)
+	return string(res)
 }
 
 func executeCommand(cmd func() string) {

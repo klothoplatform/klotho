@@ -61,7 +61,7 @@ func ParseURN(urnString string) (*URN, error) {
 	if len(matches) > 4 && matches[4] != "" {
 		typeParts := strings.Split(matches[4], "/")
 		if len(typeParts) != 2 {
-			return nil, fmt.Errorf("invalid type format")
+			return nil, fmt.Errorf("invalid URN type format")
 		}
 		urn.Type = typeParts[0]
 		urn.Subtype = typeParts[1]

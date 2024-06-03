@@ -37,8 +37,8 @@ class KlothoSDK:
         output = {
             "schemaVersion": 1,  # Adjust this value as needed
             "version": 1,  # Adjust this value as needed
-            "urn": f"urn:accountid:{self.application.project}:{self.application.environment}:{self.application.name}",
-            "project": self.application.project,
+            "app_urn": f"urn:accountid:{self.application.project}:{self.application.environment}:{self.application.name}",
+            "project_urn": f"urn:accountid:{self.application.project}",
             "environment": self.application.environment,
             "default_region": self.application.default_region,
             "constructs": constructs,
@@ -82,7 +82,7 @@ class Resource:
     def to_dict(self, application):
         data = {
             "type": self.resource_type,
-            "urn": f"urn:accountid:{application.project}:{application.environment}:construct/{self.resource_type}:{self.name}",
+            "urn": f"urn:accountid:{application.project}:{application.environment}::construct/{self.resource_type}:{self.name}",
             "version": self.version,
             "pulumi_stack": self.pulumi_stack,
             "status": self.status,

@@ -16,6 +16,11 @@ var irConfig struct {
 	outputPath  string
 }
 
+var deployConfig struct {
+	inputPath  string
+	outputPath string
+}
+
 var commonCfg struct {
 	verbose bool
 	jsonLog bool
@@ -64,10 +69,17 @@ func cli() {
 				fmt.Println("couldn't convert to absolute path")
 				os.Exit(1)
 			}
+			deployConfig.inputPath = absolutePath
 
-			deployCmd(absolutePath)
+			if deployConfig.outputPath == "" {
+				(&deployConfig).outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+			}
+
+			deployCmd(deployConfig)
 		},
 	}
+	flags = deployCommand.Flags()
+	flags.StringVarP(&deployConfig.outputPath, "output", "o", "", "Output directory")
 
 	var destroyCommand = &cobra.Command{
 		Use:   "destroy",

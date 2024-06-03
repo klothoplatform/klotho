@@ -1,6 +1,7 @@
 package model
 
 import (
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"os"
 
@@ -91,16 +92,20 @@ type Binding struct {
 	BindingType string `yaml:"binding_type,omitempty"`
 }
 
-func ReadIRFile(filename string) (ApplicationEnvironment, error) {
+func ReadIRFile(filename string) (*ApplicationEnvironment, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return ApplicationEnvironment{}, err
+		return &ApplicationEnvironment{}, err
 	}
+	return ParseIRFile(data)
+}
 
-	var appEnv ApplicationEnvironment
-	err = yaml.Unmarshal(data, &appEnv)
+func ParseIRFile(content []byte) (*ApplicationEnvironment, error) {
+	var appEnv *ApplicationEnvironment
+	err := yaml.Unmarshal(content, &appEnv)
 	if err != nil {
-		return ApplicationEnvironment{}, err
+		zap.S().Errorf("Error unmarshalling IR file: %s", err)
+		return &ApplicationEnvironment{}, err
 	}
 
 	return appEnv, nil
