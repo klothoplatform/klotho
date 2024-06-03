@@ -33,7 +33,7 @@ type (
 	InterpolationContext []InterpolationSource
 )
 
-func (r *ResourceRef) MarshallValue() any {
+func (r *ResourceRef) MarshalValue() any {
 	return r.String()
 }
 
@@ -220,6 +220,18 @@ func (c *ConstructContext) interpolateExpression(match string, ctx Interpolation
 			ResourceKey: iacRefPattern.FindStringSubmatch(key)[1],
 			Property:    iacRefPattern.FindStringSubmatch(key)[2],
 			Type:        ResourceRefTypeIaC,
+		}
+	}
+
+	// special cases for resources
+	if prefix == "resources" {
+		keyParts := strings.SplitN(key, ".", 2)
+		resourceKey := keyParts[0]
+		if len(keyParts) > 1 {
+			if path := keyParts[1]; path == "Name" {
+				return m.(map[string]*Resource)[resourceKey].Id.Name
+			}
+
 		}
 	}
 
@@ -410,9 +422,11 @@ func (c *ConstructContext) evaluateEdges() {
 }
 
 func (c *ConstructContext) evaluateResources() {
-	for key, resource := range c.ConstructTemplate.Resources {
+
+	c.ConstructTemplate.ResourcesIterator().ForEach(func(key string, resource ResourceTemplate) {
 		c.Resources[key] = c.resolveResource(key, resource)
-	}
+
+	})
 }
 
 func (c *ConstructContext) input(key string) any {
@@ -438,12 +452,8 @@ func (c *ConstructContext) evaluateInputRule(rule InputRuleTemplate) error {
 	}
 
 	// TODO: look into additional handling for nil rawResult
-	resultStr := strings.ToLower(rawResult.String())
-
-	executeThen := false
-	if len(resultStr) == 0 || resultStr == "false" {
-		executeThen = true
-	}
+	boolResult, _ := strconv.ParseBool(rawResult.String())
+	executeThen := boolResult
 
 	var body ConditionalExpressionTemplate
 	if executeThen {
@@ -489,21 +499,18 @@ func (c *ConstructContext) resolveResource(key string, rt ResourceTemplate) *Res
 
 	resTmpl := tmpl.(ResourceTemplate)
 	typeParts := strings.Split(resTmpl.Type, ":")
-	plen := len(typeParts)
-	if len(resTmpl.Type) > 0 && (plen < 2 || plen > 3) {
-		panic("Invalid resource type")
+	if len(typeParts) != 2 && resTmpl.Type != "" {
+		panic("Invalid resource type: " + resTmpl.Type)
 	}
-	if plen >= 2 {
+
+	if len(typeParts) == 2 {
 		provider := typeParts[0]
 		resourceType := typeParts[1]
-		namespace := ""
-		if plen == 3 {
-			namespace = typeParts[2]
-		}
+
 		id := construct.ResourceId{
 			Provider:  provider,
 			Type:      resourceType,
-			Namespace: namespace,
+			Namespace: resTmpl.Namespace,
 			Name:      resTmpl.Name,
 		}
 		if resource.Id == (construct.ResourceId{}) {

@@ -8,17 +8,31 @@ import (
 )
 
 // URN represents a Unique Resource Name in the Klotho ecosystem
-type URN struct {
-	AccountID        string `yaml:"accountId"`
-	Project          string `yaml:"project"`
-	Environment      string `yaml:"environment,omitempty"`
-	Application      string `yaml:"application,omitempty"`
-	Type             string `yaml:"type,omitempty"`
-	Subtype          string `yaml:"subtype,omitempty"`
-	ParentResourceID string `yaml:"parentResourceId,omitempty"`
-	ResourceID       string `yaml:"resourceId,omitempty"`
-	Output           string `yaml:"output,omitempty"`
-}
+type (
+	URN struct {
+		AccountID        string `yaml:"accountId"`
+		Project          string `yaml:"project"`
+		Environment      string `yaml:"environment,omitempty"`
+		Application      string `yaml:"application,omitempty"`
+		Type             string `yaml:"type,omitempty"`
+		Subtype          string `yaml:"subtype,omitempty"`
+		ParentResourceID string `yaml:"parentResourceId,omitempty"`
+		ResourceID       string `yaml:"resourceId,omitempty"`
+		Output           string `yaml:"output,omitempty"`
+	}
+
+	UrnType string
+)
+
+const (
+	AccountUrnType                UrnType = "account"
+	ProjectUrnType                UrnType = "project"
+	EnvironmentUrnType            UrnType = "environment"
+	ApplicationEnvironmentUrnType UrnType = "application_environment"
+	ResourceUrnType               UrnType = "resource"
+	OutputUrnType                 UrnType = "output"
+	TypeUrnType                   UrnType = "type"
+)
 
 // ParseURN parses a URN string into a URN struct
 func ParseURN(urnString string) (*URN, error) {
@@ -124,4 +138,97 @@ func (u *URN) UnmarshalYAML(value *yaml.Node) error {
 
 	*u = *parsedUrn
 	return nil
+}
+
+func (u *URN) Equals(other *URN) bool {
+	if u.AccountID != other.AccountID {
+		return false
+	}
+	if u.Project != other.Project {
+		return false
+	}
+	if u.Environment != other.Environment {
+		return false
+	}
+	if u.Application != other.Application {
+		return false
+	}
+	if u.Type != other.Type {
+		return false
+	}
+	if u.Subtype != other.Subtype {
+		return false
+	}
+	if u.ParentResourceID != other.ParentResourceID {
+		return false
+	}
+	if u.ResourceID != other.ResourceID {
+		return false
+	}
+	if u.Output != other.Output {
+		return false
+	}
+	return true
+}
+
+func (u *URN) IsOutput() bool {
+	// all fields are filled except application
+	return u.AccountID != "" && u.Project != "" && u.Environment != "" && u.Type != "" &&
+		u.Subtype != "" && u.ParentResourceID != "" && u.ResourceID != "" && u.Output != ""
+}
+
+func (u *URN) IsResource() bool {
+	// all fields are filled except application and output
+	return u.AccountID != "" && u.Project != "" && u.Environment != "" && u.Type != "" &&
+		u.Subtype != "" && u.ParentResourceID != "" && u.ResourceID != "" && u.Output == ""
+
+}
+
+func (u *URN) IsApplicationEnvironment() bool {
+	return u.AccountID != "" && u.Project != "" && u.Environment != "" && u.Application != "" &&
+		u.Type == "" && u.Subtype == "" && u.ParentResourceID == "" && u.ResourceID == "" && u.Output == ""
+}
+
+func (u *URN) IsType() bool {
+	return u.Type != "" && u.Subtype == "" && u.ParentResourceID == "" && u.ResourceID == "" && u.Output == ""
+}
+
+func (u *URN) IsEnvironment() bool {
+	return u.AccountID != "" && u.Project != "" && u.Environment != "" && u.Application == "" &&
+		u.Type == "" && u.Subtype == "" && u.ParentResourceID == "" && u.ResourceID == "" && u.Output == ""
+}
+
+func (u *URN) IsProject() bool {
+	return u.AccountID != "" && u.Project != "" && u.Environment == "" && u.Application == "" &&
+		u.Type == "" && u.Subtype == "" && u.ParentResourceID == "" && u.ResourceID == "" && u.Output == ""
+}
+
+func (u *URN) IsAccount() bool {
+	return u.AccountID != "" && u.Project == "" && u.Environment == "" && u.Application == "" &&
+		u.Type == "" && u.Subtype == "" && u.ParentResourceID == "" && u.ResourceID == "" && u.Output == ""
+}
+
+func (u *URN) UrnType() UrnType {
+	if u.IsAccount() {
+		return AccountUrnType
+	}
+	if u.IsProject() {
+		return ProjectUrnType
+	}
+	if u.IsEnvironment() {
+		return EnvironmentUrnType
+	}
+	if u.IsApplicationEnvironment() {
+		return ApplicationEnvironmentUrnType
+	}
+	if u.IsResource() {
+		return ResourceUrnType
+	}
+	if u.IsOutput() {
+		return OutputUrnType
+	}
+	if u.IsType() {
+		return TypeUrnType
+	}
+	return ""
 }

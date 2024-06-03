@@ -5,13 +5,20 @@ app_urn: urn:accountid:project:application::my-app
 environment: dev
 
 constructs:
-  my-function:
+  my-container:
     type: klotho.aws.Container
     urn: urn:accountid:my-project:dev::construct/klotho.aws.Container:my-container
     version: 1
     pulumi_stack: null
     inputs:
+      Dockerfile:
+        type: string
+        value: Dockerfile
+        status: resolved
       Cpu:
+        type: number
+        value: 256
+      Memory:
         type: number
         value: 512
       source_hash:

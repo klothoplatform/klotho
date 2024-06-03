@@ -15,9 +15,9 @@ type (
 	}
 )
 
-func (m *ConstructMarshaller) Marshal() ([]constraints.Constraint, error) {
+func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 	//TODO: consider look into capturing multiple errors instead of returning the first one
-	var cs []constraints.Constraint
+	var cs constraints.ConstraintList
 	for _, r := range m.Construct.Resources {
 		resourceConstraints, err := m.marshalResource(r)
 		if err != nil {
@@ -37,10 +37,10 @@ func (m *ConstructMarshaller) Marshal() ([]constraints.Constraint, error) {
 	return cs, nil
 }
 
-func (m *ConstructMarshaller) marshalResource(r *Resource) ([]constraints.Constraint, error) {
-	var cs []constraints.Constraint
+func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.ConstraintList, error) {
+	var cs constraints.ConstraintList
 	cs = append(cs, &constraints.ApplicationConstraint{
-		Operator: "add",
+		Operator: "must_exist",
 		Node:     r.Id,
 	})
 	// TODO: implement more granular constraints
@@ -61,7 +61,7 @@ func (m *ConstructMarshaller) marshalResource(r *Resource) ([]constraints.Constr
 	return cs, nil
 }
 
-func (m *ConstructMarshaller) marshalEdge(e *Edge) ([]constraints.Constraint, error) {
+func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, error) {
 
 	var from construct.ResourceId
 	ref, err := m.Context.serializeRef(e.From)
@@ -87,8 +87,8 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) ([]constraints.Constraint, er
 		return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 	}
 
-	return []constraints.Constraint{&constraints.EdgeConstraint{
-		Operator: "must_contain",
+	return constraints.ConstraintList{&constraints.EdgeConstraint{
+		Operator: "must_exist",
 		Target: constraints.Edge{
 			Source: from,
 			Target: to,
@@ -113,7 +113,7 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
 			field := ref.Field(i)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
@@ -131,28 +131,35 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
 			field := ref.MapIndex(key)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
 				_, err = marshallRefs(field.Interface(), ctx)
 			}
-			if newField, ok := field.Interface().(ResourceRef); ok {
-				var serializedRef any
-				serializedRef, err = ctx.serializeRef(newField)
-				if err != nil {
-					return nil, err
+			if field.IsValid() {
+				if newField, ok := field.Interface().(ResourceRef); ok {
+					var serializedRef any
+					serializedRef, err = ctx.serializeRef(newField)
+					if err != nil {
+						return nil, err
+					}
+					ref.SetMapIndex(key, reflect.ValueOf(serializedRef))
 				}
-				ref.SetMapIndex(key, reflect.ValueOf(serializedRef))
 			}
+
 		}
 	case reflect.Slice | reflect.Array:
 		for i := 0; i < ref.Len(); i++ {
 			field := ref.Index(i)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
+
 			if field.Kind() == reflect.Struct {
+				_, err = marshallRefs(field.Interface(), ctx)
+			}
+			if field.Kind() == reflect.Map {
 				_, err = marshallRefs(field.Interface(), ctx)
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
@@ -169,13 +176,15 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 			_, err = marshallRefs(ref.Elem().Interface(), ctx)
 		}
 	default:
-		if newField, ok := ref.Interface().(ResourceRef); ok {
-			var serializedRef any
-			serializedRef, err = ctx.serializeRef(newField)
-			if err != nil {
-				return nil, err
+		if ref.IsValid() {
+			if newField, ok := ref.Interface().(ResourceRef); ok {
+				var serializedRef any
+				serializedRef, err = ctx.serializeRef(newField)
+				if err != nil {
+					return nil, err
+				}
+				ref.Set(reflect.ValueOf(serializedRef))
 			}
-			ref.Set(reflect.ValueOf(serializedRef))
 		}
 	}
 
@@ -183,15 +192,18 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 		return nil, err
 	}
 
-	return ref.Interface(), nil
+	if ref.IsValid() {
+		return ref.Interface(), nil
+	}
+	return nil, nil
 }
 
 type ConstraintValueProvider interface {
-	MarshallValue() any
+	MarshalValue() any
 }
 
-// MarshallValue replaces a struct in place with the output of its MarshallValue method
-func MarshallValue(value any) any {
+// MarshalValue replaces a struct in place with the output of its MarshalValue method
+func MarshalValue(value any) any {
 	ref := reflect.ValueOf(value)
 	if ref.Kind() == reflect.Ptr {
 		ref = ref.Elem()
@@ -200,65 +212,52 @@ func MarshallValue(value any) any {
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
 			field := ref.Field(i)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				MarshallValue(field.Interface())
+				MarshalValue(field.Interface())
 			}
 			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
-				ref.Field(i).Set(reflect.ValueOf(newField.MarshallValue()))
+				ref.Field(i).Set(reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
 			field := ref.MapIndex(key)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				MarshallValue(field.Interface())
+				MarshalValue(field.Interface())
 			}
 			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
-				ref.SetMapIndex(key, reflect.ValueOf(newField.MarshallValue()))
+				ref.SetMapIndex(key, reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
 	case reflect.Slice | reflect.Array:
 		for i := 0; i < ref.Len(); i++ {
 			field := ref.Index(i)
-			if field.Kind() == reflect.Ptr {
+			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				MarshallValue(field.Interface())
+				MarshalValue(field.Interface())
 			}
 			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
-				ref.Index(i).Set(reflect.ValueOf(newField.MarshallValue()))
+				ref.Index(i).Set(reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
 	case reflect.Interface:
 		if ref.Elem().Kind() == reflect.Struct {
-			MarshallValue(ref.Elem().Interface())
+			MarshalValue(ref.Elem().Interface())
 		}
 	default:
 		if newField, ok := ref.Interface().(ConstraintValueProvider); ok {
-			ref.Set(reflect.ValueOf(newField.MarshallValue()))
+			ref.Set(reflect.ValueOf(newField.MarshalValue()))
 		}
 	}
 	return ref.Interface()
-}
-
-func (e *Edge) toConstraints() []constraints.Constraint {
-	//TODO: handle refs in edges
-	cs := make([]constraints.Constraint, 0)
-	cs = append(cs, &constraints.EdgeConstraint{
-		Operator: "must_contain",
-		//Target: constraints.Edge{
-		//	Source: e.From,
-		//	Target: e.To,
-		//},
-	})
-	return cs
 }
 
 //func transformFields[T any](input any, recursive bool, transformer func(field any) (any, error)) T {
@@ -270,7 +269,7 @@ func (e *Edge) toConstraints() []constraints.Constraint {
 //	case reflect.Struct:
 //		for i := 0; i < ref.NumField(); i++ {
 //			field := ref.Field(i)
-//			if field.Kind() == reflect.Ptr {
+//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 //				field = field.Elem()
 //			}
 //			if field.Kind() == reflect.Struct && recursive {
@@ -283,7 +282,7 @@ func (e *Edge) toConstraints() []constraints.Constraint {
 //	case reflect.Map:
 //		for _, key := range ref.MapKeys() {
 //			field := ref.MapIndex(key)
-//			if field.Kind() == reflect.Ptr {
+//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 //				field = field.Elem()
 //			}
 //			if field.Kind() == reflect.Struct && recursive {
@@ -296,7 +295,7 @@ func (e *Edge) toConstraints() []constraints.Constraint {
 //	case reflect.Slice | reflect.Array:
 //		for i := 0; i < ref.Len(); i++ {
 //			field := ref.Index(i)
-//			if field.Kind() == reflect.Ptr {
+//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
 //				field = field.Elem()
 //			}
 //			if field.Kind() == reflect.Struct && recursive {

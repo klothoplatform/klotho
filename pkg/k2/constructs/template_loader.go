@@ -2,6 +2,7 @@ package constructs
 
 import (
 	"embed"
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"log"
 	"strings"
@@ -22,8 +23,10 @@ func loadConstructTemplate(id ConstructTemplateId) ConstructTemplate {
 		panic("Invalid package")
 	}
 
+	parentDir := strings.ToLower(strings.ReplaceAll(strings.SplitN(id.Package, ".", 2)[1], ".", "/"))
+	constructKey := strings.ToLower(id.Name)
 	// Read the YAML fileContent
-	fileContent, err := templates.ReadFile("templates/aws/container/container.yaml")
+	fileContent, err := templates.ReadFile(fmt.Sprintf("templates/%s/%s/%s.yaml", parentDir, constructKey, constructKey))
 	if err != nil {
 		panic(err)
 	}

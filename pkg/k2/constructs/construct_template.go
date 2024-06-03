@@ -8,14 +8,15 @@ import (
 
 type (
 	ConstructTemplate struct {
-		Id          ConstructTemplateId         `yaml:"id"`
-		Version     string                      `yaml:"version"`
-		Description string                      `yaml:"description"`
-		Resources   map[string]ResourceTemplate `yaml:"resources"`
-		Edges       []EdgeTemplate              `yaml:"edges"`
-		Inputs      map[string]InputTemplate    `yaml:"inputs"`
-		Outputs     map[string]OutputTemplate   `yaml:"outputs"`
-		InputRules  []InputRuleTemplate         `yaml:"input_rules"`
+		Id            ConstructTemplateId         `yaml:"id"`
+		Version       string                      `yaml:"version"`
+		Description   string                      `yaml:"description"`
+		Resources     map[string]ResourceTemplate `yaml:"resources"`
+		Edges         []EdgeTemplate              `yaml:"edges"`
+		Inputs        map[string]InputTemplate    `yaml:"inputs"`
+		Outputs       map[string]OutputTemplate   `yaml:"outputs"`
+		InputRules    []InputRuleTemplate         `yaml:"input_rules"`
+		resourceOrder []string
 	}
 
 	ConstructTemplateId struct {
@@ -26,6 +27,7 @@ type (
 	ResourceTemplate struct {
 		Type       string         `yaml:"type"`
 		Name       string         `yaml:"name"`
+		Namespace  string         `yaml:"namespace"`
 		Properties map[string]any `yaml:"properties"`
 	}
 
@@ -36,13 +38,15 @@ type (
 	}
 
 	InputTemplate struct {
-		Name        string             `yaml:"name"`
-		Type        string             `yaml:"type"`
-		Description string             `yaml:"description"`
-		Default     any                `yaml:"default"`
-		Secret      bool               `yaml:"secret"`
-		PulumiKey   string             `yaml:"pulumi_key"`
-		Validation  ValidationTemplate `yaml:"validation"`
+		Name          string             `yaml:"name"`
+		Type          string             `yaml:"type"`
+		Description   string             `yaml:"description"`
+		Default       any                `yaml:"default"`
+		Secret        bool               `yaml:"secret"`
+		PulumiKey     string             `yaml:"pulumi_key"`
+		Validation    ValidationTemplate `yaml:"validation"`
+		resourcesNode *yaml.Node
+		edgesNode     *yaml.Node
 	}
 
 	OutputTemplate struct {
@@ -147,4 +151,68 @@ func (e *EdgeTemplate) UnmarshalYAML(value *yaml.Node) error {
 
 	e.Data = edge.Data
 	return nil
+}
+
+func (c *ConstructTemplate) UnmarshalYAML(value *yaml.Node) error {
+	// alias
+	type constructTemplate ConstructTemplate
+
+	// Unmarshal the construct template from a yaml node
+	var template constructTemplate
+	if err := value.Decode(&template); err != nil {
+		return err
+	}
+
+	var resourceOrder []string
+	// Capture the resource order
+	for i := 0; i < len(value.Content); i += 2 {
+		keyNode := value.Content[i]
+		if keyNode.Value == "resources" {
+			for j := 0; j < len(value.Content[i+1].Content); j += 2 {
+				resourceOrder = append(resourceOrder, value.Content[i+1].Content[j].Value)
+			}
+		}
+	}
+
+	template.resourceOrder = resourceOrder
+	// Convert the alias to the actual type
+	*c = ConstructTemplate(template)
+	return nil
+}
+
+type ResourceIterator struct {
+	template *ConstructTemplate
+	index    int
+}
+
+func (r *ResourceIterator) Next() (string, ResourceTemplate, bool) {
+	if r.index >= len(r.template.resourceOrder) || r.index >= len(r.template.Resources) {
+		return "", ResourceTemplate{}, false
+	}
+
+	// Get the next resource that actually exists in the template
+	for _, ok := r.template.Resources[r.template.resourceOrder[r.index]]; !ok && r.index < len(r.template.resourceOrder); r.index++ {
+		// do nothing
+	}
+	key := r.template.resourceOrder[r.index]
+	resource := r.template.Resources[key]
+
+	r.index++
+	return key, resource, true
+}
+
+func (c *ConstructTemplate) ResourcesIterator() *ResourceIterator {
+	return &ResourceIterator{
+		template: c,
+	}
+}
+
+func (r *ResourceIterator) ForEach(f func(string, ResourceTemplate)) {
+	for key, resource, ok := r.Next(); ok; key, resource, ok = r.Next() {
+		f(key, resource)
+	}
+}
+
+func (r *ResourceIterator) Reset() {
+	r.index = 0
 }

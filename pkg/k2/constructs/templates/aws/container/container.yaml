@@ -2,23 +2,80 @@ id: klotho.aws.Container
 version: 1.0.0
 description: A construct for creating a docker container from an image or Dockerfile
 resources:
+  RestApi:
+    type: aws:rest_api
+    name: ${inputs:Name}-api
+  RootApiMethod:
+    type: aws:api_method
+    namespace: ${resources:RestApi.Name}
+    name: root-method
+    properties:
+      HttpMethod: ANY
+  RootApiIntegration:
+    type: aws:api_integration
+    namespace: ${resources:RestApi.Name}
+    name: root-integration
+    properties:
+      Method: ${resources:RootApiMethod}
+      Route: /
+  ProxyApiMethod:
+    type: aws:api_method
+    namespace: ${resources:RestApi.Name}
+    name: proxy-any-method
+    properties:
+      HttpMethod: ANY
+  ProxyApiIntegration:
+    type: aws:api_integration
+    namespace: ${resources:RestApi.Name}
+    name: proxy-any-integration
+    properties:
+      Method: ${resources:ProxyApiMethod}
+      Route: /{proxy+}
+  EcrImage:
+    type: aws:ecr_image
+    name: ${inputs:Name}-image
+    properties:
+      BaseImage: busybox
   TaskDefinition:
     type: aws:ecs_task_definition
     name: ${inputs:Name}-task
     properties:
       Cpu: ${inputs:Cpu}
       Memory: ${inputs:Memory}
-      ContainerDefinitions[0]:
-        PortMappings[0]:
-          ContainerPort: ${inputs:Port}
-          HostPort: ${inputs:Port}
-        Cpu: ${inputs:Cpu}
-        Memory: ${inputs:Memory}
+      ContainerDefinitions[0].PortMappings[0]:
+        ContainerPort: ${inputs:Port}
+        HostPort: ${inputs:Port}
+      ContainerDefinitions[0].Cpu: ${inputs:Cpu}
+      ContainerDefinitions[0].Memory: ${inputs:Memory}
+      ContainerDefinitions[0].Image: ${resources:EcrImage#ImageName}
+      RequiresCompatibilities:
+       - FARGATE
   Service:
     type: aws:ecs_service
     name: ${inputs:Name}-service
     properties:
-      TaskDefinition: ${resources:TaskDefinition.Cpu}
+      LaunchType: FARGATE
+      TaskDefinition: ${resources:TaskDefinition}
+      LoadBalancers[0].ContainerPort: ${inputs:Port}
+
+edges:
+  - from: RestApi
+    to: ProxyApiIntegration
+
+  - from: ProxyApiMethod
+    to: ProxyApiIntegration
+
+  - from: ProxyApiIntegration
+    to: Service
+
+  - from: RestApi
+    to: RootApiIntegration
+
+  - from: RootApiMethod
+    to: RootApiIntegration
+
+  - from: RootApiIntegration
+    to: Service
 
 inputs:
   SourceHash:
@@ -81,32 +138,22 @@ inputs:
 outputs:
   ServiceArn:
     description: The ARN of the service
-    value: ${resources:Service.Arn}
+    value: ${resources:Service#Arn}
   TaskDefinitionArn:
     description: The ARN of the task definition
-    value: ${resources:TaskDefinition.Arn}
-edges:
-  - from: TaskDefinition
-    to: ${resources:Service}
-    data:
-      action: read
-      other: ${inputs:Cpu}
+    value: ${resources:TaskDefinition#Arn}
 
 input_rules:
   - if: and (input "Dockerfile") (not (input "Image"))
     then:
       resources:
-        EcrRepository:
-          type: aws:ecr_repository
-          name: ${inputs:Name}-repository
         EcrImage:
-          type: aws:ecr_image
-          name: ${inputs:Name}-image
           properties:
             ImageName: ${inputs:Name}
             Dockerfile: ${inputs:Dockerfile}
             Context: ${inputs:Context}
-            Repo: ${resources:EcrRepository#RegistryUrl}
-        TaskDefinition:
-          ContainerDefinitions[0]:
-            Image: ${resources:EcrImage.ImageUri}-test
+    else:
+      resources:
+        EcrImage:
+          properties:
+            ImageName: ${inputs:Image}

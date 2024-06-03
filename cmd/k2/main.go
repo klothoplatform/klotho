@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 )
@@ -10,10 +12,34 @@ import (
 var irConfig struct {
 	constraints bool
 	filePath    string
+	outputPath  string
+}
+
+var commonCfg struct {
+	verbose bool
+	jsonLog bool
+	logsDir string
 }
 
 func cli() {
 	var rootCmd = &cobra.Command{Use: "app"}
+	flags := rootCmd.PersistentFlags()
+	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
+	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
+	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		logOpts := logging.LogOpts{
+			Verbose:         commonCfg.verbose,
+			CategoryLogsDir: commonCfg.logsDir,
+		}
+		if commonCfg.jsonLog {
+			logOpts.Encoding = "json"
+		}
+		zap.ReplaceGlobals(logOpts.NewLogger())
+	}
+	rootCmd.PersistentPostRun = func(cmd *cobra.Command, args []string) {
+		_ = zap.L().Sync()
+	}
 
 	var initCommand = &cobra.Command{
 		Use:   "init",
@@ -73,8 +99,9 @@ func cli() {
 			executeIRCommand(irConfig)
 		},
 	}
-	flags := irCommand.Flags()
+	flags = irCommand.Flags()
 	flags.BoolVarP(&irConfig.constraints, "constraints", "c", false, "Print constraints")
+	flags.StringVarP(&irConfig.outputPath, "output", "o", "", "Output file path")
 
 	rootCmd.AddCommand(initCommand)
 	rootCmd.AddCommand(deployCommand)
