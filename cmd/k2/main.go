@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"os"
-	"path/filepath"
 )
 
 var irConfig struct {

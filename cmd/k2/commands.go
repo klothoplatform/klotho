@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"log"
-	"time"
 )
 
 func initCmd() string {
