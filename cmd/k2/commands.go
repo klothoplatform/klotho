@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -8,9 +9,12 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
+	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,12 +26,37 @@ func deployCmd(args struct {
 	inputPath  string
 	outputPath string
 }) string {
-	go startGRPCServer()
-	if err := waitForServer("localhost:50051", 10, 1*time.Second); err != nil {
+	cmd := startPythonClient()
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			log.Fatalf("failed to kill Python client: %v", err)
+		}
+	}()
+
+	// Connect to the Python server
+	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	client := pb.NewKlothoServiceClient(conn)
+
+	// Wait for the server to be ready
+	if err := waitForServer(client, 10, 1*time.Second); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 
-	startPythonClient(args.inputPath)
+	// Send IR Request
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	req := &pb.IRRequest{Filename: args.inputPath}
+	res, err := client.SendIR(ctx, req)
+	if err != nil {
+		log.Fatalf("could not execute script: %v", err)
+	}
+	programContext.IRYaml = res.YamlPayload
+
 	for x := 0; x < 10; x++ {
 		if programContext.IRYaml != "" {
 			zap.S().Info("IR received")
@@ -38,6 +67,7 @@ func deployCmd(args struct {
 
 	if programContext.IRYaml == "" {
 		zap.S().Warn("No IR received")
+		return "No IR received"
 	}
 
 	ir, err := model.ParseIRFile([]byte(programContext.IRYaml))
@@ -65,7 +95,7 @@ func deployCmd(args struct {
 		}
 		ctx := constructs.NewContext(inputs, id)
 		ci := ctx.EvaluateConstruct()
-		if err != nil {
+		if ci == nil {
 			return fmt.Sprintf("Error evaluating construct: %s", err)
 		}
 		marshaller := constructs.ConstructMarshaller{Context: ctx, Construct: ci}

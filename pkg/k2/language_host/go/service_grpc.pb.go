@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	KlothoService_SendIR_FullMethodName = "/klotho.KlothoService/SendIR"
+	KlothoService_SendIR_FullMethodName      = "/klotho.KlothoService/SendIR"
+	KlothoService_HealthCheck_FullMethodName = "/klotho.KlothoService/HealthCheck"
 )
 
 // KlothoServiceClient is the client API for KlothoService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type KlothoServiceClient interface {
 	SendIR(ctx context.Context, in *IRRequest, opts ...grpc.CallOption) (*IRReply, error)
+	HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckReply, error)
 }
 
 type klothoServiceClient struct {
@@ -46,11 +48,21 @@ func (c *klothoServiceClient) SendIR(ctx context.Context, in *IRRequest, opts ..
 	return out, nil
 }
 
+func (c *klothoServiceClient) HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckReply, error) {
+	out := new(HealthCheckReply)
+	err := c.cc.Invoke(ctx, KlothoService_HealthCheck_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KlothoServiceServer is the server API for KlothoService service.
 // All implementations must embed UnimplementedKlothoServiceServer
 // for forward compatibility
 type KlothoServiceServer interface {
 	SendIR(context.Context, *IRRequest) (*IRReply, error)
+	HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckReply, error)
 	mustEmbedUnimplementedKlothoServiceServer()
 }
 
@@ -60,6 +72,9 @@ type UnimplementedKlothoServiceServer struct {
 
 func (UnimplementedKlothoServiceServer) SendIR(context.Context, *IRRequest) (*IRReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendIR not implemented")
+}
+func (UnimplementedKlothoServiceServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
 func (UnimplementedKlothoServiceServer) mustEmbedUnimplementedKlothoServiceServer() {}
 
@@ -92,6 +107,24 @@ func _KlothoService_SendIR_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KlothoService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HealthCheckRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KlothoServiceServer).HealthCheck(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: KlothoService_HealthCheck_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KlothoServiceServer).HealthCheck(ctx, req.(*HealthCheckRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // KlothoService_ServiceDesc is the grpc.ServiceDesc for KlothoService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -102,6 +135,10 @@ var KlothoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendIR",
 			Handler:    _KlothoService_SendIR_Handler,
+		},
+		{
+			MethodName: "HealthCheck",
+			Handler:    _KlothoService_HealthCheck_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

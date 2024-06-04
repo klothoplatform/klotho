@@ -44,12 +44,23 @@ class KlothoServiceStub(object):
                 request_serializer=service__pb2.IRRequest.SerializeToString,
                 response_deserializer=service__pb2.IRReply.FromString,
                 _registered_method=True)
+        self.HealthCheck = channel.unary_unary(
+                '/klotho.KlothoService/HealthCheck',
+                request_serializer=service__pb2.HealthCheckRequest.SerializeToString,
+                response_deserializer=service__pb2.HealthCheckReply.FromString,
+                _registered_method=True)
 
 
 class KlothoServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def SendIR(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def HealthCheck(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -62,6 +73,11 @@ def add_KlothoServiceServicer_to_server(servicer, server):
                     servicer.SendIR,
                     request_deserializer=service__pb2.IRRequest.FromString,
                     response_serializer=service__pb2.IRReply.SerializeToString,
+            ),
+            'HealthCheck': grpc.unary_unary_rpc_method_handler(
+                    servicer.HealthCheck,
+                    request_deserializer=service__pb2.HealthCheckRequest.FromString,
+                    response_serializer=service__pb2.HealthCheckReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -91,6 +107,33 @@ class KlothoService(object):
             '/klotho.KlothoService/SendIR',
             service__pb2.IRRequest.SerializeToString,
             service__pb2.IRReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def HealthCheck(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/klotho.KlothoService/HealthCheck',
+            service__pb2.HealthCheckRequest.SerializeToString,
+            service__pb2.HealthCheckReply.FromString,
             options,
             channel_credentials,
             insecure,

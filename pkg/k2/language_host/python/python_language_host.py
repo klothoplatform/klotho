@@ -1,43 +1,41 @@
 import grpc
+import service_pb2
 import service_pb2_grpc
-import logging
 import runpy
-import sys
-import io
-import contextlib
+from concurrent import futures
 from klotho import get_klotho
+import signal
+import sys
 
-def run(infra_script):
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
-    channel = grpc.insecure_channel('localhost:50051')
-    stub = service_pb2_grpc.KlothoServiceStub(channel)
+class KlothoService(service_pb2_grpc.KlothoServiceServicer):
 
-    # Capture stdout and stderr
-    stdout_capture = io.StringIO()
-    stderr_capture = io.StringIO()
-    with contextlib.redirect_stdout(stdout_capture), contextlib.redirect_stderr(stderr_capture):
-        # Run the infra script
+    def SendIR(self, request, context):
+        infra_script = request.filename
         runpy.run_path(infra_script, run_name="__main__")
 
-    # Print captured stdout and stderr
-    captured_stdout = stdout_capture.getvalue()
-    captured_stderr = stderr_capture.getvalue()
-    logger.info("Captured stdout from infra script:")
-    logger.info(captured_stdout)
-    if captured_stderr:
-        logger.error("Captured stderr from infra script:")
-        logger.error(captured_stderr)
+        klotho = get_klotho()
 
-    # Send IR after running the infra script
-    
-    klotho = get_klotho()
-    klotho.send_ir()
+        response = service_pb2.IRReply(
+            message="Script executed",
+            yaml_payload=klotho.generate_yaml()
+        )
+        return response
+
+    def HealthCheck(self, request, context):
+        return service_pb2.HealthCheckReply(status="Server is running!!")
+
+def serve():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    service_pb2_grpc.add_KlothoServiceServicer_to_server(KlothoService(), server)
+    server.add_insecure_port('[::]:50051')
+    server.start()
+    server.wait_for_termination()
+
+def signal_handler(sig, frame):
+    print('Termination signal received, shutting down...')
+    sys.exit(0)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python_language_host.py /path/to/infra.py")
-        sys.exit(1)
-    
-    infra_script = sys.argv[1]
-    run(infra_script)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    serve()

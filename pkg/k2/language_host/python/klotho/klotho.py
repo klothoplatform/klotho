@@ -43,10 +43,4 @@ class KlothoSDK:
         }
         return yaml.dump(output, sort_keys=False)
 
-    def send_ir(self):
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger(__name__)
-        yaml_payload = self.generate_yaml()
-        logger.info("Sending SendIR request...")
-        response = self.stub.SendIR(service_pb2.IRRequest(error=False, yaml_payload=yaml_payload))
-        logger.info(f"Received response: {response.message}")
+

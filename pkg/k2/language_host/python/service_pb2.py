@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x06klotho\"0\n\tIRRequest\x12\r\n\x05\x65rror\x18\x01 \x01(\x08\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t\"\x1a\n\x07IRReply\x12\x0f\n\x07message\x18\x01 \x01(\t2?\n\rKlothoService\x12.\n\x06SendIR\x12\x11.klotho.IRRequest\x1a\x0f.klotho.IRReply\"\x00\x42:Z8github.com/klothoplatform/klotho/pkg/k2/language_host/gob\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x06klotho\"\x1d\n\tIRRequest\x12\x10\n\x08\x66ilename\x18\x01 \x01(\t\"0\n\x07IRReply\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t\"\x14\n\x12HealthCheckRequest\"\"\n\x10HealthCheckReply\x12\x0e\n\x06status\x18\x01 \x01(\t2\x86\x01\n\rKlothoService\x12.\n\x06SendIR\x12\x11.klotho.IRRequest\x1a\x0f.klotho.IRReply\"\x00\x12\x45\n\x0bHealthCheck\x12\x1a.klotho.HealthCheckRequest\x1a\x18.klotho.HealthCheckReply\"\x00\x42:Z8github.com/klothoplatform/klotho/pkg/k2/language_host/gob\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -23,9 +23,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z8github.com/klothoplatform/klotho/pkg/k2/language_host/go'
   _globals['_IRREQUEST']._serialized_start=25
-  _globals['_IRREQUEST']._serialized_end=73
-  _globals['_IRREPLY']._serialized_start=75
-  _globals['_IRREPLY']._serialized_end=101
-  _globals['_KLOTHOSERVICE']._serialized_start=103
-  _globals['_KLOTHOSERVICE']._serialized_end=166
+  _globals['_IRREQUEST']._serialized_end=54
+  _globals['_IRREPLY']._serialized_start=56
+  _globals['_IRREPLY']._serialized_end=104
+  _globals['_HEALTHCHECKREQUEST']._serialized_start=106
+  _globals['_HEALTHCHECKREQUEST']._serialized_end=126
+  _globals['_HEALTHCHECKREPLY']._serialized_start=128
+  _globals['_HEALTHCHECKREPLY']._serialized_end=162
+  _globals['_KLOTHOSERVICE']._serialized_start=165
+  _globals['_KLOTHOSERVICE']._serialized_end=299
 # @@protoc_insertion_point(module_scope)
