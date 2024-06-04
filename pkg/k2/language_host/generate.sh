@@ -11,4 +11,4 @@ protoc --go_out=./go --go_opt=paths=source_relative --proto_path=. service.proto
 protoc --go-grpc_out=./go --go-grpc_opt=paths=source_relative --proto_path=. service.proto
 
 # For Python
-python -m grpc_tools.protoc -I. --python_out=./python/ --grpc_python_out=./python/ service.proto
+pipenv run python3 -m grpc_tools.protoc -I. --python_out=./python/ --grpc_python_out=./python/ service.proto

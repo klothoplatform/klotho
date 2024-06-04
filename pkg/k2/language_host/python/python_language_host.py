@@ -1,12 +1,11 @@
 import grpc
-import service_pb2
 import service_pb2_grpc
 import logging
-import sdk.klotho
 import runpy
 import sys
 import io
 import contextlib
+from klotho import get_klotho
 
 def run(infra_script):
     logging.basicConfig(level=logging.INFO)
@@ -31,8 +30,9 @@ def run(infra_script):
         logger.error(captured_stderr)
 
     # Send IR after running the infra script
-    sdk_instance = sdk.klotho.klotho
-    sdk_instance.send_ir()
+    
+    klotho = get_klotho()
+    klotho.send_ir()
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:

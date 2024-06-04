@@ -1,10 +1,11 @@
-from sdk.klotho import Container, Application
+import klotho
+import klotho.aws as aws
 import os
 
 # Example usage
 if __name__ == "__main__":
     # Create the Application instance
-    app = Application(
+    app = klotho.Application(
         'my-app',
         project=os.getenv('PROJECT_NAME', 'my-project'),  # Default to 'my-project' or the environment variable value
         environment=os.getenv('KLOTHO_ENVIRONMENT', 'default'),  # Default to 'default' or the environment variable value
@@ -12,6 +13,6 @@ if __name__ == "__main__":
     )
     
     # Create a Container resource
-    container1 = Container('my-container', 'my-image:latest')
-    container2 = Container('my-container2', 'my-image:latest')
-    container3 = Container('my-container3', 'my-image:latest')
+    container1 = aws.Container('my-container', 'my-image:latest')
+    container2 = aws.Container('my-container2', 'my-image:latest')
+    container3 = aws.Container('my-container3', 'my-image:latest')
