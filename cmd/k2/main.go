@@ -2,23 +2,16 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"os"
 )
 
 var irConfig struct {
 	constraints bool
 	filePath    string
 	outputPath  string
-}
-
-var deployConfig struct {
-	inputPath  string
-	outputPath string
 }
 
 var commonCfg struct {
@@ -55,39 +48,9 @@ func cli() {
 		},
 	}
 
-	var deployCommand = &cobra.Command{
-		Use:   "deploy",
-		Short: "Run the deploy command",
-		Run: func(cmd *cobra.Command, args []string) {
-			filePath := args[0]
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				fmt.Println("Invalid file path")
-				os.Exit(1)
-			}
-			absolutePath, err := filepath.Abs(filePath)
-			if err != nil {
-				fmt.Println("couldn't convert to absolute path")
-				os.Exit(1)
-			}
-			deployConfig.inputPath = absolutePath
+	deployCommand := newUpCmd()
 
-			if deployConfig.outputPath == "" {
-				(&deployConfig).outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
-			}
-
-			deployCmd(deployConfig)
-		},
-	}
-	flags = deployCommand.Flags()
-	flags.StringVarP(&deployConfig.outputPath, "output", "o", "", "Output directory")
-
-	var destroyCommand = &cobra.Command{
-		Use:   "destroy",
-		Short: "Run the destroy command",
-		Run: func(cmd *cobra.Command, args []string) {
-			destroyCmd()
-		},
-	}
+	var downCommand = newDownCmd()
 
 	var planCommand = &cobra.Command{
 		Use:   "plan",
@@ -118,7 +81,7 @@ func cli() {
 
 	rootCmd.AddCommand(initCommand)
 	rootCmd.AddCommand(deployCommand)
-	rootCmd.AddCommand(destroyCommand)
+	rootCmd.AddCommand(downCommand)
 	rootCmd.AddCommand(planCommand)
 	rootCmd.AddCommand(irCommand)
 

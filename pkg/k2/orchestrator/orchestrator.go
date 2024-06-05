@@ -12,6 +12,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
+	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
@@ -338,4 +339,24 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 		return err
 	}
 	return nil
+}
+
+type UpRequest struct {
+	StackReferences []deployment.StackReference
+}
+
+type DownRequest struct {
+	StackReferences []deployment.StackReference
+}
+
+func (o *Orchestrator) RunUpCommand(request UpRequest) error {
+	deployer := deployment.Deployer{}
+	err := deployer.RunApplicationUpCommand(request.StackReferences)
+	return err
+}
+
+func (o *Orchestrator) RunDownCommand(request DownRequest) error {
+	deployer := deployment.Deployer{}
+	err := deployer.RunApplicationDownCommand(request.StackReferences)
+	return err
 }
