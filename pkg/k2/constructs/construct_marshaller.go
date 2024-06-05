@@ -2,9 +2,10 @@ package constructs
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"reflect"
 )
 
 type (
@@ -22,6 +23,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 		resourceConstraints, err := m.marshalResource(r)
 		if err != nil {
 			err = fmt.Errorf("could not marshall resource: %w", err)
+			return nil, err
 		}
 		cs = append(cs, resourceConstraints...)
 	}
@@ -29,6 +31,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 		edgeConstraints, err := m.marshalEdge(e)
 		if err != nil {
 			err = fmt.Errorf("could not marshall edge: %w", err)
+			return nil, err
 		}
 
 		cs = append(cs, edgeConstraints...)
