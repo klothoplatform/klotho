@@ -1,8 +1,9 @@
 package constructs
 
 import (
-	"gopkg.in/yaml.v3"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestReadConstructTemplateFromYamlString(t *testing.T) {
@@ -93,7 +94,7 @@ func TestParse(t *testing.T) {
 			InstanceId: "my-instance",
 		},
 	)
-	resolvedConstruct := ctx.evaluateConstruct()
+	resolvedConstruct := ctx.EvaluateConstruct()
 	//t.Logf("Resolved Construct: %v", resolvedConstruct)
 	// log the resolve construct as yaml
 	out, err := yaml.Marshal(&resolvedConstruct)
@@ -102,10 +103,10 @@ func TestParse(t *testing.T) {
 		t.Fatalf("Failed to resolve Construct: %v", err)
 	}
 
-	cs, err := (&ConstructMarshaller{
+	cs, _ := (&ConstructMarshaller{
 		Construct: resolvedConstruct,
 		Context:   ctx,
 	}).Marshal()
-	csyaml, err := yaml.Marshal(&cs)
+	csyaml, _ := yaml.Marshal(&cs)
 	t.Logf("Constraints:\n%s", string(csyaml))
 }

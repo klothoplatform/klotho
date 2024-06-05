@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"runtime"
+
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	pulumi "github.com/pulumi/pulumi/sdk/v3/go/auto"
-	"runtime"
 )
 
 type (

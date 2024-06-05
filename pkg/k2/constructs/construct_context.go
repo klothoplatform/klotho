@@ -3,12 +3,13 @@ package constructs
 import (
 	"bytes"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/construct"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 )
 
 type (
@@ -557,6 +558,9 @@ func (c *ConstructContext) resolveEdge(edge EdgeTemplate) *Edge {
 		panic(err)
 	}
 	data, err := c.InterpolateValue(edge.Data, EdgeInterpolationContext)
+	if err != nil {
+		panic(err)
+	}
 
 	return &Edge{
 		From: from.(ResourceRef),
