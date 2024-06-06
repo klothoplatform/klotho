@@ -38,9 +38,8 @@ func waitForServer(client pb.KlothoServiceClient, retries int, delay time.Durati
 }
 
 func startPythonClient() *exec.Cmd {
-	cmd := exec.Command("python3", "python_language_host.py")
+	cmd := exec.Command("pipenv", "run", "python", "python_language_host.py")
 	cmd.Dir = "pkg/k2/language_host/python"
-
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
