@@ -144,7 +144,7 @@ outputs:
     value: ${resources:TaskDefinition#Arn}
 
 input_rules:
-  - if: and (input "Dockerfile") (not (input "Image"))
+  - if: and (inputs "Dockerfile") (not (inputs "Image"))
     then:
       resources:
         EcrImage:

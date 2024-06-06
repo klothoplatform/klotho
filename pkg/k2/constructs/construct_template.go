@@ -51,8 +51,8 @@ type (
 
 	OutputTemplate struct {
 		Name        string `yaml:"name"`
-		Type        string `yaml:"type"`
 		Description string `yaml:"description"`
+		Value       any    `yaml:"value"`
 	}
 
 	InputRuleTemplate struct {

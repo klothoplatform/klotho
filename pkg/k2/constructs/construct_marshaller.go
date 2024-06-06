@@ -37,6 +37,14 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 		cs = append(cs, edgeConstraints...)
 	}
 
+	for _, o := range m.Context.OutputDeclarations {
+		outputConstraints, err := m.marshalOutput(o)
+		if err != nil {
+			err = fmt.Errorf("could not marshall output: %w", err)
+		}
+		cs = append(cs, outputConstraints...)
+	}
+
 	return cs, nil
 }
 
@@ -98,6 +106,23 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, 
 		},
 		Data: v.(map[string]any),
 	}}, nil
+}
+
+func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.ConstraintList, error) {
+	var cs constraints.ConstraintList
+
+	c := &constraints.OutputConstraint{
+		Operator: "must_exist",
+		Name:     o.Name,
+	}
+	if o.Ref != (construct.PropertyRef{}) {
+		c.Ref = o.Ref
+	} else {
+		c.Value = o.Value
+	}
+
+	cs = append(cs, c)
+	return cs, nil
 }
 
 // MarshallRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method

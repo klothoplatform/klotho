@@ -24,3 +24,10 @@ inputs:
     description: The server-side encryption algorithm to use to encrypt data stored in the S3 bucket
     type: string
     default: aws:kms
+outputs:
+  BucketName:
+    description: The name of the S3 bucket
+    value: ${resources:Bucket#BucketName}
+  FixedValue:
+    description: A fixed value
+    value: some fixed value ${resources:Bucket.Name}

@@ -18,6 +18,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
@@ -147,7 +148,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, 
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph(), Outputs: context.Solutions[0].Outputs()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
 		return nil, engErrs
@@ -351,11 +352,11 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 }
 
 type UpRequest struct {
-	StackReferences []deployment.StackReference
+	StackReferences []pulumi.StackReference
 }
 
 type DownRequest struct {
-	StackReferences []deployment.StackReference
+	StackReferences []pulumi.StackReference
 }
 
 func (o *Orchestrator) RunUpCommand(request UpRequest) error {

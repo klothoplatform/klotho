@@ -10,10 +10,10 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -201,7 +201,7 @@ func updCmd(args struct {
 		}
 	}
 
-	var refs []deployment.StackReference
+	var refs []pulumi.StackReference
 	for _, c := range ir.Constructs {
 		var id constructs.ConstructId
 		err = id.FromURN(c.URN)
@@ -209,7 +209,7 @@ func updCmd(args struct {
 			return fmt.Sprintf("Error parsing URN: %s", err)
 		}
 		constructOutDir := filepath.Join(args.outputPath, id.InstanceId)
-		refs = append(refs, deployment.StackReference{
+		refs = append(refs, pulumi.StackReference{
 			ConstructURN: c.URN,
 			Name:         id.InstanceId,
 			IacDirectory: constructOutDir,
