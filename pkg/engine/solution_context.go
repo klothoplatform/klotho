@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -25,6 +26,7 @@ type (
 		constraints     *constraints.Constraints
 		propertyEval    *property_eval.Evaluator
 		globalTag       string
+		outputs         map[string]construct.Output
 	}
 )
 
@@ -41,13 +43,18 @@ func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string, constrain
 		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
 		constraints:     constraints,
 		globalTag:       globalTag,
+		outputs:         make(map[string]construct.Output),
 	}
 	ctx.propertyEval = property_eval.NewEvaluator(ctx)
 	return ctx
 }
 
 func (s solutionContext) Solve() error {
-	return s.propertyEval.Evaluate()
+	err := s.propertyEval.Evaluate()
+	if err != nil {
+		return err
+	}
+	return s.captureOutputs()
 }
 
 func (s solutionContext) With(key string, value any) solution_context.SolutionContext {
@@ -164,4 +171,30 @@ func (ctx solutionContext) GenerateCombinations() ([]solutionContext, error) {
 
 func (ctx solutionContext) GlobalTag() string {
 	return ctx.globalTag
+}
+
+func (ctx solutionContext) captureOutputs() error {
+	outputConstraints := ctx.Constraints().Outputs
+	var err multierr.Error
+	for _, outputConstraint := range outputConstraints {
+		if outputConstraint.Ref.Resource.IsZero() {
+			ctx.outputs[outputConstraint.Name] = construct.Output{
+				Value: outputConstraint.Value,
+			}
+			continue
+		}
+
+		if _, err2 := ctx.Dataflow.Vertex(outputConstraint.Ref.Resource); err2 != nil {
+			err.Append(err2)
+			continue
+		}
+		ctx.outputs[outputConstraint.Name] = construct.Output{
+			Ref: outputConstraint.Ref,
+		}
+	}
+	return err.ErrOrNil()
+}
+
+func (ctx solutionContext) Outputs() map[string]construct.Output {
+	return ctx.outputs
 }
