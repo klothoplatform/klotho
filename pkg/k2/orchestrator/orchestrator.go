@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -13,23 +18,21 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"io"
-	"os"
-	"strings"
-	"sync"
 )
 
 // Orchestrator is the main orchestrator for the K2 platform
 
 type (
 	Orchestrator struct {
-		Engine *engine.Engine
+		Engine       *engine.Engine
+		StateManager *model.StateManager
 	}
 
 	EngineRequest struct {
@@ -40,6 +43,12 @@ type (
 		GlobalTag   string
 	}
 )
+
+func NewOrchestrator(sm *model.StateManager) *Orchestrator {
+	return &Orchestrator{
+		StateManager: sm,
+	}
+}
 
 var cachedEngine *engine.Engine
 
@@ -350,7 +359,7 @@ type DownRequest struct {
 }
 
 func (o *Orchestrator) RunUpCommand(request UpRequest) error {
-	deployer := deployment.Deployer{}
+	deployer := deployment.Deployer{StateManager: o.StateManager}
 	err := deployer.RunApplicationUpCommand(request.StackReferences)
 	return err
 }

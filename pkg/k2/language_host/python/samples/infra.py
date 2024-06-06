@@ -14,5 +14,3 @@ if __name__ == "__main__":
     
     # Create a Container resource
     container1 = aws.Container('my-container', 'my-image:latest')
-    container2 = aws.Container('my-container2', 'my-image:latest')
-    container3 = aws.Container('my-container3', 'my-image:latest')

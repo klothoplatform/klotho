@@ -3,17 +3,20 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"go.uber.org/zap"
-	"os"
 )
 
 type (
 	Deployer struct {
+		StateManager *model.StateManager
 	}
 
 	StackReference struct {
@@ -25,11 +28,23 @@ type (
 )
 
 func (d *Deployer) RunApplicationUpCommand(stackReferences []StackReference) error {
+	//todo, this needs to take into account dependency order
+	sm := d.StateManager
+	defer sm.SaveState()
 	for _, stackReference := range stackReferences {
-		if err := d.runStackUp(stackReference); err != nil {
-			return err
+		name := stackReference.Name
+		now := time.Now().String()
+		if sm.GetState().Constructs[name].Status == model.New {
+			sm.UpdateResourceState(name, model.Creating, now)
+			if err := d.runStackUp(stackReference); err != nil {
+				sm.UpdateResourceState(stackReference.ConstructURN.String(), model.Creating, time.Now().String())
+				return err
+			}
+
 		}
+		sm.UpdateResourceState(name, model.Created, now)
 	}
+
 	return nil
 }
 

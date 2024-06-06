@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
@@ -13,10 +18,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 var upConfig struct {
@@ -109,7 +110,29 @@ func updCmd(args struct {
 		return fmt.Sprintf("Error reading IR file: %s", err)
 	}
 
-	var o orchestrator.Orchestrator
+	// Take the IR -- generate and save a state file and stored in the
+	// output directory, the path should include the environment name and
+	// the project URN
+	statefile := filepath.Join(args.outputPath, fmt.Sprintf("%s-%s-state.yaml", ir.ProjectURN, ir.Environment))
+
+	// Create a new state manager
+	sm := model.NewStateManager(statefile)
+
+	// Initialize the state if it doesn't exist
+	if !sm.CheckStateFileExists() {
+		sm.InitState(ir)
+		// Save the state
+		if err = sm.SaveState(); err != nil {
+			return fmt.Sprintf("Error saving state: %s", err)
+		}
+	} else {
+		// Load the state
+		if err = sm.LoadState(); err != nil {
+			return fmt.Sprintf("Error loading state: %s", err)
+		}
+	}
+
+	o := orchestrator.NewOrchestrator(sm)
 
 	// Apply constraints
 	for _, c := range ir.Constructs {
