@@ -91,22 +91,8 @@ func updCmd(args struct {
 	if err != nil {
 		log.Fatalf("could not execute script: %v", err)
 	}
-	programContext.IRYaml = res.YamlPayload
 
-	for x := 0; x < 10; x++ {
-		if programContext.IRYaml != "" {
-			zap.S().Info("IR received")
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	if programContext.IRYaml == "" {
-		zap.S().Warn("No IR received")
-		return "No IR received"
-	}
-
-	ir, err := model.ParseIRFile([]byte(programContext.IRYaml))
+	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
 	if err != nil {
 		return fmt.Sprintf("Error reading IR file: %s", err)
 	}

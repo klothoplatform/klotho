@@ -12,14 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type ProgramContext struct {
-	IRYaml string
-}
-
-// TODO: implement more robust context handling
-// Global context for the program (spike implementation)
-var programContext *ProgramContext = &ProgramContext{}
-
 func healthCheck(client pb.KlothoServiceClient) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
