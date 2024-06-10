@@ -135,14 +135,6 @@ inputs:
     description: The network to deploy the container to
     type: Construct<klotho.aws.Network>
 
-outputs:
-  ServiceArn:
-    description: The ARN of the service
-    value: ${resources:Service#Arn}
-  TaskDefinitionArn:
-    description: The ARN of the task definition
-    value: ${resources:TaskDefinition#Arn}
-
 input_rules:
   - if: and (inputs "Dockerfile") (not (inputs "Image"))
     then:
