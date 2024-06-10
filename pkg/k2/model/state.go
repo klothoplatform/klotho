@@ -89,7 +89,6 @@ func (sm *StateManager) CheckStateFileExists() bool {
 func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 	for urn, construct := range ir.Constructs {
 		sm.state.Constructs[urn] = ConstructState{
-			Type:        string(construct.Type),
 			Status:      New,
 			LastUpdated: "", // Initial last updated time could be set here
 			Inputs:      construct.Inputs,
