@@ -170,6 +170,7 @@ func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[st
 func renderUrnMap(buf *bytes.Buffer, vars variables) {
 	buf.WriteString("export const $urns = {\n")
 	for id, obj := range vars {
+		// if a klotho resource variable maps to an object other than a pulumi resource, its urn will be undefined.
 		buf.WriteString(fmt.Sprintf("\t\"%s\": (%s as any).urn,\n", id, obj))
 	}
 	buf.WriteString("}\n")
