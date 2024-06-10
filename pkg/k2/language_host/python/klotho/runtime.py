@@ -1,12 +1,12 @@
 import threading
-from _weakref import ref
 from typing import Optional, TYPE_CHECKING
 
 import grpc
 import yaml
 
-import service_pb2_grpc
 import klotho
+import service_pb2_grpc
+from klotho.provider import Provider
 from klotho.urn import URN
 
 if TYPE_CHECKING:
@@ -28,12 +28,13 @@ class Runtime:
     def __init__(self):
         if not self._initialized:
             self.constructs = {}
-            self.outputs:dict[str, any] = {}
+            self.outputs: dict[str, any] = {}
             self.output_references: dict[str, "Output"] = {}
             self.application: Optional["klotho.Application"] = None
             channel = grpc.insecure_channel('localhost:50051')
             self.stub = service_pb2_grpc.KlothoServiceStub(channel)
             self._initialized = True
+            self.providers: dict[str, Provider] = {}
 
     def add_construct(self, resource):
         self.constructs[resource.name] = resource
@@ -71,7 +72,8 @@ class Runtime:
                 output_urn.output = output_name
                 self.outputs[str(output_urn)] = output_value
 
-        remaining_unresolved_outputs = {output_id: output for output_id, output in self.output_references.items() if not output.is_resolved}
+        remaining_unresolved_outputs = {output_id: output for output_id, output in self.output_references.items() if
+                                        not output.is_resolved}
         resolved_output_references = []
         resolved_count = -1
         while resolved_count != 0:
@@ -91,6 +93,8 @@ class Runtime:
                 resolved_output_references.append(output)
         return resolved_output_references
 
+    def set_provider(self, name: str, provider: Provider):
+        self.providers[name] = provider
 
 
 instance: Runtime = Runtime()

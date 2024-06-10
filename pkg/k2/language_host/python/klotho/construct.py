@@ -47,13 +47,20 @@ class Construct:
             "outputs": self.outputs,
             "bindings": self.bindings,
             "options": self.options,
-            "dependsOn": self.depends_on,
+            "dependsOn": [str(d) for d in self.depends_on],
         }
         return {k: v for k, v in data.items() if v}
 
     def add_input(self, name: str, value: any):
         if value is not None:
-            if isinstance(value, Output):
+            if isinstance(value, Construct):
+                self.depends_on.append(str(value.urn))
+                self.inputs[name] = {
+                    "value": [str(value.urn)],
+                    "status": "pending",
+                    "dependsOn": [str(value.urn)],
+                }
+            elif isinstance(value, Output):
                 self.inputs[name] = {
                     "value": None,
                     "status": "pending",
