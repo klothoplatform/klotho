@@ -97,6 +97,7 @@ func NewConstructContext(constructId ConstructId, inputs map[string]any) *Constr
 	The path can also include brackets to access an array. For example, ${inputs:foo[0].bar} will interpolate the value of the key bar in the first element of the foo input array.
 
 	Allowable prefixes are:
+	- stack: Interpolates a value from a construct's IaC (pulumi) stack
 	- inputs: Interpolates a value from the inputs of the construct
 	- resources: Interpolates a value from the resources of the construct
     - edges: Interpolates a value from the edges of the construct
@@ -394,22 +395,21 @@ func (c *ConstructContext) evaluateInputRules() {
 	}
 }
 
+/*
+Evaluation Order:
+
+	Construct Inputs
+	Construct Input Rules
+	Construct Resources
+	Construct Edges
+	Binding Priorities
+	Binding Inputs
+	Binding Input Rules
+	Binding Resources
+	Binding Edges
+	Binding Conflict Resolvers
+*/
 func (c *ConstructContext) EvaluateConstruct() *Construct {
-	/*
-		Evaluation Order:
-			Construct Inputs
-			Construct Input Rules
-			Construct Resources
-			Construct Edges
-			Binding Priorities
-			Binding Inputs
-			Binding Input Rules
-			Binding Resources
-			Binding Edges
-			Binding Conflict Resolvers
-
-	*/
-
 	c.parseInputs()
 	c.evaluateResources()
 	c.evaluateEdges()
@@ -436,7 +436,6 @@ func (c *ConstructContext) evaluateResources() {
 
 	c.ConstructTemplate.ResourcesIterator().ForEach(func(key string, resource ResourceTemplate) {
 		c.Resources[key] = c.resolveResource(key, resource)
-
 	})
 }
 

@@ -7,7 +7,7 @@ option go_package = "github.com/klothoplatform/klotho/pkg/k2/language_host/go";
 service KlothoService {
     rpc SendIR (IRRequest) returns (IRReply) {}
     rpc HealthCheck (HealthCheckRequest) returns (HealthCheckReply) {}
-    rpc RegisterResource (RegisterResourceRequest) returns (RegisterResourceReply) {}
+    rpc RegisterConstruct (RegisterConstructRequest) returns (RegisterConstructReply) {}
 }
 
 message IRRequest {
@@ -25,11 +25,11 @@ message HealthCheckReply {
     string status = 1;
 }
 
-message RegisterResourceRequest {
+message RegisterConstructRequest {
     string yaml_payload = 1;
 }
 
-message RegisterResourceReply {
+message RegisterConstructReply {
     message ResolvedOutput {
         string id = 1;
         string yaml_payload = 2;

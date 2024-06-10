@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"io"
 	"os"
 	"strings"
@@ -32,8 +33,9 @@ import (
 
 type (
 	Orchestrator struct {
-		Engine       *engine.Engine
-		StateManager *model.StateManager
+		Engine             *engine.Engine
+		StateManager       *model.StateManager
+		LanguageHostClient pb.KlothoServiceClient
 	}
 
 	EngineRequest struct {
@@ -45,9 +47,10 @@ type (
 	}
 )
 
-func NewOrchestrator(sm *model.StateManager) *Orchestrator {
+func NewOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient) *Orchestrator {
 	return &Orchestrator{
-		StateManager: sm,
+		StateManager:       sm,
+		LanguageHostClient: languageHostClient,
 	}
 }
 
@@ -360,7 +363,8 @@ type DownRequest struct {
 }
 
 func (o *Orchestrator) RunUpCommand(request UpRequest) error {
-	deployer := deployment.Deployer{StateManager: o.StateManager}
+	deployer := deployment.Deployer{
+		StateManager: o.StateManager, LanguageHostClient: o.LanguageHostClient}
 	err := deployer.RunApplicationUpCommand(request.StackReferences)
 	return err
 }

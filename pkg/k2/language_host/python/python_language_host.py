@@ -26,10 +26,11 @@ class KlothoService(service_pb2_grpc.KlothoServiceServicer):
     def HealthCheck(self, request, context):
         return service_pb2.HealthCheckReply(status="Server is running!!")
 
-    def RegisterResource(self, request, context):
-        resources = yaml.parse(request.yaml_payload)
+    def RegisterConstruct(self, request, context):
+        resources = yaml.safe_load(request.yaml_payload)
         resolved_outputs = runtime.resolve_output_references(resources)
-        return service_pb2.ResourceReply(message="Resource registered successfully", yaml_payload=resolved_outputs)
+        resolved_outputs = [{"id": o.id, "yaml_payload": yaml.safe_dump(o.value)} for o in resolved_outputs]
+        return service_pb2.RegisterConstructReply(message="Resource registered successfully", resolved_outputs=resolved_outputs)
 
 
 def serve():
