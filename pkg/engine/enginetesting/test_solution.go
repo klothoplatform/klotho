@@ -82,6 +82,10 @@ func (sol *TestSolution) GlobalTag() string {
 	return "test"
 }
 
+func (sol *TestSolution) Outputs() map[string]construct.Output {
+	return nil
+}
+
 type testOperationalView struct {
 	construct.Graph
 	Mock *mock.Mock
