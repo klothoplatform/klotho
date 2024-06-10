@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"sync"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
+	"github.com/klothoplatform/klotho/pkg/logging"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
@@ -347,6 +349,18 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 	if err != nil {
 		return err
 	}
+
+	npmCmd := logging.Command(
+		context.TODO(),
+		logging.CommandLogger{RootLogger: zap.L().Named("npm")},
+		"npm", "install",
+	)
+	npmCmd.Dir = request.OutputDir
+	err = npmCmd.Run()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

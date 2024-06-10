@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"syscall"
 	"time"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 )
 
@@ -39,10 +39,12 @@ func waitForServer(client pb.KlothoServiceClient, retries int, delay time.Durati
 }
 
 func startPythonClient() *exec.Cmd {
-	cmd := exec.Command("pipenv", "run", "python", "python_language_host.py")
+	cmd := logging.Command(
+		context.TODO(),
+		logging.CommandLogger{RootLogger: zap.L().Named("python")},
+		"pipenv", "run", "python", "python_language_host.py",
+	)
 	cmd.Dir = "pkg/k2/language_host/python"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	// spawn the python process as a subprocess of the CLI so it is guaranteed to be killed when the CLI exits
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 

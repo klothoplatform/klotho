@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/apitype"
@@ -29,6 +30,8 @@ func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
 	if err != nil {
 		return StackState{}, err
 	}
+
+	zap.S().Debugf("unmarshalled state: %v", unmarshalledState)
 
 	var stackResource apitype.ResourceV3
 	foundStackResource := false

@@ -65,6 +65,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "./cmd/k2",
+      "cwd": "${workspaceFolder}",
       "args": [
         "up",
         "-v",
