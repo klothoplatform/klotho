@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -13,23 +18,22 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"io"
-	"os"
-	"strings"
-	"sync"
 )
 
 // Orchestrator is the main orchestrator for the K2 platform
 
 type (
 	Orchestrator struct {
-		Engine *engine.Engine
+		Engine       *engine.Engine
+		StateManager *model.StateManager
 	}
 
 	EngineRequest struct {
@@ -40,6 +44,12 @@ type (
 		GlobalTag   string
 	}
 )
+
+func NewOrchestrator(sm *model.StateManager) *Orchestrator {
+	return &Orchestrator{
+		StateManager: sm,
+	}
+}
 
 var cachedEngine *engine.Engine
 
@@ -138,7 +148,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, 
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph(), Outputs: context.Solutions[0].Outputs()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
 		return nil, engErrs
@@ -342,15 +352,15 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 }
 
 type UpRequest struct {
-	StackReferences []deployment.StackReference
+	StackReferences []pulumi.StackReference
 }
 
 type DownRequest struct {
-	StackReferences []deployment.StackReference
+	StackReferences []pulumi.StackReference
 }
 
 func (o *Orchestrator) RunUpCommand(request UpRequest) error {
-	deployer := deployment.Deployer{}
+	deployer := deployment.Deployer{StateManager: o.StateManager}
 	err := deployer.RunApplicationUpCommand(request.StackReferences)
 	return err
 }

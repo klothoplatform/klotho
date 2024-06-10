@@ -11,6 +11,9 @@ type PropertyRef struct {
 }
 
 func (v PropertyRef) String() string {
+	if v.IsZero() {
+		return ""
+	}
 	return v.Resource.String() + "#" + v.Property
 }
 
@@ -36,4 +39,16 @@ func (v *PropertyRef) UnmarshalText(b []byte) error {
 		return err
 	}
 	return v.Validate()
+}
+
+func (v *PropertyRef) Equals(ref interface{}) bool {
+	other, ok := ref.(PropertyRef)
+	if !ok {
+		return false
+	}
+	return v.Resource == other.Resource && v.Property == other.Property
+}
+
+func (v *PropertyRef) IsZero() bool {
+	return v.Resource.IsZero() && v.Property == ""
 }

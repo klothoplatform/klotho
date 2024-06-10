@@ -14,19 +14,26 @@ import (
 
 type (
 	ConstructContext struct {
-		Id                ConstructId
-		ConstructTemplate ConstructTemplate
-		Meta              map[string]any
-		Inputs            map[string]any
-		Resources         map[string]*Resource
-		Edges             []*Edge
-		Outputs           map[string]any
+		Id                 ConstructId
+		ConstructTemplate  ConstructTemplate
+		Meta               map[string]any
+		Inputs             map[string]any
+		Resources          map[string]*Resource
+		Edges              []*Edge
+		OutputDeclarations map[string]OutputDeclaration
 	}
 
 	ResourceRef struct {
-		ResourceKey string
-		Property    string
-		Type        ResourceRefType
+		ResourceKey   string
+		Property      string
+		Type          ResourceRefType
+		functionsType ResourceRefType
+	}
+
+	OutputDeclaration struct {
+		Name  string
+		Ref   construct.PropertyRef
+		Value any
 	}
 
 	ResourceRefType      string
@@ -59,25 +66,26 @@ const (
 	ResourcesInterpolation InterpolationSource = "resources"
 	EdgesInterpolation     InterpolationSource = "edges"
 	MetaInterpolation      InterpolationSource = "meta"
+	StackInterpolation     InterpolationSource = "stack"
 )
 
 var (
-	ResourceInterpolationContext  = InterpolationContext{InputsInterpolation, ResourcesInterpolation, ResourcesInterpolation}
-	EdgeInterpolationContext      = InterpolationContext{InputsInterpolation, ResourcesInterpolation, EdgesInterpolation}
-	OutputInterpolationContext    = InterpolationContext{InputsInterpolation, ResourcesInterpolation, EdgesInterpolation, MetaInterpolation}
-	InputRuleInterpolationContext = InterpolationContext{InputsInterpolation, ResourcesInterpolation, EdgesInterpolation, MetaInterpolation}
+	ResourceInterpolationContext  = InterpolationContext{StackInterpolation, InputsInterpolation, ResourcesInterpolation, ResourcesInterpolation}
+	EdgeInterpolationContext      = InterpolationContext{StackInterpolation, InputsInterpolation, ResourcesInterpolation, EdgesInterpolation}
+	OutputInterpolationContext    = InterpolationContext{StackInterpolation, InputsInterpolation, ResourcesInterpolation, EdgesInterpolation, MetaInterpolation}
+	InputRuleInterpolationContext = InterpolationContext{StackInterpolation, InputsInterpolation, ResourcesInterpolation, EdgesInterpolation, MetaInterpolation}
 )
 
 // NewConstructContext creates a new ConstructContext instance
 func NewConstructContext(constructId ConstructId, inputs map[string]any) *ConstructContext {
 	return &ConstructContext{
-		Id:                constructId,
-		ConstructTemplate: loadConstructTemplate(constructId.TemplateId),
-		Meta:              map[string]any{},
-		Inputs:            inputs,
-		Resources:         map[string]*Resource{},
-		Edges:             []*Edge{},
-		Outputs:           map[string]any{},
+		Id:                 constructId,
+		ConstructTemplate:  loadConstructTemplate(constructId.TemplateId),
+		Meta:               map[string]any{},
+		Inputs:             inputs,
+		Resources:          map[string]*Resource{},
+		Edges:              []*Edge{},
+		OutputDeclarations: map[string]OutputDeclaration{},
 	}
 }
 
@@ -405,13 +413,14 @@ func (c *ConstructContext) EvaluateConstruct() *Construct {
 	c.evaluateResources()
 	c.evaluateEdges()
 	c.evaluateInputRules()
+	c.evaluateOutputs()
 
 	return &Construct{
 		Id:        c.Id,
 		Inputs:    c.Inputs,
 		Resources: c.Resources,
 		Edges:     c.Edges,
-		Outputs:   c.Outputs,
+		Outputs:   map[string]any{},
 	}
 
 }
@@ -430,13 +439,13 @@ func (c *ConstructContext) evaluateResources() {
 	})
 }
 
-func (c *ConstructContext) input(key string) any {
+func (c *ConstructContext) inputs(key string) any {
 	return c.Inputs[key]
 }
 
 func (c *ConstructContext) templateFunctions() template.FuncMap {
 	funcs := template.FuncMap{}
-	funcs["input"] = c.input
+	funcs["inputs"] = c.inputs
 	return funcs
 }
 
@@ -584,4 +593,47 @@ func (c *ConstructContext) serializeRef(ref ResourceRef) (any, error) {
 	}
 
 	return resource.Id.String(), nil
+}
+
+func (c *ConstructContext) evaluateOutputs() {
+	for key, output := range c.ConstructTemplate.Outputs {
+		output, err := c.InterpolateValue(output, OutputInterpolationContext)
+		if err != nil {
+			panic(err)
+		}
+		outputTemplate, ok := output.(OutputTemplate)
+		if !ok {
+			panic("invalid output template")
+		}
+		var value any
+		var ref construct.PropertyRef
+		r, ok := outputTemplate.Value.(ResourceRef)
+		if !ok {
+			value = outputTemplate.Value
+		} else {
+			serializedRef, err := c.serializeRef(r)
+			if err != nil {
+				panic(err)
+			}
+
+			refString, ok := serializedRef.(string)
+			if !ok {
+				panic("invalid ref")
+			}
+			err = ref.Parse(refString)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		if ref != (construct.PropertyRef{}) && value != nil {
+			panic("output declaration must be a reference or a value")
+		}
+
+		c.OutputDeclarations[key] = OutputDeclaration{
+			Name:  key,
+			Ref:   ref,
+			Value: value,
+		}
+	}
 }

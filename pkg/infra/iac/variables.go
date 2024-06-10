@@ -57,6 +57,9 @@ var reservedVariables = map[string]struct{}{
 	"public":     {},
 	"static":     {},
 	"yield":      {},
+	// These are reserved by klotho
+	"$urns":    {},
+	"$outputs": {},
 }
 
 func VariablesFromGraph(g construct.Graph) (variables, error) {

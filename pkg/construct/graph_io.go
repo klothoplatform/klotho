@@ -3,6 +3,7 @@ package construct
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -11,7 +12,8 @@ import (
 )
 
 type YamlGraph struct {
-	Graph Graph
+	Graph   Graph
+	Outputs map[string]Output
 }
 
 // nullNode is used to render as nothing in the YAML output
@@ -89,6 +91,50 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 		edges = nullNode
 	}
 
+	outputs := &yaml.Node{
+		Kind: yaml.MappingNode,
+	}
+	for name, output := range g.Outputs {
+		outputs.Content = append(outputs.Content,
+			&yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: name,
+			})
+
+		outputMap := &yaml.Node{
+			Kind: yaml.MappingNode,
+		}
+
+		if !output.Ref.IsZero() {
+			outputMap.Content = append(outputMap.Content,
+				&yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: "ref",
+				},
+				&yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: output.Ref.String(),
+				},
+			)
+		} else {
+			value := &yaml.Node{}
+			err = value.Encode(output.Value)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
+
+			outputMap.Content = append(outputMap.Content,
+				&yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: "value",
+				},
+				value,
+			)
+		}
+		outputs.Content = append(outputs.Content, outputMap)
+	}
+
 	return &yaml.Node{
 		Kind: yaml.MappingNode,
 		Content: []*yaml.Node{
@@ -102,14 +148,35 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 				Value: "edges",
 			},
 			edges,
+			{
+				Kind:  yaml.ScalarNode,
+				Value: "outputs",
+			},
+			outputs,
 		},
 	}, nil
+}
+
+func resolveNodeType(value any) yaml.Kind {
+	v := reflect.ValueOf(value)
+	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
+	switch v.Kind() {
+	case reflect.Map:
+		return yaml.MappingNode
+	case reflect.Slice, reflect.Array:
+		return yaml.SequenceNode
+	default:
+		return yaml.ScalarNode
+	}
 }
 
 func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 	type graph struct {
 		Resources map[ResourceId]Properties `yaml:"resources"`
 		Edges     map[SimpleEdge]struct{}   `yaml:"edges"`
+		Outputs   map[string]Output         `yaml:"outputs"`
 	}
 	var y graph
 	if err := n.Decode(&y); err != nil {
@@ -143,6 +210,14 @@ func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 		err := g.Graph.AddEdge(e.Source, e.Target)
 		errs = errors.Join(errs, err)
 	}
+
+	if g.Outputs == nil {
+		g.Outputs = make(map[string]Output)
+	}
+	for name, output := range y.Outputs {
+		g.Outputs[name] = Output{Ref: output.Ref, Value: output.Value}
+	}
+
 	return errs
 }
 

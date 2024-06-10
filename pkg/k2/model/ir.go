@@ -1,11 +1,10 @@
 package model
 
 import (
-	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 	"os"
 
-	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 )
 
 type ApplicationEnvironment struct {
@@ -18,33 +17,14 @@ type ApplicationEnvironment struct {
 }
 
 type Construct struct {
-	Type        ConstructType          `yaml:"type,omitempty"`
-	URN         URN                    `yaml:"urn,omitempty"`
-	Version     int                    `yaml:"version,omitempty"`
-	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
-	Status      ConstructStatus        `yaml:"status,omitempty"`
-	Inputs      map[string]Input       `yaml:"inputs,omitempty"`
-	Outputs     map[string]string      `yaml:"outputs,omitempty"`
-	Bindings    []Binding              `yaml:"bindings,omitempty"`
-	Options     map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn   []string               `yaml:"dependsOn,omitempty"`
-}
-
-type UUID struct {
-	uuid.UUID
-}
-
-func (u *UUID) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	parsedUUID, err := uuid.Parse(s)
-	if err != nil {
-		return err
-	}
-	*u = UUID{parsedUUID}
-	return nil
+	Type      ConstructType          `yaml:"type,omitempty"`
+	URN       URN                    `yaml:"urn,omitempty"`
+	Version   int                    `yaml:"version,omitempty"`
+	Inputs    map[string]Input       `yaml:"inputs,omitempty"`
+	Outputs   map[string]string      `yaml:"outputs,omitempty"`
+	Bindings  []Binding              `yaml:"bindings,omitempty"`
+	Options   map[string]interface{} `yaml:"options,omitempty"`
+	DependsOn []string               `yaml:"dependsOn,omitempty"`
 }
 
 type ConstructType string
@@ -52,23 +32,6 @@ type ConstructType string
 const (
 	ContainerType ConstructType = "klotho.aws.Container"
 	// Add other construct types as needed
-)
-
-type ConstructStatus string
-
-const (
-	New            ConstructStatus = "new"
-	Creating       ConstructStatus = "creating"
-	Created        ConstructStatus = "created"
-	Updating       ConstructStatus = "updating"
-	Updated        ConstructStatus = "updated"
-	Destroying     ConstructStatus = "destroying"
-	Destroyed      ConstructStatus = "destroyed"
-	CreateFailed   ConstructStatus = "create_failed"
-	UpdateFailed   ConstructStatus = "update_failed"
-	DestroyFailed  ConstructStatus = "destroy_failed"
-	UpdatePending  ConstructStatus = "update_pending"
-	DestroyPending ConstructStatus = "destroy_pending"
 )
 
 type Input struct {

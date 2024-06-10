@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"runtime"
 
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
@@ -70,10 +71,10 @@ func installPulumi(config CliDependencyConfig) error {
 }
 
 func isDockerInstalled() bool {
-	//TODO: Implement this
-
 	// Check if docker is installed
-	return true
+	cmd := exec.Command("docker", "--version")
+	err := cmd.Run()
+	return err == nil
 }
 
 func isPulumiInstalled() bool {

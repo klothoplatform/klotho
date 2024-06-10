@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -97,6 +98,12 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		return nil, errs
 	}
 
+	buf.WriteString("\n")
+	renderStackOutputs(tc, buf, ctx.Outputs(), tc.vars)
+
+	buf.WriteString("\n")
+	renderUrnMap(buf, tc.vars)
+
 	indexTs := &kio.RawFile{
 		FPath:   `index.ts`,
 		Content: buf.Bytes(),
@@ -135,6 +142,37 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	files = append(files, dockerfiles...)
 
 	return files, nil
+}
+
+func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[string]construct.Output, vars variables) {
+	buf.WriteString("export const $outputs = {\n")
+	for name, output := range outputs {
+
+		if !output.Ref.IsZero() {
+			val, err := tc.PropertyRefValue(output.Ref)
+			if err != nil {
+				buf.WriteString(fmt.Sprintf("\t%s: null,\n", name))
+				continue
+			}
+			buf.WriteString(fmt.Sprintf("\t%s: %s,\n", name, val))
+		} else {
+			val, err := json.Marshal(output.Value)
+			if err != nil {
+				buf.WriteString(fmt.Sprintf("\t%s: null,\n", name))
+			} else {
+				buf.WriteString(fmt.Sprintf("\t%s: %s,\n", name, string(val)))
+			}
+		}
+	}
+	buf.WriteString("}\n")
+}
+
+func renderUrnMap(buf *bytes.Buffer, vars variables) {
+	buf.WriteString("export const $urns = {\n")
+	for id, obj := range vars {
+		buf.WriteString(fmt.Sprintf("\t\"%s\": %s.urn,\n", id, obj))
+	}
+	buf.WriteString("}\n")
 }
 
 func (p *Plugin) sanitizeConfig() error {

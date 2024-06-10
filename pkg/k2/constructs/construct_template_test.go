@@ -26,7 +26,7 @@ resources:
     type: aws:ecs_service
     name: my-service
     properties:
-      Cpu: ${input:foo}
+      Cpu: ${inputs:foo}
 edges:
  - from: baz
    to: bop

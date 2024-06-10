@@ -32,6 +32,7 @@ type (
 		GetResource(construct.ResourceId) (*construct.Resource, error)
 		AllPaths(src, dst construct.ResourceId) ([][]*construct.Resource, error)
 		GetClassification(construct.ResourceId) knowledgebase.Classification
+		GetOutput(string) construct.Output
 	}
 
 	// BaseConstraint is the base struct for all constraints
@@ -58,6 +59,7 @@ type (
 		Construct   []ConstructConstraint
 		Resources   []ResourceConstraint
 		Edges       []EdgeConstraint
+		Outputs     []OutputConstraint
 	}
 )
 
@@ -66,6 +68,7 @@ const (
 	ConstructConstraintScope   ConstraintScope = "construct"
 	EdgeConstraintScope        ConstraintScope = "edge"
 	ResourceConstraintScope    ConstraintScope = "resource"
+	OutputConstraintScope      ConstraintScope = "output"
 
 	MustExistConstraintOperator    ConstraintOperator = "must_exist"
 	MustNotExistConstraintOperator ConstraintOperator = "must_not_exist"
@@ -158,6 +161,11 @@ func (cs *ConstraintList) UnmarshalYAML(node *yaml.Node) error {
 			err = raw.Decode(&constraint)
 			c = &constraint
 
+		case OutputConstraintScope:
+			var constraint OutputConstraint
+			err = raw.Decode(&constraint)
+			c = &constraint
+
 		default:
 			err = fmt.Errorf("invalid scope %q", base.Scope)
 		}
@@ -186,6 +194,8 @@ func (list ConstraintList) ToConstraints() (Constraints, error) {
 			constraints.Resources = append(constraints.Resources, *c)
 		case *EdgeConstraint:
 			constraints.Edges = append(constraints.Edges, *c)
+		case *OutputConstraint:
+			constraints.Outputs = append(constraints.Outputs, *c)
 		default:
 			return Constraints{}, fmt.Errorf("invalid constraint type %T", constraint)
 		}
@@ -239,6 +249,9 @@ func (c Constraints) ToList() ConstraintList {
 	for i := range c.Edges {
 		list = append(list, &c.Edges[i])
 	}
+	for i := range c.Outputs {
+		list = append(list, &c.Outputs[i])
+	}
 	return list
 }
 
@@ -261,4 +274,5 @@ func (c *Constraints) Append(other Constraints) {
 	c.Construct = append(c.Construct, other.Construct...)
 	c.Resources = append(c.Resources, other.Resources...)
 	c.Edges = append(c.Edges, other.Edges...)
+	c.Outputs = append(c.Outputs, other.Outputs...)
 }

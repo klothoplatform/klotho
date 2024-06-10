@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"log"
@@ -54,10 +54,10 @@ func downCmd(outputPath string) string {
 		return "failure"
 	}
 
-	var stackReferences []deployment.StackReference
+	var stackReferences []pulumi.StackReference
 	for _, entry := range entries {
 		if entry.IsDir() {
-			stackReference := deployment.StackReference{
+			stackReference := pulumi.StackReference{
 				ConstructURN: model.URN{},
 				Name:         entry.Name(),
 				IacDirectory: filepath.Join(outputPath, entry.Name()),
