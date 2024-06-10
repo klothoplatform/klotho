@@ -2,9 +2,10 @@ package constructs
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"strings"
 )
 
 type (
@@ -41,7 +42,7 @@ func (e *Edge) String() string {
 	return e.PrettyPrint() + " :: " + fmt.Sprintf("%v", e.Data)
 }
 
-func (c *ConstructId) FromURN(urn model.URN) error {
+func (c *ConstructId) FromURN(urn *model.URN) error {
 	if urn.Type != "construct" {
 		return fmt.Errorf("invalid URN type: %s", urn.Type)
 	}
