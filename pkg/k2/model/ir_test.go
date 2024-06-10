@@ -22,14 +22,12 @@ func createTestApplicationEnvironment() *ApplicationEnvironment {
 				Version: 1,
 				Inputs: map[string]Input{
 					"image": {
-						Type:      "string",
 						Value:     "nginx:latest",
 						Encrypted: false,
 						Status:    Resolved,
 						DependsOn: nil,
 					},
 					"port": {
-						Type:      "number",
 						Value:     80,
 						Encrypted: false,
 						Status:    Resolved,
