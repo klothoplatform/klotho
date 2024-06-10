@@ -1,11 +1,15 @@
-import grpc
-import service_pb2
-import service_pb2_grpc
 import runpy
-from concurrent import futures
-from klotho import get_klotho
 import signal
 import sys
+from concurrent import futures
+
+import grpc
+import yaml
+
+import service_pb2
+import service_pb2_grpc
+from klotho.runtime import instance as runtime
+
 
 class KlothoService(service_pb2_grpc.KlothoServiceServicer):
 
@@ -13,16 +17,20 @@ class KlothoService(service_pb2_grpc.KlothoServiceServicer):
         infra_script = request.filename
         runpy.run_path(infra_script, run_name="__main__")
 
-        klotho = get_klotho()
-
         response = service_pb2.IRReply(
             message="Script executed",
-            yaml_payload=klotho.generate_yaml()
+            yaml_payload=runtime.generate_yaml()
         )
         return response
 
     def HealthCheck(self, request, context):
         return service_pb2.HealthCheckReply(status="Server is running!!")
+
+    def RegisterResource(self, request, context):
+        resources = yaml.parse(request.yaml_payload)
+        resolved_outputs = runtime.resolve_output_references(resources)
+        return service_pb2.ResourceReply(message="Resource registered successfully", yaml_payload=resolved_outputs)
+
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -31,9 +39,11 @@ def serve():
     server.start()
     server.wait_for_termination()
 
+
 def signal_handler(sig, frame):
     print('Termination signal received, shutting down...')
     sys.exit(0)
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)

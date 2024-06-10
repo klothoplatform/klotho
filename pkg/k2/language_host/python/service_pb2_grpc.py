@@ -49,6 +49,11 @@ class KlothoServiceStub(object):
                 request_serializer=service__pb2.HealthCheckRequest.SerializeToString,
                 response_deserializer=service__pb2.HealthCheckReply.FromString,
                 _registered_method=True)
+        self.RegisterResource = channel.unary_unary(
+                '/klotho.KlothoService/RegisterResource',
+                request_serializer=service__pb2.RegisterResourceRequest.SerializeToString,
+                response_deserializer=service__pb2.RegisterResourceReply.FromString,
+                _registered_method=True)
 
 
 class KlothoServiceServicer(object):
@@ -66,6 +71,12 @@ class KlothoServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RegisterResource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_KlothoServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -78,6 +89,11 @@ def add_KlothoServiceServicer_to_server(servicer, server):
                     servicer.HealthCheck,
                     request_deserializer=service__pb2.HealthCheckRequest.FromString,
                     response_serializer=service__pb2.HealthCheckReply.SerializeToString,
+            ),
+            'RegisterResource': grpc.unary_unary_rpc_method_handler(
+                    servicer.RegisterResource,
+                    request_deserializer=service__pb2.RegisterResourceRequest.FromString,
+                    response_serializer=service__pb2.RegisterResourceReply.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -134,6 +150,33 @@ class KlothoService(object):
             '/klotho.KlothoService/HealthCheck',
             service__pb2.HealthCheckRequest.SerializeToString,
             service__pb2.HealthCheckReply.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RegisterResource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/klotho.KlothoService/RegisterResource',
+            service__pb2.RegisterResourceRequest.SerializeToString,
+            service__pb2.RegisterResourceReply.FromString,
             options,
             channel_credentials,
             insecure,
