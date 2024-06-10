@@ -389,3 +389,4 @@ edges:
     aws:route_table:vpc-0:subnet-0-route_table -> aws:vpc:vpc-0:
     aws:route_table:vpc-0:subnet-1-route_table -> aws:nat_gateway:subnet-3:subnet-1-route_table-nat_gateway:
     aws:route_table:vpc-0:subnet-1-route_table -> aws:vpc:vpc-0:
+outputs: {}

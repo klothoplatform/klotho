@@ -43,7 +43,8 @@ resources:
     p:t:a:
     p:t:b:
 edges:
-    p:t:a -> p:t:b:`,
+    p:t:a -> p:t:b:
+outputs: {}`,
 		},
 	}
 	for _, tt := range tests {

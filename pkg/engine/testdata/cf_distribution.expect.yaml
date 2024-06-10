@@ -93,3 +93,4 @@ edges:
     aws:cloudfront_origin_access_identity:cloudfront_origin_access_identity-0 -> aws:s3_bucket_policy:s3_bucket_policy-0:
     aws:api_deployment:rest_api_1:api_deployment-0 -> aws:rest_api:rest_api_1:
     aws:s3_bucket_policy:s3_bucket_policy-0 -> aws:s3_bucket:s3-bucket-3:
+outputs: {}

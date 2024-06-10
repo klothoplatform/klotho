@@ -765,3 +765,4 @@ edges:
     aws:route_table:vpc-0:subnet-3-route_table -> aws:internet_gateway:vpc-0:internet_gateway-0:
     aws:route_table:vpc-0:subnet-3-route_table -> aws:vpc:vpc-0:
     aws:internet_gateway:vpc-0:internet_gateway-0 -> aws:vpc:vpc-0:
+outputs: {}

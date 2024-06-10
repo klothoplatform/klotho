@@ -99,3 +99,4 @@ edges:
     aws:api_resource:rest_api_0:api_resource-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
     aws:api_resource:rest_api_0:api_resource-0 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
     aws:api_method:rest_api_0:rest_api_0_integration_0_method -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+outputs: {}
