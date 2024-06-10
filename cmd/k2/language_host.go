@@ -49,8 +49,8 @@ func startPythonClient() *exec.Cmd {
 	zap.S().Info("Python client started")
 
 	go func() {
-		cmd.Wait()
-		zap.S().Info("Python client exited")
+		err := cmd.Wait()
+		zap.S().Infof("Python client exited, err: %v", err)
 	}()
 	return cmd
 }

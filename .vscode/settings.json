@@ -18,5 +18,6 @@
     // "pkg/knowledge_base": true,
     "**/node_modules": true
   },
-  "go.testTimeout": "5m"
+  "go.testTimeout": "5m",
+  "go.lintTool": "golangci-lint"
 }

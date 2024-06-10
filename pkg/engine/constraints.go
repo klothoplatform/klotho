@@ -45,6 +45,7 @@ func ApplyConstraints(ctx solution_context.SolutionContext) error {
 	return nil
 }
 
+/*
 func applyOutputConstraint(ctx solution_context.SolutionContext, constraint constraints.OutputConstraint) error {
 	currentOutputs := ctx.Outputs()
 	if current, ok := currentOutputs[constraint.Name]; ok && !current.Ref.Equals(constraint.Ref) {
@@ -53,7 +54,7 @@ func applyOutputConstraint(ctx solution_context.SolutionContext, constraint cons
 
 	ctx.Outputs()[constraint.Name] = construct.Output{Ref: constraint.Ref}
 	return nil
-}
+}*/
 
 // applyApplicationConstraint returns a resource to be made operational, if needed. Otherwise, it returns nil.
 func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint constraints.ApplicationConstraint) error {

@@ -46,7 +46,7 @@ func GetAuthToken(ctx context.Context) (*oauth2.Token, *http.Client, error) {
 		return nil, nil, err
 	}
 
-	if token := readCachedToken(auth); token != nil {
+	if token := readCachedToken(); token != nil {
 		return token, auth.HTTPClient(ctx, token), nil
 	}
 
@@ -138,7 +138,7 @@ func GetAuthToken(ctx context.Context) (*oauth2.Token, *http.Client, error) {
 	}
 }
 
-func readCachedToken(auth *Authenticator) *oauth2.Token {
+func readCachedToken() *oauth2.Token {
 	log := zap.S().Named("auth.cache")
 
 	cacheDir, err := os.UserCacheDir()

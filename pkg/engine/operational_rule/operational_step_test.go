@@ -79,13 +79,25 @@ func Test_getResourcesForStep(t *testing.T) {
 				MockResource4("test2"),
 				MockResource3("test3"),
 			}
-			testSol.RawView().AddVertex(tt.resource)
+			err := testSol.RawView().AddVertex(tt.resource)
+			if err != nil {
+				t.Fatal(err)
+			}
 			for _, res := range testResources {
-				testSol.RawView().AddVertex(res)
+				err = testSol.RawView().AddVertex(res)
+				if err != nil {
+					t.Fatal(err)
+				}
 				if tt.step.Direction == knowledgebase.DirectionDownstream {
-					testSol.RawView().AddEdge(tt.resource.ID, res.ID)
+					err = testSol.RawView().AddEdge(tt.resource.ID, res.ID)
+					if err != nil {
+						t.Fatal(err)
+					}
 				} else {
-					testSol.RawView().AddEdge(res.ID, tt.resource.ID)
+					err = testSol.RawView().AddEdge(res.ID, tt.resource.ID)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
 			ctx := OperationalRuleContext{

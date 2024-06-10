@@ -24,10 +24,10 @@ type (
 	}
 
 	ResourceRef struct {
-		ResourceKey   string
-		Property      string
-		Type          ResourceRefType
-		functionsType ResourceRefType
+		ResourceKey string
+		Property    string
+		Type        ResourceRefType
+		//functionsType ResourceRefType
 	}
 
 	OutputDeclaration struct {
@@ -321,6 +321,7 @@ func getValueFromCollection(collection any, key string) interface{} {
 	return value
 }
 
+//nolint:unused
 func (c *ConstructContext) interpolateValue(rawValue any, ctx InterpolationContext) (any, error) {
 	switch v := rawValue.(type) {
 	case string:

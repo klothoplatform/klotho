@@ -2,8 +2,9 @@ package constructs
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type (
@@ -38,15 +39,15 @@ type (
 	}
 
 	InputTemplate struct {
-		Name          string             `yaml:"name"`
-		Type          string             `yaml:"type"`
-		Description   string             `yaml:"description"`
-		Default       any                `yaml:"default"`
-		Secret        bool               `yaml:"secret"`
-		PulumiKey     string             `yaml:"pulumi_key"`
-		Validation    ValidationTemplate `yaml:"validation"`
-		resourcesNode *yaml.Node
-		edgesNode     *yaml.Node
+		Name        string             `yaml:"name"`
+		Type        string             `yaml:"type"`
+		Description string             `yaml:"description"`
+		Default     any                `yaml:"default"`
+		Secret      bool               `yaml:"secret"`
+		PulumiKey   string             `yaml:"pulumi_key"`
+		Validation  ValidationTemplate `yaml:"validation"`
+		//resourcesNode *yaml.Node
+		//edgesNode     *yaml.Node
 	}
 
 	OutputTemplate struct {

@@ -18,8 +18,8 @@ import (
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
@@ -304,7 +304,7 @@ func ReadInputGraph(filePath string) (construct.Graph, error) {
 	defer func(inputF *os.File) {
 		err := inputF.Close()
 		if err != nil {
-
+			zap.L().Error("Failed to close input file", zap.Error(err))
 		}
 	}(inputF)
 	err = yaml.NewDecoder(inputF).Decode(&input)
