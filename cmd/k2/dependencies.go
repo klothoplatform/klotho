@@ -33,18 +33,18 @@ func InstallDependencies(configs []CliDependencyConfig) error {
 			if isDockerInstalled() {
 				continue
 			}
-			err.Append(installDocker(config))
+			err.Append(installDocker())
 		case CliDependencyPulumi:
 			if isPulumiInstalled() {
 				continue
 			}
-			err.Append(installPulumi(config))
+			err.Append(installPulumi())
 		}
 	}
 	return err
 }
 
-func installDocker(config CliDependencyConfig) error {
+func installDocker() error {
 	// Install docker
 	installUrl := ""
 	switch runtime.GOOS {
@@ -60,7 +60,7 @@ func installDocker(config CliDependencyConfig) error {
 	return errors2.WrapErrf(errors.New("docker not installed"), "install docker from %s", installUrl)
 }
 
-func installPulumi(config CliDependencyConfig) error {
+func installPulumi() error {
 	// Install pulumi
 	ctx := context.Background()
 	_, err := pulumi.InstallPulumiCommand(ctx, nil)

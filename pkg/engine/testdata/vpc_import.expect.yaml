@@ -37,3 +37,4 @@ edges:
     aws:subnet:vpc:subnet2 -> aws:vpc:vpc:
     aws:subnet:vpc:subnet3 -> aws:vpc:vpc:
     aws:subnet:vpc:subnet4 -> aws:vpc:vpc:
+outputs: {}

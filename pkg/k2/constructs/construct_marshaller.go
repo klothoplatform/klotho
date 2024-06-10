@@ -30,8 +30,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 	for _, e := range m.Construct.Edges {
 		edgeConstraints, err := m.marshalEdge(e)
 		if err != nil {
-			err = fmt.Errorf("could not marshall edge: %w", err)
-			return nil, err
+			return nil, fmt.Errorf("could not marshall edge: %w", err)
 		}
 
 		cs = append(cs, edgeConstraints...)
@@ -40,7 +39,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 	for _, o := range m.Context.OutputDeclarations {
 		outputConstraints, err := m.marshalOutput(o)
 		if err != nil {
-			err = fmt.Errorf("could not marshall output: %w", err)
+			return nil, fmt.Errorf("could not marshall output: %w", err)
 		}
 		cs = append(cs, outputConstraints...)
 	}

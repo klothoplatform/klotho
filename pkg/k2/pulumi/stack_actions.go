@@ -2,6 +2,9 @@ package pulumi
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
@@ -10,8 +13,6 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
 	"go.uber.org/zap"
-	"os"
-	"path/filepath"
 )
 
 type StackReference struct {

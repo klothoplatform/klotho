@@ -97,3 +97,4 @@ edges:
     aws:api_method:rest_api_0:rest_api_0_integration_0_method -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
     aws:api_method:rest_api_0:rest_api_0_integration_1_method -> aws:api_integration:rest_api_0:rest_api_0_integration_1:
     aws:api_method:rest_api_0:rest_api_0_integration_2_method -> aws:api_integration:rest_api_0:rest_api_0_integration_2:
+outputs: {}

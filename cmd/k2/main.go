@@ -2,17 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"os"
 )
-
-var irConfig struct {
-	constraints bool
-	filePath    string
-	outputPath  string
-}
 
 var commonCfg struct {
 	verbose bool
@@ -70,14 +65,9 @@ func cli() {
 				fmt.Println("Invalid file path")
 				os.Exit(1)
 			}
-			irConfig.filePath = filePath
-
-			executeIRCommand(irConfig)
+			irCmd(filePath)
 		},
 	}
-	flags = irCommand.Flags()
-	flags.BoolVarP(&irConfig.constraints, "constraints", "c", false, "Print constraints")
-	flags.StringVarP(&irConfig.outputPath, "output", "o", "", "Output file path")
 
 	rootCmd.AddCommand(initCommand)
 	rootCmd.AddCommand(deployCommand)

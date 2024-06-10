@@ -405,10 +405,10 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resource.Name, resourceToSet.Type, suffix)
 		return nil
 	}
-	return generateResourceName(action.ruleCtx.Solution, resourceToSet, resource)
+	return generateResourceName(action.ruleCtx.Solution, resourceToSet)
 }
 
-func generateResourceName(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
+func generateResourceName(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) error {
 	numResources := 0
 	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {

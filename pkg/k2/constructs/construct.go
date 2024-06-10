@@ -2,9 +2,10 @@ package constructs
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"strings"
 )
 
 type (

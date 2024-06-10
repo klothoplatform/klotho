@@ -3,7 +3,6 @@ package construct
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -155,21 +154,6 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 			outputs,
 		},
 	}, nil
-}
-
-func resolveNodeType(value any) yaml.Kind {
-	v := reflect.ValueOf(value)
-	if v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-		v = v.Elem()
-	}
-	switch v.Kind() {
-	case reflect.Map:
-		return yaml.MappingNode
-	case reflect.Slice, reflect.Array:
-		return yaml.SequenceNode
-	default:
-		return yaml.ScalarNode
-	}
 }
 
 func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {

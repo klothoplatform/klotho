@@ -114,3 +114,4 @@ edges:
     aws:subnet:subnet2 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:subnet2 -> aws:vpc:vpc:
     aws:SERVICE_API:lambda_function-lambda_function-log-group -> aws:log_group:lambda_function-log-group:
+outputs: {}

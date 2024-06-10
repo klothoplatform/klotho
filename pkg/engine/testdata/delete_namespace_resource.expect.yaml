@@ -47,3 +47,4 @@ edges:
     aws:SERVICE_API:lambda_function_2-lambda_function_2-log-group -> aws:log_group:lambda_function_2-log-group:
     aws:ecr_image:lambda_function_2-image -> aws:ecr_repo:ecr_repo-0:
     aws:iam_role:lambda_function_2-ExecutionRole -> aws:log_group:lambda_function_2-log-group:
+outputs: {}

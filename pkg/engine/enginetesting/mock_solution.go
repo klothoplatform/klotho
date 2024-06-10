@@ -60,3 +60,8 @@ func (m *MockSolution) GlobalTag() string {
 	args := m.Called()
 	return args.String(0)
 }
+
+func (m *MockSolution) Outputs() map[string]construct.Output {
+	args := m.Called()
+	return args.Get(0).(map[string]construct.Output)
+}

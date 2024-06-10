@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"time"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
+	"go.uber.org/zap"
 )
 
 type ProgramContext struct {
@@ -44,13 +44,13 @@ func startPythonClient() *exec.Cmd {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("failed to start Python client: %v", err)
+		zap.S().Fatalf("failed to start Python client: %v", err)
 	}
-	log.Println("Python client started")
+	zap.S().Info("Python client started")
 
 	go func() {
-		cmd.Wait()
-		log.Println("Python client exited")
+		err := cmd.Wait()
+		zap.S().Infof("Python client exited, err: %v", err)
 	}()
 	return cmd
 }

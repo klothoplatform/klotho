@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 var downConfig struct {

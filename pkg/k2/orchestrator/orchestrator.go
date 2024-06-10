@@ -307,7 +307,7 @@ func ReadInputGraph(filePath string) (construct.Graph, error) {
 	defer func(inputF *os.File) {
 		err := inputF.Close()
 		if err != nil {
-
+			zap.L().Error("Failed to close input file", zap.Error(err))
 		}
 	}(inputF)
 	err = yaml.NewDecoder(inputF).Decode(&input)
