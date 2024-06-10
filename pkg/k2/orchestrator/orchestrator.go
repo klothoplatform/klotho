@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"io"
 	"os"
 	"strings"
 	"sync"
+
+	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
@@ -20,7 +21,6 @@ import (
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
@@ -304,12 +304,8 @@ func ReadInputGraph(filePath string) (construct.Graph, error) {
 		zap.L().Error("Could not open input file", zap.Error(err))
 		return construct.NewGraph(), nil
 	}
-	defer func(inputF *os.File) {
-		err := inputF.Close()
-		if err != nil {
-			zap.L().Error("Failed to close input file", zap.Error(err))
-		}
-	}(inputF)
+	defer inputF.Close()
+
 	err = yaml.NewDecoder(inputF).Decode(&input)
 	return input.Graph, err
 }
@@ -354,23 +350,15 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 	return nil
 }
 
-type UpRequest struct {
-	StackReferences []pulumi.StackReference
-}
-
-type DownRequest struct {
-	StackReferences []pulumi.StackReference
-}
-
-func (o *Orchestrator) RunUpCommand(request UpRequest) error {
+func (o *Orchestrator) RunUpCommand(request deployment.UpRequest) error {
 	deployer := deployment.Deployer{
 		StateManager: o.StateManager, LanguageHostClient: o.LanguageHostClient}
-	err := deployer.RunApplicationUpCommand(request.StackReferences)
+	err := deployer.RunApplicationUpCommand(request)
 	return err
 }
 
-func (o *Orchestrator) RunDownCommand(request DownRequest) error {
+func (o *Orchestrator) RunDownCommand(request deployment.DownRequest) error {
 	deployer := deployment.Deployer{}
-	err := deployer.RunApplicationDownCommand(request.StackReferences)
+	err := deployer.RunApplicationDownCommand(request)
 	return err
 }

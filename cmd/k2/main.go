@@ -13,6 +13,7 @@ var commonCfg struct {
 	verbose bool
 	jsonLog bool
 	logsDir string
+	dryRun  bool
 }
 
 func cli() {
@@ -21,6 +22,8 @@ func cli() {
 	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
 	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
 	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
+	flags.BoolVarP(&commonCfg.dryRun, "dry-run", "n", false, "Dry run")
+
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		logOpts := logging.LogOpts{
 			Verbose:         commonCfg.verbose,

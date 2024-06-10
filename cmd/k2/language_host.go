@@ -46,10 +46,11 @@ func startPythonClient() *exec.Cmd {
 	// spawn the python process as a subprocess of the CLI so it is guaranteed to be killed when the CLI exits
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
+	zap.S().Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
 	if err := cmd.Start(); err != nil {
 		zap.S().Fatalf("failed to start Python client: %v", err)
 	}
-	zap.S().Info("Python client started")
+	zap.L().Info("Python client started")
 
 	go func() {
 		err := cmd.Wait()

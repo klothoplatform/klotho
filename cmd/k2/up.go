@@ -10,6 +10,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
+	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
@@ -44,7 +45,7 @@ func newUpCmd() *cobra.Command {
 			upConfig.inputPath = absolutePath
 
 			if upConfig.outputPath == "" {
-				(&upConfig).outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+				upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 			}
 
 			updCmd(upConfig)
@@ -217,8 +218,9 @@ func updCmd(args struct {
 		})
 	}
 
-	upRequest := orchestrator.UpRequest{
+	upRequest := deployment.UpRequest{
 		StackReferences: refs,
+		DryRun:          commonCfg.dryRun,
 	}
 
 	err = o.RunUpCommand(upRequest)
