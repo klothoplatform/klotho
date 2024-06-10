@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
