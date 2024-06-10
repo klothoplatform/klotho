@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
@@ -32,7 +33,7 @@ func (d *Deployer) RunApplicationUpCommand(stackReferences []pulumi.StackReferen
 		if err != nil {
 			return err
 		}
-		err2 := d.resolveOutputValues(stackReference, stackState, err)
+		err2 := d.resolveOutputValues(stackReference, stackState)
 		if err2 != nil {
 			return err2
 		}
@@ -40,7 +41,7 @@ func (d *Deployer) RunApplicationUpCommand(stackReferences []pulumi.StackReferen
 	return nil
 }
 
-func (d *Deployer) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState, err error) error {
+func (d *Deployer) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState) error {
 	// TODO: This is a demo implementation that passes the stack outputs to the language host
 	//       and gets the resolved output references back.
 	//       It doesn't actually do anything with the resolved outputs yet.
