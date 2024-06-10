@@ -20,7 +20,7 @@ class Construct:
             environment=runtime.application.environment,
             type="construct",
             subtype=construct_type,
-            construct_id=name
+            resource_id=name
         )
         self.name = name
         self.construct_type = construct_type
@@ -58,7 +58,6 @@ class Construct:
                     "value": None,
                     "status": "pending",
                     "dependsOn": [str(d) for d in value.depends_on],
-                    "reference": str(value.id),
                 }
             else:
                 self.inputs[name] = {

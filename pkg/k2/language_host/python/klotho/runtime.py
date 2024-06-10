@@ -27,7 +27,7 @@ class Runtime:
 
     def __init__(self):
         if not self._initialized:
-            self.resources = {}
+            self.constructs = {}
             self.outputs:dict[str, any] = {}
             self.output_references: dict[str, "Output"] = {}
             self.application: Optional["klotho.Application"] = None
@@ -35,14 +35,14 @@ class Runtime:
             self.stub = service_pb2_grpc.KlothoServiceStub(channel)
             self._initialized = True
 
-    def add_resource(self, resource):
-        self.resources[resource.name] = resource
+    def add_construct(self, resource):
+        self.constructs[resource.name] = resource
 
     def set_application(self, application):
         self.application = application
 
     def generate_yaml(self):
-        constructs = {name: resource.to_dict() for name, resource in self.resources.items()}
+        constructs = {name: construct.to_dict() for name, construct in self.constructs.items()}
         output = {
             "schemaVersion": 1,  # Adjust this value as needed
             "version": 1,  # Adjust this value as needed
@@ -54,18 +54,18 @@ class Runtime:
         }
         return yaml.dump(output, sort_keys=False)
 
-    def resolve_output_references(self, resources: dict[str, dict[str, any]]):
+    def resolve_output_references(self, constructs: dict[str, dict[str, any]]):
         """
-        Resources is expected to be a dictionary of resource urn to resource outputs
+        constructs is expected to be a dictionary of resource urn to resource outputs
         example:
         {
-            "urn:accountid:project:env:resource": {
+            "urn:accountid:project:env:construct:...": {
                 "output1": "value1",
                 "output2": "value2"
             }
         }
         """
-        for urn, outputs in resources.items():
+        for urn, outputs in constructs.items():
             for output_name, output_value in outputs.items():
                 output_urn = URN.parse(urn)
                 output_urn.output = output_name

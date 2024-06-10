@@ -35,7 +35,6 @@ const (
 )
 
 type Input struct {
-	Type      string      `yaml:"type,omitempty"`
 	Value     interface{} `yaml:"value,omitempty"`
 	Encrypted bool        `yaml:"encrypted,omitempty"`
 	Status    InputStatus `yaml:"status,omitempty"`
