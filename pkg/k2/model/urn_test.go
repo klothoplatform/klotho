@@ -1,9 +1,10 @@
 package model
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"testing"
 )
 
 func TestParseURN(t *testing.T) {
@@ -346,9 +347,7 @@ func TestMarshalYAML2(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			urn, err := ParseURN(tc.urn)
-			var urn2 URN
-
-			urn2 = *urn
+			var urn2 *URN = urn
 
 			if assert.NoError(t, err); err != nil {
 				return
