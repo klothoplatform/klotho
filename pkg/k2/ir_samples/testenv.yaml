@@ -1,0 +1,23 @@
+schemaVersion: 1
+version: 1
+project_urn: urn:k2:project:myproject
+app_urn: urn:k2:app:myapp
+environment: dev
+constructs:
+  my-bucket:
+    type: klotho.aws.Bucket
+    urn: urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket
+    version: 1
+  my-container:
+    type: klotho.aws.Container
+    urn: urn:accountid:project:dev::construct/klotho.aws.Container:my-container
+    version: 1
+    inputs:
+      image:
+        type: string
+        value: nginx:latest
+        status: resolved
+      port:
+        type: number
+        value: 80
+        status: resolved

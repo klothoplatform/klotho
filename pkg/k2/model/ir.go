@@ -17,8 +17,7 @@ type ApplicationEnvironment struct {
 }
 
 type Construct struct {
-	Type      ConstructType          `yaml:"type,omitempty"`
-	URN       URN                    `yaml:"urn,omitempty"`
+	URN       *URN                   `yaml:"urn,omitempty"`
 	Version   int                    `yaml:"version,omitempty"`
 	Inputs    map[string]Input       `yaml:"inputs,omitempty"`
 	Outputs   map[string]string      `yaml:"outputs,omitempty"`
@@ -26,13 +25,6 @@ type Construct struct {
 	Options   map[string]interface{} `yaml:"options,omitempty"`
 	DependsOn []string               `yaml:"dependsOn,omitempty"`
 }
-
-type ConstructType string
-
-const (
-	ContainerType ConstructType = "klotho.aws.Container"
-	// Add other construct types as needed
-)
 
 type Input struct {
 	Value     interface{} `yaml:"value,omitempty"`
