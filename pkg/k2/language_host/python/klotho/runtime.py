@@ -54,7 +54,7 @@ class Runtime:
         }
         return yaml.dump(output, sort_keys=False)
 
-    def resolve_output_references(self, constructs: dict[str, dict[str, any]]):
+    def resolve_output_references(self, constructs: dict[str, dict[str, any]]) -> list["Output"]:
         """
         constructs is expected to be a dictionary of resource urn to resource outputs
         example:

@@ -15,7 +15,7 @@ import (
 )
 
 type StackReference struct {
-	ConstructURN model.URN
+	ConstructURN *model.URN
 	Name         string
 	IacDirectory string
 	AwsRegion    string

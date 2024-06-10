@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x06klotho\"\x1d\n\tIRRequest\x12\x10\n\x08\x66ilename\x18\x01 \x01(\t\"0\n\x07IRReply\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t\"\x14\n\x12HealthCheckRequest\"\"\n\x10HealthCheckReply\x12\x0e\n\x06status\x18\x01 \x01(\t\"/\n\x17RegisterResourceRequest\x12\x14\n\x0cyaml_payload\x18\x01 \x01(\t\"\xa4\x01\n\x15RegisterResourceReply\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x46\n\x10resolved_outputs\x18\x02 \x03(\x0b\x32,.klotho.RegisterResourceReply.ResolvedOutput\x1a\x32\n\x0eResolvedOutput\x12\n\n\x02id\x18\x01 \x01(\t\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t2\xdc\x01\n\rKlothoService\x12.\n\x06SendIR\x12\x11.klotho.IRRequest\x1a\x0f.klotho.IRReply\"\x00\x12\x45\n\x0bHealthCheck\x12\x1a.klotho.HealthCheckRequest\x1a\x18.klotho.HealthCheckReply\"\x00\x12T\n\x10RegisterResource\x12\x1f.klotho.RegisterResourceRequest\x1a\x1d.klotho.RegisterResourceReply\"\x00\x42:Z8github.com/klothoplatform/klotho/pkg/k2/language_host/gob\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x06klotho\"\x1d\n\tIRRequest\x12\x10\n\x08\x66ilename\x18\x01 \x01(\t\"0\n\x07IRReply\x12\x0f\n\x07message\x18\x01 \x01(\t\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t\"\x14\n\x12HealthCheckRequest\"\"\n\x10HealthCheckReply\x12\x0e\n\x06status\x18\x01 \x01(\t\"0\n\x18RegisterConstructRequest\x12\x14\n\x0cyaml_payload\x18\x01 \x01(\t\"\xa6\x01\n\x16RegisterConstructReply\x12\x0f\n\x07message\x18\x01 \x01(\t\x12G\n\x10resolved_outputs\x18\x02 \x03(\x0b\x32-.klotho.RegisterConstructReply.ResolvedOutput\x1a\x32\n\x0eResolvedOutput\x12\n\n\x02id\x18\x01 \x01(\t\x12\x14\n\x0cyaml_payload\x18\x02 \x01(\t2\xdf\x01\n\rKlothoService\x12.\n\x06SendIR\x12\x11.klotho.IRRequest\x1a\x0f.klotho.IRReply\"\x00\x12\x45\n\x0bHealthCheck\x12\x1a.klotho.HealthCheckRequest\x1a\x18.klotho.HealthCheckReply\"\x00\x12W\n\x11RegisterConstruct\x12 .klotho.RegisterConstructRequest\x1a\x1e.klotho.RegisterConstructReply\"\x00\x42:Z8github.com/klothoplatform/klotho/pkg/k2/language_host/gob\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -30,12 +30,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_HEALTHCHECKREQUEST']._serialized_end=126
   _globals['_HEALTHCHECKREPLY']._serialized_start=128
   _globals['_HEALTHCHECKREPLY']._serialized_end=162
-  _globals['_REGISTERRESOURCEREQUEST']._serialized_start=164
-  _globals['_REGISTERRESOURCEREQUEST']._serialized_end=211
-  _globals['_REGISTERRESOURCEREPLY']._serialized_start=214
-  _globals['_REGISTERRESOURCEREPLY']._serialized_end=378
-  _globals['_REGISTERRESOURCEREPLY_RESOLVEDOUTPUT']._serialized_start=328
-  _globals['_REGISTERRESOURCEREPLY_RESOLVEDOUTPUT']._serialized_end=378
-  _globals['_KLOTHOSERVICE']._serialized_start=381
-  _globals['_KLOTHOSERVICE']._serialized_end=601
+  _globals['_REGISTERCONSTRUCTREQUEST']._serialized_start=164
+  _globals['_REGISTERCONSTRUCTREQUEST']._serialized_end=212
+  _globals['_REGISTERCONSTRUCTREPLY']._serialized_start=215
+  _globals['_REGISTERCONSTRUCTREPLY']._serialized_end=381
+  _globals['_REGISTERCONSTRUCTREPLY_RESOLVEDOUTPUT']._serialized_start=331
+  _globals['_REGISTERCONSTRUCTREPLY_RESOLVEDOUTPUT']._serialized_end=381
+  _globals['_KLOTHOSERVICE']._serialized_start=384
+  _globals['_KLOTHOSERVICE']._serialized_end=607
 # @@protoc_insertion_point(module_scope)

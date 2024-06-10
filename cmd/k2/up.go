@@ -132,7 +132,7 @@ func updCmd(args struct {
 		}
 	}
 
-	o := orchestrator.NewOrchestrator(sm)
+	o := orchestrator.NewOrchestrator(sm, client)
 
 	// Apply constraints
 	for _, c := range ir.Constructs {

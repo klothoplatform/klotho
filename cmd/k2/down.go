@@ -58,7 +58,7 @@ func downCmd(outputPath string) string {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			stackReference := pulumi.StackReference{
-				ConstructURN: model.URN{},
+				ConstructURN: &model.URN{},
 				Name:         entry.Name(),
 				IacDirectory: filepath.Join(outputPath, entry.Name()),
 			}
