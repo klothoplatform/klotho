@@ -19,8 +19,6 @@ coverage.xml
 
 /compiled*/
 
-.vscode/launch.json
-
 # Go generated template files
 secret.js.tmpl
 keyvalue.js.tmpl 

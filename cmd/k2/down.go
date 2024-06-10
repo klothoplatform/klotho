@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
@@ -68,7 +69,7 @@ func downCmd(outputPath string) string {
 	}
 
 	var o orchestrator.Orchestrator
-	err = o.RunDownCommand(orchestrator.DownRequest{StackReferences: stackReferences})
+	err = o.RunDownCommand(deployment.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun})
 
 	if err != nil {
 		log.Fatalf("failed to run down command: %v", err)

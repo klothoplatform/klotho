@@ -2,6 +2,7 @@ package pulumi
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
@@ -62,7 +64,7 @@ func InitializeStack(projectName string, stackName string, stackDirectory string
 	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
 }
 
-func RunStackUp(stackReference StackReference) (StackState, error) {
+func RunStackUp(stackReference StackReference, dryrun bool) (StackState, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	ctx := context.Background()
@@ -99,9 +101,11 @@ func RunStackUp(stackReference StackReference) (StackState, error) {
 
 	zap.S().Info("Starting update")
 
-	stdoutStreamer := optup.ProgressStreams(os.Stdout)
-
-	_, err = s.Up(ctx, stdoutStreamer)
+	if dryrun {
+		_, err = s.Preview(ctx, optpreview.ProgressStreams(os.Stdout))
+	} else {
+		_, err = s.Up(ctx, optup.ProgressStreams(os.Stdout))
+	}
 	if err != nil {
 		zap.S().Errorf("Failed to update stack: %v\n\n", err)
 		return StackState{}, errors2.WrapErrf(err, "Failed to update stack")
@@ -112,7 +116,7 @@ func RunStackUp(stackReference StackReference) (StackState, error) {
 	return GetStackState(ctx, s)
 }
 
-func RunStackDown(stackReference StackReference) error {
+func RunStackDown(stackReference StackReference, dryrun bool) error {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	ctx := context.Background()
@@ -150,6 +154,13 @@ func RunStackDown(stackReference StackReference) error {
 
 	// wire up our destroy to stream progress to stdout
 	stdoutStreamer := optdestroy.ProgressStreams(os.Stdout)
+
+	if dryrun {
+		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
+		// and doesn't have any optiosn for "--preview-only"
+		// which was added in https://github.com/pulumi/pulumi/pull/15336
+		return errors.New("Dryrun not supported in Destroy yet")
+	}
 
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer)

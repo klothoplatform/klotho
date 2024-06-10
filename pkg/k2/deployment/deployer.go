@@ -15,21 +15,30 @@ type (
 		StateManager       *model.StateManager
 		LanguageHostClient pb.KlothoServiceClient
 	}
+
+	UpRequest struct {
+		StackReferences []pulumi.StackReference
+		DryRun          bool
+	}
+
+	DownRequest struct {
+		StackReferences []pulumi.StackReference
+		DryRun          bool
+	}
 )
 
-func (d *Deployer) RunApplicationUpCommand(stackReferences []pulumi.StackReference) error {
+func (d *Deployer) RunApplicationUpCommand(req UpRequest) (err error) {
 	//todo, this needs to take into account dependency order
 	sm := d.StateManager
 	defer func() {
-		err := sm.SaveState()
-		if err != nil {
-			zap.S().Errorf("Error saving state: %v", err)
+		saveErr := sm.SaveState()
+		if err == nil {
+			err = saveErr
 		}
 	}()
-
 	//TODO: execute runStackDown for removed construct stack references when we have state management
-	for _, stackReference := range stackReferences {
-		stackState, err := pulumi.RunStackUp(stackReference)
+	for _, stackReference := range req.StackReferences {
+		stackState, err := pulumi.RunStackUp(stackReference, req.DryRun)
 		if err != nil {
 			return err
 		}
@@ -73,9 +82,9 @@ func (d *Deployer) resolveOutputValues(stackReference pulumi.StackReference, sta
 	return nil
 }
 
-func (d *Deployer) RunApplicationDownCommand(stackReferences []pulumi.StackReference) error {
-	for _, stackReference := range stackReferences {
-		if err := pulumi.RunStackDown(stackReference); err != nil {
+func (d *Deployer) RunApplicationDownCommand(req DownRequest) error {
+	for _, stackReference := range req.StackReferences {
+		if err := pulumi.RunStackDown(stackReference, req.DryRun); err != nil {
 			return err
 		}
 	}

@@ -30,8 +30,9 @@ func (e Error) Error() string {
 
 // Append will mutate e and append the error. Will no-op if `err == nil`.
 // Typical usage should be via auto-referencing [syntax sugar](https://go.dev/ref/spec#Calls):
-//    var e Error
-//    e.Append(err)
+//
+//	var e Error
+//	e.Append(err)
 func (e *Error) Append(err error) {
 	switch {
 	case e == nil:
@@ -77,15 +78,19 @@ func Append(err1, err2 error) Error {
 }
 
 // ErrOrNil is used to convert this multierr into a [error]. This is necessary because it is a typed nil
-//    func example() error {
-//    	var e Error
-//    	return e
-//    }
-//    if example() != nil {
-//    	! this will run!
-//    }
+//
+//	func example() error {
+//		var e Error
+//		return e
+//	}
+//	if example() != nil {
+//		! this will run!
+//	}
+//
 // in otherwords,
-//    (Error)(nil) != nil
+//
+//	(Error)(nil) != nil
+//
 // Additionally, if there's only a single error, it will automatically unwrap it.
 func (e Error) ErrOrNil() error {
 	switch len(e) {
