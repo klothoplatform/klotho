@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
-	"runtime/pprof"
 	"strings"
 	"sync"
 
 	"github.com/iancoleman/strcase"
+	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
@@ -20,7 +19,6 @@ import (
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
@@ -35,16 +33,11 @@ type (
 	}
 )
 
-var commonCfg struct {
-	verbose bool
-	jsonLog bool
-	logsDir string
-}
+var commonCfg clicommon.CommonConfig
 
 var engineCfg struct {
 	provider   string
 	guardrails string
-	profileTo  string
 }
 
 var architectureEngineCfg struct {
@@ -64,23 +57,7 @@ var getValidEdgeTargetsCfg struct {
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
-	flags := root.PersistentFlags()
-	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
-	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
-	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		logOpts := logging.LogOpts{
-			Verbose:         commonCfg.verbose,
-			CategoryLogsDir: commonCfg.logsDir,
-		}
-		if commonCfg.jsonLog {
-			logOpts.Encoding = "json"
-		}
-		zap.ReplaceGlobals(logOpts.NewLogger())
-	}
-	root.PersistentPostRun = func(cmd *cobra.Command, args []string) {
-		zap.L().Sync() //nolint:errcheck
-	}
+	clicommon.SetupRoot(root, &commonCfg)
 
 	engineGroup := &cobra.Group{
 		ID:    "engine",
@@ -93,7 +70,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		RunE:    em.ListResourceTypes,
 	}
 
-	flags = listResourceTypesCmd.Flags()
+	flags := listResourceTypesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
 	flags.StringVar(&engineCfg.guardrails, "guardrails", "", "Guardrails file")
 
@@ -125,7 +102,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
 	flags.StringVarP(&architectureEngineCfg.globalTag, "global-tag", "t", "", "Global tag")
-	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	getPossibleEdgesCmd := &cobra.Command{
 		Use:     "GetValidEdgeTargets",
@@ -139,7 +115,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&getValidEdgeTargetsCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.configFile, "config", "c", "", "config file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.outputDir, "output-dir", "o", "", "Output directory")
-	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
@@ -226,28 +201,6 @@ func (em *EngineMain) ListAttributes(cmd *cobra.Command, args []string) error {
 	attributes := em.Engine.ListAttributes()
 	fmt.Println(strings.Join(attributes, "\n"))
 	return nil
-}
-
-func setupProfiling() func() {
-	if engineCfg.profileTo != "" {
-		err := os.MkdirAll(filepath.Dir(engineCfg.profileTo), 0755)
-		if err != nil {
-			panic(fmt.Errorf("failed to create profile directory: %w", err))
-		}
-		profileF, err := os.OpenFile(engineCfg.profileTo, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(fmt.Errorf("failed to open profile file: %w", err))
-		}
-		err = pprof.StartCPUProfile(profileF)
-		if err != nil {
-			panic(fmt.Errorf("failed to start profile: %w", err))
-		}
-		return func() {
-			pprof.StopCPUProfile()
-			profileF.Close()
-		}
-	}
-	return func() {}
 }
 
 func extractEngineErrors(err error) []engine_errs.EngineError {
@@ -361,7 +314,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 			engErrs = append(engErrs, engine_errs.InternalError{Err: fmt.Errorf("panic: %v", r)})
 		}
 	}()
-	defer setupProfiling()()
 
 	err := em.AddEngine()
 	if err != nil {
@@ -467,8 +419,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 }
 
 func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
-	defer setupProfiling()()
-
 	log := zap.S().Named("engine")
 
 	err := em.AddEngine()

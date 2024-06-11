@@ -164,6 +164,8 @@ func updCmd(args struct {
 		}
 
 		// Run the engine
+		// TODO the engine currently assumes only 1 run globally, so the debug graphs and other files
+		// will get overwritten with each run. We should fix this.
 		engineContext, errs := o.RunEngine(orchestrator.EngineRequest{
 			Provider:    "aws",
 			InputGraph:  inputGraph,

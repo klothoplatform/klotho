@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	attribAddedIn = "added_in"
-	attribError   = "error"
-	attribReady   = "ready"
-	attribAddedBy = "added_by"
+	attribAddedIn  = "added_in"
+	attribError    = "error"
+	attribReady    = "ready"
+	attribAddedBy  = "added_by"
+	attribDuration = "duration"
 )
 
 func PrintGraph(g Graph) {
