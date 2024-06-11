@@ -4,39 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/klothoplatform/klotho/pkg/logging"
+	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var commonCfg struct {
-	verbose bool
-	jsonLog bool
-	logsDir string
-	dryRun  bool
+	clicommon.CommonConfig
+	dryRun bool
 }
 
 func cli() {
 	var rootCmd = &cobra.Command{Use: "app"}
+	clicommon.SetupRoot(rootCmd, &commonCfg.CommonConfig)
 	flags := rootCmd.PersistentFlags()
-	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
-	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
 	flags.BoolVarP(&commonCfg.dryRun, "dry-run", "n", false, "Dry run")
-
-	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		logOpts := logging.LogOpts{
-			Verbose:         commonCfg.verbose,
-			CategoryLogsDir: commonCfg.logsDir,
-		}
-		if commonCfg.jsonLog {
-			logOpts.Encoding = "json"
-		}
-		zap.ReplaceGlobals(logOpts.NewLogger())
-	}
-	rootCmd.PersistentPostRun = func(cmd *cobra.Command, args []string) {
-		_ = zap.L().Sync()
-	}
 
 	var initCommand = &cobra.Command{
 		Use:   "init",

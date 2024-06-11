@@ -56,6 +56,13 @@ func keyAttributes(eval *Evaluator, key Key) map[string]string {
 		attribs["label"] = fmt.Sprintf(`%s\n(UNKOWN)`, key)
 		attribs["color"] = "#fc8803"
 	}
+
+	if _, props, err := eval.graph.VertexWithProperties(key); err == nil {
+		if dur := props.Attributes[attribDuration]; dur != "" {
+			attribs["label"] = fmt.Sprintf(`%s\n%s`, attribs["label"], dur)
+		}
+	}
+
 	if eval.errored.Contains(key) {
 		style = append(style, "filled")
 		attribs["fillcolor"] = errorColour

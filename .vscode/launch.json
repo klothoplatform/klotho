@@ -70,6 +70,7 @@
         "up",
         "-v",
         "-o=${workspaceFolder}/out/${fileBasenameNoExtension}",
+        "--profiling=${workspaceFolder}/out/${fileBasenameNoExtension}/k2.prof",
         "--dry-run",
         "${file}"
       ],
