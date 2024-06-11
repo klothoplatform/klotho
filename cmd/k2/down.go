@@ -2,21 +2,21 @@ package main
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/deployment"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
-	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/orchestrator"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var downConfig struct {
-	inputPath  string
 	outputPath string
+	project    string
+	app        string
+	env        string
 }
 
 func newDownCmd() *cobra.Command {
@@ -34,13 +34,15 @@ func newDownCmd() *cobra.Command {
 				fmt.Println("couldn't convert to absolute path")
 				os.Exit(1)
 			}
-			downConfig.inputPath = absolutePath
+			downConfig.project = args[1]
+			downConfig.app = args[2]
+			downConfig.env = args[3]
 
 			if downConfig.outputPath == "" {
 				(&downConfig).outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 			}
 
-			downCmd(downConfig.outputPath)
+			downCmd(downConfig)
 		},
 	}
 	flags := downCommand.Flags()
@@ -49,26 +51,36 @@ func newDownCmd() *cobra.Command {
 
 }
 
-func downCmd(outputPath string) string {
-	entries, err := os.ReadDir(outputPath)
+func downCmd(args struct {
+	outputPath string
+	project    string
+	app        string
+	env        string
+}) string {
+
+	projectPath := filepath.Join(args.outputPath, args.project, args.app, args.env)
+
+	entries, err := os.ReadDir(projectPath)
 	if err != nil {
-		zap.L().Error("failed to read directory", zap.Error(err))
+		log.Fatalf("failed to read directory: %v", err)
 		return "failure"
 	}
 
 	var stackReferences []pulumi.StackReference
 	for _, entry := range entries {
 		if entry.IsDir() {
+			constructPath := filepath.Join(projectPath, entry.Name())
+
 			stackReference := pulumi.StackReference{
-				ConstructURN: &model.URN{},
+				ConstructURN: model.URN{},
 				Name:         entry.Name(),
-				IacDirectory: filepath.Join(outputPath, entry.Name()),
+				IacDirectory: constructPath,
 			}
 			stackReferences = append(stackReferences, stackReference)
 		}
 	}
 
-	var o orchestrator.Orchestrator
+	var o orchestration.Orchestrator
 	err = o.RunDownCommand(deployment.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun})
 
 	if err != nil {

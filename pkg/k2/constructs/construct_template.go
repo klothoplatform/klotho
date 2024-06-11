@@ -2,6 +2,7 @@ package constructs
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -112,6 +113,21 @@ func ParseConstructTemplateId(id string) (ConstructTemplateId, error) {
 
 func (c *ConstructTemplateId) String() string {
 	return fmt.Sprintf("%s.%s", c.Package, c.Name)
+}
+
+func (c *ConstructTemplateId) FromURN(urn model.URN) error {
+	if urn.Type != "construct" {
+		return fmt.Errorf("invalid urn type: %s", urn.Type)
+	}
+
+	parts := strings.Split(urn.Subtype, ".")
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid construct template id: %s", urn.Subtype)
+	}
+
+	c.Package = strings.Join(parts[:len(parts)-1], ".")
+	c.Name = parts[len(parts)-1]
+	return nil
 }
 
 func (e *EdgeTemplate) UnmarshalYAML(value *yaml.Node) error {

@@ -23,14 +23,14 @@ type Construct struct {
 	Outputs   map[string]string      `yaml:"outputs,omitempty"`
 	Bindings  []Binding              `yaml:"bindings,omitempty"`
 	Options   map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn []string               `yaml:"dependsOn,omitempty"`
+	DependsOn []*URN                 `yaml:"dependsOn,omitempty"`
 }
 
 type Input struct {
 	Value     interface{} `yaml:"value,omitempty"`
 	Encrypted bool        `yaml:"encrypted,omitempty"`
 	Status    InputStatus `yaml:"status,omitempty"`
-	DependsOn []string    `yaml:"dependsOn,omitempty"`
+	DependsOn []*URN      `yaml:"dependsOn,omitempty"`
 }
 
 type InputStatus string
@@ -42,7 +42,7 @@ const (
 )
 
 type Binding struct {
-	URN         string `yaml:"urn,omitempty"`
+	URN         *URN   `yaml:"urn,omitempty"`
 	BindingType string `yaml:"binding_type,omitempty"`
 }
 

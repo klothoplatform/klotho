@@ -3,6 +3,8 @@ package pulumi
 import (
 	"context"
 	"errors"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"os"
 	"path/filepath"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
@@ -18,7 +19,7 @@ import (
 )
 
 type StackReference struct {
-	ConstructURN *model.URN
+	ConstructURN model.URN
 	Name         string
 	IacDirectory string
 	AwsRegion    string
@@ -74,8 +75,12 @@ func RunStackUp(stackReference StackReference, dryrun bool) (StackState, error) 
 		zap.S().Errorf("Failed to create or select stack: %v\n", err)
 		os.Exit(1)
 	}
-
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
+
+	err = InstallDependencies(stackDirectory)
+	if err != nil {
+		return StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
+	}
 
 	if err != nil {
 		zap.S().Errorf("Failed to set environment variables: %v\n", err)
@@ -178,4 +183,15 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 		return errors2.WrapErrf(err, "Failed to remove stack")
 	}
 	return nil
+}
+
+func InstallDependencies(stackDirectory string) error {
+	zap.S().Infof("Installing pulumi dependencies in %s", stackDirectory)
+	npmCmd := logging.Command(
+		context.TODO(),
+		logging.CommandLogger{RootLogger: zap.L().Named("npm")},
+		"npm", "install",
+	)
+	npmCmd.Dir = stackDirectory
+	return npmCmd.Run()
 }

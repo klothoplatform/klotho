@@ -82,7 +82,7 @@ func TestReadConstructTemplateFromYamlFile(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	// Define the YAML string
-	ctx := NewContext(
+	ctx := NewConstructEvaluator(
 		map[string]any{
 			"Image": "nginx:latest",
 		},
@@ -94,7 +94,7 @@ func TestParse(t *testing.T) {
 			InstanceId: "my-instance",
 		},
 	)
-	resolvedConstruct := ctx.EvaluateConstruct()
+	resolvedConstruct := ctx.evaluateConstruct()
 	//t.Logf("Resolved Construct: %v", resolvedConstruct)
 	// log the resolve construct as yaml
 	out, err := yaml.Marshal(&resolvedConstruct)

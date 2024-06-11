@@ -1,8 +1,7 @@
-package orchestrator
+package orchestration
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
-	"github.com/klothoplatform/klotho/pkg/logging"
-
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -21,8 +17,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
-	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
@@ -31,16 +25,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Orchestrator is the main orchestrator for the K2 platform
-
 type (
-	Orchestrator struct {
-		Engine             *engine.Engine
-		StateManager       *model.StateManager
-		LanguageHostClient pb.KlothoServiceClient
+	InfraGenerator struct {
+		Engine *engine.Engine
 	}
 
-	EngineRequest struct {
+	InfraRequest struct {
 		Provider    string
 		InputGraph  construct.Graph
 		Constraints constraints.Constraints
@@ -49,18 +39,11 @@ type (
 	}
 )
 
-func NewOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient) *Orchestrator {
-	return &Orchestrator{
-		StateManager:       sm,
-		LanguageHostClient: languageHostClient,
-	}
-}
-
 var cachedEngine *engine.Engine
 
-func (o *Orchestrator) AddEngine() error {
+func (g *InfraGenerator) addEngine() error {
 	if cachedEngine != nil {
-		o.Engine = cachedEngine
+		g.Engine = cachedEngine
 		return nil
 	}
 
@@ -69,11 +52,36 @@ func (o *Orchestrator) AddEngine() error {
 		return err
 	}
 	cachedEngine = engine.NewEngine(kb)
-	o.Engine = cachedEngine
+	g.Engine = cachedEngine
 	return nil
 }
 
-func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, []engine_errs.EngineError) {
+func (g *InfraGenerator) Run(c constraints.Constraints, outDir string) error {
+	// TODO the engine currently assumes only 1 run globally, so the debug graphs and other files
+	// will get overwritten with each run. We should fix this.
+	engineContext, errs := g.resolveResources(InfraRequest{
+		Provider:    "aws",
+		Constraints: c,
+		OutputDir:   outDir,
+		GlobalTag:   "k2",
+	})
+	if errs != nil {
+		return fmt.Errorf("failed to resolve resources: %v", errs)
+	}
+
+	err := g.generateIac(iacRequest{
+		PulumiAppName: "k2",
+		Context:       engineContext,
+		OutputDir:     outDir,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to generate iac: %w", err)
+
+	}
+	return nil
+}
+
+func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.EngineContext, []engine_errs.EngineError) {
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
@@ -102,7 +110,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, 
 		}
 	}()
 
-	err := o.AddEngine()
+	err := g.addEngine()
 	if err != nil {
 		internalError(err)
 		return nil, engErrs
@@ -127,7 +135,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, 
 	context.Constraints = request.Constraints
 	// len(engErrs) == 0 at this point so overwriting it is safe
 	// All other assignments prior are via 'internalError' and return
-	exitCode, engErrs := o.Run(context)
+	exitCode, engErrs := g.runEngine(context)
 	if exitCode == 1 {
 		return nil, engErrs
 	}
@@ -146,7 +154,7 @@ func (o *Orchestrator) RunEngine(request EngineRequest) (*engine.EngineContext, 
 	})
 
 	log.Info("Engine finished running... Generating views")
-	vizFiles, err := o.Engine.VisualizeViews(context.Solutions[0])
+	vizFiles, err := g.Engine.VisualizeViews(context.Solutions[0])
 	if err != nil {
 		internalError(fmt.Errorf("failed to generate views %w", err))
 		return nil, engErrs
@@ -205,14 +213,14 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 	return enc.Encode(outErrs)
 }
 
-func (o *Orchestrator) Run(context *engine.EngineContext) (int, []engine_errs.EngineError) {
+func (g *InfraGenerator) runEngine(context *engine.EngineContext) (int, []engine_errs.EngineError) {
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
 
 	log := zap.S().Named("engine")
 
 	log.Info("Running engine")
-	err := o.Engine.Run(context)
+	err := g.Engine.Run(context)
 	if err != nil {
 		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
 		// This is returned as exit code 1, and add the details to be printed to stdout.
@@ -289,7 +297,7 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 	wg.Wait()
 }
 
-func ReadInputGraph(filePath string) (construct.Graph, error) {
+func readInputGraph(filePath string) (construct.Graph, error) {
 	parts := strings.Split(filePath, "/")
 	lastPart := parts[len(parts)-1]
 	resourcesPath := strings.Join(parts[:len(parts)-1], "/")
@@ -312,7 +320,7 @@ func ReadInputGraph(filePath string) (construct.Graph, error) {
 	return input.Graph, err
 }
 
-type IacRequest struct {
+type iacRequest struct {
 	PulumiAppName string
 	Context       *engine.EngineContext
 	OutputDir     string
@@ -320,7 +328,7 @@ type IacRequest struct {
 
 var cachedKb *knowledgebase.KnowledgeBase
 
-func (o *Orchestrator) GenerateIac(request IacRequest) error {
+func (g *InfraGenerator) generateIac(request iacRequest) error {
 	var files []kio.File
 
 	solCtx := request.Context.Solutions[0]
@@ -350,29 +358,5 @@ func (o *Orchestrator) GenerateIac(request IacRequest) error {
 		return err
 	}
 
-	npmCmd := logging.Command(
-		context.TODO(),
-		logging.CommandLogger{RootLogger: zap.L().Named("npm")},
-		"npm", "install",
-	)
-	npmCmd.Dir = request.OutputDir
-	err = npmCmd.Run()
-	if err != nil {
-		return err
-	}
-
 	return nil
-}
-
-func (o *Orchestrator) RunUpCommand(request deployment.UpRequest) error {
-	deployer := deployment.Deployer{
-		StateManager: o.StateManager, LanguageHostClient: o.LanguageHostClient}
-	err := deployer.RunApplicationUpCommand(request)
-	return err
-}
-
-func (o *Orchestrator) RunDownCommand(request deployment.DownRequest) error {
-	deployer := deployment.Deployer{}
-	err := deployer.RunApplicationDownCommand(request)
-	return err
 }

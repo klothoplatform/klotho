@@ -32,7 +32,7 @@ type ConstructState struct {
 	Outputs     map[string]string      `yaml:"outputs,omitempty"`
 	Bindings    []Binding              `yaml:"bindings,omitempty"`
 	Options     map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn   []string               `yaml:"dependsOn,omitempty"`
+	DependsOn   []*URN                 `yaml:"dependsOn,omitempty"`
 	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
 }
 
