@@ -1,7 +1,9 @@
 from typing import Optional, overload
 
-from klotho.output import Input
+from klotho.aws.network import Network
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
+from klotho.output import Input
+from klotho.runtime_util import get_default_construct
 from klotho.type_util import set, get
 
 
@@ -14,7 +16,7 @@ class ContainerArgs:
                  context: Optional[Input[str]] = None,
                  dockerfile: Optional[Input[str]] = None,
                  port: Optional[Input[int]] = None,
-                 network: Optional[Input[str]] = None):
+                 network: Optional[Network] = None):
         set(self, "image", image)
         if source_hash is not None:
             set(self, "source_hash", source_hash)
@@ -88,11 +90,11 @@ class ContainerArgs:
         set(self, "port", value)
 
     @property
-    def network(self) -> Optional[Input[str]]:
+    def network(self) -> Network:
         return get(self, "network")
 
     @network.setter
-    def network(self, value: Optional[Input[str]]) -> None:
+    def network(self, value: Optional[Network]) -> None:
         set(self, "network", value)
 
 
@@ -113,7 +115,7 @@ class Container(Construct):
             context: Optional[Input[str]] = None,
             dockerfile: Optional[Input[str]] = None,
             port: Optional[Input[int]] = None,
-            network: Optional[Input[str]] = None,
+            network: Optional[Network] = None,
             opts: Optional[ConstructOptions] = None):
         ...
 
@@ -135,8 +137,11 @@ class Container(Construct):
             context: Optional[Input[str]] = None,
             dockerfile: Optional[Input[str]] = None,
             port: Optional[Input[int]] = None,
-            network: Optional[Input[str]] = None,
+            network: Optional[Network] = None,
     ):
+        if network is None:
+            network = get_default_construct("aws", Network)
+
         super().__init__(
             name,
             construct_type="klotho.aws.Container",
@@ -148,7 +153,7 @@ class Container(Construct):
                 "Context": context,
                 "Dockerfile": dockerfile,
                 "Port": port,
-                "Network": network,
+                "Network": network
             },
             opts=opts,
         )

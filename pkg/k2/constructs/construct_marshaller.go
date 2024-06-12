@@ -56,7 +56,7 @@ func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.Constrai
 	// TODO: implement more granular constraints
 	for k, v := range r.Properties {
 
-		v, err := marshallRefs(v, m.Context)
+		v, err := m.marshalRefs(v)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 		}
@@ -74,7 +74,7 @@ func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.Constrai
 func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, error) {
 
 	var from construct.ResourceId
-	ref, err := m.Context.serializeRef(e.From)
+	ref, err := m.Context.SerializeRef(e.From)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize from resource id: %w", err)
 	}
@@ -84,7 +84,7 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, 
 	}
 
 	var to construct.ResourceId
-	ref, err = m.Context.serializeRef(e.To)
+	ref, err = m.Context.SerializeRef(e.To)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize to resource id: %w", err)
 	}
@@ -92,7 +92,7 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, 
 	if err != nil {
 		return nil, fmt.Errorf("could not parse to resource id: %w", err)
 	}
-	v, err := marshallRefs(e.Data, m.Context)
+	v, err := m.marshalRefs(e.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 	}
@@ -124,10 +124,10 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 	return cs, nil
 }
 
-// MarshallRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method
-func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
+// marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's SerializeRef method
+func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 	if ref, ok := rawVal.(ResourceRef); ok {
-		return ctx.serializeRef(ref)
+		return m.Context.SerializeRef(ref)
 	}
 
 	ref := reflect.ValueOf(rawVal)
@@ -144,11 +144,14 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				_, err = marshallRefs(field.Interface(), ctx)
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = ctx.serializeRef(newField)
+				serializedRef, err = m.Context.SerializeRef(newField)
 				if err != nil {
 					return nil, err
 				}
@@ -162,12 +165,15 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				_, err = marshallRefs(field.Interface(), ctx)
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
 					var serializedRef any
-					serializedRef, err = ctx.serializeRef(newField)
+					serializedRef, err = m.Context.SerializeRef(newField)
 					if err != nil {
 						return nil, err
 					}
@@ -184,14 +190,20 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 			}
 
 			if field.Kind() == reflect.Struct {
-				_, err = marshallRefs(field.Interface(), ctx)
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if field.Kind() == reflect.Map {
-				_, err = marshallRefs(field.Interface(), ctx)
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = ctx.serializeRef(newField)
+				serializedRef, err = m.Context.SerializeRef(newField)
 				if err != nil {
 					return nil, err
 				}
@@ -200,23 +212,22 @@ func marshallRefs(rawVal any, ctx *ConstructContext) (any, error) {
 		}
 	case reflect.Interface:
 		if ref.Elem().Kind() == reflect.Struct {
-			_, err = marshallRefs(ref.Elem().Interface(), ctx)
+			_, err = m.marshalRefs(ref.Elem().Interface())
+			if err != nil {
+				return nil, err
+			}
 		}
 	default:
 		if ref.IsValid() {
 			if newField, ok := ref.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = ctx.serializeRef(newField)
+				serializedRef, err = m.Context.SerializeRef(newField)
 				if err != nil {
 					return nil, err
 				}
 				ref.Set(reflect.ValueOf(serializedRef))
 			}
 		}
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	if ref.IsValid() {
@@ -286,64 +297,3 @@ func MarshalValue(value any) any {
 	}
 	return ref.Interface()
 }
-
-//func transformFields[T any](input any, recursive bool, transformer func(field any) (any, error)) T {
-//	ref := reflect.ValueOf(input)
-//	if ref.Kind() == reflect.Ptr {
-//		ref = ref.Elem()
-//	}
-//	switch ref.Kind() {
-//	case reflect.Struct:
-//		for i := 0; i < ref.NumField(); i++ {
-//			field := ref.Field(i)
-//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-//				field = field.Elem()
-//			}
-//			if field.Kind() == reflect.Struct && recursive {
-//				transformFields[any](field, recursive, transformer)
-//			}
-//			if newField, err := transformer(field.Interface()); err == nil {
-//				ref.Field(i).Set(reflect.ValueOf(newField))
-//			}
-//		}
-//	case reflect.Map:
-//		for _, key := range ref.MapKeys() {
-//			field := ref.MapIndex(key)
-//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-//				field = field.Elem()
-//			}
-//			if field.Kind() == reflect.Struct && recursive {
-//				transformFields[any](field, recursive, transformer)
-//			}
-//			if newField, err := transformer(field.Interface()); err == nil {
-//				ref.SetMapIndex(key, reflect.ValueOf(newField))
-//			}
-//		}
-//	case reflect.Slice | reflect.Array:
-//		for i := 0; i < ref.Len(); i++ {
-//			field := ref.Index(i)
-//			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-//				field = field.Elem()
-//			}
-//			if field.Kind() == reflect.Struct && recursive {
-//				transformFields[any](field, recursive, transformer)
-//			}
-//			if newField, err := transformer(field.Interface()); err == nil {
-//				ref.Index(i).Set(reflect.ValueOf(newField))
-//			}
-//		}
-//	case reflect.Interface:
-//		if ref.Elem().Kind() == reflect.Struct && recursive {
-//			transformFields[any](ref.Elem(), recursive, transformer)
-//		}
-//	default:
-//		if ref.CanSet() {
-//			if newField, err := transformer(ref.Interface()); err == nil {
-//				ref.Set(reflect.ValueOf(newField))
-//			}
-//		} else {
-//			zap.S().Warnf("Field %v is not settable", ref)
-//		}
-//	}
-//	return ref.Interface().(T)
-//}

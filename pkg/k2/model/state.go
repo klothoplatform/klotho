@@ -21,19 +21,20 @@ type State struct {
 	ProjectURN    string                    `yaml:"project_urn,omitempty"`
 	AppURN        string                    `yaml:"app_urn,omitempty"`
 	Environment   string                    `yaml:"environment,omitempty"`
+	DefaultRegion string                    `yaml:"default_region,omitempty"`
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
 }
 
 type ConstructState struct {
-	Type        string                 `yaml:"type,omitempty"`
 	Status      ConstructStatus        `yaml:"status,omitempty"`
 	LastUpdated string                 `yaml:"last_updated,omitempty"`
 	Inputs      map[string]Input       `yaml:"inputs,omitempty"`
 	Outputs     map[string]string      `yaml:"outputs,omitempty"`
 	Bindings    []Binding              `yaml:"bindings,omitempty"`
 	Options     map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn   []string               `yaml:"dependsOn,omitempty"`
+	DependsOn   []*URN                 `yaml:"dependsOn,omitempty"`
 	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
+	URN         *URN                   `yaml:"urn,omitempty"`
 }
 
 type ConstructStatus string
@@ -51,6 +52,16 @@ const (
 	DestroyFailed  ConstructStatus = "destroy_failed"
 	UpdatePending  ConstructStatus = "update_pending"
 	DestroyPending ConstructStatus = "destroy_pending"
+)
+
+type (
+	ConstructActionType string
+)
+
+const (
+	ConstructActionCreate ConstructActionType = "create"
+	ConstructActionUpdate ConstructActionType = "update"
+	ConstructActionDelete ConstructActionType = "delete"
 )
 
 type UUID struct {
@@ -101,6 +112,7 @@ func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 	sm.state.ProjectURN = ir.ProjectURN
 	sm.state.AppURN = ir.AppURN
 	sm.state.Environment = ir.Environment
+	sm.state.DefaultRegion = ir.DefaultRegion
 }
 
 func (sm *StateManager) LoadState() error {

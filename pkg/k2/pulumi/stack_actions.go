@@ -3,6 +3,8 @@ package pulumi
 import (
 	"context"
 	"errors"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"os"
 	"path/filepath"
 
@@ -10,7 +12,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
@@ -18,7 +19,7 @@ import (
 )
 
 type StackReference struct {
-	ConstructURN *model.URN
+	ConstructURN model.URN
 	Name         string
 	IacDirectory string
 	AwsRegion    string
@@ -71,11 +72,14 @@ func RunStackUp(stackReference StackReference, dryrun bool) (StackState, error) 
 
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
-		zap.S().Errorf("Failed to create or select stack: %v\n", err)
-		os.Exit(1)
+		return StackState{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
-
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
+
+	err = InstallDependencies(stackDirectory)
+	if err != nil {
+		return StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
+	}
 
 	if err != nil {
 		zap.S().Errorf("Failed to set environment variables: %v\n", err)
@@ -89,22 +93,13 @@ func RunStackUp(stackReference StackReference, dryrun bool) (StackState, error) 
 	}
 
 	zap.S().Info("Successfully set config")
-	zap.S().Info("Starting refresh")
-
-	_, err = s.Refresh(ctx)
-	if err != nil {
-		zap.S().Errorf("Failed to refresh stack: %v\n", err)
-		return StackState{}, errors2.WrapErrf(err, "Failed to refresh stack")
-	}
-
-	zap.S().Info("Refresh succeeded!")
 
 	zap.S().Info("Starting update")
 
 	if dryrun {
-		_, err = s.Preview(ctx, optpreview.ProgressStreams(os.Stdout))
+		_, err = s.Preview(ctx, optpreview.ProgressStreams(os.Stdout), optpreview.Refresh())
 	} else {
-		_, err = s.Up(ctx, optup.ProgressStreams(os.Stdout))
+		_, err = s.Up(ctx, optup.ProgressStreams(os.Stdout), optup.Refresh())
 	}
 	if err != nil {
 		zap.S().Errorf("Failed to update stack: %v\n\n", err)
@@ -122,8 +117,7 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 	ctx := context.Background()
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
-		zap.S().Errorf("Failed to create or select stack: %v\n", err)
-		os.Exit(1)
+		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
@@ -140,20 +134,12 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 	}
 
 	zap.S().Info("Successfully set config")
-	zap.S().Info("Starting refresh")
-
-	_, err = s.Refresh(ctx)
-	if err != nil {
-		zap.S().Errorf("Failed to refresh stack: %v\n", err)
-		return errors2.WrapErrf(err, "Failed to refresh stack")
-	}
-
-	zap.S().Info("Refresh succeeded!")
 
 	zap.S().Info("Starting destroy")
 
 	// wire up our destroy to stream progress to stdout
 	stdoutStreamer := optdestroy.ProgressStreams(os.Stdout)
+	refresh := optdestroy.Refresh()
 
 	if dryrun {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
@@ -163,7 +149,7 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 	}
 
 	// run the destroy to remove our resources
-	_, err = s.Destroy(ctx, stdoutStreamer)
+	_, err = s.Destroy(ctx, stdoutStreamer, refresh)
 	if err != nil {
 		zap.S().Errorf("Failed to destroy stack: %v\n\n", err)
 		return errors2.WrapErrf(err, "Failed to destroy stack")
@@ -171,11 +157,22 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 
 	zap.S().Infof("Successfully destroyed stack %s", stackName)
 
-	zap.S().Info("Removing stack %s", stackName)
+	zap.S().Infof("Removing stack %s", stackName)
 	err = s.Workspace().RemoveStack(ctx, stackName)
 	if err != nil {
 		zap.S().Errorf("Failed to remove stack: %v\n", err)
 		return errors2.WrapErrf(err, "Failed to remove stack")
 	}
 	return nil
+}
+
+func InstallDependencies(stackDirectory string) error {
+	zap.S().Infof("Installing pulumi dependencies in %s", stackDirectory)
+	npmCmd := logging.Command(
+		context.TODO(),
+		logging.CommandLogger{RootLogger: zap.L().Named("npm")},
+		"npm", "install",
+	)
+	npmCmd.Dir = stackDirectory
+	return npmCmd.Run()
 }

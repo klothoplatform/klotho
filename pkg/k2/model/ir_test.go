@@ -24,13 +24,13 @@ func createTestApplicationEnvironment() *ApplicationEnvironment {
 					"image": {
 						Value:     "nginx:latest",
 						Encrypted: false,
-						Status:    Resolved,
+						Status:    InputStatusResolved,
 						DependsOn: nil,
 					},
 					"port": {
 						Value:     80,
 						Encrypted: false,
-						Status:    Resolved,
+						Status:    InputStatusResolved,
 						DependsOn: nil,
 					},
 				},

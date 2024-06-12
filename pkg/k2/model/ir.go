@@ -14,6 +14,7 @@ type ApplicationEnvironment struct {
 	AppURN        string               `yaml:"app_urn,omitempty"`
 	Environment   string               `yaml:"environment,omitempty"`
 	Constructs    map[string]Construct `yaml:"constructs,omitempty"`
+	DefaultRegion string               `yaml:"default_region,omitempty"`
 }
 
 type Construct struct {
@@ -23,26 +24,26 @@ type Construct struct {
 	Outputs   map[string]string      `yaml:"outputs,omitempty"`
 	Bindings  []Binding              `yaml:"bindings,omitempty"`
 	Options   map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn []string               `yaml:"dependsOn,omitempty"`
+	DependsOn []*URN                 `yaml:"dependsOn,omitempty"`
 }
 
 type Input struct {
 	Value     interface{} `yaml:"value,omitempty"`
 	Encrypted bool        `yaml:"encrypted,omitempty"`
 	Status    InputStatus `yaml:"status,omitempty"`
-	DependsOn []string    `yaml:"dependsOn,omitempty"`
+	DependsOn []*URN      `yaml:"dependsOn,omitempty"`
 }
 
 type InputStatus string
 
 const (
-	Pending  InputStatus = "pending"
-	Resolved InputStatus = "resolved"
-	Error    InputStatus = "error"
+	InputStatusPending  InputStatus = "pending"
+	InputStatusResolved InputStatus = "resolved"
+	InputStatusError    InputStatus = "error"
 )
 
 type Binding struct {
-	URN         string `yaml:"urn,omitempty"`
+	URN         *URN   `yaml:"urn,omitempty"`
 	BindingType string `yaml:"binding_type,omitempty"`
 }
 

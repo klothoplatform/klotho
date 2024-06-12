@@ -37,7 +37,7 @@ func startPythonClient() *exec.Cmd {
 		"pipenv", "run", "python", "python_language_host.py",
 	)
 	cmd.Dir = "pkg/k2/language_host/python"
-	// spawn the python process as a subprocess of the CLI so it is guaranteed to be killed when the CLI exits
+	// spawn the python process as a subprocess of the CLI, so it is guaranteed to be killed when the CLI exits
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	zap.S().Debugf("Executing: %s for %v", cmd.Path, cmd.Args)

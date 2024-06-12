@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -180,7 +181,7 @@ func (u *URN) IsOutput() bool {
 func (u *URN) IsResource() bool {
 	// all fields are filled except application and output
 	return u.AccountID != "" && u.Project != "" && u.Environment != "" && u.Type != "" &&
-		u.Subtype != "" && u.ParentResourceID != "" && u.ResourceID != "" && u.Output == ""
+		u.Subtype != "" && u.ResourceID != "" && u.Output == ""
 
 }
 
@@ -231,4 +232,53 @@ func (u *URN) UrnType() UrnType {
 		return TypeUrnType
 	}
 	return ""
+}
+
+// UrnPath returns the relative filesystem path of the output for a given URN
+// (e.g., project/application/environment/construct)
+func UrnPath(urn URN) (string, error) {
+	parts := []string{
+		urn.Project,
+		urn.Application,
+		urn.Environment,
+		urn.ResourceID,
+	}
+
+	for i, p := range parts {
+		if p == "" {
+			return filepath.Join(parts[:i]...), nil
+		}
+	}
+	return filepath.Join(parts...), nil
+}
+
+func (u *URN) Compare(other URN) int {
+	if u.AccountID != other.AccountID {
+		return strings.Compare(u.AccountID, other.AccountID)
+	}
+	if u.Project != other.Project {
+		return strings.Compare(u.Project, other.Project)
+	}
+	if u.Environment != other.Environment {
+		return strings.Compare(u.Environment, other.Environment)
+	}
+	if u.Application != other.Application {
+		return strings.Compare(u.Application, other.Application)
+	}
+	if u.Type != other.Type {
+		return strings.Compare(u.Type, other.Type)
+	}
+	if u.Subtype != other.Subtype {
+		return strings.Compare(u.Subtype, other.Subtype)
+	}
+	if u.ParentResourceID != other.ParentResourceID {
+		return strings.Compare(u.ParentResourceID, other.ParentResourceID)
+	}
+	if u.ResourceID != other.ResourceID {
+		return strings.Compare(u.ResourceID, other.ResourceID)
+	}
+	if u.Output != other.Output {
+		return strings.Compare(u.Output, other.Output)
+	}
+	return 0
 }
