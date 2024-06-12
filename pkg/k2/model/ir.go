@@ -14,6 +14,7 @@ type ApplicationEnvironment struct {
 	AppURN        string               `yaml:"app_urn,omitempty"`
 	Environment   string               `yaml:"environment,omitempty"`
 	Constructs    map[string]Construct `yaml:"constructs,omitempty"`
+	DefaultRegion string               `yaml:"default_region,omitempty"`
 }
 
 type Construct struct {
@@ -36,9 +37,9 @@ type Input struct {
 type InputStatus string
 
 const (
-	Pending  InputStatus = "pending"
-	Resolved InputStatus = "resolved"
-	Error    InputStatus = "error"
+	InputStatusPending  InputStatus = "pending"
+	InputStatusResolved InputStatus = "resolved"
+	InputStatusError    InputStatus = "error"
 )
 
 type Binding struct {

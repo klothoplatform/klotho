@@ -35,7 +35,7 @@ func UrnHasher(r model.URN) model.URN {
 }
 
 func ResolveDeploymentGroups(g graph.Graph[model.URN, model.URN]) ([][]model.URN, error) {
-	sorted, err := graph_addons.TopologicalSort(g, func(a, b model.URN) bool {
+	sorted, err := graph_addons.ReverseTopologicalSort(g, func(a, b model.URN) bool {
 		return a.Compare(b) < 0
 	})
 	if err != nil {
