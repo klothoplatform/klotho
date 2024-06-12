@@ -56,7 +56,7 @@ func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.Constrai
 	// TODO: implement more granular constraints
 	for k, v := range r.Properties {
 
-		v, err := m.marshallRefs(v)
+		v, err := m.marshalRefs(v)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 		}
@@ -92,7 +92,7 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, 
 	if err != nil {
 		return nil, fmt.Errorf("could not parse to resource id: %w", err)
 	}
-	v, err := m.marshallRefs(e.Data)
+	v, err := m.marshalRefs(e.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 	}
@@ -124,8 +124,8 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 	return cs, nil
 }
 
-// MarshallRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's SerializeRef method
-func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
+// marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's SerializeRef method
+func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 	if ref, ok := rawVal.(ResourceRef); ok {
 		return m.Context.SerializeRef(ref)
 	}
@@ -144,7 +144,10 @@ func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshallRefs(field.Interface())
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
@@ -162,7 +165,10 @@ func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
 				field = field.Elem()
 			}
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshallRefs(field.Interface())
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
@@ -184,10 +190,16 @@ func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
 			}
 
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshallRefs(field.Interface())
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if field.Kind() == reflect.Map {
-				_, err = m.marshallRefs(field.Interface())
+				_, err = m.marshalRefs(field.Interface())
+				if err != nil {
+					return nil, err
+				}
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
@@ -200,7 +212,10 @@ func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
 		}
 	case reflect.Interface:
 		if ref.Elem().Kind() == reflect.Struct {
-			_, err = m.marshallRefs(ref.Elem().Interface())
+			_, err = m.marshalRefs(ref.Elem().Interface())
+			if err != nil {
+				return nil, err
+			}
 		}
 	default:
 		if ref.IsValid() {
@@ -213,10 +228,6 @@ func (m *ConstructMarshaller) marshallRefs(rawVal any) (any, error) {
 				ref.Set(reflect.ValueOf(serializedRef))
 			}
 		}
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	if ref.IsValid() {
