@@ -282,7 +282,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		var status model.ConstructStatus
 		if _, ok := currentConstructs[c.URN.ResourceID]; !ok {
 			actions[*c.URN] = model.ConstructActionCreate
-			status = model.ConstructNew
+			status = model.ConstructCreatePending
 		} else {
 			actions[*c.URN] = model.ConstructActionUpdate
 			status = model.ConstructUpdatePending

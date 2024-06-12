@@ -73,7 +73,7 @@ environment: "dev"
 default_region: "us-west-2"
 constructs:
   example-construct:
-    status: "new"
+    status: "pending"
     last_updated: "2023-06-11T00:00:00Z"
     inputs: {}
     outputs: {}
@@ -105,8 +105,8 @@ constructs:
 	if construct, exists := sm.state.Constructs["example-construct"]; !exists {
 		t.Errorf("Expected construct example-construct to exist")
 	} else {
-		if construct.Status != ConstructNew {
-			t.Errorf("Expected status to be %s, got %s", ConstructNew, construct.Status)
+		if construct.Status != ConstructPending {
+			t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
 		}
 		if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 			t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
@@ -132,7 +132,7 @@ func TestSaveState(t *testing.T) {
 	constructURN, _ := ParseURN("urn:construct:example")
 	sm.state.Constructs = map[string]ConstructState{
 		"example-construct": {
-			Status:      ConstructNew,
+			Status:      ConstructPending,
 			LastUpdated: "2023-06-11T00:00:00Z",
 			Inputs:      make(map[string]Input),
 			Outputs:     make(map[string]string),
@@ -173,8 +173,8 @@ func TestSaveState(t *testing.T) {
 	if construct, exists := state.Constructs["example-construct"]; !exists {
 		t.Errorf("Expected construct example-construct to exist")
 	} else {
-		if construct.Status != ConstructNew {
-			t.Errorf("Expected status to be %s, got %s", ConstructNew, construct.Status)
+		if construct.Status != ConstructPending {
+			t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
 		}
 		if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 			t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
@@ -233,8 +233,8 @@ func TestInitState(t *testing.T) {
 	if !exists {
 		t.Fatalf("Expected construct example-construct to exist")
 	}
-	if construct.Status != ConstructNew {
-		t.Errorf("Expected status to be %s, got %s", ConstructNew, construct.Status)
+	if construct.Status != ConstructPending {
+		t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
 	}
 	if construct.LastUpdated == "" {
 		t.Errorf("Expected last updated to be set, got empty string")

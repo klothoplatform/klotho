@@ -21,10 +21,10 @@ type ConstructStatus string
 
 const (
 	// Create-related statuses
-	ConstructNew            ConstructStatus = "new"
 	ConstructCreating       ConstructStatus = "creating"
 	ConstructCreateComplete ConstructStatus = "create_complete"
 	ConstructCreateFailed   ConstructStatus = "create_failed"
+	ConstructCreatePending  ConstructStatus = "create_pending"
 
 	// Update-related statuses
 	ConstructUpdating       ConstructStatus = "updating"
@@ -52,8 +52,8 @@ const (
 )
 
 var validTransitions = map[ConstructStatus][]ConstructStatus{
-	ConstructNew:            {ConstructPending},
-	ConstructPending:        {ConstructCreating, ConstructUpdatePending, ConstructDeletePending},
+	ConstructPending:        {ConstructCreatePending, ConstructUpdatePending, ConstructDeletePending},
+	ConstructCreatePending:  {ConstructCreating, ConstructDeletePending},
 	ConstructCreating:       {ConstructCreateComplete, ConstructCreateFailed},
 	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting},
 	ConstructCreateFailed:   {ConstructPending, ConstructDeletePending},

@@ -47,7 +47,7 @@ func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 
 	for urn, construct := range ir.Constructs {
 		sm.state.Constructs[urn] = ConstructState{
-			Status:      ConstructNew,
+			Status:      ConstructPending,
 			LastUpdated: time.Now().Format(time.RFC3339),
 			Inputs:      construct.Inputs,
 			Outputs:     construct.Outputs,
