@@ -3,6 +3,9 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"time"
+
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
@@ -13,8 +16,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"path/filepath"
-	"time"
 )
 
 // Orchestrator is the main orchestrator for the K2 platform
@@ -73,7 +74,7 @@ func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun boo
 			c := o.StateManager.GetState().Constructs[cURN.ResourceID]
 
 			// Run pulumi down command for deleted constructs
-			if actions[*c.URN] == model.ConstructActionDelete {
+			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
 				err = pulumi.RunStackDown(pulumi.StackReference{
 					ConstructURN: *c.URN,
 					Name:         c.URN.ResourceID,
@@ -84,12 +85,17 @@ func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun boo
 				if err != nil {
 					return errors2.WrapErrf(err, "error running pulumi down command")
 				}
-				// DS: should this be removed from the state or marked as destroyed?
-				delete(sm.GetState().Constructs, cURN.ResourceID)
+
+				// Mark as destroyed
+				c.Status = model.ConstructDeleteComplete
+				sm.SetConstruct(cURN.ResourceID, c)
 				continue
 			}
 
-			// Evaluate constructs and run pulumi up for create and update actions
+			// Only proceed if the construct is deployable
+			if !model.IsDeployable(c.Status) {
+				continue
+			}
 
 			// Evaluate the construct
 			stackRef, err := o.EvaluateConstruct(*o.StateManager.GetState(), *c.URN)
@@ -98,7 +104,15 @@ func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun boo
 			}
 
 			// Run pulumi up command for the construct
-			stackState, err := deployer.RunStackUpCommand(stackRef, dryRun)
+			if dryRun {
+				_, err = deployer.RunStackPreviewCommand(stackRef)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+
+			upResult, stackState, err := deployer.RunStackUpCommand(stackRef)
 			if err != nil {
 				return err
 			}
@@ -108,7 +122,12 @@ func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun boo
 			if err2 != nil {
 				return err2
 			}
-			sm.UpdateResourceState(c.URN.ResourceID, model.Updated, time.Now().String())
+
+			// Update construct state based on the up result
+			err = pulumi.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return err
@@ -263,10 +282,10 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		var status model.ConstructStatus
 		if _, ok := currentConstructs[c.URN.ResourceID]; !ok {
 			actions[*c.URN] = model.ConstructActionCreate
-			status = model.New
+			status = model.ConstructNew
 		} else {
 			actions[*c.URN] = model.ConstructActionUpdate
-			status = model.UpdatePending
+			status = model.ConstructUpdatePending
 		}
 
 		currentConstructs[c.URN.ResourceID] = model.ConstructState{
@@ -286,7 +305,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 	for k, v := range currentConstructs {
 		if _, ok := ir.Constructs[k]; !ok {
 			actions[*v.URN] = model.ConstructActionDelete
-			v.Status = model.DestroyPending
+			v.Status = model.ConstructDeletePending
 		}
 	}
 

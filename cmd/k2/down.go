@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 var downConfig struct {
@@ -47,7 +48,7 @@ func newDownCmd() *cobra.Command {
 		},
 	}
 	flags := downCommand.Flags()
-	flags.StringVarP(&upConfig.outputPath, "output", "o", "", "Output directory")
+	flags.StringVarP(&downConfig.outputPath, "output", "o", "", "Output directory")
 	return downCommand
 
 }

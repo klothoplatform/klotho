@@ -4,6 +4,7 @@ import (
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 )
 
 type (
@@ -32,6 +33,10 @@ func (d *Deployer) RunApplicationDownCommand(req DownRequest) error {
 	return nil
 }
 
-func (d *Deployer) RunStackUpCommand(ref pulumi.StackReference, run bool) (pulumi.StackState, error) {
-	return pulumi.RunStackUp(ref, run)
+func (d *Deployer) RunStackUpCommand(ref pulumi.StackReference) (auto.UpResult, pulumi.StackState, error) {
+	return pulumi.RunStackUp(ref)
+}
+
+func (d *Deployer) RunStackPreviewCommand(ref pulumi.StackReference) (auto.PreviewResult, error) {
+	return pulumi.RunStackPreview(ref)
 }
