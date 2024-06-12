@@ -260,8 +260,6 @@ func (o *Orchestrator) resolveOutputValues(stackReference pulumi.StackReference,
 	return nil
 }
 
-// resolveInitialState resolves the initial state of the constructs in the application environment
-// and returns the actions to be taken
 func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (map[model.URN]model.ConstructActionType, error) {
 	actions := make(map[model.URN]model.ConstructActionType)
 	state := o.StateManager.GetState()
@@ -269,43 +267,58 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 	//TODO: implement some kind of versioning check
 	state.Version += 1
 
+	// Check for default region mismatch
 	if state.DefaultRegion != ir.DefaultRegion {
 		return nil, fmt.Errorf("default region mismatch: %s != %s", state.DefaultRegion, ir.DefaultRegion)
 	}
 
+	// Check for schema version mismatch
 	if state.SchemaVersion != ir.SchemaVersion {
 		return nil, fmt.Errorf("state schema version mismatch")
 	}
 
-	currentConstructs := o.StateManager.GetState().Constructs
 	for _, c := range ir.Constructs {
 		var status model.ConstructStatus
-		if _, ok := currentConstructs[c.URN.ResourceID]; !ok {
-			actions[*c.URN] = model.ConstructActionCreate
+		var action model.ConstructActionType
+
+		construct, exists := o.StateManager.GetConstruct(c.URN.ResourceID)
+		if !exists {
+			// If the construct doesn't exist in the current state, it's a create action
+			action = model.ConstructActionCreate
 			status = model.ConstructCreatePending
+			construct = model.ConstructState{
+				Status:      model.ConstructPending,
+				LastUpdated: time.Now().Format(time.RFC3339),
+				Inputs:      c.Inputs,
+				Outputs:     c.Outputs,
+				Bindings:    c.Bindings,
+				Options:     c.Options,
+				DependsOn:   c.DependsOn,
+				URN:         c.URN,
+			}
 		} else {
-			actions[*c.URN] = model.ConstructActionUpdate
+			// If the construct exists, it's an update action
+			action = model.ConstructActionUpdate
 			status = model.ConstructUpdatePending
 		}
 
-		currentConstructs[c.URN.ResourceID] = model.ConstructState{
-			Status:      status,
-			LastUpdated: time.Now().String(),
-			Inputs:      c.Inputs,
-			Outputs:     c.Outputs,
-			Bindings:    c.Bindings,
-			Options:     c.Options,
-			DependsOn:   c.DependsOn,
-			PulumiStack: model.UUID{}, // TODO: set the pulumi stack identifier
-			URN:         c.URN,
+		actions[*c.URN] = action
+		err := model.TransitionConstructState(&construct, status)
+		if err != nil {
+			return nil, fmt.Errorf("invalid state transition: %v", err)
 		}
+		o.StateManager.SetConstruct(c.URN.ResourceID, construct)
 	}
 
-	// find deleted constructs
-	for k, v := range currentConstructs {
+	// Find deleted constructs
+	for k, v := range o.StateManager.GetState().Constructs {
 		if _, ok := ir.Constructs[k]; !ok {
 			actions[*v.URN] = model.ConstructActionDelete
-			v.Status = model.ConstructDeletePending
+			err := model.TransitionConstructState(&v, model.ConstructDeletePending)
+			if err != nil {
+				return nil, fmt.Errorf("invalid state transition: %v", err)
+			}
+			o.StateManager.SetConstruct(k, v)
 		}
 	}
 
