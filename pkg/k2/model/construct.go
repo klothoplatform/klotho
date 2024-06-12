@@ -105,3 +105,13 @@ func TransitionConstructState(construct *ConstructState, nextStatus ConstructSta
 	}
 	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
 }
+
+type (
+	ConstructActionType string
+)
+
+const (
+	ConstructActionCreate ConstructActionType = "create"
+	ConstructActionUpdate ConstructActionType = "update"
+	ConstructActionDelete ConstructActionType = "delete"
+)

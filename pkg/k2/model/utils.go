@@ -4,16 +4,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type (
-	ConstructActionType string
-)
-
-const (
-	ConstructActionCreate ConstructActionType = "create"
-	ConstructActionUpdate ConstructActionType = "update"
-	ConstructActionDelete ConstructActionType = "delete"
-)
-
 type UUID struct {
 	uuid.UUID
 }
