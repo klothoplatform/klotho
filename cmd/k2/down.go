@@ -7,6 +7,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"path/filepath"
@@ -84,7 +85,7 @@ func downCmd(args struct {
 	err = o.RunDownCommand(deployment.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun})
 
 	if err != nil {
-		log.Fatalf("failed to run down command: %v", err)
+		zap.L().Error("failed to read directory", zap.Error(err))
 		return "failure"
 	}
 

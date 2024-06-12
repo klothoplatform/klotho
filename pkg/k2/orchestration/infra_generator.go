@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -295,29 +294,6 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 		}
 	}()
 	wg.Wait()
-}
-
-func readInputGraph(filePath string) (construct.Graph, error) {
-	parts := strings.Split(filePath, "/")
-	lastPart := parts[len(parts)-1]
-	resourcesPath := strings.Join(parts[:len(parts)-1], "/")
-	if strings.HasSuffix(lastPart, ".yaml") {
-		resourcesPath = resourcesPath + "/resources.yaml"
-	} else {
-		resourcesPath = strings.TrimSuffix(filePath, "/") + "/resources.yaml"
-	}
-
-	var input engine.FileFormat
-	zap.L().Info("Loading input graph")
-	inputF, err := os.Open(resourcesPath)
-	if err != nil {
-		zap.L().Error("Could not open input file", zap.Error(err))
-		return construct.NewGraph(), nil
-	}
-	defer inputF.Close()
-
-	err = yaml.NewDecoder(inputF).Decode(&input)
-	return input.Graph, err
 }
 
 type iacRequest struct {

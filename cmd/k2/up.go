@@ -74,7 +74,7 @@ func updCmd(args struct {
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()
 		if err != nil {
-
+			log.Fatalf("failed to close connection: %v", err)
 		}
 	}(conn)
 
@@ -97,7 +97,7 @@ func updCmd(args struct {
 
 	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
 	if err != nil {
-		return fmt.Sprintf("InputStatusError reading IR file: %s", err)
+		return fmt.Sprintf("error reading IR file: %s", err)
 	}
 
 	// Take the IR -- generate and save a state file and stored in the
@@ -106,18 +106,18 @@ func updCmd(args struct {
 
 	appUrn, err := model.ParseURN(ir.AppURN)
 	if err != nil {
-		return fmt.Sprintf("InputStatusError parsing app URN: %s", err)
+		return fmt.Sprintf("error parsing app URN: %s", err)
 	}
 
 	appUrnPath, err := model.UrnPath(*appUrn)
 	if err != nil {
-		return fmt.Sprintf("InputStatusError getting URN path: %s", err)
+		return fmt.Sprintf("error getting URN path: %s", err)
 	}
 	appDir := filepath.Join(args.outputPath, appUrnPath)
 
 	// Create the app state directory
 	if err := os.MkdirAll(appDir, 0755); err != nil {
-		return fmt.Sprintf("InputStatusError creating app directory: %s", err)
+		return fmt.Sprintf("error creating app directory: %s", err)
 	}
 
 	stateFile := filepath.Join(appDir, "state.yaml")
@@ -130,12 +130,12 @@ func updCmd(args struct {
 		sm.InitState(ir)
 		// Save the state
 		if err = sm.SaveState(); err != nil {
-			return fmt.Sprintf("InputStatusError saving state: %s", err)
+			return fmt.Sprintf("error saving state: %s", err)
 		}
 	} else {
 		// Load the state
 		if err = sm.LoadState(); err != nil {
-			return fmt.Sprintf("InputStatusError loading state: %s", err)
+			return fmt.Sprintf("error loading state: %s", err)
 		}
 	}
 
@@ -143,8 +143,8 @@ func updCmd(args struct {
 
 	err = o.RunUpCommand(ir, commonCfg.dryRun)
 	if err != nil {
-		zap.S().Errorf("InputStatusError running up command: %s", err)
-		return fmt.Sprintf("InputStatusError running up command: %s", err)
+		zap.S().Errorf("error running up command: %s", err)
+		return fmt.Sprintf("error running up command: %s", err)
 	}
 
 	return "success"

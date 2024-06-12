@@ -47,7 +47,7 @@ func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun boo
 
 	var cs []model.ConstructState
 	constructState := o.StateManager.GetState().Constructs
-	for cURN, _ := range actions {
+	for cURN := range actions {
 		cs = append(cs, constructState[cURN.ResourceID])
 	}
 
