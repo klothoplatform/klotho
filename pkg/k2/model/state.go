@@ -1,18 +1,19 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"sync"
+	"time"
 
-	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
-
-var stateLock sync.Mutex
 
 type StateManager struct {
 	stateFile string
 	state     *State
+	mutex     sync.Mutex
 }
 
 type State struct {
@@ -23,62 +24,6 @@ type State struct {
 	Environment   string                    `yaml:"environment,omitempty"`
 	DefaultRegion string                    `yaml:"default_region,omitempty"`
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
-}
-
-type ConstructState struct {
-	Status      ConstructStatus        `yaml:"status,omitempty"`
-	LastUpdated string                 `yaml:"last_updated,omitempty"`
-	Inputs      map[string]Input       `yaml:"inputs,omitempty"`
-	Outputs     map[string]string      `yaml:"outputs,omitempty"`
-	Bindings    []Binding              `yaml:"bindings,omitempty"`
-	Options     map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn   []*URN                 `yaml:"dependsOn,omitempty"`
-	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
-	URN         *URN                   `yaml:"urn,omitempty"`
-}
-
-type ConstructStatus string
-
-const (
-	New            ConstructStatus = "new"
-	Creating       ConstructStatus = "creating"
-	Created        ConstructStatus = "created"
-	Updating       ConstructStatus = "updating"
-	Updated        ConstructStatus = "updated"
-	Destroying     ConstructStatus = "destroying"
-	Destroyed      ConstructStatus = "destroyed"
-	CreateFailed   ConstructStatus = "create_failed"
-	UpdateFailed   ConstructStatus = "update_failed"
-	DestroyFailed  ConstructStatus = "destroy_failed"
-	UpdatePending  ConstructStatus = "update_pending"
-	DestroyPending ConstructStatus = "destroy_pending"
-)
-
-type (
-	ConstructActionType string
-)
-
-const (
-	ConstructActionCreate ConstructActionType = "create"
-	ConstructActionUpdate ConstructActionType = "update"
-	ConstructActionDelete ConstructActionType = "delete"
-)
-
-type UUID struct {
-	uuid.UUID
-}
-
-func (u *UUID) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	parsedUUID, err := uuid.Parse(s)
-	if err != nil {
-		return err
-	}
-	*u = UUID{parsedUUID}
-	return nil
 }
 
 func NewStateManager(stateFile string) *StateManager {
@@ -98,15 +43,19 @@ func (sm *StateManager) CheckStateFileExists() bool {
 }
 
 func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
 	for urn, construct := range ir.Constructs {
 		sm.state.Constructs[urn] = ConstructState{
-			Status:      New,
-			LastUpdated: "", // Initial last updated time could be set here
+			Status:      ConstructPending,
+			LastUpdated: time.Now().Format(time.RFC3339),
 			Inputs:      construct.Inputs,
 			Outputs:     construct.Outputs,
 			Bindings:    construct.Bindings,
 			Options:     construct.Options,
 			DependsOn:   construct.DependsOn,
+			URN:         construct.URN,
 		}
 	}
 	sm.state.ProjectURN = ir.ProjectURN
@@ -116,6 +65,9 @@ func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 }
 
 func (sm *StateManager) LoadState() error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
 	data, err := os.ReadFile(sm.stateFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -128,8 +80,8 @@ func (sm *StateManager) LoadState() error {
 }
 
 func (sm *StateManager) SaveState() error {
-	stateLock.Lock()
-	defer stateLock.Unlock()
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
 
 	data, err := yaml.Marshal(sm.state)
 	if err != nil {
@@ -139,22 +91,64 @@ func (sm *StateManager) SaveState() error {
 }
 
 func (sm *StateManager) GetState() *State {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
 	return sm.state
 }
 
-func (sm *StateManager) UpdateResourceState(name string, status ConstructStatus, lastUpdated string) {
+func (sm *StateManager) UpdateResourceState(name string, status ConstructStatus, lastUpdated string) error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
 	if sm.state.Constructs == nil {
 		sm.state.Constructs = make(map[string]ConstructState)
 	}
 
-	if construct, exists := sm.state.Constructs[name]; exists {
-		construct.Status = status
-		construct.LastUpdated = lastUpdated
-		sm.state.Constructs[name] = construct
-	} else {
-		sm.state.Constructs[name] = ConstructState{
-			Status:      status,
-			LastUpdated: lastUpdated,
-		}
+	construct, exists := sm.state.Constructs[name]
+	if !exists {
+		return fmt.Errorf("construct %s not found", name)
 	}
+
+	if !isValidTransition(construct.Status, status) {
+		return fmt.Errorf("invalid transition from %s to %s", construct.Status, status)
+	}
+
+	construct.Status = status
+	construct.LastUpdated = lastUpdated
+	sm.state.Constructs[name] = construct
+
+	return nil
+}
+
+func (sm *StateManager) GetConstruct(name string) (ConstructState, bool) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	construct, exists := sm.state.Constructs[name]
+	return construct, exists
+}
+
+func (sm *StateManager) SetConstruct(construct ConstructState) {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	sm.state.Constructs[construct.URN.ResourceID] = construct
+}
+
+func (sm *StateManager) GetAllConstructs() map[string]ConstructState {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+	return sm.state.Constructs
+}
+
+func (sm *StateManager) TransitionConstructState(construct *ConstructState, nextStatus ConstructStatus) error {
+	if isValidTransition(construct.Status, nextStatus) {
+		zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
+		construct.Status = nextStatus
+		construct.LastUpdated = time.Now().Format(time.RFC3339)
+		sm.SetConstruct(*construct)
+		return nil
+	}
+	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
 }

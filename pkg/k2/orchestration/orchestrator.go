@@ -1,125 +1,32 @@
 package orchestration
 
 import (
-	"context"
 	"fmt"
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
+	"path/filepath"
+	"time"
+
+	"github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
-	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/klothoplatform/klotho/pkg/multierr"
-	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
-	"path/filepath"
-	"time"
 )
 
-// Orchestrator is the main orchestrator for the K2 platform
+// Orchestrator is the base orchestrator for the K2 platform
+type Orchestrator struct {
+	StateManager    *model.StateManager
+	OutputDirectory string
+}
 
-type (
-	Orchestrator struct {
-		StateManager       *model.StateManager
-		LanguageHostClient pb.KlothoServiceClient
-		OutputDirectory    string
-	}
-)
-
-func NewOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient, outputPath string) *Orchestrator {
+func NewOrchestrator(sm *model.StateManager, outputPath string) *Orchestrator {
 	return &Orchestrator{
-		StateManager:       sm,
-		LanguageHostClient: languageHostClient,
-		OutputDirectory:    outputPath,
+		StateManager:    sm,
+		OutputDirectory: outputPath,
 	}
 }
 
-func (o *Orchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun bool) error {
-	actions, err := o.resolveInitialState(ir)
-	if err != nil {
-		return errors2.WrapErrf(err, "error resolving initial state")
-	}
-	zap.S().Infof("Pending Actions:")
-	for k, v := range actions {
-		zap.S().Infof("%s: %s", k.String(), v)
-	}
-
-	var cs []model.ConstructState
-	constructState := o.StateManager.GetState().Constructs
-	for cURN := range actions {
-		cs = append(cs, constructState[cURN.ResourceID])
-	}
-
-	deployOrder, err := sortConstructsByDependency(cs, actions)
-	if err != nil {
-		return errors2.WrapErrf(err, "failed to determine deployment order")
-	}
-
-	deployer := deployment.Deployer{
-		StateManager: o.StateManager, LanguageHostClient: o.LanguageHostClient}
-
-	sm := o.StateManager
-	defer func() {
-		err = sm.SaveState()
-	}()
-
-	for _, group := range deployOrder {
-		for _, cURN := range group {
-			if err != nil {
-				return err
-			}
-
-			c := o.StateManager.GetState().Constructs[cURN.ResourceID]
-
-			// Run pulumi down command for deleted constructs
-			if actions[*c.URN] == model.ConstructActionDelete {
-				err = pulumi.RunStackDown(pulumi.StackReference{
-					ConstructURN: *c.URN,
-					Name:         c.URN.ResourceID,
-					IacDirectory: filepath.Join(o.OutputDirectory, c.URN.ResourceID),
-					AwsRegion:    sm.GetState().DefaultRegion,
-				}, dryRun)
-
-				if err != nil {
-					return errors2.WrapErrf(err, "error running pulumi down command")
-				}
-				// DS: should this be removed from the state or marked as destroyed?
-				delete(sm.GetState().Constructs, cURN.ResourceID)
-				continue
-			}
-
-			// Evaluate constructs and run pulumi up for create and update actions
-
-			// Evaluate the construct
-			stackRef, err := o.EvaluateConstruct(*o.StateManager.GetState(), *c.URN)
-			if err != nil {
-				return errors2.WrapErrf(err, "error evaluating construct")
-			}
-
-			// Run pulumi up command for the construct
-			stackState, err := deployer.RunStackUpCommand(stackRef, dryRun)
-			if err != nil {
-				return err
-			}
-
-			// Resolve output values
-			err2 := o.resolveOutputValues(stackRef, stackState)
-			if err2 != nil {
-				return err2
-			}
-			sm.UpdateResourceState(c.URN.ResourceID, model.Updated, time.Now().String())
-		}
-	}
-	return err
-}
-
-func (o *Orchestrator) RunDownCommand(request deployment.DownRequest) error {
-	deployer := deployment.Deployer{}
-	err := deployer.RunApplicationDownCommand(request)
-	return err
-}
-
+// Shared and helper functions
 func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.URN) (pulumi.StackReference, error) {
 	constructOutDir := filepath.Join(o.OutputDirectory, constructUrn.ResourceID)
 	c := state.Constructs[constructUrn.ResourceID]
@@ -139,17 +46,17 @@ func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.U
 	urn := *c.URN
 	constructEvaluator, err := constructs.NewConstructEvaluator(urn, inputs, state)
 	if err != nil {
-		return pulumi.StackReference{}, errors2.WrapErrf(err, "error creating construct evaluator")
+		return pulumi.StackReference{}, errors.WrapErrf(err, "error creating construct evaluator")
 	}
 	_, cs, err := constructEvaluator.Evaluate()
 	if err != nil {
-		return pulumi.StackReference{}, errors2.WrapErrf(err, "error evaluating construct")
+		return pulumi.StackReference{}, errors.WrapErrf(err, "error evaluating construct")
 	}
 
 	ig := &InfraGenerator{}
 	err = ig.Run(cs, constructOutDir)
 	if err != nil {
-		return pulumi.StackReference{}, errors2.WrapErrf(err, "error running infra generator")
+		return pulumi.StackReference{}, errors.WrapErrf(err, "error running infra generator")
 	}
 
 	return pulumi.StackReference{
@@ -158,6 +65,69 @@ func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.U
 		IacDirectory: constructOutDir,
 		AwsRegion:    state.DefaultRegion,
 	}, nil
+}
+
+func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (map[model.URN]model.ConstructActionType, error) {
+	actions := make(map[model.URN]model.ConstructActionType)
+	state := o.StateManager.GetState()
+
+	//TODO: implement some kind of versioning check
+	state.Version += 1
+
+	// Check for default region mismatch
+	if state.DefaultRegion != ir.DefaultRegion {
+		return nil, fmt.Errorf("default region mismatch: %s != %s", state.DefaultRegion, ir.DefaultRegion)
+	}
+
+	// Check for schema version mismatch
+	if state.SchemaVersion != ir.SchemaVersion {
+		return nil, fmt.Errorf("state schema version mismatch")
+	}
+
+	for _, c := range ir.Constructs {
+		var status model.ConstructStatus
+		var action model.ConstructActionType
+
+		construct, exists := o.StateManager.GetConstruct(c.URN.ResourceID)
+		if !exists {
+			// If the construct doesn't exist in the current state, it's a create action
+			action = model.ConstructActionCreate
+			status = model.ConstructCreatePending
+			construct = model.ConstructState{
+				Status:      model.ConstructPending,
+				LastUpdated: time.Now().Format(time.RFC3339),
+				Inputs:      c.Inputs,
+				Outputs:     c.Outputs,
+				Bindings:    c.Bindings,
+				Options:     c.Options,
+				DependsOn:   c.DependsOn,
+				URN:         c.URN,
+			}
+		} else {
+			// If the construct exists, it's an update action
+			action = model.ConstructActionUpdate
+			status = model.ConstructUpdatePending
+		}
+
+		actions[*c.URN] = action
+		err := o.StateManager.TransitionConstructState(&construct, status)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Find deleted constructs
+	for k, v := range o.StateManager.GetState().Constructs {
+		if _, ok := ir.Constructs[k]; !ok {
+			actions[*v.URN] = model.ConstructActionDelete
+			err := o.StateManager.TransitionConstructState(&v, model.ConstructDeletePending)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return actions, nil
 }
 
 // sortConstructsByDependency sorts the constructs based on their dependencies and returns the deployment order
@@ -207,88 +177,4 @@ func sortConstructsByDependency(constructs []model.ConstructState, actions map[m
 		}
 	}
 	return graph.ResolveDeploymentGroups(constructGraph)
-}
-
-func (o *Orchestrator) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState) error {
-	// TODO: This is a demo implementation that passes the stack outputs to the language host
-	//       and gets the resolved output references back.
-	//       It doesn't actually do anything with the resolved outputs yet.
-	outputs := map[string]map[string]interface{}{
-		stackReference.ConstructURN.String(): stackState.Outputs,
-	}
-	payload, err := yaml.Marshal(outputs)
-	if err != nil {
-		return err
-	}
-	resp, err := o.LanguageHostClient.RegisterConstruct(context.Background(), &pb.RegisterConstructRequest{
-		YamlPayload: string(payload),
-	})
-	zap.S().Info(resp.GetMessage())
-	var resolvedOutputs []any
-	for _, o := range resp.GetResolvedOutputs() {
-		if err != nil {
-			return err
-		}
-		resolvedOutputs = append(resolvedOutputs, map[string]interface{}{
-			"id":    o.GetId(),
-			"value": o.GetYamlPayload(),
-		})
-	}
-	zap.S().Infof("Resolved Outputs: %v", resolvedOutputs)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// resolveInitialState resolves the initial state of the constructs in the application environment
-// and returns the actions to be taken
-func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (map[model.URN]model.ConstructActionType, error) {
-	actions := make(map[model.URN]model.ConstructActionType)
-	state := o.StateManager.GetState()
-
-	//TODO: implement some kind of versioning check
-	state.Version += 1
-
-	if state.DefaultRegion != ir.DefaultRegion {
-		return nil, fmt.Errorf("default region mismatch: %s != %s", state.DefaultRegion, ir.DefaultRegion)
-	}
-
-	if state.SchemaVersion != ir.SchemaVersion {
-		return nil, fmt.Errorf("state schema version mismatch")
-	}
-
-	currentConstructs := o.StateManager.GetState().Constructs
-	for _, c := range ir.Constructs {
-		var status model.ConstructStatus
-		if _, ok := currentConstructs[c.URN.ResourceID]; !ok {
-			actions[*c.URN] = model.ConstructActionCreate
-			status = model.New
-		} else {
-			actions[*c.URN] = model.ConstructActionUpdate
-			status = model.UpdatePending
-		}
-
-		currentConstructs[c.URN.ResourceID] = model.ConstructState{
-			Status:      status,
-			LastUpdated: time.Now().String(),
-			Inputs:      c.Inputs,
-			Outputs:     c.Outputs,
-			Bindings:    c.Bindings,
-			Options:     c.Options,
-			DependsOn:   c.DependsOn,
-			PulumiStack: model.UUID{}, // TODO: set the pulumi stack identifier
-			URN:         c.URN,
-		}
-	}
-
-	// find deleted constructs
-	for k, v := range currentConstructs {
-		if _, ok := ir.Constructs[k]; !ok {
-			actions[*v.URN] = model.ConstructActionDelete
-			v.Status = model.DestroyPending
-		}
-	}
-
-	return actions, nil
 }

@@ -2,10 +2,11 @@ package model
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // URN represents a Unique Resource Name in the Klotho ecosystem

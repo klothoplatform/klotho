@@ -2,16 +2,15 @@ package pulumi
 
 import (
 	"context"
-	"errors"
-	"github.com/klothoplatform/klotho/pkg/logging"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"os"
 	"path/filepath"
 
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
@@ -65,53 +64,82 @@ func InitializeStack(projectName string, stackName string, stackDirectory string
 	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
 }
 
-func RunStackUp(stackReference StackReference, dryrun bool) (StackState, error) {
+func RunStackUp(stackReference StackReference) (auto.UpResult, StackState, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	ctx := context.Background()
 
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
-		return StackState{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
 
 	err = InstallDependencies(stackDirectory)
 	if err != nil {
-		return StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
-	}
-
-	if err != nil {
-		zap.S().Errorf("Failed to set environment variables: %v\n", err)
-		return StackState{}, errors2.WrapErrf(err, "Failed to set environment variables")
+		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return StackState{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
 	zap.S().Info("Successfully set config")
 
 	zap.S().Info("Starting update")
 
-	if dryrun {
-		_, err = s.Preview(ctx, optpreview.ProgressStreams(os.Stdout), optpreview.Refresh())
-	} else {
-		_, err = s.Up(ctx, optup.ProgressStreams(os.Stdout), optup.Refresh())
-	}
+	upResult, err := s.Up(ctx, optup.ProgressStreams(os.Stdout), optup.Refresh())
 	if err != nil {
 		zap.S().Errorf("Failed to update stack: %v\n\n", err)
-		return StackState{}, errors2.WrapErrf(err, "Failed to update stack")
+		return upResult, StackState{}, errors2.WrapErrf(err, "Failed to update stack")
 	}
 
 	zap.S().Infof("Successfully deployed stack %s", stackName)
 
-	return GetStackState(ctx, s)
+	stackState, err := GetStackState(ctx, s)
+	return upResult, stackState, err
 }
 
-func RunStackDown(stackReference StackReference, dryrun bool) error {
+func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) {
+	stackName := stackReference.Name
+	stackDirectory := stackReference.IacDirectory
+	ctx := context.Background()
+
+	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
+	if err != nil {
+		return auto.PreviewResult{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+	}
+	zap.S().Infof("Created/Selected stack %q\n", stackName)
+
+	err = InstallDependencies(stackDirectory)
+	if err != nil {
+		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to install dependencies")
+	}
+
+	// set stack configuration specifying the AWS region to deploy
+	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
+	if err != nil {
+		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+	}
+
+	zap.S().Info("Successfully set config")
+
+	zap.S().Info("Starting preview")
+
+	previewResult, err := s.Preview(ctx, optpreview.ProgressStreams(os.Stdout), optpreview.Refresh())
+	if err != nil {
+		zap.S().Errorf("Failed to preview stack: %v\n\n", err)
+		return previewResult, errors2.WrapErrf(err, "Failed to preview stack")
+	}
+
+	zap.S().Infof("Successfully previewed stack %s", stackName)
+
+	return previewResult, nil
+}
+
+func RunStackDown(stackReference StackReference) error {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	ctx := context.Background()
@@ -121,11 +149,6 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 	}
 
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
-
-	if err != nil {
-		zap.S().Errorf("Failed to set environment variables: %v\n", err)
-		return errors2.WrapErrf(err, "Failed to set environment variables")
-	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
@@ -140,13 +163,6 @@ func RunStackDown(stackReference StackReference, dryrun bool) error {
 	// wire up our destroy to stream progress to stdout
 	stdoutStreamer := optdestroy.ProgressStreams(os.Stdout)
 	refresh := optdestroy.Refresh()
-
-	if dryrun {
-		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
-		// and doesn't have any optiosn for "--preview-only"
-		// which was added in https://github.com/pulumi/pulumi/pull/15336
-		return errors.New("Dryrun not supported in Destroy yet")
-	}
 
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer, refresh)

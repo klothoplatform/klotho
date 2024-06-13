@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"log"
-	"os"
-	"path/filepath"
 )
 
 var downConfig struct {
@@ -47,7 +47,7 @@ func newDownCmd() *cobra.Command {
 		},
 	}
 	flags := downCommand.Flags()
-	flags.StringVarP(&upConfig.outputPath, "output", "o", "", "Output directory")
+	flags.StringVarP(&downConfig.outputPath, "output", "o", "", "Output directory")
 	return downCommand
 
 }
@@ -60,32 +60,35 @@ func downCmd(args struct {
 }) string {
 
 	projectPath := filepath.Join(args.outputPath, args.project, args.app, args.env)
+	stateFile := filepath.Join(projectPath, "state.yaml")
+	sm := model.NewStateManager(stateFile)
 
-	entries, err := os.ReadDir(projectPath)
+	if !sm.CheckStateFileExists() {
+		zap.L().Error("state file does not exist", zap.String("stateFile", stateFile))
+		return "failure"
+	}
+
+	err := sm.LoadState()
 	if err != nil {
-		log.Fatalf("failed to read directory: %v", err)
+		zap.L().Error("error loading state", zap.Error(err))
 		return "failure"
 	}
 
 	var stackReferences []pulumi.StackReference
-	for _, entry := range entries {
-		if entry.IsDir() {
-			constructPath := filepath.Join(projectPath, entry.Name())
-
-			stackReference := pulumi.StackReference{
-				ConstructURN: model.URN{},
-				Name:         entry.Name(),
-				IacDirectory: constructPath,
-			}
-			stackReferences = append(stackReferences, stackReference)
+	for name, construct := range sm.GetAllConstructs() {
+		constructPath := filepath.Join(projectPath, name)
+		stackReference := pulumi.StackReference{
+			ConstructURN: *construct.URN,
+			Name:         name,
+			IacDirectory: constructPath,
 		}
+		stackReferences = append(stackReferences, stackReference)
 	}
 
-	var o orchestration.Orchestrator
+	o := orchestration.NewDownOrchestrator(sm, args.outputPath)
 	err = o.RunDownCommand(deployment.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun})
-
 	if err != nil {
-		zap.L().Error("failed to read directory", zap.Error(err))
+		zap.L().Error("error running down command", zap.Error(err))
 		return "failure"
 	}
 
