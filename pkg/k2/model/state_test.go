@@ -258,3 +258,25 @@ func TestInitState(t *testing.T) {
 		t.Errorf("Expected URN to be urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct, got %s", construct.URN.String())
 	}
 }
+
+func TestTransitionConstructState(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+	URN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	if err != nil {
+		t.Fatalf("Failed to parse URN: %v", err)
+	}
+	construct := &ConstructState{Status: ConstructPending, URN: URN}
+	if err := sm.TransitionConstructState(construct, ConstructCreatePending); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructCreatePending {
+		t.Errorf("Expected status %s, got %s", ConstructCreatePending, construct.Status)
+	}
+
+	if err := sm.TransitionConstructState(construct, ConstructPending); err == nil {
+		t.Errorf("Expected error for invalid transition, got nil")
+	}
+}

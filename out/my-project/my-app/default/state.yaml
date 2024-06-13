@@ -1,0 +1,22 @@
+schemaVersion: 1
+version: 4
+project_urn: urn:accountid:my-project
+app_urn: urn:accountid:my-project:default:my-app
+environment: default
+default_region: us-west-2
+constructs:
+    my-bucket:
+        status: delete_complete
+        last_updated: "2024-06-13T13:58:19-05:00"
+        inputs:
+            ForceDestroy:
+                value: true
+                status: resolved
+            IndexDocument:
+                value: index.html
+                status: resolved
+            SseAlgorithm:
+                value: AES256
+                status: resolved
+        pulumi_stack: 00000000-0000-0000-0000-000000000000
+        urn: urn:my-account-id:my-project:default:my-app:construct/klotho.aws.Bucket:my-bucket

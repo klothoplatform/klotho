@@ -101,18 +101,18 @@ func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference Sta
 	}
 
 	nextStatus := determineNextStatus(construct.Status, summary.Summary.Result)
-	if err := model.TransitionConstructState(&construct, nextStatus); err != nil {
+	if err := sm.TransitionConstructState(&construct, nextStatus); err != nil {
 		return fmt.Errorf("failed to transition construct state: %v", err)
 	}
 	construct.LastUpdated = time.Now().Format(time.RFC3339)
-	sm.SetConstruct(constructName, construct)
+	sm.SetConstruct(construct)
 
 	return nil
 }
 
 func determineNextStatus(currentStatus model.ConstructStatus, result string) model.ConstructStatus {
 	switch currentStatus {
-	case model.ConstructCreating, model.ConstructUpdatePending:
+	case model.ConstructCreating:
 		if result == "succeeded" {
 			return model.ConstructCreateComplete
 		}
@@ -127,11 +127,7 @@ func determineNextStatus(currentStatus model.ConstructStatus, result string) mod
 			return model.ConstructDeleteComplete
 		}
 		return model.ConstructDeleteFailed
-	case model.ConstructOperational, model.ConstructInoperative, model.ConstructNoChange:
-		if result == "succeeded" {
-			return model.ConstructOperational
-		}
-		return model.ConstructInoperative
+
 	default:
 		return model.ConstructUnknown
 	}

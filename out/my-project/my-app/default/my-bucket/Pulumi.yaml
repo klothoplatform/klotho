@@ -1,0 +1,4 @@
+name: myproject
+runtime: nodejs
+backend:
+  url: file:///Users/atorres/.k2/pulumi/state

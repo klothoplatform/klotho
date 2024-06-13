@@ -3,18 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -154,7 +154,7 @@ func updCmd(args struct {
 		}
 	}
 
-	o := orchestration.NewOrchestrator(sm, client, appDir)
+	o := orchestration.NewUpOrchestrator(sm, client, appDir)
 
 	err = o.RunUpCommand(ir, commonCfg.dryRun)
 	if err != nil {

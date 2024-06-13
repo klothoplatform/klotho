@@ -2,17 +2,15 @@ package pulumi
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 
-	"github.com/klothoplatform/klotho/pkg/logging"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
-
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
@@ -141,27 +139,30 @@ func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) 
 	return previewResult, nil
 }
 
-func RunStackDown(stackReference StackReference, dryrun bool) error {
+func RunStackDown(stackReference StackReference) error {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	ctx := context.Background()
-
-	s, err := auto.SelectStackLocalSource(ctx, stackName, stackDirectory)
+	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
-		return errors2.WrapErrf(err, "failed to select stack: %s", stackName)
+		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 
-	zap.S().Infof("Selected stack %q\n", stackName)
+	zap.S().Infof("Created/Selected stack %q\n", stackName)
+
+	// set stack configuration specifying the AWS region to deploy
+	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
+	if err != nil {
+		return errors2.WrapErrf(err, "Failed to set stack configuration")
+	}
+
+	zap.S().Info("Successfully set config")
 
 	zap.S().Info("Starting destroy")
 
 	// wire up our destroy to stream progress to stdout
 	stdoutStreamer := optdestroy.ProgressStreams(os.Stdout)
 	refresh := optdestroy.Refresh()
-
-	if dryrun {
-		return errors.New("Dryrun not supported in Destroy yet")
-	}
 
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer, refresh)

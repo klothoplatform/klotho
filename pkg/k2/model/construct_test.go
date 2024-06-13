@@ -10,9 +10,14 @@ func TestUpdateResourceState(t *testing.T) {
 
 	sm := NewStateManager(tmpFile)
 
+	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	if err != nil {
+		t.Fatalf("Failed to parse URN: %v", err)
+	}
 	// Initialize the construct state in the StateManager
-	sm.SetConstruct("example-construct", ConstructState{
+	sm.SetConstruct(ConstructState{
 		Status: ConstructPending,
+		URN:    parsedURN,
 	})
 
 	if err := sm.UpdateResourceState("example-construct", ConstructCreatePending, "2023-06-11T00:00:00Z"); err != nil {
@@ -27,19 +32,5 @@ func TestUpdateResourceState(t *testing.T) {
 	}
 	if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 		t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
-	}
-}
-
-func TestTransitionConstructState(t *testing.T) {
-	construct := &ConstructState{Status: ConstructPending}
-	if err := TransitionConstructState(construct, ConstructCreatePending); err != nil {
-		t.Errorf("Expected valid transition, got error: %v", err)
-	}
-	if construct.Status != ConstructCreatePending {
-		t.Errorf("Expected status %s, got %s", ConstructCreatePending, construct.Status)
-	}
-
-	if err := TransitionConstructState(construct, ConstructPending); err == nil {
-		t.Errorf("Expected error for invalid transition, got nil")
 	}
 }

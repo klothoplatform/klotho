@@ -1,10 +1,5 @@
 package model
 
-import (
-	"fmt"
-	"time"
-)
-
 type ConstructState struct {
 	Status      ConstructStatus        `yaml:"status,omitempty"`
 	LastUpdated string                 `yaml:"last_updated,omitempty"`
@@ -44,7 +39,6 @@ const (
 	// Operational statuses
 	ConstructOperational ConstructStatus = "operational"
 	ConstructInoperative ConstructStatus = "inoperative"
-	ConstructDeleted     ConstructStatus = "deleted"
 	ConstructNoChange    ConstructStatus = "no_change"
 
 	// Unknown status
@@ -52,21 +46,21 @@ const (
 )
 
 var validTransitions = map[ConstructStatus][]ConstructStatus{
-	ConstructPending:        {ConstructCreatePending, ConstructUpdatePending, ConstructDeletePending},
-	ConstructCreatePending:  {ConstructCreating, ConstructDeletePending},
-	ConstructCreating:       {ConstructCreateComplete, ConstructCreateFailed},
-	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting},
+	ConstructPending:        {ConstructPending, ConstructCreatePending, ConstructUpdatePending, ConstructDeletePending},
+	ConstructCreatePending:  {ConstructCreatePending, ConstructCreating, ConstructDeletePending},
+	ConstructCreating:       {ConstructCreateComplete, ConstructCreateFailed, ConstructDeletePending},
+	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting, ConstructDeletePending},
 	ConstructCreateFailed:   {ConstructPending, ConstructDeletePending},
-	ConstructUpdating:       {ConstructUpdateComplete, ConstructUpdateFailed},
-	ConstructUpdateComplete: {ConstructOperational},
+	ConstructUpdating:       {ConstructUpdateComplete, ConstructUpdateFailed, ConstructDeletePending},
+	ConstructUpdateComplete: {ConstructOperational, ConstructDeletePending},
 	ConstructUpdateFailed:   {ConstructUpdatePending, ConstructDeletePending},
-	ConstructDeleting:       {ConstructDeleteComplete, ConstructDeleteFailed},
-	ConstructDeleteComplete: {ConstructDeleted},
-	ConstructDeleteFailed:   {ConstructDeletePending},
-	ConstructUpdatePending:  {ConstructUpdating},
-	ConstructDeletePending:  {ConstructDeleting},
-	ConstructOperational:    {ConstructUpdating, ConstructDeleting, ConstructInoperative},
-	ConstructInoperative:    {ConstructOperational, ConstructUpdating, ConstructDeleting},
+	ConstructDeleting:       {ConstructDeleteComplete, ConstructDeleteFailed, ConstructDeletePending},
+	ConstructDeleteComplete: {ConstructUpdatePending},
+	ConstructDeleteFailed:   {ConstructDeletePending, ConstructDeleting},
+	ConstructUpdatePending:  {ConstructUpdatePending, ConstructUpdating, ConstructDeletePending},
+	ConstructDeletePending:  {ConstructDeletePending, ConstructDeleting},
+	ConstructOperational:    {ConstructUpdating, ConstructDeleting, ConstructInoperative, ConstructDeletePending},
+	ConstructInoperative:    {ConstructOperational, ConstructUpdating, ConstructDeleting, ConstructDeletePending},
 	ConstructUnknown:        {ConstructPending, ConstructCreating, ConstructUpdatePending, ConstructDeletePending},
 }
 
@@ -95,15 +89,6 @@ func isValidTransition(currentStatus, nextStatus ConstructStatus) bool {
 		}
 	}
 	return false
-}
-
-func TransitionConstructState(construct *ConstructState, nextStatus ConstructStatus) error {
-	if isValidTransition(construct.Status, nextStatus) {
-		construct.Status = nextStatus
-		construct.LastUpdated = time.Now().Format(time.RFC3339)
-		return nil
-	}
-	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
 }
 
 type (

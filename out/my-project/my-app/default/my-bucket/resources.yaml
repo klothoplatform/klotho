@@ -1,0 +1,14 @@
+resources:
+    aws:s3_bucket:my-bucket:
+        ForceDestroy: true
+        IndexDocument: index.html
+        SSEAlgorithm: aws:kms
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-bucket
+edges:
+outputs:
+    BucketName:
+        ref: aws:s3_bucket:my-bucket#BucketName
+    FixedValue:
+        value: some fixed value my-bucket

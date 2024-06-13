@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -128,15 +129,26 @@ func (sm *StateManager) GetConstruct(name string) (ConstructState, bool) {
 	return construct, exists
 }
 
-func (sm *StateManager) SetConstruct(name string, construct ConstructState) {
+func (sm *StateManager) SetConstruct(construct ConstructState) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	sm.state.Constructs[name] = construct
+	sm.state.Constructs[construct.URN.ResourceID] = construct
 }
 
 func (sm *StateManager) GetAllConstructs() map[string]ConstructState {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	return sm.state.Constructs
+}
+
+func (sm *StateManager) TransitionConstructState(construct *ConstructState, nextStatus ConstructStatus) error {
+	if isValidTransition(construct.Status, nextStatus) {
+		zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
+		construct.Status = nextStatus
+		construct.LastUpdated = time.Now().Format(time.RFC3339)
+		sm.SetConstruct(*construct)
+		return nil
+	}
+	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
 }
