@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -12,7 +13,6 @@ import (
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -46,7 +46,7 @@ func newUpCmd() *cobra.Command {
 				upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 			}
 
-			err = updCmd(upConfig).ErrOrNil()
+			err = updCmd(upConfig)
 			if err != nil {
 				zap.S().Errorf("error running up command: %v", err)
 				os.Exit(1)
@@ -63,36 +63,38 @@ func updCmd(args struct {
 	inputPath  string
 	outputPath string
 	region     string
-}) multierr.Error {
-	cmd := startPythonClient()
-	var merr multierr.Error
+}) error {
+	cmd, addr := startPythonClient()
 	defer func() {
-		if err := cmd.Process.Kill(); err != nil {
-			merr.Append(errors2.WrapErrf(err, "failed to kill Python client"))
+		if cmd.Process != nil {
+			if err := cmd.Process.Kill(); err != nil {
+				zap.L().Warn("failed to kill Python client", zap.Error(err))
+			}
 		}
 	}()
 
+	// Wait for the server to be ready
+	log.Print("Waiting for Python server to start")
+	select {
+	case <-addr.HasAddr:
+	case <-time.After(30 * time.Second):
+		return errors.New("timeout waiting for Python server to start")
+	}
+
 	// Connect to the Python server
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		merr.Append(errors2.WrapErrf(err, "failed to connect to Python server"))
-		return merr
+		return errors2.WrapErrf(err, "failed to connect to Python server")
 	}
 
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()
 		if err != nil {
-			merr.Append(errors2.WrapErrf(err, "failed to close connection"))
+			zap.L().Error("failed to close connection", zap.Error(err))
 		}
 	}(conn)
 
 	client := pb.NewKlothoServiceClient(conn)
-
-	// Wait for the server to be ready
-	if err := waitForServer(client, 10, 1*time.Second); err != nil {
-		merr.Append(errors2.WrapErrf(err, "failed to start server"))
-		return merr
-	}
 
 	// Send IR Request
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -106,8 +108,7 @@ func updCmd(args struct {
 
 	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
 	if err != nil {
-		merr.Append(errors2.WrapErrf(err, "error parsing IR file"))
-		return merr
+		return errors2.WrapErrf(err, "error parsing IR file")
 	}
 
 	// Take the IR -- generate and save a state file and stored in the
@@ -116,21 +117,18 @@ func updCmd(args struct {
 
 	appUrn, err := model.ParseURN(ir.AppURN)
 	if err != nil {
-		merr.Append(errors2.WrapErrf(err, "error parsing app URN"))
-		return merr
+		return errors2.WrapErrf(err, "error parsing app URN")
 	}
 
 	appUrnPath, err := model.UrnPath(*appUrn)
 	if err != nil {
-		merr.Append(errors2.WrapErrf(err, "error getting URN path"))
-		return merr
+		return errors2.WrapErrf(err, "error getting URN path")
 	}
 	appDir := filepath.Join(args.outputPath, appUrnPath)
 
 	// Create the app state directory
 	if err := os.MkdirAll(appDir, 0755); err != nil {
-		merr.Append(errors2.WrapErrf(err, "error creating app directory"))
-		return merr
+		return errors2.WrapErrf(err, "error creating app directory")
 	}
 
 	stateFile := filepath.Join(appDir, "state.yaml")
@@ -143,14 +141,12 @@ func updCmd(args struct {
 		sm.InitState(ir)
 		// Save the state
 		if err = sm.SaveState(); err != nil {
-			merr.Append(errors2.WrapErrf(err, "error saving state"))
-			return merr
+			return errors2.WrapErrf(err, "error saving state")
 		}
 	} else {
 		// Load the state
 		if err = sm.LoadState(); err != nil {
-			merr.Append(errors2.WrapErrf(err, "error loading state"))
-			return merr
+			return errors2.WrapErrf(err, "error loading state")
 		}
 	}
 
@@ -158,8 +154,7 @@ func updCmd(args struct {
 
 	err = o.RunUpCommand(ir, commonCfg.dryRun)
 	if err != nil {
-		merr.Append(errors2.WrapErrf(err, "error running up command"))
-		return merr
+		return errors2.WrapErrf(err, "error running up command")
 	}
 
 	return nil

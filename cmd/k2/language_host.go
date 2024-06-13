@@ -2,43 +2,45 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io"
 	"os/exec"
-	"syscall"
-	"time"
+	"strings"
 
-	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 )
 
-func healthCheck(client pb.KlothoServiceClient) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	_, err := client.HealthCheck(ctx, &pb.HealthCheckRequest{})
-	return err == nil
+type serverAddress struct {
+	Address string
+	HasAddr chan struct{}
 }
 
-func waitForServer(client pb.KlothoServiceClient, retries int, delay time.Duration) error {
-	for i := 0; i < retries; i++ {
-		if healthCheck(client) {
-			return nil
-		}
-		time.Sleep(delay)
+func (f *serverAddress) Write(b []byte) (int, error) {
+	if f.Address != "" {
+		return len(b), nil
 	}
-	return fmt.Errorf("server not available after %d retries", retries)
+	s := string(b)
+	if strings.HasPrefix(s, "Listening on") {
+		f.Address = strings.TrimSpace(strings.TrimPrefix(s, "Listening on "))
+		zap.S().Infof("Found language host listening on %s", f.Address)
+		close(f.HasAddr)
+	}
+	return len(b), nil
 }
 
-func startPythonClient() *exec.Cmd {
+func startPythonClient() (*exec.Cmd, *serverAddress) {
 	cmd := logging.Command(
 		context.TODO(),
 		logging.CommandLogger{RootLogger: zap.L().Named("python")},
 		"pipenv", "run", "python", "python_language_host.py",
 	)
+
+	lf := &serverAddress{
+		HasAddr: make(chan struct{}),
+	}
+	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
 	cmd.Dir = "pkg/k2/language_host/python"
-	// spawn the python process as a subprocess of the CLI, so it is guaranteed to be killed when the CLI exits
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	setProcAttr(cmd)
 
 	zap.S().Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
 	if err := cmd.Start(); err != nil {
@@ -54,5 +56,6 @@ func startPythonClient() *exec.Cmd {
 			zap.L().Debug("Python process exited successfully")
 		}
 	}()
-	return cmd
+
+	return cmd, lf
 }
