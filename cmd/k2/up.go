@@ -49,8 +49,8 @@ func newUpCmd() *cobra.Command {
 			err = updCmd(upConfig).ErrOrNil()
 			if err != nil {
 				zap.S().Errorf("error running up command: %v", err)
+				os.Exit(1)
 			}
-			os.Exit(1)
 		},
 	}
 	flags := upCommand.Flags()
