@@ -23,6 +23,17 @@ func NewEntryLeveller(core zapcore.Core, levels map[string]zapcore.Level) *Entry
 	return el
 }
 
+func (el *EntryLeveller) With(f []zapcore.Field) zapcore.Core {
+	next := &EntryLeveller{
+		Core: el.Core.With(f),
+	}
+	el.levels.Range(func(k, v interface{}) bool {
+		next.levels.Store(k, v)
+		return true
+	})
+	return next
+}
+
 func (el *EntryLeveller) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	if e.LoggerName == "" {
 		return el.Core.Check(e, ce)

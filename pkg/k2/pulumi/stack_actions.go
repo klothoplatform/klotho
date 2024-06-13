@@ -90,7 +90,11 @@ func RunStackUp(stackReference StackReference) (auto.UpResult, StackState, error
 
 	zap.S().Info("Starting update")
 
-	upResult, err := s.Up(ctx, optup.ProgressStreams(os.Stdout), optup.Refresh())
+	upResult, err := s.Up(
+		ctx,
+		optup.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.up"), zap.InfoLevel)),
+		optup.Refresh(),
+	)
 	if err != nil {
 		zap.S().Errorf("Failed to update stack: %v\n\n", err)
 		return upResult, StackState{}, errors2.WrapErrf(err, "Failed to update stack")
@@ -128,7 +132,11 @@ func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) 
 
 	zap.S().Info("Starting preview")
 
-	previewResult, err := s.Preview(ctx, optpreview.ProgressStreams(os.Stdout), optpreview.Refresh())
+	previewResult, err := s.Preview(
+		ctx,
+		optpreview.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.preview"), zap.InfoLevel)),
+		optpreview.Refresh(),
+	)
 	if err != nil {
 		zap.S().Errorf("Failed to preview stack: %v\n\n", err)
 		return previewResult, errors2.WrapErrf(err, "Failed to preview stack")
@@ -161,7 +169,7 @@ func RunStackDown(stackReference StackReference) error {
 	zap.S().Info("Starting destroy")
 
 	// wire up our destroy to stream progress to stdout
-	stdoutStreamer := optdestroy.ProgressStreams(os.Stdout)
+	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.destroy"), zap.InfoLevel))
 	refresh := optdestroy.Refresh()
 
 	// run the destroy to remove our resources
@@ -186,7 +194,10 @@ func InstallDependencies(stackDirectory string) error {
 	zap.S().Infof("Installing pulumi dependencies in %s", stackDirectory)
 	npmCmd := logging.Command(
 		context.TODO(),
-		logging.CommandLogger{RootLogger: zap.L().Named("npm")},
+		logging.CommandLogger{
+			RootLogger:  zap.L().Named("npm"),
+			StdoutLevel: zap.DebugLevel,
+		},
 		"npm", "install",
 	)
 	npmCmd.Dir = stackDirectory

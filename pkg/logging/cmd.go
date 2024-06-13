@@ -1,8 +1,10 @@
 package logging
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"io"
 	"os/exec"
 
 	"go.uber.org/zap"
@@ -18,6 +20,10 @@ type CommandLogger struct {
 	RootLogger  *zap.Logger
 	StdoutLevel zapcore.Level
 	StderrLevel zapcore.Level
+}
+
+func NewLoggerWriter(logger *zap.Logger, level zapcore.Level) io.Writer {
+	return loggerWriter{logger: logger, level: level}
 }
 
 func (w loggerWriter) Write(p []byte) (n int, err error) {
@@ -39,6 +45,19 @@ func (w loggerWriter) Write(p []byte) (n int, err error) {
 		}
 	}
 	return len(p), nil
+}
+
+func (w loggerWriter) ReadFrom(r io.Reader) (int64, error) {
+	buf := bufio.NewScanner(r)
+	var n int64
+	for buf.Scan() {
+		txt := buf.Text()
+		if ce := w.logger.Check(w.level, txt); ce != nil {
+			ce.Write()
+		}
+		n += int64(len(txt))
+	}
+	return n, buf.Err()
 }
 
 func Command(ctx context.Context, cfg CommandLogger, name string, arg ...string) *exec.Cmd {

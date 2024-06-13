@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type CommonConfig struct {
@@ -53,6 +54,12 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) {
 		logOpts := logging.LogOpts{
 			Verbose:         commonCfg.verbose,
 			CategoryLogsDir: commonCfg.logsDir,
+			DefaultLevels: map[string]zapcore.Level{
+				"kb.load":       zap.WarnLevel,
+				"engine.opeval": zap.WarnLevel,
+				"dot":           zap.WarnLevel,
+				"npm":           zap.WarnLevel,
+			},
 		}
 		if commonCfg.jsonLog {
 			logOpts.Encoding = "json"
