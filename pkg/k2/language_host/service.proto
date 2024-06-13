@@ -30,11 +30,6 @@ message RegisterConstructRequest {
 }
 
 message RegisterConstructReply {
-    message ResolvedOutput {
-        string id = 1;
-        string yaml_payload = 2;
-    }
-
     string message = 1;
-    repeated ResolvedOutput resolved_outputs = 2;
+    string yaml_payload = 2;
 }

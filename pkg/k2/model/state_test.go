@@ -135,7 +135,7 @@ func TestSaveState(t *testing.T) {
 			Status:      ConstructPending,
 			LastUpdated: "2023-06-11T00:00:00Z",
 			Inputs:      make(map[string]Input),
-			Outputs:     make(map[string]string),
+			Outputs:     make(map[string]any),
 			Bindings:    []Binding{},
 			Options:     make(map[string]interface{}),
 			DependsOn:   []*URN{},
@@ -201,9 +201,9 @@ func TestInitState(t *testing.T) {
 		Constructs: map[string]Construct{
 			"example-construct": {
 				Inputs:    make(map[string]Input),
-				Outputs:   make(map[string]string),
+				Outputs:   make(map[string]any),
 				Bindings:  []Binding{},
-				Options:   make(map[string]interface{}),
+				Options:   make(map[string]any),
 				DependsOn: []*URN{},
 				URN:       parsedURN,
 			},

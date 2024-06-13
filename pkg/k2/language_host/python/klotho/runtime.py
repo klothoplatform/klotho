@@ -55,7 +55,7 @@ class Runtime:
         }
         return yaml.dump(output, sort_keys=False)
 
-    def resolve_output_references(self, constructs: dict[str, dict[str, any]]) -> list["Output"]:
+    def resolve_output_references(self, constructs: dict[str, dict[str, any]]) -> dict[str, any]:
         """
         constructs is expected to be a dictionary of resource urn to resource outputs
         example:
@@ -65,6 +65,8 @@ class Runtime:
                 "output2": "value2"
             }
         }
+
+        :return: a dictionary of resolved output references where the key is the output id and the value is the resolved value
         """
         for urn, outputs in constructs.items():
             for output_name, output_value in outputs.items():
@@ -74,7 +76,7 @@ class Runtime:
 
         remaining_unresolved_outputs = {output_id: output for output_id, output in self.output_references.items() if
                                         not output.is_resolved}
-        resolved_output_references = []
+        resolved_output_references = {}
         resolved_count = -1
         while resolved_count != 0:
             resolved_count = 0
@@ -90,7 +92,7 @@ class Runtime:
                     continue
                 output.resolve(resolved_deps)
                 resolved_count += 1
-                resolved_output_references.append(output)
+                resolved_output_references[output_id] = output.value
         return resolved_output_references
 
     def set_provider(self, name: str, provider: Provider):

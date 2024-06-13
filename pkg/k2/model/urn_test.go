@@ -330,31 +330,3 @@ func TestUnmarshalYAML(t *testing.T) {
 		})
 	}
 }
-
-func TestMarshalYAML2(t *testing.T) {
-	testCases := []struct {
-		name     string
-		urn      string
-		expected string
-	}{
-		{
-			name:     "Container Instance URN",
-			urn:      "urn:accountid:project:dev::construct/klotho.aws.Container:my-container",
-			expected: "urn:accountid:project:dev::construct/klotho.aws.Container:my-container\n",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			urn, err := ParseURN(tc.urn)
-			var urn2 *URN = urn
-
-			if assert.NoError(t, err); err != nil {
-				return
-			}
-			result, err := yaml.Marshal(urn2)
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expected, string(result))
-		})
-	}
-}

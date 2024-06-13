@@ -142,32 +142,47 @@ func (u *URN) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (u *URN) Equals(other *URN) bool {
-	if u.AccountID != other.AccountID {
+func (u *URN) Equals(other any) bool {
+	if other == nil {
 		return false
 	}
-	if u.Project != other.Project {
+	if u == other {
+		return true
+	}
+	var otherUrn URN
+	if oup, ok := other.(*URN); ok {
+		otherUrn = *oup
+	} else if ou, ok := other.(URN); ok {
+		otherUrn = ou
+	} else {
 		return false
 	}
-	if u.Environment != other.Environment {
+
+	if u.AccountID != otherUrn.AccountID {
 		return false
 	}
-	if u.Application != other.Application {
+	if u.Project != otherUrn.Project {
 		return false
 	}
-	if u.Type != other.Type {
+	if u.Environment != otherUrn.Environment {
 		return false
 	}
-	if u.Subtype != other.Subtype {
+	if u.Application != otherUrn.Application {
 		return false
 	}
-	if u.ParentResourceID != other.ParentResourceID {
+	if u.Type != otherUrn.Type {
 		return false
 	}
-	if u.ResourceID != other.ResourceID {
+	if u.Subtype != otherUrn.Subtype {
 		return false
 	}
-	if u.Output != other.Output {
+	if u.ParentResourceID != otherUrn.ParentResourceID {
+		return false
+	}
+	if u.ResourceID != otherUrn.ResourceID {
+		return false
+	}
+	if u.Output != otherUrn.Output {
 		return false
 	}
 	return true

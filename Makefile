@@ -30,3 +30,7 @@ engine_test:
 .PHONY: regen_tests
 regen_tests:
 	find pkg/engine/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;
+
+.PHONY: cancel-all
+cancel-all:
+	rm -rf ~/.k2/pulumi/state/.pulumi/locks

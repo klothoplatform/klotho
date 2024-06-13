@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -46,17 +45,17 @@ func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.U
 	urn := *c.URN
 	constructEvaluator, err := constructs.NewConstructEvaluator(urn, inputs, state)
 	if err != nil {
-		return pulumi.StackReference{}, errors.WrapErrf(err, "error creating construct evaluator")
+		return pulumi.StackReference{}, fmt.Errorf("error creating construct evaluator: %w", err)
 	}
 	_, cs, err := constructEvaluator.Evaluate()
 	if err != nil {
-		return pulumi.StackReference{}, errors.WrapErrf(err, "error evaluating construct")
+		return pulumi.StackReference{}, fmt.Errorf("error evaluating construct: %w", err)
 	}
 
 	ig := &InfraGenerator{}
 	err = ig.Run(cs, constructOutDir)
 	if err != nil {
-		return pulumi.StackReference{}, errors.WrapErrf(err, "error running infra generator")
+		return pulumi.StackReference{}, fmt.Errorf("error running infra generator: %w", err)
 	}
 
 	return pulumi.StackReference{
@@ -140,6 +139,8 @@ func sortConstructsByDependency(constructs []model.ConstructState, actions map[m
 	// (i.e., if 'a' depends on 'b', and 'a' is to be deleted, the edge is from 'b' to 'a' otherwise from 'a' to 'b')
 	for _, c := range constructs {
 		_ = constructGraph.AddVertex(*c.URN)
+	}
+	for _, c := range constructs {
 		for _, dep := range c.DependsOn {
 			var source, target model.URN
 			if actions[*c.URN] == model.ConstructActionDelete {
@@ -149,7 +150,10 @@ func sortConstructsByDependency(constructs []model.ConstructState, actions map[m
 				source = *c.URN
 				target = *dep
 			}
-			_ = constructGraph.AddEdge(source, target)
+			err := constructGraph.AddEdge(source, target)
+			if err != nil {
+				return nil, err
+			}
 		}
 		for _, b := range c.Bindings {
 			var source, target model.URN
@@ -160,19 +164,9 @@ func sortConstructsByDependency(constructs []model.ConstructState, actions map[m
 				source = *c.URN
 				target = *b.URN
 			}
-			_ = constructGraph.AddEdge(source, target)
-		}
-		for _, i := range c.Inputs {
-			for _, dep := range i.DependsOn {
-				var source, target model.URN
-				if actions[*c.URN] == model.ConstructActionDelete {
-					source = *dep
-					target = *c.URN
-				} else {
-					source = *c.URN
-					target = *dep
-				}
-				_ = constructGraph.AddEdge(source, target)
+			err := constructGraph.AddEdge(source, target)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}

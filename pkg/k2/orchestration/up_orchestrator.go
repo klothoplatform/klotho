@@ -3,15 +3,14 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"path/filepath"
+	"time"
 )
 
 // UpOrchestrator handles the "up" command
@@ -47,7 +46,7 @@ func transitionPendingToDoing(sm *model.StateManager, construct *model.Construct
 func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun bool) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
-		return errors2.WrapErrf(err, "error resolving initial state")
+		return fmt.Errorf("error resolving initial state: %w", err)
 	}
 	zap.S().Infof("Pending Actions:")
 	for k, v := range actions {
@@ -62,7 +61,7 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 
 	deployOrder, err := sortConstructsByDependency(cs, actions)
 	if err != nil {
-		return errors2.WrapErrf(err, "failed to determine deployment order")
+		return fmt.Errorf("failed to determine deployment order: %w", err)
 	}
 
 	deployer := deployment.Deployer{
@@ -86,7 +85,13 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 
 			// Run pulumi down command for deleted constructs
 			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
-				// Mark as destroyed
+
+				if dryRun {
+					zap.S().Infof("Dry run: Skipping pulumi down for construct %s", c.URN.ResourceID)
+					continue
+				}
+
+				// Mark as deleting
 				if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
 					return err
 				}
@@ -99,10 +104,10 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 				})
 
 				if err != nil {
-					return errors2.WrapErrf(err, "error running pulumi down command")
+					return fmt.Errorf("error running pulumi down command: %w", err)
 				}
 
-				// Mark as destroyed
+				// Mark as deleted
 				if err := sm.TransitionConstructState(&c, model.ConstructDeleteComplete); err != nil {
 					return err
 				}
@@ -117,31 +122,30 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 			// Evaluate the construct
 			stackRef, err := uo.EvaluateConstruct(*uo.StateManager.GetState(), *c.URN)
 			if err != nil {
-				return errors2.WrapErrf(err, "error evaluating construct")
+				return fmt.Errorf("error evaluating construct: %w", err)
 			}
 
-			// Run pulumi up command for the construct
 			if dryRun {
 				_, err = deployer.RunStackPreviewCommand(stackRef)
 				if err != nil {
 					return err
 				}
-				return nil
+				continue
 			}
 
-			if err := transitionPendingToDoing(sm, &c); err != nil {
-				return errors2.WrapErrf(err, "error transitioning construct state")
+			if err = transitionPendingToDoing(sm, &c); err != nil {
+				return fmt.Errorf("error transitioning construct state: %w", err)
 			}
 
+			// Run pulumi up command for the construct
 			upResult, stackState, err := deployer.RunStackUpCommand(stackRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("error running pulumi up command: %w", err)
 			}
 
-			// Resolve output values
-			err2 := uo.resolveOutputValues(stackRef, stackState)
-			if err2 != nil {
-				return err2
+			err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
+			if err != nil {
+				return fmt.Errorf("error registering output values: %w", err)
 			}
 
 			// Update construct state based on the up result
@@ -149,39 +153,42 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 			if err != nil {
 				return err
 			}
+
+			// Resolve pending output values by calling the language host
+			resolvedOutputs, err := uo.resolveOutputValues(stackRef, stackState)
+			if err != nil {
+				return fmt.Errorf("error resolving output values: %w", err)
+			}
+			err = sm.RegisterOutputValues(stackRef.ConstructURN, resolvedOutputs)
+			if err != nil {
+				return fmt.Errorf("error registering resolved output values: %w", err)
+			}
+
 		}
 	}
 	return err
 }
 
-func (uo *UpOrchestrator) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState) error {
-	// TODO: This is a demo implementation that passes the stack outputs to the language host
-	//       and gets the resolved output references back.
-	//       It doesn't actually do anything with the resolved outputs yet.
+func (uo *UpOrchestrator) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState) (map[string]any, error) {
 	outputs := map[string]map[string]interface{}{
 		stackReference.ConstructURN.String(): stackState.Outputs,
 	}
 	payload, err := yaml.Marshal(outputs)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	resp, err := uo.LanguageHostClient.RegisterConstruct(context.Background(), &pb.RegisterConstructRequest{
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*300)
+	defer cancel()
+	resp, err := uo.LanguageHostClient.RegisterConstruct(ctx, &pb.RegisterConstructRequest{
 		YamlPayload: string(payload),
 	})
-	zap.S().Info(resp.GetMessage())
-	var resolvedOutputs []any
-	for _, o := range resp.GetResolvedOutputs() {
-		if err != nil {
-			return err
-		}
-		resolvedOutputs = append(resolvedOutputs, map[string]interface{}{
-			"id":    o.GetId(),
-			"value": o.GetYamlPayload(),
-		})
-	}
-	zap.S().Infof("Resolved Outputs: %v", resolvedOutputs)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	var resolvedOutputs map[string]any
+	err = yaml.Unmarshal([]byte(resp.GetYamlPayload()), &resolvedOutputs)
+	if err != nil {
+		return nil, err
+	}
+	return resolvedOutputs, nil
 }

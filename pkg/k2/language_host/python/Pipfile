@@ -8,8 +8,10 @@ grpcio = "==1.64.0"
 grpcio-tools = "*"
 protobuf = "==5.27.0"
 pyyaml = "*"
+argparse = "*"
 
 [dev-packages]
+debugpy = "*"
 
 [requires]
 python_version = "3.12"

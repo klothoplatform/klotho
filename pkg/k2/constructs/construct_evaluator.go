@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"reflect"
@@ -33,28 +32,27 @@ func NewConstructEvaluator(constructUrn model.URN, inputs map[string]any, state 
 
 	ctx, err := NewConstructContext(constructUrn, inputs, state)
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "error creating construct context")
+		return nil, fmt.Errorf("error creating construct context: %w", err)
 	}
 
 	return &ConstructEvaluator{context: ctx}, nil
-
 }
 
 func (c *ConstructEvaluator) Evaluate() (*Construct, constraints.Constraints, error) {
 	ci, err := c.evaluateConstruct()
 	if err != nil {
-		return nil, constraints.Constraints{}, errors2.WrapErrf(err, "error evaluating construct")
+		return nil, constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
 	}
 
 	marshaller := ConstructMarshaller{Context: c.context, Construct: ci}
 	constraintList, err := marshaller.Marshal()
 	if err != nil {
-		return nil, constraints.Constraints{}, errors2.WrapErrf(err, "error marshalling construct to constraints")
+		return nil, constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
 	}
 
 	cs, err := constraintList.ToConstraints()
 	if err != nil {
-		return nil, constraints.Constraints{}, errors2.WrapErrf(err, "error converting constraint list to constraints")
+		return nil, constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
 	}
 
 	return ci, cs, nil

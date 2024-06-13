@@ -1,15 +1,15 @@
 package model
 
 type ConstructState struct {
-	Status      ConstructStatus        `yaml:"status,omitempty"`
-	LastUpdated string                 `yaml:"last_updated,omitempty"`
-	Inputs      map[string]Input       `yaml:"inputs,omitempty"`
-	Outputs     map[string]string      `yaml:"outputs,omitempty"`
-	Bindings    []Binding              `yaml:"bindings,omitempty"`
-	Options     map[string]interface{} `yaml:"options,omitempty"`
-	DependsOn   []*URN                 `yaml:"dependsOn,omitempty"`
-	PulumiStack UUID                   `yaml:"pulumi_stack,omitempty"`
-	URN         *URN                   `yaml:"urn,omitempty"`
+	Status      ConstructStatus  `yaml:"status,omitempty"`
+	LastUpdated string           `yaml:"last_updated,omitempty"`
+	Inputs      map[string]Input `yaml:"inputs,omitempty"`
+	Outputs     map[string]any   `yaml:"outputs,omitempty"`
+	Bindings    []Binding        `yaml:"bindings,omitempty"`
+	Options     map[string]any   `yaml:"options,omitempty"`
+	DependsOn   []*URN           `yaml:"dependsOn,omitempty"`
+	PulumiStack UUID             `yaml:"pulumi_stack,omitempty"`
+	URN         *URN             `yaml:"urn,omitempty"`
 }
 
 type ConstructStatus string
@@ -56,7 +56,7 @@ var validTransitions = map[ConstructStatus][]ConstructStatus{
 	ConstructUpdateFailed:   {ConstructUpdatePending, ConstructDeletePending},
 	ConstructDeleting:       {ConstructDeleteComplete, ConstructDeleteFailed, ConstructDeletePending},
 	ConstructDeleteComplete: {ConstructUpdatePending},
-	ConstructDeleteFailed:   {ConstructDeletePending, ConstructDeleting},
+	ConstructDeleteFailed:   {ConstructDeletePending, ConstructDeleting, ConstructUpdatePending},
 	ConstructUpdatePending:  {ConstructUpdatePending, ConstructUpdating, ConstructDeletePending},
 	ConstructDeletePending:  {ConstructDeletePending, ConstructDeleting},
 	ConstructOperational:    {ConstructUpdating, ConstructDeleting, ConstructInoperative, ConstructDeletePending},

@@ -149,3 +149,9 @@ input_rules:
         EcrImage:
           properties:
             ImageName: ${inputs:Image}
+
+outputs:
+  TestValue:
+    name: TestValue
+    description: A fixed value
+    value: home.html

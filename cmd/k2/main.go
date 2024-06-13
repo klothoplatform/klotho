@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
 	"os"
+	"syscall"
 
 	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	"github.com/spf13/cobra"
@@ -14,6 +16,15 @@ var commonCfg struct {
 }
 
 func cli() {
+	// Set up signal and panic handling to ensure cleanup is executed
+	cleanup.InitializeHandler()
+	defer func() {
+		if r := recover(); r != nil {
+			_ = cleanup.Execute(syscall.SIGTERM)
+			os.Exit(1)
+		}
+	}()
+
 	var rootCmd = &cobra.Command{Use: "app"}
 	clicommon.SetupRoot(rootCmd, &commonCfg.CommonConfig)
 	flags := rootCmd.PersistentFlags()

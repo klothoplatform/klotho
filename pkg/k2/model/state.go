@@ -152,3 +152,55 @@ func (sm *StateManager) TransitionConstructState(construct *ConstructState, next
 	}
 	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
 }
+
+// RegisterOutputValues registers the resolved output values of a construct in the state manager and resolves any inputs that depend on the provided outputs
+func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) error {
+	if sm.state.Constructs == nil {
+		return fmt.Errorf("%s not found in state", urn.String())
+	}
+
+	if construct, exists := sm.state.Constructs[urn.ResourceID]; exists {
+		for k, v := range outputs {
+			construct.Outputs[k] = v
+		}
+		sm.state.Constructs[urn.ResourceID] = construct
+	} else {
+		return fmt.Errorf("%s not found in state", urn.String())
+	}
+
+	// Resolve inputs that depend on the outputs of this construct or that directly reference this construct
+	for _, c := range sm.state.Constructs {
+		if urn.Equals(c.URN) {
+			continue // Skip the construct that provided the outputs
+		}
+
+		hasDep := false
+		// Skip constructs that don't depend on this construct
+		for _, dep := range c.DependsOn {
+			if dep.Equals(urn) {
+				hasDep = true
+				break
+			}
+		}
+		if !hasDep {
+			continue
+		}
+
+		for k, input := range c.Inputs {
+			if input.DependsOn == urn.String() {
+				input.Status = InputStatusResolved
+				input.Value = urn
+				c.Inputs[k] = input
+			}
+
+			if o, ok := outputs[input.DependsOn]; ok {
+				input.Value = o
+				input.Status = InputStatusResolved
+				c.Inputs[k] = input
+			}
+		}
+
+	}
+
+	return nil
+}

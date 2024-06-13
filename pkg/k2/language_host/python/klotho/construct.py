@@ -31,7 +31,7 @@ class Construct:
         self.status = "new"  # Default status
         self.bindings = []
         self.options = opts.__dict__ if opts else {}
-        self.depends_on = []
+        self.depends_on: set[URN] = set()
         runtime.add_construct(self)
         for k, v in properties.items():
             self.add_input(k, v)
@@ -54,18 +54,28 @@ class Construct:
     def add_input(self, name: str, value: any):
         if value is not None:
             if isinstance(value, Construct):
-                self.depends_on.append(str(value.urn))
+                self.depends_on.add(value.urn)
                 self.inputs[name] = {
-                    "value": [str(value.urn)],
                     "status": "pending",
-                    "dependsOn": [str(value.urn)],
+                    "dependsOn": str(value.urn),
                 }
             elif isinstance(value, Output):
                 self.inputs[name] = {
                     "value": None,
                     "status": "pending",
-                    "dependsOn": [str(d) for d in value.depends_on],
+                    "dependsOn": str(value.id),
                 }
+
+                for dep in {*value.depends_on, value.id}:
+                    try:
+                        # If the dep is a URN, add it to the list of dependencies (make sure to strip the output name).
+                        urn = URN.parse(dep)
+                        urn.output = ""
+                        self.depends_on.add(urn)
+                    except ValueError:
+                        # If the dep is not a URN, it's not a construct dependency, so we can ignore it.
+                        pass
+
             else:
                 self.inputs[name] = {
                     "value": value,

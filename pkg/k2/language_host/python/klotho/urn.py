@@ -90,3 +90,9 @@ class URN:
             resource_id=self.resource_id,
             output=output
         )
+
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __hash__(self):
+        return hash(str(self))

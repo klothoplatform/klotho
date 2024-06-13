@@ -17,7 +17,7 @@ InputType = Union[T, Mapping[str, Any]]
 class Output(Generic[T_co]):
     def __init__(
             self,
-            depends_on: list[str],
+            depends_on: set[str],
             id: str = None,
             value: T_co | Input[T_co] | None = None,
             callback: Callable[[T_co], T] = None,
@@ -28,7 +28,7 @@ class Output(Generic[T_co]):
             self.id = id
         else:
             self.id = str(uuid4())
-        self.depends_on = list(depends_on)
+        self.depends_on = set(depends_on)
 
         if isinstance(value, Output) and value:
             self._value = value.value
@@ -74,4 +74,8 @@ class Output(Generic[T_co]):
         def run(*values: T_co) -> T_co:
             return callback(*values)
 
-        return Output([output.id for output in outputs], None, None, run)
+        return Output({
+            *[output.id for output in outputs],
+            *[dep for output in outputs for dep in output.depends_on]
+        }
+            , None, None, run)

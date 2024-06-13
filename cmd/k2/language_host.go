@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os/exec"
-	"strings"
+	"regexp"
+	"syscall"
+
+	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
 
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
@@ -15,24 +19,45 @@ type serverAddress struct {
 	HasAddr chan struct{}
 }
 
+var listenOnPattern = regexp.MustCompile(`(?m)^\s*Listening on (\S+)$`)
+
 func (f *serverAddress) Write(b []byte) (int, error) {
 	if f.Address != "" {
 		return len(b), nil
 	}
 	s := string(b)
-	if strings.HasPrefix(s, "Listening on") {
-		f.Address = strings.TrimSpace(strings.TrimPrefix(s, "Listening on "))
+	matches := listenOnPattern.FindStringSubmatch(s)
+	if len(matches) >= 2 {
+		// address is the first match
+		f.Address = matches[1]
 		zap.S().Infof("Found language host listening on %s", f.Address)
 		close(f.HasAddr)
 	}
+
 	return len(b), nil
 }
 
-func startPythonClient() (*exec.Cmd, *serverAddress) {
+type DebugConfig struct {
+	Enabled bool
+	Port    int
+	Mode    string
+}
+
+func startPythonClient(debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
+	args := []string{"run", "python", "python_language_host.py"}
+	if debugConfig.Enabled {
+		if debugConfig.Port > 0 {
+			args = append(args, "--debug-port", fmt.Sprintf("%d", debugConfig.Port))
+		}
+		if debugConfig.Mode != "" {
+			args = append(args, "--debug", debugConfig.Mode)
+		}
+	}
+
 	cmd := logging.Command(
 		context.TODO(),
 		logging.CommandLogger{RootLogger: zap.L().Named("python")},
-		"pipenv", "run", "python", "python_language_host.py",
+		"pipenv", args...,
 	)
 
 	lf := &serverAddress{
@@ -41,6 +66,10 @@ func startPythonClient() (*exec.Cmd, *serverAddress) {
 	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
 	cmd.Dir = "pkg/k2/language_host/python"
 	setProcAttr(cmd)
+	cleanup.OnKill(func(signal syscall.Signal) error {
+		cleanup.SignalProcessGroup(cmd.Process.Pid, syscall.SIGTERM)
+		return nil
+	})
 
 	zap.S().Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
 	if err := cmd.Start(); err != nil {

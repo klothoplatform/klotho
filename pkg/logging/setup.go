@@ -30,6 +30,7 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 		}
 	case "console", "pretty_console", "":
 		cfg := prettyconsole.NewEncoderConfig()
+		cfg.SkipLineEnding = true
 		cfg.EncodeTime = TimeOffsetFormatter(time.Now())
 		enc = prettyconsole.NewEncoder(cfg)
 	default:

@@ -2,9 +2,9 @@ from typing import Optional, overload
 
 from klotho.aws.network import Network
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
-from klotho.output import Input
+from klotho.output import Input, Output
 from klotho.runtime_util import get_default_construct
-from klotho.type_util import set, get
+from klotho.type_util import set, get, get_output
 
 
 class ContainerArgs:
@@ -157,3 +157,7 @@ class Container(Construct):
             },
             opts=opts,
         )
+
+    @property
+    def test_value(self) -> Output[str]:
+        return get_output(self, "TestValue", str)
