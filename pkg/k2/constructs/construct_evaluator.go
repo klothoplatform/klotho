@@ -8,7 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"go.uber.org/zap"
+	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -22,7 +22,7 @@ type ConstructEvaluator struct {
 
 func NewConstructEvaluator(constructUrn model.URN, inputs map[string]any, state model.State) (*ConstructEvaluator, error) {
 	if _, ok := inputs["Name"]; ok {
-		zap.S().Warnf("The 'Name' input is reserved and cannot be used as an input!")
+		return nil, errors.New("'Name' is a reserved input key")
 	}
 	if !constructUrn.IsResource() || constructUrn.Type != "construct" {
 		return nil, errors.New("invalid construct URN")
@@ -60,26 +60,26 @@ func (c *ConstructEvaluator) Evaluate() (*Construct, constraints.Constraints, er
 	return ci, cs, nil
 }
 
-/* interpolateValue interpolates a value based on the context of the construct
-	rawValue is the value to interpolate. The format of a raw value is ${<prefix>:<key>} where prefix is the type of value to interpolate and key is the key to interpolate
-
-	The key can be a path to a value in the context. For example, ${inputs:foo.bar} will interpolate the value of the key bar in the foo input.
-	The target of a dot-separated path can be a map or a struct.
-	The path can also include brackets to access an array. For example, ${inputs:foo[0].bar} will interpolate the value of the key bar in the first element of the foo input array.
-
-	Allowable prefixes are:
-	- stack: Interpolates a value from a construct's IaC (pulumi) stack
-	- inputs: Interpolates a value from the inputs of the construct
-	- resources: Interpolates a value from the resources of the construct
-    - edges: Interpolates a value from the edges of the construct
-    - meta: Interpolates a value from the metadata of the construct
-
-    A rawValue can contain a combination of interpolation expressions and literals. For example, "${inputs:foo.bar}-baz-${resource:Boz}" is a valid rawValue.
-*/
-
 var interpolationPattern = regexp.MustCompile(`\$\{([^:]+):([^}]+)}`)
 var isolatedInterpolationPattern = regexp.MustCompile(`^\$\{([^:]+):([^}]+)}$`)
 
+/*
+	 interpolateValue interpolates a value based on the context of the construct
+		rawValue is the value to interpolate. The format of a raw value is ${<prefix>:<key>} where prefix is the type of value to interpolate and key is the key to interpolate
+
+		The key can be a path to a value in the context. For example, ${inputs:foo.bar} will interpolate the value of the key bar in the foo input.
+		The target of a dot-separated path can be a map or a struct.
+		The path can also include brackets to access an array. For example, ${inputs:foo[0].bar} will interpolate the value of the key bar in the first element of the foo input array.
+
+		Allowable prefixes are:
+		- stack: Interpolates a value from a construct's IaC (pulumi) stack
+		- inputs: Interpolates a value from the inputs of the construct
+		- resources: Interpolates a value from the resources of the construct
+	    - edges: Interpolates a value from the edges of the construct
+	    - meta: Interpolates a value from the metadata of the construct
+
+	    A rawValue can contain a combination of interpolation expressions and literals. For example, "${inputs:foo.bar}-baz-${resource:Boz}" is a valid rawValue.
+*/
 func (c *ConstructEvaluator) interpolateValue(rawValue any, ctx InterpolationContext) (any, error) {
 	if ref, ok := rawValue.(ResourceRef); ok {
 		if ref.Type == ResourceRefTypeInterpolated {
@@ -88,13 +88,8 @@ func (c *ConstructEvaluator) interpolateValue(rawValue any, ctx InterpolationCon
 		return rawValue, nil
 	}
 
-	v := reflect.ValueOf(rawValue)
-
-	// If the value is a pointer, dereference it
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-		rawValue = v.Interface()
-	}
+	v := reflectutil.GetConcreteElement(reflect.ValueOf(rawValue))
+	rawValue = v.Interface()
 
 	switch v.Kind() {
 	case reflect.String:

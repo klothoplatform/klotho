@@ -251,7 +251,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 	state.Version += 1
 
 	if state.DefaultRegion != ir.DefaultRegion {
-		return nil, fmt.Errorf("default region mismatch")
+		return nil, fmt.Errorf("default region mismatch: %s != %s", state.DefaultRegion, ir.DefaultRegion)
 	}
 
 	if state.SchemaVersion != ir.SchemaVersion {

@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	errors2 "github.com/klothoplatform/klotho/pkg/errors"
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,7 +15,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -44,7 +46,11 @@ func newUpCmd() *cobra.Command {
 				upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 			}
 
-			fmt.Println(updCmd(upConfig))
+			err = updCmd(upConfig).ErrOrNil()
+			if err != nil {
+				zap.S().Errorf("error running up command: %v", err)
+			}
+			os.Exit(1)
 		},
 	}
 	flags := upCommand.Flags()
@@ -57,24 +63,26 @@ func updCmd(args struct {
 	inputPath  string
 	outputPath string
 	region     string
-}) string {
+}) multierr.Error {
 	cmd := startPythonClient()
+	var merr multierr.Error
 	defer func() {
 		if err := cmd.Process.Kill(); err != nil {
-			log.Fatalf("failed to kill Python client: %v", err)
+			merr.Append(errors2.WrapErrf(err, "failed to kill Python client"))
 		}
 	}()
 
 	// Connect to the Python server
 	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		merr.Append(errors2.WrapErrf(err, "failed to connect to Python server"))
+		return merr
 	}
 
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()
 		if err != nil {
-			log.Fatalf("failed to close connection: %v", err)
+			merr.Append(errors2.WrapErrf(err, "failed to close connection"))
 		}
 	}(conn)
 
@@ -82,11 +90,12 @@ func updCmd(args struct {
 
 	// Wait for the server to be ready
 	if err := waitForServer(client, 10, 1*time.Second); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		merr.Append(errors2.WrapErrf(err, "failed to start server"))
+		return merr
 	}
 
 	// Send IR Request
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	req := &pb.IRRequest{Filename: args.inputPath}
@@ -97,7 +106,8 @@ func updCmd(args struct {
 
 	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
 	if err != nil {
-		return fmt.Sprintf("error reading IR file: %s", err)
+		merr.Append(errors2.WrapErrf(err, "error parsing IR file"))
+		return merr
 	}
 
 	// Take the IR -- generate and save a state file and stored in the
@@ -106,18 +116,21 @@ func updCmd(args struct {
 
 	appUrn, err := model.ParseURN(ir.AppURN)
 	if err != nil {
-		return fmt.Sprintf("error parsing app URN: %s", err)
+		merr.Append(errors2.WrapErrf(err, "error parsing app URN"))
+		return merr
 	}
 
 	appUrnPath, err := model.UrnPath(*appUrn)
 	if err != nil {
-		return fmt.Sprintf("error getting URN path: %s", err)
+		merr.Append(errors2.WrapErrf(err, "error getting URN path"))
+		return merr
 	}
 	appDir := filepath.Join(args.outputPath, appUrnPath)
 
 	// Create the app state directory
 	if err := os.MkdirAll(appDir, 0755); err != nil {
-		return fmt.Sprintf("error creating app directory: %s", err)
+		merr.Append(errors2.WrapErrf(err, "error creating app directory"))
+		return merr
 	}
 
 	stateFile := filepath.Join(appDir, "state.yaml")
@@ -130,12 +143,14 @@ func updCmd(args struct {
 		sm.InitState(ir)
 		// Save the state
 		if err = sm.SaveState(); err != nil {
-			return fmt.Sprintf("error saving state: %s", err)
+			merr.Append(errors2.WrapErrf(err, "error saving state"))
+			return merr
 		}
 	} else {
 		// Load the state
 		if err = sm.LoadState(); err != nil {
-			return fmt.Sprintf("error loading state: %s", err)
+			merr.Append(errors2.WrapErrf(err, "error loading state"))
+			return merr
 		}
 	}
 
@@ -143,9 +158,9 @@ func updCmd(args struct {
 
 	err = o.RunUpCommand(ir, commonCfg.dryRun)
 	if err != nil {
-		zap.S().Errorf("error running up command: %s", err)
-		return fmt.Sprintf("error running up command: %s", err)
+		merr.Append(errors2.WrapErrf(err, "error running up command"))
+		return merr
 	}
 
-	return "success"
+	return nil
 }

@@ -2,6 +2,7 @@ package constructs
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -130,19 +131,13 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		return m.Context.SerializeRef(ref)
 	}
 
-	ref := reflect.ValueOf(rawVal)
-	if ref.Kind() == reflect.Ptr {
-		ref = ref.Elem()
-	}
+	ref := reflectutil.GetConcreteElement(reflect.ValueOf(rawVal))
 
 	var err error
 	switch ref.Kind() {
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
-			field := ref.Field(i)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
+			field := reflectutil.GetConcreteElement(ref.Field(i))
 			if field.Kind() == reflect.Struct {
 				_, err = m.marshalRefs(field.Interface())
 				if err != nil {
@@ -160,10 +155,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
-			field := ref.MapIndex(key)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
+			field := reflectutil.GetConcreteElement(ref.MapIndex(key))
 			if field.Kind() == reflect.Struct {
 				_, err = m.marshalRefs(field.Interface())
 				if err != nil {
@@ -184,11 +176,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		}
 	case reflect.Slice | reflect.Array:
 		for i := 0; i < ref.Len(); i++ {
-			field := ref.Index(i)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
-
+			field := reflectutil.GetConcreteElement(ref.Index(i))
 			if field.Kind() == reflect.Struct {
 				_, err = m.marshalRefs(field.Interface())
 				if err != nil {
@@ -242,54 +230,34 @@ type ConstraintValueProvider interface {
 
 // MarshalValue replaces a struct in place with the output of its MarshalValue method
 func MarshalValue(value any) any {
-	ref := reflect.ValueOf(value)
-	if ref.Kind() == reflect.Ptr {
-		ref = ref.Elem()
-	}
+	ref := reflectutil.GetConcreteElement(reflect.ValueOf(value))
 	switch ref.Kind() {
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
-			field := ref.Field(i)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
-			if field.Kind() == reflect.Struct {
-				MarshalValue(field.Interface())
-			}
-			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
+			field := reflectutil.GetConcreteValue(ref.Field(i))
+			MarshalValue(field)
+			if newField, ok := field.(ConstraintValueProvider); ok {
 				ref.Field(i).Set(reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
-			field := ref.MapIndex(key)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
-			if field.Kind() == reflect.Struct {
-				MarshalValue(field.Interface())
-			}
-			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
+			field := reflectutil.GetConcreteValue(ref.MapIndex(key))
+			MarshalValue(field)
+			if newField, ok := field.(ConstraintValueProvider); ok {
 				ref.SetMapIndex(key, reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
 	case reflect.Slice | reflect.Array:
 		for i := 0; i < ref.Len(); i++ {
-			field := ref.Index(i)
-			if field.Kind() == reflect.Ptr || field.Kind() == reflect.Interface {
-				field = field.Elem()
-			}
-			if field.Kind() == reflect.Struct {
-				MarshalValue(field.Interface())
-			}
-			if newField, ok := field.Interface().(ConstraintValueProvider); ok {
+			field := reflectutil.GetConcreteValue(ref.Index(i))
+			MarshalValue(field)
+			if newField, ok := field.(ConstraintValueProvider); ok {
 				ref.Index(i).Set(reflect.ValueOf(newField.MarshalValue()))
 			}
 		}
-	case reflect.Interface:
-		if ref.Elem().Kind() == reflect.Struct {
-			MarshalValue(ref.Elem().Interface())
-		}
+	case reflect.Interface | reflect.Pointer:
+		MarshalValue(reflectutil.GetConcreteValue(ref))
 	default:
 		if newField, ok := ref.Interface().(ConstraintValueProvider); ok {
 			ref.Set(reflect.ValueOf(newField.MarshalValue()))
