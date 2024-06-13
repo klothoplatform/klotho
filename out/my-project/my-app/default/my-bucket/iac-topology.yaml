@@ -1,4 +1,0 @@
-provider: aws
-resources:
-  s3_bucket/my-bucket:
-
