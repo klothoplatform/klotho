@@ -1,8 +1,10 @@
 package orchestration
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
@@ -16,6 +18,9 @@ import (
 type Orchestrator struct {
 	StateManager    *model.StateManager
 	OutputDirectory string
+
+	mu             sync.Mutex // guards the following fields
+	infraGenerator *InfraGenerator
 }
 
 func NewOrchestrator(sm *model.StateManager, outputPath string) *Orchestrator {
@@ -25,8 +30,21 @@ func NewOrchestrator(sm *model.StateManager, outputPath string) *Orchestrator {
 	}
 }
 
+func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.infraGenerator == nil {
+		var err error
+		o.infraGenerator, err = NewInfraGenerator()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return o.infraGenerator, nil
+}
+
 // Shared and helper functions
-func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.URN) (pulumi.StackReference, error) {
+func (o *Orchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (pulumi.StackReference, error) {
 	constructOutDir := filepath.Join(o.OutputDirectory, constructUrn.ResourceID)
 	c := state.Constructs[constructUrn.ResourceID]
 	inputs := make(map[string]any)
@@ -51,9 +69,12 @@ func (o *Orchestrator) EvaluateConstruct(state model.State, constructUrn model.U
 	if err != nil {
 		return pulumi.StackReference{}, fmt.Errorf("error evaluating construct: %w", err)
 	}
+	ig, err := o.InfraGenerator()
+	if err != nil {
+		return pulumi.StackReference{}, fmt.Errorf("error getting infra generator: %w", err)
+	}
 
-	ig := &InfraGenerator{}
-	err = ig.Run(cs, constructOutDir)
+	err = ig.Run(ctx, cs, constructOutDir)
 	if err != nil {
 		return pulumi.StackReference{}, fmt.Errorf("error running infra generator: %w", err)
 	}

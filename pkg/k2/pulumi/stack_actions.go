@@ -64,10 +64,9 @@ func InitializeStack(projectName string, stackName string, stackDirectory string
 	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
 }
 
-func RunStackUp(stackReference StackReference) (auto.UpResult, StackState, error) {
+func RunStackUp(ctx context.Context, stackReference StackReference) (auto.UpResult, StackState, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	ctx := context.Background()
 
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
@@ -75,7 +74,7 @@ func RunStackUp(stackReference StackReference) (auto.UpResult, StackState, error
 	}
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
 
-	err = InstallDependencies(stackDirectory)
+	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
 		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
@@ -106,10 +105,9 @@ func RunStackUp(stackReference StackReference) (auto.UpResult, StackState, error
 	return upResult, stackState, err
 }
 
-func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) {
+func RunStackPreview(ctx context.Context, stackReference StackReference) (auto.PreviewResult, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	ctx := context.Background()
 
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
@@ -117,7 +115,7 @@ func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) 
 	}
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
 
-	err = InstallDependencies(stackDirectory)
+	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
 		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
@@ -147,10 +145,9 @@ func RunStackPreview(stackReference StackReference) (auto.PreviewResult, error) 
 	return previewResult, nil
 }
 
-func RunStackDown(stackReference StackReference) error {
+func RunStackDown(ctx context.Context, stackReference StackReference) error {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	ctx := context.Background()
 	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
 		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
@@ -190,10 +187,10 @@ func RunStackDown(stackReference StackReference) error {
 	return nil
 }
 
-func InstallDependencies(stackDirectory string) error {
+func InstallDependencies(ctx context.Context, stackDirectory string) error {
 	zap.S().Infof("Installing pulumi dependencies in %s", stackDirectory)
 	npmCmd := logging.Command(
-		context.TODO(),
+		ctx,
 		logging.CommandLogger{
 			RootLogger:  zap.L().Named("npm"),
 			StdoutLevel: zap.DebugLevel,

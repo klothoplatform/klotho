@@ -1,23 +1,23 @@
 package orchestration
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	solution_context "github.com/klothoplatform/klotho/pkg/engine/solution"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"go.uber.org/zap"
@@ -30,39 +30,30 @@ type (
 	}
 
 	InfraRequest struct {
-		Provider    string
-		InputGraph  construct.Graph
-		Constraints constraints.Constraints
-		OutputDir   string
-		GlobalTag   string
+		engine.SolveRequest
+		OutputDir string
 	}
 )
 
-var cachedEngine *engine.Engine
-
-func (g *InfraGenerator) addEngine() error {
-	if cachedEngine != nil {
-		g.Engine = cachedEngine
-		return nil
-	}
-
+func NewInfraGenerator() (*InfraGenerator, error) {
 	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	cachedEngine = engine.NewEngine(kb)
-	g.Engine = cachedEngine
-	return nil
+	return &InfraGenerator{
+		Engine: engine.NewEngine(kb),
+	}, nil
 }
 
-func (g *InfraGenerator) Run(c constraints.Constraints, outDir string) error {
+func (g *InfraGenerator) Run(ctx context.Context, c constraints.Constraints, outDir string) error {
 	// TODO the engine currently assumes only 1 run globally, so the debug graphs and other files
 	// will get overwritten with each run. We should fix this.
-	engineContext, errs := g.resolveResources(InfraRequest{
-		Provider:    "aws",
-		Constraints: c,
-		OutputDir:   outDir,
-		GlobalTag:   "k2",
+	sol, errs := g.resolveResources(ctx, InfraRequest{
+		SolveRequest: engine.SolveRequest{
+			Constraints: c,
+			GlobalTag:   "k2",
+		},
+		OutputDir: outDir,
 	})
 	if errs != nil {
 		return fmt.Errorf("failed to resolve resources: %v", errs)
@@ -70,7 +61,7 @@ func (g *InfraGenerator) Run(c constraints.Constraints, outDir string) error {
 
 	err := g.generateIac(iacRequest{
 		PulumiAppName: "k2",
-		Context:       engineContext,
+		Solution:      sol,
 		OutputDir:     outDir,
 	})
 	if err != nil {
@@ -80,90 +71,26 @@ func (g *InfraGenerator) Run(c constraints.Constraints, outDir string) error {
 	return nil
 }
 
-func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.SolveRequest, []engine_errs.EngineError) {
-	var engErrs []engine_errs.EngineError
-	internalError := func(err error) {
-		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
-	}
-	log := zap.S().Named("engine")
-
-	defer func() { // defer functions execute in FILO order, so this executes after the 'recover'.
-		err := writeEngineErrsJson(engErrs, os.Stdout)
-		if err != nil {
-			log.Errorf("failed to output errors to stdout: %v", err)
-		}
-	}()
-	defer func() {
-		r := recover()
-		if r == nil {
-			return
-		}
-		log.Errorf("panic: %v", r)
-		switch r := r.(type) {
-		case engine_errs.EngineError:
-			engErrs = append(engErrs, r)
-		case error:
-			engErrs = append(engErrs, engine_errs.InternalError{Err: r})
-		default:
-			engErrs = append(engErrs, engine_errs.InternalError{Err: fmt.Errorf("panic: %v", r)})
-		}
-	}()
-
-	err := g.addEngine()
+func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequest) (solution.Solution, error) {
+	sol, err := g.Engine.Run(ctx, &request.SolveRequest)
 	if err != nil {
-		internalError(err)
-		return nil, engErrs
+		return nil, err
 	}
+	log := logging.GetLogger(ctx)
 
-	context := &engine.SolveRequest{
-		GlobalTag: "k2", // TODO: consider making this configurable
-	}
-
-	if request.InputGraph != nil {
-		clonedGraph, err := request.InputGraph.Clone()
-		if err != nil {
-			internalError(fmt.Errorf("failed to clone graph: %w", err))
-			return nil, engErrs
-		}
-		context.InitialState = clonedGraph
-	} else {
-		context.InitialState = construct.NewGraph()
-	}
-	log.Info("Loading constraints")
-
-	context.Constraints = request.Constraints
-	// len(engErrs) == 0 at this point so overwriting it is safe
-	// All other assignments prior are via 'internalError' and return
-	exitCode, engErrs := g.runEngine(context)
-	if exitCode == 1 {
-		return nil, engErrs
-	}
+	log.Info("Engine finished running... Generating views")
 
 	var files []kio.File
 
-	configErrors := new(bytes.Buffer)
-	err = writeEngineErrsJson(engErrs, configErrors)
+	vizFiles, err := g.Engine.VisualizeViews(sol)
 	if err != nil {
-		internalError(fmt.Errorf("failed to write config errors: %w", err))
-		return nil, engErrs
-	}
-	files = append(files, &kio.RawFile{
-		FPath:   "config_errors.json",
-		Content: configErrors.Bytes(),
-	})
-
-	log.Info("Engine finished running... Generating views")
-	vizFiles, err := g.Engine.VisualizeViews(context.Solutions[0])
-	if err != nil {
-		internalError(fmt.Errorf("failed to generate views %w", err))
-		return nil, engErrs
+		return nil, fmt.Errorf("failed to generate views %w", err)
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph(), Outputs: context.Solutions[0].Outputs()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph(), Outputs: sol.Outputs()})
 	if err != nil {
-		internalError(fmt.Errorf("failed to marshal graph: %w", err))
-		return nil, engErrs
+		return nil, fmt.Errorf("failed to marshal graph: %w", err)
 	}
 	files = append(files,
 		&kio.RawFile{
@@ -172,15 +99,14 @@ func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.SolveRe
 		},
 	)
 
-	if request.Provider == "aws" {
-		policyBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
-		if err != nil {
-			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
-			return nil, engErrs
-		}
+	policyBytes, err := aws.DeploymentPermissionsPolicy(sol)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate deployment permissions policy: %w", err)
+	}
+	if policyBytes != nil {
 		files = append(files,
 			&kio.RawFile{
-				FPath:   "deployment_permissions_policy.json",
+				FPath:   "aws_deployment_policy.json",
 				Content: policyBytes,
 			},
 		)
@@ -188,10 +114,10 @@ func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.SolveRe
 
 	err = kio.OutputTo(files, request.OutputDir)
 	if err != nil {
-		internalError(fmt.Errorf("failed to write output files: %w", err))
-		return nil, engErrs
+		return nil, fmt.Errorf("failed to write output files: %w", err)
 	}
-	return context, engErrs
+
+	return sol, nil
 }
 
 func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
@@ -210,46 +136,6 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 		}
 	}
 	return enc.Encode(outErrs)
-}
-
-func (g *InfraGenerator) runEngine(context *engine.SolveRequest) (int, []engine_errs.EngineError) {
-	returnCode := 0
-	var engErrs []engine_errs.EngineError
-
-	log := zap.S().Named("engine")
-
-	log.Info("Running engine")
-	err := g.Engine.Run(context)
-	if err != nil {
-		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
-		// This is returned as exit code 1, and add the details to be printed to stdout.
-		returnCode = 1
-		engErrs = append(engErrs, extractEngineErrors(err)...)
-		log.Errorf("Engine returned error: %v", err)
-	}
-
-	if len(context.Solutions) > 0 {
-		writeDebugGraphs(context.Solutions[0])
-
-		// If there are any decisions that are engine errors, add them to the list of error details
-		// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
-		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
-			d, ok := d.(solution_context.AsEngineError)
-			if !ok {
-				continue
-			}
-			ee := d.TryEngineError()
-			if ee == nil {
-				continue
-			}
-			engErrs = append(engErrs, ee)
-			if returnCode != 1 {
-				returnCode = 2
-			}
-		}
-	}
-
-	return returnCode, engErrs
 }
 
 func extractEngineErrors(err error) []engine_errs.EngineError {
@@ -298,7 +184,7 @@ func writeDebugGraphs(sol solution.Solution) {
 
 type iacRequest struct {
 	PulumiAppName string
-	Context       *engine.SolveRequest
+	Solution      solution.Solution
 	OutputDir     string
 }
 
@@ -307,7 +193,6 @@ var cachedKb *knowledgebase.KnowledgeBase
 func (g *InfraGenerator) generateIac(request iacRequest) error {
 	var files []kio.File
 
-	solCtx := request.Context.Solutions[0]
 	var kb *knowledgebase.KnowledgeBase
 	var err error
 	if cachedKb == nil {
@@ -323,7 +208,7 @@ func (g *InfraGenerator) generateIac(request iacRequest) error {
 		Config: &iac.PulumiConfig{AppName: request.PulumiAppName},
 		KB:     kb,
 	}
-	iacFiles, err := pulumiPlugin.Translate(solCtx)
+	iacFiles, err := pulumiPlugin.Translate(request.Solution)
 	if err != nil {
 		return err
 	}

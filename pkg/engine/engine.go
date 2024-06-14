@@ -31,15 +31,15 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 }
 
 func (e *Engine) Run(ctx context.Context, req *SolveRequest) (solution.Solution, error) {
-	solutionCtx := NewSolutionContext(e.Kb, req.GlobalTag, &req.Constraints)
-	err := solutionCtx.LoadGraph(req.InitialState)
+	sol := NewSolution(e.Kb, req.GlobalTag, &req.Constraints)
+	err := sol.LoadGraph(req.InitialState)
 	if err != nil {
-		return solutionCtx, err
+		return sol, err
 	}
-	err = ApplyConstraints(solutionCtx)
+	err = ApplyConstraints(sol)
 	if err != nil {
-		return solutionCtx, err
+		return sol, err
 	}
-	err = solutionCtx.Solve()
-	return solutionCtx, err
+	err = sol.Solve()
+	return sol, err
 }

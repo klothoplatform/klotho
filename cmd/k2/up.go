@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.uber.org/zap"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -18,7 +19,6 @@ import (
 )
 
 var upConfig struct {
-	inputPath  string
 	outputPath string
 	region     string
 	debugMode  string
@@ -29,29 +29,7 @@ func newUpCmd() *cobra.Command {
 	var upCommand = &cobra.Command{
 		Use:   "up",
 		Short: "Run the up command",
-		Run: func(cmd *cobra.Command, args []string) {
-			filePath := args[0]
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				zap.L().Error("Invalid file path")
-				os.Exit(1)
-			}
-			absolutePath, err := filepath.Abs(filePath)
-			if err != nil {
-				zap.L().Error("couldn't convert to absolute path")
-				os.Exit(1)
-			}
-			upConfig.inputPath = absolutePath
-
-			if upConfig.outputPath == "" {
-				upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
-			}
-
-			err = updCmd(upConfig)
-			if err != nil {
-				zap.L().Error("error running up command", zap.Error(err))
-				os.Exit(1)
-			}
-		},
+		RunE:  up,
 	}
 	flags := upCommand.Flags()
 	flags.StringVarP(&upConfig.outputPath, "output", "o", "", "Output directory")
@@ -61,30 +39,36 @@ func newUpCmd() *cobra.Command {
 	return upCommand
 }
 
-func updCmd(args struct {
-	inputPath  string
-	outputPath string
-	region     string
-	debugMode  string
-	debugPort  int
-}) error {
-	cmd, addr := startPythonClient(DebugConfig{
-		Enabled: args.debugMode != "",
-		Port:    args.debugPort,
-		Mode:    args.debugMode,
+func up(cmd *cobra.Command, args []string) error {
+	filePath := args[0]
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return err
+	}
+	absolutePath, err := filepath.Abs(filePath)
+	if err != nil {
+		return err
+	}
+	inputPath := absolutePath
+	ctx := cmd.Context()
+
+	if upConfig.outputPath == "" {
+		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+	}
+	langHost, addr := startPythonClient(ctx, DebugConfig{
+		Enabled: upConfig.debugMode != "",
+		Port:    upConfig.debugPort,
+		Mode:    upConfig.debugMode,
 	})
-	var err error
 	defer func() {
-		if cmd.Process != nil {
-			if err := cmd.Process.Kill(); err != nil {
+		if langHost.Process != nil {
+			if err := langHost.Process.Kill(); err != nil {
 				zap.L().Warn("failed to kill Python client", zap.Error(err))
 			}
 		}
 	}()
 
-	// Wait for the server to be ready
 	zap.L().Info("Waiting for Python server to start")
-	if args.debugMode != "" {
+	if upConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
 		<-addr.HasAddr
 	} else {
@@ -94,7 +78,6 @@ func updCmd(args struct {
 			return errors.New("timeout waiting for Python server to start")
 		}
 	}
-	// Connect to the Python server
 	conn, err := grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("failed to connect to Python server: %w", err)
@@ -109,15 +92,13 @@ func updCmd(args struct {
 
 	client := pb.NewKlothoServiceClient(conn)
 
-	// Send IR Request
-	ctx := context.Background()
-	if args.debugMode == "" {
+	if upConfig.debugMode == "" {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Second*10)
 		defer cancel()
 	}
 
-	req := &pb.IRRequest{Filename: args.inputPath}
+	req := &pb.IRRequest{Filename: inputPath}
 	res, err := client.SendIR(ctx, req)
 	if err != nil {
 		return fmt.Errorf("error sending IR request: %w", err)
@@ -141,7 +122,7 @@ func updCmd(args struct {
 	if err != nil {
 		return fmt.Errorf("error getting URN path: %w", err)
 	}
-	appDir := filepath.Join(args.outputPath, appUrnPath)
+	appDir := filepath.Join(upConfig.outputPath, appUrnPath)
 
 	// Create the app state directory
 	if err = os.MkdirAll(appDir, 0755); err != nil {
@@ -150,18 +131,14 @@ func updCmd(args struct {
 
 	stateFile := filepath.Join(appDir, "state.yaml")
 
-	// Create a new state manager
 	sm := model.NewStateManager(stateFile)
 
-	// Initialize the state if it doesn't exist
 	if !sm.CheckStateFileExists() {
 		sm.InitState(ir)
-		// Save the state
 		if err = sm.SaveState(); err != nil {
 			return fmt.Errorf("error saving state: %w", err)
 		}
 	} else {
-		// Load the state
 		if err = sm.LoadState(); err != nil {
 			return fmt.Errorf("error loading state: %w", err)
 		}
@@ -169,10 +146,10 @@ func updCmd(args struct {
 
 	o := orchestration.NewUpOrchestrator(sm, client, appDir)
 
-	err = o.RunUpCommand(ir, commonCfg.dryRun)
+	err = o.RunUpCommand(ctx, ir, commonCfg.dryRun)
 	if err != nil {
 		return fmt.Errorf("error running up command: %w", err)
 	}
 
-	return err
+	return nil
 }

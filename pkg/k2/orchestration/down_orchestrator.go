@@ -1,18 +1,25 @@
 package orchestration
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"go.uber.org/zap"
 )
 
-// DownOrchestrator handles the "down" command
-type DownOrchestrator struct {
-	*Orchestrator
-}
+type (
+	DownOrchestrator struct {
+		*Orchestrator
+	}
+
+	DownRequest struct {
+		StackReferences []pulumi.StackReference
+		DryRun          bool
+	}
+)
 
 func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchestrator {
 	return &DownOrchestrator{
@@ -20,7 +27,7 @@ func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchest
 	}
 }
 
-func (do *DownOrchestrator) RunDownCommand(request deployment.DownRequest) error {
+func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest) error {
 	if request.DryRun {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
 		// and doesn't have any options for "--preview-only"
@@ -36,8 +43,6 @@ func (do *DownOrchestrator) RunDownCommand(request deployment.DownRequest) error
 		}
 	}()
 
-	deployer := deployment.Deployer{StateManager: sm}
-
 	for _, ref := range request.StackReferences {
 		c, exists := sm.GetConstruct(ref.ConstructURN.ResourceID)
 		if !exists {
@@ -45,13 +50,14 @@ func (do *DownOrchestrator) RunDownCommand(request deployment.DownRequest) error
 			// This should never happen as we just build StackReferences from the state
 			return fmt.Errorf("construct %s not found in state", ref.ConstructURN.ResourceID)
 		}
+		ctx := ConstructContext(ctx, *c.URN)
 		if err := sm.TransitionConstructState(&c, model.ConstructDeletePending); err != nil {
 			return err
 		}
 		if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
 			return err
 		}
-		err := deployer.RunApplicationDownCommand(ref)
+		err := pulumi.RunStackDown(ctx, ref)
 		if err != nil {
 			if err2 := sm.TransitionConstructState(&c, model.ConstructDeleteFailed); err != nil {
 				return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)

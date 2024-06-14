@@ -178,7 +178,7 @@ func GenerateIac(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	solCtx := engine.NewSolutionContext(kb, "", &constraints.Constraints{})
+	solCtx := engine.NewSolution(kb, "", &constraints.Constraints{})
 	err = solCtx.LoadGraph(input.Graph)
 	if err != nil {
 		return err

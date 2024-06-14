@@ -43,7 +43,7 @@ type DebugConfig struct {
 	Mode    string
 }
 
-func startPythonClient(debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
+func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
 	args := []string{"run", "python", "python_language_host.py"}
 	if debugConfig.Enabled {
 		if debugConfig.Port > 0 {
@@ -55,7 +55,7 @@ func startPythonClient(debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
 	}
 
 	cmd := logging.Command(
-		context.TODO(),
+		ctx,
 		logging.CommandLogger{RootLogger: zap.L().Named("python")},
 		"pipenv", args...,
 	)

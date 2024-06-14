@@ -30,7 +30,7 @@ type (
 	}
 )
 
-func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
+func NewSolution(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
 	ctx := &solutionContext{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{

@@ -3,17 +3,16 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/deployment"
+	"path/filepath"
+	"time"
+
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"path/filepath"
-	"time"
 )
 
-// UpOrchestrator handles the "up" command
 type UpOrchestrator struct {
 	*Orchestrator
 	LanguageHostClient pb.KlothoServiceClient
@@ -43,7 +42,7 @@ func transitionPendingToDoing(sm *model.StateManager, construct *model.Construct
 	return sm.TransitionConstructState(construct, nextStatus)
 }
 
-func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun bool) error {
+func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
@@ -64,9 +63,6 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 		return fmt.Errorf("failed to determine deployment order: %w", err)
 	}
 
-	deployer := deployment.Deployer{
-		StateManager: uo.StateManager}
-
 	sm := uo.StateManager
 	defer func() {
 		err = sm.SaveState()
@@ -82,6 +78,7 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 			}
 
 			c := uo.StateManager.GetState().Constructs[cURN.ResourceID]
+			ctx := ConstructContext(ctx, *c.URN)
 
 			// Run pulumi down command for deleted constructs
 			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
@@ -96,7 +93,7 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 					return err
 				}
 
-				err = pulumi.RunStackDown(pulumi.StackReference{
+				err = pulumi.RunStackDown(ctx, pulumi.StackReference{
 					ConstructURN: *c.URN,
 					Name:         c.URN.ResourceID,
 					IacDirectory: filepath.Join(uo.OutputDirectory, c.URN.ResourceID),
@@ -120,13 +117,13 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 			}
 
 			// Evaluate the construct
-			stackRef, err := uo.EvaluateConstruct(*uo.StateManager.GetState(), *c.URN)
+			stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
 			if err != nil {
 				return fmt.Errorf("error evaluating construct: %w", err)
 			}
 
 			if dryRun {
-				_, err = deployer.RunStackPreviewCommand(stackRef)
+				_, err = pulumi.RunStackPreview(ctx, stackRef)
 				if err != nil {
 					return err
 				}
@@ -138,7 +135,7 @@ func (uo *UpOrchestrator) RunUpCommand(ir *model.ApplicationEnvironment, dryRun 
 			}
 
 			// Run pulumi up command for the construct
-			upResult, stackState, err := deployer.RunStackUpCommand(stackRef)
+			upResult, stackState, err := pulumi.RunStackUp(ctx, stackRef)
 			if err != nil {
 				return fmt.Errorf("error running pulumi up command: %w", err)
 			}

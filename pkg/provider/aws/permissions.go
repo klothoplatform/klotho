@@ -42,6 +42,9 @@ func DeploymentPermissionsPolicy(ctx solution.Solution) ([]byte, error) {
 		if nerr != nil {
 			return nerr
 		}
+		if id.Provider != "aws" {
+			return nil
+		}
 		rt, err := kb.GetResourceTemplate(resource.ID)
 		if err != nil {
 			return err
@@ -68,6 +71,10 @@ func DeploymentPermissionsPolicy(ctx solution.Solution) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if actions.Len() == 0 {
+		return nil, nil
+	}
+
 	actionList := actions.ToSlice()
 	sort.Strings(actionList)
 	statement := map[string]any{
