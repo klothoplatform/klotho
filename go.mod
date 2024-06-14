@@ -25,7 +25,7 @@ require (
 	github.com/smacker/go-tree-sitter v0.0.0-20240514083259-c5d1f3f5f99e
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
-	github.com/thessem/zap-prettyconsole v0.4.0
+	github.com/thessem/zap-prettyconsole v0.5.0
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.27.0
