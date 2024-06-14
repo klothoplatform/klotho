@@ -14,7 +14,7 @@ import (
 	"text/template"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
@@ -47,7 +47,7 @@ var (
 	pulumiStack = templateutils.MustTemplate(files, "Pulumi.dev.yaml.tmpl")
 )
 
-func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
+func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 
 	err := p.sanitizeConfig()
 	if err != nil {

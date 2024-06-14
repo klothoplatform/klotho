@@ -13,7 +13,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	solution_context "github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -80,7 +80,7 @@ func (g *InfraGenerator) Run(c constraints.Constraints, outDir string) error {
 	return nil
 }
 
-func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.EngineContext, []engine_errs.EngineError) {
+func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.SolveRequest, []engine_errs.EngineError) {
 	var engErrs []engine_errs.EngineError
 	internalError := func(err error) {
 		engErrs = append(engErrs, engine_errs.InternalError{Err: err})
@@ -115,7 +115,7 @@ func (g *InfraGenerator) resolveResources(request InfraRequest) (*engine.EngineC
 		return nil, engErrs
 	}
 
-	context := &engine.EngineContext{
+	context := &engine.SolveRequest{
 		GlobalTag: "k2", // TODO: consider making this configurable
 	}
 
@@ -212,7 +212,7 @@ func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
 	return enc.Encode(outErrs)
 }
 
-func (g *InfraGenerator) runEngine(context *engine.EngineContext) (int, []engine_errs.EngineError) {
+func (g *InfraGenerator) runEngine(context *engine.SolveRequest) (int, []engine_errs.EngineError) {
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
 
@@ -276,7 +276,7 @@ func extractEngineErrors(err error) []engine_errs.EngineError {
 	return errs
 }
 
-func writeDebugGraphs(sol solution_context.SolutionContext) {
+func writeDebugGraphs(sol solution.Solution) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
@@ -298,7 +298,7 @@ func writeDebugGraphs(sol solution_context.SolutionContext) {
 
 type iacRequest struct {
 	PulumiAppName string
-	Context       *engine.EngineContext
+	Context       *engine.SolveRequest
 	OutputDir     string
 }
 

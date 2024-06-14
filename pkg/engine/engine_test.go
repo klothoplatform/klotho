@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,12 +64,12 @@ func (tc engineTestCase) Test(t *testing.T) {
 	if err != nil {
 		t.Fatal(fmt.Errorf("failed to add engine: %w", err))
 	}
-	context := &EngineContext{
+	req := &SolveRequest{
 		Constraints:  inputFile.Constraints,
 		InitialState: inputFile.Graph,
 		GlobalTag:    "test",
 	}
-	returnCode, engineErrs := main.Run(context)
+	returnCode, sol, engineErrs := main.Run(context.Background(), req)
 	// TODO find a convenient way to specify the return code in the testdata
 
 	errDetails := new(bytes.Buffer)
@@ -89,8 +90,6 @@ func (tc engineTestCase) Test(t *testing.T) {
 		// Run resulted in a failure. After checking the error details, we're done.
 		return
 	}
-
-	sol := context.Solutions[0]
 
 	// Check to make sure that we produce a policy for deployment roles
 	deploymentPolicyBytes, err := aws.DeploymentPermissionsPolicy(sol)

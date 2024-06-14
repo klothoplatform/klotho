@@ -6,13 +6,13 @@ import (
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
 // Permissions returns the permissions for the AWS provider
-func DeploymentPermissionsPolicy(ctx solution_context.SolutionContext) ([]byte, error) {
+func DeploymentPermissionsPolicy(ctx solution.Solution) ([]byte, error) {
 	policy := &construct.Resource{
 		ID: construct.ResourceId{
 			Provider: "aws",

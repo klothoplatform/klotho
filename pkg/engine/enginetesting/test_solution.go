@@ -6,7 +6,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/construct/graphtest"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/mock"
 )
@@ -44,10 +44,6 @@ func (sol *TestSolution) DeploymentChanges() *graphtest.GraphChanges {
 	return sol.deployment.(*graphtest.GraphChanges)
 }
 
-func (sol *TestSolution) With(key string, value interface{}) solution_context.SolutionContext {
-	return sol
-}
-
 func (sol *TestSolution) KnowledgeBase() knowledgebase.TemplateKB {
 	return &sol.KB
 }
@@ -56,9 +52,9 @@ func (sol *TestSolution) Constraints() *constraints.Constraints {
 	return &sol.Constr
 }
 
-func (sol *TestSolution) RecordDecision(d solution_context.SolveDecision) {}
+func (sol *TestSolution) RecordDecision(d solution.SolveDecision) {}
 
-func (sol *TestSolution) GetDecisions() solution_context.DecisionRecords {
+func (sol *TestSolution) GetDecisions() []solution.SolveDecision {
 	return nil
 }
 
@@ -70,12 +66,12 @@ func (sol *TestSolution) DeploymentGraph() construct.Graph {
 	return sol.deployment
 }
 
-func (sol *TestSolution) OperationalView() solution_context.OperationalView {
+func (sol *TestSolution) OperationalView() solution.OperationalView {
 	return testOperationalView{Graph: sol.RawView(), Mock: &sol.Mock}
 }
 
 func (sol *TestSolution) RawView() construct.Graph {
-	return solution_context.NewRawView(sol)
+	return solution.NewRawView(sol)
 }
 
 func (sol *TestSolution) GlobalTag() string {
@@ -110,7 +106,7 @@ type ExpectedGraphs struct {
 	Dataflow, Deployment []any
 }
 
-func (expect ExpectedGraphs) AssertEqual(t *testing.T, sol solution_context.SolutionContext) {
+func (expect ExpectedGraphs) AssertEqual(t *testing.T, sol solution.Solution) {
 	if expect.Dataflow != nil {
 		graphtest.AssertGraphEqual(t,
 			graphtest.MakeGraph(t, construct.NewGraph(), expect.Dataflow...),

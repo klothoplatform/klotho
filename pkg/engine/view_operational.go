@@ -6,16 +6,16 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 )
 
 type MakeOperationalView solutionContext
 
-func (view MakeOperationalView) Traits() *graph.Traits {
+func (view *MakeOperationalView) Traits() *graph.Traits {
 	return view.Dataflow.Traits()
 }
 
-func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...func(*graph.VertexProperties)) error {
+func (view *MakeOperationalView) AddVertex(value *construct.Resource, options ...func(*graph.VertexProperties)) error {
 	err := view.raw().AddVertex(value, options...)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func (view MakeOperationalView) AddVertex(value *construct.Resource, options ...
 	return nil
 }
 
-func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
+func (view *MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 	ordered, err := construct.ReverseTopologicalSort(g)
 	if err != nil {
 		return err
@@ -73,34 +73,34 @@ func (view MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 	return view.MakeResourcesOperational(resources)
 }
 
-func (view MakeOperationalView) raw() solution_context.RawAccessView {
-	return solution_context.NewRawView(solutionContext(view))
+func (view *MakeOperationalView) raw() solution.RawAccessView {
+	return solution.NewRawView((*solutionContext)(view))
 }
 
-func (view MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
+func (view *MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {
 	return view.propertyEval.AddResources(resources...)
 }
 
-func (view MakeOperationalView) UpdateResourceID(oldId, newId construct.ResourceId) error {
+func (view *MakeOperationalView) UpdateResourceID(oldId, newId construct.ResourceId) error {
 	return view.propertyEval.UpdateId(oldId, newId)
 }
 
-func (view MakeOperationalView) Vertex(hash construct.ResourceId) (*construct.Resource, error) {
+func (view *MakeOperationalView) Vertex(hash construct.ResourceId) (*construct.Resource, error) {
 	return view.raw().Vertex(hash)
 }
 
-func (view MakeOperationalView) VertexWithProperties(hash construct.ResourceId) (*construct.Resource, graph.VertexProperties, error) {
+func (view *MakeOperationalView) VertexWithProperties(hash construct.ResourceId) (*construct.Resource, graph.VertexProperties, error) {
 	return view.raw().VertexWithProperties(hash)
 }
 
-func (view MakeOperationalView) RemoveVertex(hash construct.ResourceId) error {
+func (view *MakeOperationalView) RemoveVertex(hash construct.ResourceId) error {
 	return errors.Join(
 		view.raw().RemoveVertex(hash),
 		view.propertyEval.RemoveResource(hash),
 	)
 }
 
-func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, options ...func(*graph.EdgeProperties)) (err error) {
+func (view *MakeOperationalView) AddEdge(source, target construct.ResourceId, options ...func(*graph.EdgeProperties)) (err error) {
 	var dep construct.ResourceEdge
 	var errs error
 	dep.Source, err = view.Vertex(source)
@@ -129,11 +129,11 @@ func (view MakeOperationalView) AddEdge(source, target construct.ResourceId, opt
 	return view.propertyEval.AddEdges(graph.Edge[construct.ResourceId]{Source: source, Target: target})
 }
 
-func (view MakeOperationalView) MakeEdgesOperational(edges []construct.Edge) error {
+func (view *MakeOperationalView) MakeEdgesOperational(edges []construct.Edge) error {
 	return view.propertyEval.AddEdges(edges...)
 }
 
-func (view MakeOperationalView) AddEdgesFrom(g construct.Graph) error {
+func (view *MakeOperationalView) AddEdgesFrom(g construct.Graph) error {
 	edges, err := g.Edges()
 	if err != nil {
 		return err
@@ -145,41 +145,41 @@ func (view MakeOperationalView) AddEdgesFrom(g construct.Graph) error {
 	return errs
 }
 
-func (view MakeOperationalView) Edge(source, target construct.ResourceId) (construct.ResourceEdge, error) {
+func (view *MakeOperationalView) Edge(source, target construct.ResourceId) (construct.ResourceEdge, error) {
 	return view.Dataflow.Edge(source, target)
 }
 
-func (view MakeOperationalView) Edges() ([]construct.Edge, error) {
+func (view *MakeOperationalView) Edges() ([]construct.Edge, error) {
 	return view.Dataflow.Edges()
 }
 
-func (view MakeOperationalView) UpdateEdge(source, target construct.ResourceId, options ...func(properties *graph.EdgeProperties)) error {
+func (view *MakeOperationalView) UpdateEdge(source, target construct.ResourceId, options ...func(properties *graph.EdgeProperties)) error {
 	return view.raw().UpdateEdge(source, target, options...)
 }
 
-func (view MakeOperationalView) RemoveEdge(source, target construct.ResourceId) error {
+func (view *MakeOperationalView) RemoveEdge(source, target construct.ResourceId) error {
 	return errors.Join(
 		view.raw().RemoveEdge(source, target),
 		view.propertyEval.RemoveEdge(source, target),
 	)
 }
 
-func (view MakeOperationalView) AdjacencyMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {
+func (view *MakeOperationalView) AdjacencyMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {
 	return view.Dataflow.AdjacencyMap()
 }
 
-func (view MakeOperationalView) PredecessorMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {
+func (view *MakeOperationalView) PredecessorMap() (map[construct.ResourceId]map[construct.ResourceId]construct.Edge, error) {
 	return view.Dataflow.PredecessorMap()
 }
 
-func (view MakeOperationalView) Clone() (construct.Graph, error) {
+func (view *MakeOperationalView) Clone() (construct.Graph, error) {
 	return nil, errors.New("cannot clone an operational view")
 }
 
-func (view MakeOperationalView) Order() (int, error) {
+func (view *MakeOperationalView) Order() (int, error) {
 	return view.Dataflow.Order()
 }
 
-func (view MakeOperationalView) Size() (int, error) {
+func (view *MakeOperationalView) Size() (int, error) {
 	return view.Dataflow.Size()
 }

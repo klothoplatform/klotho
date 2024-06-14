@@ -8,7 +8,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -18,7 +18,7 @@ import (
 
 type (
 	OperationalRuleContext struct {
-		Solution solution_context.SolutionContext
+		Solution solution.Solution
 		Property knowledgebase.Property
 		Data     knowledgebase.DynamicValueData
 	}
@@ -93,7 +93,7 @@ func (ctx *OperationalRuleContext) HandlePropertyRule(rule knowledgebase.Propert
 	}
 
 	if rule.Value != nil {
-		dynctx := solution_context.DynamicCtx(ctx.Solution)
+		dynctx := solution.DynamicCtx(ctx.Solution)
 		val, err := ctx.Property.Parse(rule.Value, dynctx, ctx.Data)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("could not parse value %s: %w", rule.Value, err))
@@ -143,7 +143,7 @@ func (ctx OperationalRuleContext) CleanProperty(step knowledgebase.OperationalSt
 			return false, err
 		}
 		for i, sel := range step.Resources {
-			match, err := sel.IsMatch(solution_context.DynamicCtx(ctx.Solution), ctx.Data, propRes)
+			match, err := sel.IsMatch(solution.DynamicCtx(ctx.Solution), ctx.Data, propRes)
 			if err != nil {
 				return false, fmt.Errorf("error checking if %s matches selector %d: %w", prop, i, err)
 			}
@@ -267,14 +267,14 @@ func (ctx OperationalRuleContext) CleanProperty(step knowledgebase.OperationalSt
 
 func EvaluateIfCondition(
 	tmplString string,
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	data knowledgebase.DynamicValueData,
 ) (bool, error) {
 	if tmplString == "" {
 		return true, nil
 	}
 	result := false
-	dyn := solution_context.DynamicCtx(sol)
+	dyn := solution.DynamicCtx(sol)
 	err := dyn.ExecuteDecode(tmplString, data, &result)
 	if err != nil {
 		return false, err
@@ -284,7 +284,7 @@ func EvaluateIfCondition(
 
 func ForceRemoveDependency(
 	res1, res2 construct.ResourceId,
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 ) error {
 
 	err := sol.RawView().RemoveEdge(res1, res2)

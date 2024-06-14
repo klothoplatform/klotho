@@ -8,7 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	klotho_io "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -31,7 +31,7 @@ const (
 	NoRenderTag   Tag = "no-render"
 )
 
-func (e *Engine) VisualizeViews(ctx solution_context.SolutionContext) ([]klotho_io.File, error) {
+func (e *Engine) VisualizeViews(ctx solution.Solution) ([]klotho_io.File, error) {
 	iac_topo := &visualizer.File{
 		FilenamePrefix: "iac-",
 		Provider:       "aws",
@@ -62,7 +62,7 @@ func GetResourceVizTag(kb knowledgebase.TemplateKB, view View, resource construc
 	return Tag(tag)
 }
 
-func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (visualizer.VisGraph, error) {
+func (e *Engine) GetViewsDag(view View, sol solution.Solution) (visualizer.VisGraph, error) {
 	viewDag := visualizer.NewVisGraph()
 	var resGraph construct.Graph
 	if view == IACView {
@@ -135,7 +135,7 @@ func (e *Engine) GetViewsDag(view View, sol solution_context.SolutionContext) (v
 }
 
 func (e *Engine) makeEdges(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	view View,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
@@ -197,7 +197,7 @@ func (e *Engine) makeEdges(
 // setupAncestry sets the parent of the big icon if there is a group it should be added to and
 // adds edges to any other big icons based on having the proper connections (network & permissions).
 func (e *Engine) setupAncestry(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	view View,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
@@ -220,7 +220,7 @@ func (e *Engine) setupAncestry(
 	return nil
 }
 
-func (e *Engine) setChildren(sol solution_context.SolutionContext, view View, v *visualizer.VisResource) error {
+func (e *Engine) setChildren(sol solution.Solution, view View, v *visualizer.VisResource) error {
 	local, err := knowledgebase.Downstream(
 		sol.DataflowGraph(),
 		sol.KnowledgeBase(),
@@ -277,7 +277,7 @@ func (e *Engine) setChildren(sol solution_context.SolutionContext, view View, v 
 
 func (e *Engine) findParent(
 	view View,
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	viewDag visualizer.VisGraph,
 	id construct.ResourceId,
 ) (bestParent construct.ResourceId, err error) {
@@ -363,7 +363,7 @@ candidateLoop:
 	return
 }
 
-func visPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) ([]construct.Path, error) {
+func visPaths(sol solution.Solution, view View, source, target construct.ResourceId) ([]construct.Path, error) {
 	srcTemplate, err := sol.KnowledgeBase().GetResourceTemplate(source)
 	if err != nil || srcTemplate == nil {
 		return nil, fmt.Errorf("has path could not find source resource %s: %w", source, err)
@@ -387,7 +387,7 @@ func visPaths(sol solution_context.SolutionContext, view View, source, target co
 	consumed, err := knowledgebase.HasConsumedFromResource(
 		sourceRes,
 		targetRes,
-		solution_context.DynamicCtx(sol),
+		solution.DynamicCtx(sol),
 	)
 	if err != nil {
 		return nil, err
@@ -398,7 +398,7 @@ func visPaths(sol solution_context.SolutionContext, view View, source, target co
 	return checkPaths(sol, view, source, target)
 }
 
-func checkPaths(sol solution_context.SolutionContext, view View, source, target construct.ResourceId) ([]construct.Path, error) {
+func checkPaths(sol solution.Solution, view View, source, target construct.ResourceId) ([]construct.Path, error) {
 	paths, err := path_selection.GetPaths(
 		sol,
 		source,

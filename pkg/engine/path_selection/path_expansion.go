@@ -9,7 +9,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -34,7 +34,7 @@ type (
 	}
 
 	EdgeExpand struct {
-		Ctx solution_context.SolutionContext
+		Ctx solution.Solution
 	}
 )
 
@@ -67,7 +67,7 @@ func (e *EdgeExpand) ExpandEdge(
 }
 
 func expandEdge(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	input ExpansionInput,
 	g construct.Graph,
 ) ([]graph.Edge[construct.ResourceId], error) {
@@ -142,7 +142,7 @@ func expandEdge(
 }
 
 func renameAndReplaceInTempGraph(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	input ExpansionInput,
 	g construct.Graph,
 	path construct.Path,
@@ -212,7 +212,7 @@ func renameAndReplaceInTempGraph(
 	return result, errs
 }
 
-func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) (set.Set[string], error) {
+func getCurrNames(sol solution.Solution, resourceToSet *construct.ResourceId) (set.Set[string], error) {
 	currNames := make(set.Set[string])
 	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {
@@ -231,7 +231,7 @@ func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct
 
 func findSubExpansionsToRun(
 	result []*construct.Resource,
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) (edges []graph.Edge[construct.ResourceId], errs error) {
 	resourceTemplates := make(map[construct.ResourceId]*knowledgebase.ResourceTemplate)
 	added := make(map[construct.ResourceId]map[construct.ResourceId]bool)
@@ -302,7 +302,7 @@ func findSubExpansionsToRun(
 // 'undirected' is the undirected graph of the dataflow graph from 'ctx' but are a separate input to reuse
 // the calculated graph for performance.
 func expandPath(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	undirected construct.Graph,
 	input ExpansionInput,
 	path construct.Path,
@@ -510,7 +510,7 @@ func expandPath(
 	return nil
 }
 
-func connectThroughNamespace(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) (
+func connectThroughNamespace(src, target *construct.Resource, ctx solution.Solution, result ExpansionResult) (
 	connected bool,
 	errs error,
 ) {
@@ -520,7 +520,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 		return
 	}
 
-	downstreams, err := solution_context.Downstream(ctx, src.ID, knowledgebase.ResourceLocalLayer)
+	downstreams, err := solution.Downstream(ctx, src.ID, knowledgebase.ResourceLocalLayer)
 	if err != nil {
 		return connected, err
 	}

@@ -1,4 +1,4 @@
-package solution_context
+package solution
 
 import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -7,14 +7,12 @@ import (
 )
 
 type (
-	SolutionContext interface {
-		// With returns a new context with a new key/value pair pushed onto the context stack.
-		// Implementations must not mutate the original context.
-		With(key string, value interface{}) SolutionContext
+	Solution interface {
 		KnowledgeBase() knowledgebase.TemplateKB
 		Constraints() *constraints.Constraints
+
 		RecordDecision(d SolveDecision)
-		GetDecisions() DecisionRecords
+		GetDecisions() []SolveDecision
 
 		DataflowGraph() construct.Graph
 		DeploymentGraph() construct.Graph
@@ -41,6 +39,6 @@ type (
 	}
 )
 
-func DynamicCtx(sol SolutionContext) knowledgebase.DynamicValueContext {
+func DynamicCtx(sol Solution) knowledgebase.DynamicValueContext {
 	return knowledgebase.DynamicValueContext{Graph: sol.DataflowGraph(), KnowledgeBase: sol.KnowledgeBase()}
 }

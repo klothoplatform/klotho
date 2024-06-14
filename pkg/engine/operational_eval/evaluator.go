@@ -7,7 +7,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
@@ -16,7 +16,7 @@ import (
 
 type (
 	Evaluator struct {
-		Solution solution_context.SolutionContext
+		Solution solution.Solution
 
 		// graph holds all of the property dependencies regardless of whether they've been evaluated or not
 		graph Graph
@@ -83,7 +83,7 @@ const (
 	keyTypePathExpand
 )
 
-func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
+func NewEvaluator(ctx solution.Solution) *Evaluator {
 	return &Evaluator{
 		Solution:    ctx,
 		graph:       newGraph(nil),
@@ -386,7 +386,7 @@ func (changes graphChanges) AddVertexAndDeps(eval *Evaluator, v Vertex) error {
 	changes.nodes[v.Key()] = v
 
 	depCaptureChanges := newChanges()
-	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), depCaptureChanges, v.Key())
+	propCtx := newDepCapture(solution.DynamicCtx(eval.Solution), depCaptureChanges, v.Key())
 
 	err := v.Dependencies(eval, propCtx)
 	if err != nil {

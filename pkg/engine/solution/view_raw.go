@@ -1,4 +1,4 @@
-package solution_context
+package solution
 
 import (
 	"errors"
@@ -9,10 +9,10 @@ import (
 )
 
 type RawAccessView struct {
-	inner SolutionContext
+	inner Solution
 }
 
-func NewRawView(inner SolutionContext) RawAccessView {
+func NewRawView(inner Solution) RawAccessView {
 	return RawAccessView{inner: inner}
 }
 

@@ -1,4 +1,4 @@
-package solution_context
+package solution
 
 import (
 	"fmt"
@@ -9,18 +9,6 @@ import (
 )
 
 type (
-	KV struct {
-		Key   string
-		Value any
-	}
-
-	DecisionRecords interface {
-		// AddRecord stores each decision (the what) with the context (the why) in some datastore
-		AddRecord(context []KV, decision SolveDecision)
-
-		GetRecords() []SolveDecision
-	}
-
 	SolveDecision interface {
 		// internal is a private method to prevent other packages from implementing this interface.
 		// It's not necessary, but it could prevent some accidental bad practices from emerging.

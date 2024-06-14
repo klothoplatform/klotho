@@ -1,4 +1,4 @@
-package solution_context
+package solution
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ type (
 	}
 
 	Configurer struct {
-		Ctx SolutionContext
+		Ctx Solution
 	}
 )
 
@@ -102,7 +102,7 @@ func (c *Configurer) ConfigureResource(
 }
 
 func AddDeploymentDependenciesFromVal(
-	ctx SolutionContext,
+	ctx Solution,
 	resource *construct.Resource,
 	val any,
 ) error {
@@ -151,7 +151,7 @@ func getResourcesFromValue(val any) (ids []construct.ResourceId) {
 // referenced by it. It does this by walking the property reference (split by #)
 // and finding all the resources that are in the property.
 func GetResourcesFromPropertyReference(
-	ctx SolutionContext,
+	ctx Solution,
 	resource construct.ResourceId,
 	propertyRef string,
 ) (

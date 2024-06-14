@@ -6,12 +6,12 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 func GetPaths(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	source, target construct.ResourceId,
 	pathValidityChecks func(source, target construct.ResourceId, path construct.Path) bool,
 	hasPathCheck bool,
@@ -97,7 +97,7 @@ func GetPaths(
 }
 
 func DeterminePathSatisfactionInputs(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	satisfaction knowledgebase.EdgePathSatisfaction,
 	edge construct.ResourceEdge,
 ) (expansions []ExpansionInput, errs error) {
@@ -105,7 +105,7 @@ func DeterminePathSatisfactionInputs(
 	targetIds := construct.ResourceList{edge.Target.ID}
 	var err error
 	if satisfaction.Source.PropertyReferenceChangesBoundary() {
-		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
+		srcIds, err = solution.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"failed to determine path satisfaction inputs. could not find resource %s: %w",
@@ -114,7 +114,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Target.PropertyReferenceChangesBoundary() {
-		targetIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
+		targetIds, err = solution.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"failed to determine path satisfaction inputs. could not find resource %s: %w",
@@ -124,7 +124,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Source.Script != "" {
-		dynamicCtx := solution_context.DynamicCtx(sol)
+		dynamicCtx := solution.DynamicCtx(sol)
 		err = dynamicCtx.ExecuteDecode(satisfaction.Source.Script,
 			knowledgebase.DynamicValueData{Resource: edge.Source.ID}, &srcIds)
 		if err != nil {
@@ -135,7 +135,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Target.Script != "" {
-		dynamicCtx := solution_context.DynamicCtx(sol)
+		dynamicCtx := solution.DynamicCtx(sol)
 		err = dynamicCtx.ExecuteDecode(satisfaction.Target.Script,
 			knowledgebase.DynamicValueData{Resource: edge.Target.ID}, &targetIds)
 		if err != nil {

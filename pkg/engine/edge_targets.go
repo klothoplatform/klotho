@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 
 	"github.com/alitto/pond"
 	"github.com/dominikbraun/graph"
@@ -76,14 +76,14 @@ func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.Resour
 
 		if satisfaction.Source.PropertyReference != "" {
 			cacheable = false
-			sourceReferencedResources, err = solution_context.GetResourcesFromPropertyReference(ctx, source, satisfaction.Source.PropertyReference)
+			sourceReferencedResources, err = solution.GetResourcesFromPropertyReference(ctx, source, satisfaction.Source.PropertyReference)
 			if len(sourceReferencedResources) == 0 || err != nil {
 				continue // ignore satisfaction if we can't resolve the property reference
 			}
 		}
 		if satisfaction.Target.PropertyReference != "" {
 			cacheable = false
-			targetReferencedResources, err = solution_context.GetResourcesFromPropertyReference(ctx, target, satisfaction.Target.PropertyReference)
+			targetReferencedResources, err = solution.GetResourcesFromPropertyReference(ctx, target, satisfaction.Target.PropertyReference)
 			if len(targetReferencedResources) == 0 || err != nil {
 				continue // ignore satisfaction if we can't resolve the property reference
 			}
