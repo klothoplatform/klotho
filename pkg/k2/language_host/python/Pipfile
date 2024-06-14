@@ -9,6 +9,7 @@ grpcio-tools = "*"
 protobuf = "==5.27.0"
 pyyaml = "*"
 argparse = "*"
+klotho = {path = "./klothosdk"}
 
 [dev-packages]
 debugpy = "*"

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0397d4a34a00e4dcc028d53b44e032141dab786b581fa748c145bfa3ac5829d7"
+            "sha256": "4505efd17d90030c833ad5d5806d487a84131c796d718826c346b7f4f7c53548"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -74,6 +74,7 @@
                 "sha256:d9171f025a196f5bcfec7e8e7ffb7c3535f7d60aecd3503f9e250296c7cfc150"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==1.64.0"
         },
         "grpcio-tools": {
@@ -126,7 +127,11 @@
                 "sha256:ff57dd9c87da6995039e04f76a6791ae46fec94d7531fe1403fd94a0e3d80cdd"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==1.64.0"
+        },
+        "klotho": {
+            "path": "./klothosdk"
         },
         "protobuf": {
             "hashes": [
@@ -143,6 +148,7 @@
                 "sha256:f51f33d305e18646f03acfdb343aac15b8115235af98bc9f844bf9446573827b"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==5.27.0"
         },
         "pyyaml": {
@@ -200,6 +206,7 @@
                 "sha256:fd66fc5d0da6d9815ba2cebeb4205f95818ff4b79c3ebe268e75d961704af52f"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.6'",
             "version": "==6.0.1"
         },
         "setuptools": {
@@ -238,6 +245,7 @@
                 "sha256:fd97ed11a4c7f6d042d320ce03d83b20c3fb40da892f994bc041bbc415d7a099"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.8'",
             "version": "==1.8.1"
         }
     }

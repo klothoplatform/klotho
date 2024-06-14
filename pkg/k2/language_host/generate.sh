@@ -12,3 +12,4 @@ protoc --go-grpc_out=./go --go-grpc_opt=paths=source_relative --proto_path=. ser
 
 # For Python
 pipenv run python3 -m grpc_tools.protoc -I. --python_out=./python/ --grpc_python_out=./python/ service.proto
+pipenv run python3 ./python/generate_and_adjust_grpc.py

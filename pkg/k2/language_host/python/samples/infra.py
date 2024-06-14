@@ -14,7 +14,7 @@ app = klotho.Application(
     environment=os.getenv("KLOTHO_ENVIRONMENT", "default"),
     # Default to 'default' or the environment variable value
     default_region=os.getenv(
-        "AWS_REGION", "us-east-1"
+        "AWS_REGION", "us-west-2"
     ),  # Default to 'us-east-1' or the environment variable value
 )
 
