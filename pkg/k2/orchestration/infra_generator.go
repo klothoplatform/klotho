@@ -2,16 +2,11 @@ package orchestration
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
@@ -20,7 +15,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -118,68 +112,6 @@ func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequ
 	}
 
 	return sol, nil
-}
-
-func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
-	enc := json.NewEncoder(out)
-	enc.SetIndent("", "  ")
-	// NOTE: since this isn't used in a web context (it's a CLI), we can disable escaping.
-	enc.SetEscapeHTML(false)
-
-	outErrs := make([]map[string]any, len(errs))
-	for i, e := range errs {
-		outErrs[i] = e.ToJSONMap()
-		outErrs[i]["error_code"] = e.ErrorCode()
-		wrapped := errors.Unwrap(e)
-		if wrapped != nil {
-			outErrs[i]["error"] = engine_errs.ErrorsToTree(wrapped)
-		}
-	}
-	return enc.Encode(outErrs)
-}
-
-func extractEngineErrors(err error) []engine_errs.EngineError {
-	if err == nil {
-		return nil
-	}
-	var errs []engine_errs.EngineError
-	queue := []error{err}
-	for len(queue) > 0 {
-		err := queue[0]
-		queue = queue[1:]
-		switch err := err.(type) {
-		case engine_errs.EngineError:
-			errs = append(errs, err)
-		case interface{ Unwrap() []error }:
-			queue = append(queue, err.Unwrap()...)
-		case interface{ Unwrap() error }:
-			queue = append(queue, err.Unwrap())
-		}
-	}
-	if len(errs) == 0 {
-		errs = append(errs, engine_errs.InternalError{Err: err})
-	}
-	return errs
-}
-
-func writeDebugGraphs(sol solution.Solution) {
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		err := engine.GraphToSVG(sol.KnowledgeBase(), sol.DataflowGraph(), "dataflow")
-		if err != nil {
-			zap.S().Named("engine").Errorf("failed to write dataflow graph: %w", err)
-		}
-	}()
-	go func() {
-		defer wg.Done()
-		err := engine.GraphToSVG(sol.KnowledgeBase(), sol.DeploymentGraph(), "iac")
-		if err != nil {
-			zap.S().Named("engine").Errorf("failed to write iac graph: %w", err)
-		}
-	}()
-	wg.Wait()
 }
 
 type iacRequest struct {
