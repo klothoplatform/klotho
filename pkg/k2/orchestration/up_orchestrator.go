@@ -9,7 +9,7 @@ import (
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
-	"go.uber.org/zap"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"gopkg.in/yaml.v3"
 )
 
@@ -47,9 +47,11 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
 	}
-	zap.S().Infof("Pending Actions:")
+	log := logging.GetLogger(ctx).Sugar()
+
+	log.Infof("Pending Actions:")
 	for k, v := range actions {
-		zap.S().Infof("%s: %s", k.String(), v)
+		log.Infof("%s: %s", k.String(), v)
 	}
 
 	var cs []model.ConstructState
@@ -67,7 +69,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	defer func() {
 		err = sm.SaveState()
 		if err != nil {
-			zap.S().Errorf("Error saving state: %v", err)
+			log.Errorf("Error saving state: %v", err)
 		}
 	}()
 
@@ -84,7 +86,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
 
 				if dryRun {
-					zap.S().Infof("Dry run: Skipping pulumi down for construct %s", c.URN.ResourceID)
+					log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
 					continue
 				}
 

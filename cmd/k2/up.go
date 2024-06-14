@@ -92,14 +92,16 @@ func up(cmd *cobra.Command, args []string) error {
 
 	client := pb.NewKlothoServiceClient(conn)
 
+	// make sure the ctx used later doesn't have the timeout (which is only for the IR request)
+	irCtx := ctx
 	if upConfig.debugMode == "" {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Second*10)
+		irCtx, cancel = context.WithTimeout(irCtx, time.Second*10)
 		defer cancel()
 	}
 
 	req := &pb.IRRequest{Filename: inputPath}
-	res, err := client.SendIR(ctx, req)
+	res, err := client.SendIR(irCtx, req)
 	if err != nil {
 		return fmt.Errorf("error sending IR request: %w", err)
 	}

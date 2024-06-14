@@ -9,12 +9,13 @@ import (
 	"syscall"
 
 	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
+	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/logging"
-	"go.uber.org/zap"
 )
 
 type serverAddress struct {
+	Log     *zap.SugaredLogger
 	Address string
 	HasAddr chan struct{}
 }
@@ -30,7 +31,7 @@ func (f *serverAddress) Write(b []byte) (int, error) {
 	if len(matches) >= 2 {
 		// address is the first match
 		f.Address = matches[1]
-		zap.S().Infof("Found language host listening on %s", f.Address)
+		f.Log.Infof("Found language host listening on %s", f.Address)
 		close(f.HasAddr)
 	}
 
@@ -44,6 +45,8 @@ type DebugConfig struct {
 }
 
 func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
+	log := logging.GetLogger(ctx).Sugar()
+
 	args := []string{"run", "python", "python_language_host.py"}
 	if debugConfig.Enabled {
 		if debugConfig.Port > 0 {
@@ -56,11 +59,12 @@ func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 
 	cmd := logging.Command(
 		ctx,
-		logging.CommandLogger{RootLogger: zap.L().Named("python")},
+		logging.CommandLogger{RootLogger: log.Desugar().Named("python")},
 		"pipenv", args...,
 	)
 
 	lf := &serverAddress{
+		Log:     log,
 		HasAddr: make(chan struct{}),
 	}
 	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
@@ -71,18 +75,18 @@ func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 		return nil
 	})
 
-	zap.S().Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
+	log.Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
 	if err := cmd.Start(); err != nil {
-		zap.S().Fatalf("failed to start Python client: %v", err)
+		log.Fatalf("failed to start Python client: %v", err)
 	}
-	zap.L().Info("Python client started")
+	log.Info("Python client started")
 
 	go func() {
 		err := cmd.Wait()
 		if err != nil {
-			zap.S().Errorf("Python process exited with error: %v", err)
+			log.Errorf("Python process exited with error: %v", err)
 		} else {
-			zap.L().Debug("Python process exited successfully")
+			log.Debug("Python process exited successfully")
 		}
 	}()
 
