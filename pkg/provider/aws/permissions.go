@@ -6,13 +6,13 @@ import (
 	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
 // Permissions returns the permissions for the AWS provider
-func DeploymentPermissionsPolicy(ctx solution_context.SolutionContext) ([]byte, error) {
+func DeploymentPermissionsPolicy(ctx solution.Solution) ([]byte, error) {
 	policy := &construct.Resource{
 		ID: construct.ResourceId{
 			Provider: "aws",
@@ -42,6 +42,9 @@ func DeploymentPermissionsPolicy(ctx solution_context.SolutionContext) ([]byte, 
 		if nerr != nil {
 			return nerr
 		}
+		if id.Provider != "aws" {
+			return nil
+		}
 		rt, err := kb.GetResourceTemplate(resource.ID)
 		if err != nil {
 			return err
@@ -68,6 +71,10 @@ func DeploymentPermissionsPolicy(ctx solution_context.SolutionContext) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
+	if actions.Len() == 0 {
+		return nil, nil
+	}
+
 	actionList := actions.ToSlice()
 	sort.Strings(actionList)
 	statement := map[string]any{

@@ -1,11 +1,12 @@
 package cleanup
 
 import (
-	"github.com/klothoplatform/klotho/pkg/multierr"
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/klothoplatform/klotho/pkg/multierr"
+	"go.uber.org/zap"
 )
 
 type Callback func(signal syscall.Signal) error
@@ -45,10 +46,10 @@ func InitializeHandler() {
 }
 
 func SignalProcessGroup(pid int, signal syscall.Signal) {
-	zap.S().Infof("Sending %s signal to process group: %v", signal.String(), pid)
+	zap.S().Infof("Sending %s signal to process group: %v", signal, pid)
 	// Use the negative PID to signal the entire process group
 	err := syscall.Kill(-pid, syscall.SIGTERM)
 	if err != nil {
-		zap.S().Errorf("Error sending %s to process group: %v", signal.String(), err)
+		zap.S().Errorf("Error sending %s to process group: %v", signal, err)
 	}
 }

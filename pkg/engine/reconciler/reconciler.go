@@ -7,7 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -20,7 +20,7 @@ type (
 	}
 )
 
-func RemoveResource(c solution_context.SolutionContext, resource construct.ResourceId, explicit bool) error {
+func RemoveResource(c solution.Solution, resource construct.ResourceId, explicit bool) error {
 	zap.S().Debugf("reconciling removal of resource %s ", resource)
 
 	queue := []deleteRequest{{
@@ -115,7 +115,7 @@ func appendToQueue(request deleteRequest, queue []deleteRequest) []deleteRequest
 
 // deleteRemainingDeploymentDependencies removes all deployment dependencies from the graph for the resource specified
 func deleteRemainingDeploymentDependencies(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource construct.ResourceId,
 ) error {
 	// begin by removing the dependency on resource since we know we are deleting the resource passed in at this point
@@ -150,7 +150,7 @@ func deleteRemainingDeploymentDependencies(
 
 // addAllDeploymentDependencies adds all deployment dependencies to the queue while removing their dependency on the resource passed in
 func addAllDeploymentDependencies(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource construct.ResourceId,
 	explicit bool,
 	queue []deleteRequest,
@@ -232,7 +232,7 @@ func addAllDeploymentDependencies(
 }
 
 func canDeleteResource(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource construct.ResourceId,
 	explicit bool,
 	template *knowledgebase.ResourceTemplate,
@@ -341,7 +341,7 @@ func canDeleteResource(
 // If the sub resource is deletion dependent on any of the dependent resources passed in then we will determine weather
 // we can delete the dependent resource first.
 func ignoreCriteria(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource construct.ResourceId,
 	nodes set.Set[construct.ResourceId],
 	direction knowledgebase.Direction,
@@ -364,7 +364,7 @@ func ignoreCriteria(
 	return true
 }
 
-func findAllResourcesInNamespace(ctx solution_context.SolutionContext, namespace construct.ResourceId) (set.Set[construct.ResourceId], error) {
+func findAllResourcesInNamespace(ctx solution.Solution, namespace construct.ResourceId) (set.Set[construct.ResourceId], error) {
 	namespacedResources := make(set.Set[construct.ResourceId])
 	err := construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		if id.Namespace == "" || id.Namespace != namespace.Name {

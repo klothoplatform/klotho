@@ -10,7 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -175,7 +175,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 				continue
 			}
 			// if this dependency could pass validation for the resources property, consider it as a dependent vertex
-			if err := prop.Validate(resource, dep, solution_context.DynamicCtx(eval.Solution)); err == nil {
+			if err := prop.Validate(resource, dep, solution.DynamicCtx(eval.Solution)); err == nil {
 				changes.addEdge(v.Key(), Key{Ref: ref})
 			}
 		}
@@ -232,7 +232,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return nil
 	}
 
-	dyn := solution_context.DynamicCtx(eval.Solution)
+	dyn := solution.DynamicCtx(eval.Solution)
 
 	var errs error
 	for i, rule := range tmpl.OperationalRules {
@@ -268,7 +268,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 // getDepsForPropertyRef takes a property reference and recurses down until the property is not filled in on the resource
 // When we reach resources with missing property references, we know they are the property vertex keys we must depend on
 func getDepsForPropertyRef(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	res construct.ResourceId,
 	propertyRef string,
 ) set.Set[Key] {
@@ -276,7 +276,7 @@ func getDepsForPropertyRef(
 		return nil
 	}
 	keys := make(set.Set[Key])
-	cfgCtx := solution_context.DynamicCtx(sol)
+	cfgCtx := solution.DynamicCtx(sol)
 	currResources := []construct.ResourceId{res}
 	parts := strings.Split(propertyRef, "#")
 	for _, part := range parts {
@@ -488,7 +488,7 @@ func (runner *pathExpandVertexRunner) consumeExpansionProperties(expansion path_
 	delays, err := knowledgebase.ConsumeFromResource(
 		expansion.SatisfactionEdge.Source,
 		expansion.SatisfactionEdge.Target,
-		solution_context.DynamicCtx(runner.Eval.Solution),
+		solution.DynamicCtx(runner.Eval.Solution),
 	)
 	if err != nil {
 		return err
@@ -548,7 +548,7 @@ func (runner *pathExpandVertexRunner) handleResultProperties(
 				for _, selector := range step.Resources {
 					if step.Direction == Direction {
 						canUse, err := selector.CanUse(
-							solution_context.DynamicCtx(eval.Solution),
+							solution.DynamicCtx(eval.Solution),
 							knowledgebase.DynamicValueData{Resource: res.ID},
 							targetRes,
 						)

@@ -8,7 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"go.uber.org/zap"
 )
@@ -19,7 +19,7 @@ func (ctx OperationalRuleContext) HandleOperationalStep(step knowledgebase.Opera
 		step.NumNeeded = 1
 	}
 
-	dyn := solution_context.DynamicCtx(ctx.Solution)
+	dyn := solution.DynamicCtx(ctx.Solution)
 
 	resourceId := ctx.Data.Resource
 	if resourceId.IsZero() {
@@ -74,9 +74,9 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	var ids []construct.ResourceId
 	var err error
 	if step.Direction == knowledgebase.DirectionUpstream {
-		ids, err = solution_context.Upstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
+		ids, err = solution.Upstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
 	} else {
-		ids, err = solution_context.Downstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
+		ids, err = solution.Downstream(ctx.Solution, resource, knowledgebase.FirstFunctionalLayer)
 	}
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (ctx OperationalRuleContext) getResourcesForStep(step knowledgebase.Operati
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve ids for 'getResourcesForStep': %w", err)
 	}
-	dyn := solution_context.DynamicCtx(ctx.Solution)
+	dyn := solution.DynamicCtx(ctx.Solution)
 
 	var resourcesOfType []construct.ResourceId
 	for _, dep := range resources {

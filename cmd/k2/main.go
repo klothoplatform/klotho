@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
 	"os"
 	"syscall"
+
+	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
 
 	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	"github.com/spf13/cobra"
@@ -21,7 +22,7 @@ func cli() {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = cleanup.Execute(syscall.SIGTERM)
-			os.Exit(1)
+			panic(r) // re-throw panic after cleanup
 		}
 	}()
 

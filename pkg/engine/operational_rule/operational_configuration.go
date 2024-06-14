@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
@@ -12,7 +12,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(
 	config knowledgebase.ConfigurationRule,
 	configurationOperator constraints.ConstraintOperator,
 ) error {
-	dyn := solution_context.DynamicCtx(ctx.Solution)
+	dyn := solution.DynamicCtx(ctx.Solution)
 	res, err := knowledgebase.ExecuteDecodeAsResourceId(dyn, config.Resource, ctx.Data)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (ctx OperationalRuleContext) HandleConfigurationRule(
 		return err
 	}
 	config.Config.Field = resolvedField
-	configurer := &solution_context.Configurer{Ctx: ctx.Solution}
+	configurer := &solution.Configurer{Ctx: ctx.Solution}
 
 	err = configurer.ConfigureResource(resource, config.Config, ctx.Data, configurationOperator, false)
 	if err != nil {

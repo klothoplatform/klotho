@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"context"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
@@ -13,12 +15,11 @@ type (
 		Kb knowledgebase.TemplateKB
 	}
 
-	// EngineContext is a struct that represents the context of the engine
+	// SolveRequest is a struct that represents the context of the engine
 	// The context is used to store the state of the engine
-	EngineContext struct {
+	SolveRequest struct {
 		Constraints  constraints.Constraints
 		InitialState construct.Graph
-		Solutions    []solution_context.SolutionContext
 		GlobalTag    string
 	}
 )
@@ -29,17 +30,16 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 	}
 }
 
-func (e *Engine) Run(context *EngineContext) error {
-	solutionCtx := NewSolutionContext(e.Kb, context.GlobalTag, &context.Constraints)
-	err := solutionCtx.LoadGraph(context.InitialState)
+func (e *Engine) Run(ctx context.Context, req *SolveRequest) (solution.Solution, error) {
+	sol := NewSolution(e.Kb, req.GlobalTag, &req.Constraints)
+	err := sol.LoadGraph(req.InitialState)
 	if err != nil {
-		return err
+		return sol, err
 	}
-	err = ApplyConstraints(solutionCtx)
+	err = ApplyConstraints(sol)
 	if err != nil {
-		return err
+		return sol, err
 	}
-	err = solutionCtx.Solve()
-	context.Solutions = append(context.Solutions, solutionCtx)
-	return err
+	err = sol.Solve()
+	return sol, err
 }

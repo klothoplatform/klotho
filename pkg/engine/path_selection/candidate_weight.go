@@ -6,7 +6,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
@@ -22,30 +22,30 @@ import (
 // 'undirected' is from the 'ctx' raw view, but given as an argument here to avoid having to recompute it.
 // 'desc' return is purely for debugging purposes, describing the weight calculation.
 func determineCandidateWeight(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	src, target construct.ResourceId,
 	id construct.ResourceId,
 	resultGraph construct.Graph,
 	undirected construct.Graph,
 ) (weight int, errs error) {
 	// note(gg) perf: these Downstream/Upstream functions don't need the full list and don't need to run twice
-	downstreams, err := solution_context.Downstream(ctx, src, knowledgebase.ResourceDirectLayer)
+	downstreams, err := solution.Downstream(ctx, src, knowledgebase.ResourceDirectLayer)
 	errs = errors.Join(errs, err)
 	if collectionutil.Contains(downstreams, id) {
 		weight += 10
 	} else {
-		downstreams, err := solution_context.Downstream(ctx, src, knowledgebase.ResourceGlueLayer)
+		downstreams, err := solution.Downstream(ctx, src, knowledgebase.ResourceGlueLayer)
 		errs = errors.Join(errs, err)
 		if collectionutil.Contains(downstreams, id) {
 			weight += 5
 		}
 	}
-	upstreams, err := solution_context.Upstream(ctx, target, knowledgebase.ResourceDirectLayer)
+	upstreams, err := solution.Upstream(ctx, target, knowledgebase.ResourceDirectLayer)
 	errs = errors.Join(errs, err)
 	if collectionutil.Contains(upstreams, id) {
 		weight += 10
 	} else {
-		upstreams, err := solution_context.Upstream(ctx, target, knowledgebase.ResourceGlueLayer)
+		upstreams, err := solution.Upstream(ctx, target, knowledgebase.ResourceGlueLayer)
 		errs = errors.Join(errs, err)
 		if collectionutil.Contains(upstreams, id) {
 			weight += 5

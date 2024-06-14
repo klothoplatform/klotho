@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +16,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
@@ -227,14 +228,14 @@ func extractEngineErrors(err error) []engine_errs.EngineError {
 	return errs
 }
 
-func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineError) {
+func (em *EngineMain) Run(ctx context.Context, req *SolveRequest) (int, solution.Solution, []engine_errs.EngineError) {
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
 
 	log := zap.S().Named("engine")
 
 	log.Info("Running engine")
-	err := em.Engine.Run(context)
+	sol, err := em.Engine.Run(ctx, req)
 	if err != nil {
 		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
 		// This is returned as exit code 1, and add the details to be printed to stdout.
@@ -243,28 +244,26 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 		log.Errorf("Engine returned error: %v", err)
 	}
 
-	if len(context.Solutions) > 0 {
-		writeDebugGraphs(context.Solutions[0])
+	writeDebugGraphs(sol)
 
-		// If there are any decisions that are engine errors, add them to the list of error details
-		// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
-		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
-			d, ok := d.(solution_context.AsEngineError)
-			if !ok {
-				continue
-			}
-			ee := d.TryEngineError()
-			if ee == nil {
-				continue
-			}
-			engErrs = append(engErrs, ee)
-			if returnCode != 1 {
-				returnCode = 2
-			}
+	// If there are any decisions that are engine errors, add them to the list of error details
+	// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
+	for _, d := range sol.GetDecisions() {
+		d, ok := d.(solution.AsEngineError)
+		if !ok {
+			continue
+		}
+		ee := d.TryEngineError()
+		if ee == nil {
+			continue
+		}
+		engErrs = append(engErrs, ee)
+		if returnCode != 1 {
+			returnCode = 2
 		}
 	}
 
-	return returnCode, engErrs
+	return returnCode, sol, engErrs
 }
 
 func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
@@ -321,7 +320,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		return
 	}
 
-	context := &EngineContext{
+	context := &SolveRequest{
 		GlobalTag: architectureEngineCfg.globalTag,
 	}
 
@@ -356,9 +355,10 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		}
 		context.Constraints = runConstraints
 	}
+
 	// len(engErrs) == 0 at this point so overwriting it is safe
 	// All other assignments prior are via 'internalError' and return
-	exitCode, engErrs = em.Run(context)
+	exitCode, sol, engErrs := em.Run(cmd.Context(), context)
 	if exitCode == 1 {
 		return
 	}
@@ -377,14 +377,14 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	})
 
 	log.Info("Engine finished running... Generating views")
-	vizFiles, err := em.Engine.VisualizeViews(context.Solutions[0])
+	vizFiles, err := em.Engine.VisualizeViews(sol)
 	if err != nil {
 		internalError(fmt.Errorf("failed to generate views %w", err))
 		return
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
 		return
@@ -397,7 +397,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	)
 
 	if architectureEngineCfg.provider == "aws" {
-		polictBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+		polictBytes, err := aws.DeploymentPermissionsPolicy(sol)
 		if err != nil {
 			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
 			return
@@ -465,7 +465,7 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 	return nil
 }
 
-func writeDebugGraphs(sol solution_context.SolutionContext) {
+func writeDebugGraphs(sol solution.Solution) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {

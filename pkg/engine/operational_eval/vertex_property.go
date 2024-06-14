@@ -9,7 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 )
@@ -136,7 +136,7 @@ func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 }
 
 func (v *propertyVertex) Evaluate(eval *Evaluator) error {
-	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
+	sol := eval.Solution
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
@@ -149,8 +149,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path, GlobalTag: eval.Solution.GlobalTag()}
 
 	if err := v.evaluateConstraints(
-		&solution_context.Configurer{Ctx: sol},
-		solution_context.DynamicCtx(sol),
+		&solution.Configurer{Ctx: sol},
+		solution.DynamicCtx(sol),
 		res,
 		sol.Constraints().Resources,
 		dynData,
@@ -205,8 +205,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	if err != nil {
 		return fmt.Errorf("error while validating resource property: could not get property %s on resource %s: %w", v.Ref.Property, v.Ref.Resource, err)
 	}
-	err = v.Template.Validate(res, val, solution_context.DynamicCtx(eval.Solution))
-	eval.Solution.RecordDecision(solution_context.PropertyValidationDecision{
+	err = v.Template.Validate(res, val, solution.DynamicCtx(eval.Solution))
+	eval.Solution.RecordDecision(solution.PropertyValidationDecision{
 		Resource: v.Ref.Resource,
 		Property: v.Template,
 		Value:    val,
@@ -216,7 +216,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 }
 
 func (v *propertyVertex) evaluateConstraints(
-	rc solution_context.ResourceConfigurer,
+	rc solution.ResourceConfigurer,
 	ctx knowledgebase.DynamicValueContext,
 	res *construct.Resource,
 	rcs []constraints.ResourceConstraint,
@@ -413,7 +413,7 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		return NotReadyHigh, fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
 	}
 
-	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution),
+	defaultVal, err := v.Template.GetDefaultValue(solution.DynamicCtx(eval.Solution),
 		knowledgebase.DynamicValueData{Resource: v.Ref.Resource, Path: path})
 	if err != nil {
 		return NotReadyMid, nil

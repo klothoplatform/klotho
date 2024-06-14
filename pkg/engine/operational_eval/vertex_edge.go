@@ -7,7 +7,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
@@ -82,9 +82,9 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}
 
-	cfgCtx := solution_context.DynamicCtx(eval.Solution)
+	cfgCtx := solution.DynamicCtx(eval.Solution)
 	opCtx := operational_rule.OperationalRuleContext{
-		Solution: eval.Solution.With("edge", edge),
+		Solution: eval.Solution,
 		Data: knowledgebase.DynamicValueData{
 			Edge: edge,
 		},
@@ -153,7 +153,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	delays, err := knowledgebase.ConsumeFromResource(
 		src,
 		target,
-		solution_context.DynamicCtx(eval.Solution),
+		solution.DynamicCtx(eval.Solution),
 	)
 	if err != nil {
 		return err

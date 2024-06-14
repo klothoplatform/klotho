@@ -3,12 +3,13 @@ package engine
 import (
 	"errors"
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	property_eval "github.com/klothoplatform/klotho/pkg/engine/operational_eval"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"go.uber.org/zap"
@@ -17,20 +18,19 @@ import (
 type (
 	// solutionContext implements [solution_context.SolutionContext]
 	solutionContext struct {
-		KB              knowledgebase.TemplateKB
-		Dataflow        construct.Graph
-		Deployment      construct.Graph
-		decisions       solution_context.DecisionRecords
-		stack           []solution_context.KV
-		mappedResources map[construct.ResourceId]construct.ResourceId
-		constraints     *constraints.Constraints
-		propertyEval    *property_eval.Evaluator
-		globalTag       string
-		outputs         map[string]construct.Output
+		solution.DecisionRecords
+
+		KB           knowledgebase.TemplateKB
+		Dataflow     construct.Graph
+		Deployment   construct.Graph
+		constraints  *constraints.Constraints
+		propertyEval *property_eval.Evaluator
+		globalTag    string
+		outputs      map[string]construct.Output
 	}
 )
 
-func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
+func NewSolution(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
 	ctx := &solutionContext{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
@@ -38,18 +38,16 @@ func NewSolutionContext(kb knowledgebase.TemplateKB, globalTag string, constrain
 			Graph: construct.NewGraph(),
 			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
 		},
-		Deployment:      construct.NewAcyclicGraph(),
-		decisions:       &solution_context.MemoryRecord{},
-		mappedResources: make(map[construct.ResourceId]construct.ResourceId),
-		constraints:     constraints,
-		globalTag:       globalTag,
-		outputs:         make(map[string]construct.Output),
+		Deployment:  construct.NewAcyclicGraph(),
+		constraints: constraints,
+		globalTag:   globalTag,
+		outputs:     make(map[string]construct.Output),
 	}
 	ctx.propertyEval = property_eval.NewEvaluator(ctx)
 	return ctx
 }
 
-func (s solutionContext) Solve() error {
+func (s *solutionContext) Solve() error {
 	err := s.propertyEval.Evaluate()
 	if err != nil {
 		return err
@@ -57,47 +55,45 @@ func (s solutionContext) Solve() error {
 	return s.captureOutputs()
 }
 
-func (s solutionContext) With(key string, value any) solution_context.SolutionContext {
-	s.stack = append(s.stack, solution_context.KV{Key: key, Value: value})
-	return s
+func (s *solutionContext) RawView() construct.Graph {
+	return solution.NewRawView(s)
 }
 
-func (ctx solutionContext) RawView() construct.Graph {
-	return solution_context.NewRawView(ctx)
+func (s *solutionContext) OperationalView() solution.OperationalView {
+	return (*MakeOperationalView)(s)
 }
 
-func (ctx solutionContext) OperationalView() solution_context.OperationalView {
-	return MakeOperationalView(ctx)
+func (s *solutionContext) DeploymentGraph() construct.Graph {
+	return s.Deployment
 }
 
-func (ctx solutionContext) DeploymentGraph() construct.Graph {
-	return ctx.Deployment
+func (s *solutionContext) DataflowGraph() construct.Graph {
+	return s.Dataflow
 }
 
-func (ctx solutionContext) DataflowGraph() construct.Graph {
-	return ctx.Dataflow
+func (s *solutionContext) KnowledgeBase() knowledgebase.TemplateKB {
+	return s.KB
 }
 
-func (ctx solutionContext) KnowledgeBase() knowledgebase.TemplateKB {
-	return ctx.KB
+func (s *solutionContext) Constraints() *constraints.Constraints {
+	return s.constraints
 }
 
-func (ctx solutionContext) Constraints() *constraints.Constraints {
-	return ctx.constraints
-}
-
-func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
+func (s *solutionContext) LoadGraph(graph construct.Graph) error {
+	if graph == nil {
+		return nil
+	}
 	// Since often the input `graph` is loaded from a yaml file, we need to transform all the property values
 	// to make sure they are of the correct type (eg, a string to ResourceId).
 	err := knowledgebase.TransformAllPropertyValues(knowledgebase.DynamicValueContext{
 		Graph:         graph,
-		KnowledgeBase: ctx.KB,
+		KnowledgeBase: s.KB,
 	})
 	if err != nil {
 		return err
 	}
-	op := ctx.OperationalView()
-	raw := ctx.RawView()
+	op := s.OperationalView()
+	raw := s.RawView()
 	if err := op.AddVerticesFrom(graph); err != nil {
 		return err
 	}
@@ -107,7 +103,7 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 		return err
 	}
 	for _, edge := range edges {
-		edgeTemplate := ctx.KB.GetEdgeTemplate(edge.Source, edge.Target)
+		edgeTemplate := s.KB.GetEdgeTemplate(edge.Source, edge.Target)
 		src, err := graph.Vertex(edge.Source)
 		if err != nil {
 			return err
@@ -137,64 +133,41 @@ func (ctx solutionContext) LoadGraph(graph construct.Graph) error {
 	}
 
 	// ensure any deployment dependencies due to properties are in place
-	return construct.WalkGraph(ctx.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
+	return construct.WalkGraph(s.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return errors.Join(nerr, resource.WalkProperties(func(path construct.PropertyPath, werr error) error {
 			prop := path.Get()
-			err := solution_context.AddDeploymentDependenciesFromVal(ctx, resource, prop)
+			err := solution.AddDeploymentDependenciesFromVal(s, resource, prop)
 			return errors.Join(werr, err)
 		}))
 	})
 }
 
-func (c solutionContext) GetDecisions() solution_context.DecisionRecords {
-	return c.decisions
+func (s *solutionContext) GlobalTag() string {
+	return s.globalTag
 }
 
-// RecordDecision snapshots the current stack and records the decision
-func (c solutionContext) RecordDecision(d solution_context.SolveDecision) {
-	c.decisions.AddRecord(c.stack, d)
-}
-
-func (ctx solutionContext) GetMappedResource(constructId construct.ResourceId) construct.ResourceId {
-	return ctx.mappedResources[constructId]
-}
-
-func (ctx solutionContext) ExpandConstruct(resource *construct.Resource) ([]solutionContext, error) {
-	// TODO constructs not yet supported
-	return []solutionContext{ctx}, nil
-}
-
-func (ctx solutionContext) GenerateCombinations() ([]solutionContext, error) {
-	// TODO constructs not yet supported
-	return []solutionContext{ctx}, nil
-}
-
-func (ctx solutionContext) GlobalTag() string {
-	return ctx.globalTag
-}
-
-func (ctx solutionContext) captureOutputs() error {
-	outputConstraints := ctx.Constraints().Outputs
+func (s *solutionContext) captureOutputs() error {
+	outputConstraints := s.Constraints().Outputs
 	var err multierr.Error
 	for _, outputConstraint := range outputConstraints {
 		if outputConstraint.Ref.Resource.IsZero() {
-			ctx.outputs[outputConstraint.Name] = construct.Output{
+			s.outputs[outputConstraint.Name] = construct.Output{
 				Value: outputConstraint.Value,
 			}
 			continue
 		}
 
-		if _, err2 := ctx.Dataflow.Vertex(outputConstraint.Ref.Resource); err2 != nil {
+		if _, err2 := s.Dataflow.Vertex(outputConstraint.Ref.Resource); err2 != nil {
 			err.Append(err2)
 			continue
 		}
-		ctx.outputs[outputConstraint.Name] = construct.Output{
+		s.outputs[outputConstraint.Name] = construct.Output{
 			Ref: outputConstraint.Ref,
 		}
 	}
 	return err.ErrOrNil()
 }
 
-func (ctx solutionContext) Outputs() map[string]construct.Output {
-	return ctx.outputs
+func (s *solutionContext) Outputs() map[string]construct.Output {
+	return s.outputs
 }

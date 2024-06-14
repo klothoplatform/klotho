@@ -9,14 +9,14 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 // checkUniquenessValidity checks if the candidate is valid based on if it is intended to be created as unique resource
 // for another resource. If the resource was created by an operational rule with the unique flag, we wont consider it as valid
 func checkUniquenessValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	src, trgt construct.ResourceId,
 ) (bool, error) {
 	// check if the  node is a phantom node
@@ -59,7 +59,7 @@ func checkUniquenessValidity(
 
 // check properties checks the resource's properties to make sure its not supposed to have a unique toCheck type
 // if it is, it makes sure that the toCheck is not used elsewhere or already being used as its unique type
-func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *construct.Resource, direction knowledgebase.Direction) (bool, error) {
+func checkProperties(ctx solution.Solution, resource, toCheck *construct.Resource, direction knowledgebase.Direction) (bool, error) {
 	//check if the upstream resource has a unique rule for the matched resource type
 	template, err := ctx.KnowledgeBase().GetResourceTemplate(resource.ID)
 	if err != nil || template == nil {
@@ -84,7 +84,7 @@ func checkProperties(ctx solution_context.SolutionContext, resource, toCheck *co
 		}
 		//check if the upstream resource is the same type as the matched resource type
 		for _, selector := range step.Resources {
-			match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: resource.ID},
+			match, err := selector.CanUse(solution.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: resource.ID},
 				toCheck)
 			if err != nil {
 				return fmt.Errorf("error checking if resource %s matches selector %s: %w", toCheck.ID, selector.Selector, err)
@@ -163,7 +163,7 @@ func checkIfPropertyContainsResource(property interface{}, resource construct.Re
 	return false
 }
 
-func checkIfLoneDependency(ctx solution_context.SolutionContext,
+func checkIfLoneDependency(ctx solution.Solution,
 	resource, toCheck construct.ResourceId, direction knowledgebase.Direction,
 	selector knowledgebase.ResourceSelector) (bool, error) {
 	var resources []construct.ResourceId
@@ -173,12 +173,12 @@ func checkIfLoneDependency(ctx solution_context.SolutionContext,
 
 	// here the direction matches because we are checking the resource for being used by another resource similar to other
 	if direction == knowledgebase.DirectionDownstream {
-		resources, err = solution_context.Upstream(ctx, resource, knowledgebase.ResourceDirectLayer)
+		resources, err = solution.Upstream(ctx, resource, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return false, err
 		}
 	} else {
-		resources, err = solution_context.Downstream(ctx, resource, knowledgebase.ResourceDirectLayer)
+		resources, err = solution.Downstream(ctx, resource, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return false, err
 		}
@@ -194,7 +194,7 @@ func checkIfLoneDependency(ctx solution_context.SolutionContext,
 				return false, err
 			}
 			data := knowledgebase.DynamicValueData{Resource: resource}
-			dynCtx := solution_context.DynamicCtx(ctx)
+			dynCtx := solution.DynamicCtx(ctx)
 			canUse, err := selector.CanUse(dynCtx, data, depRes)
 			if err != nil {
 				return false, err
@@ -209,7 +209,7 @@ func checkIfLoneDependency(ctx solution_context.SolutionContext,
 
 // checkIfCreatedAsUnique checks if the resource was created as a unique resource by any of its direct dependents. if it was and that
 // dependent is not the other id, its not a valid candidate for this edge
-func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resource, other *construct.Resource, direction knowledgebase.Direction) (bool, error) {
+func checkIfCreatedAsUniqueValidity(ctx solution.Solution, resource, other *construct.Resource, direction knowledgebase.Direction) (bool, error) {
 	var resources []construct.ResourceId
 	var foundMatch bool
 	var err error
@@ -218,12 +218,12 @@ func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resour
 
 	// here the direction matches because we are checking the resource for being used by another resource similar to other
 	if direction == knowledgebase.DirectionUpstream {
-		resources, err = solution_context.Upstream(ctx, resource.ID, knowledgebase.ResourceDirectLayer)
+		resources, err = solution.Upstream(ctx, resource.ID, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return false, err
 		}
 	} else {
-		resources, err = solution_context.Downstream(ctx, resource.ID, knowledgebase.ResourceDirectLayer)
+		resources, err = solution.Downstream(ctx, resource.ID, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return false, err
 		}
@@ -258,7 +258,7 @@ func checkIfCreatedAsUniqueValidity(ctx solution_context.SolutionContext, resour
 			}
 			//check if the upstream resource is the same type as the matched resource type
 			for _, selector := range step.Resources {
-				match, err := selector.CanUse(solution_context.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: currRes.ID},
+				match, err := selector.CanUse(solution.DynamicCtx(ctx), knowledgebase.DynamicValueData{Resource: currRes.ID},
 					resource)
 				if err != nil {
 					return fmt.Errorf("error checking if resource %s matches selector %s: %w", other.ID, selector.Selector, err)
