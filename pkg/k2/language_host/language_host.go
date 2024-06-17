@@ -1,9 +1,11 @@
-package main
+package language_host
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -14,7 +16,10 @@ import (
 	"github.com/klothoplatform/klotho/pkg/logging"
 )
 
-type serverAddress struct {
+//go:embed python/python_language_host.py
+var pythonLanguageHost string
+
+type ServerAddress struct {
 	Log     *zap.SugaredLogger
 	Address string
 	HasAddr chan struct{}
@@ -22,7 +27,7 @@ type serverAddress struct {
 
 var listenOnPattern = regexp.MustCompile(`(?m)^\s*Listening on (\S+)$`)
 
-func (f *serverAddress) Write(b []byte) (int, error) {
+func (f *ServerAddress) Write(b []byte) (int, error) {
 	if f.Address != "" {
 		return len(b), nil
 	}
@@ -44,10 +49,27 @@ type DebugConfig struct {
 	Mode    string
 }
 
-func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *serverAddress) {
-	log := logging.GetLogger(ctx).Sugar()
+func copyToTempDir(name, content string) string {
+	f, err := os.CreateTemp("", fmt.Sprintf("k2_%s*.py", name))
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
 
-	args := []string{"run", "python", "python_language_host.py"}
+	if _, err := f.WriteString(content); err != nil {
+		panic(err)
+	}
+
+	return f.Name()
+
+}
+
+func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *ServerAddress) {
+	log := logging.GetLogger(ctx).Sugar()
+	// copy the language host to the temp directory
+	hostPath := copyToTempDir("python_language_host", pythonLanguageHost)
+
+	args := []string{hostPath}
 	if debugConfig.Enabled {
 		if debugConfig.Port > 0 {
 			args = append(args, "--debug-port", fmt.Sprintf("%d", debugConfig.Port))
@@ -60,16 +82,15 @@ func startPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 	cmd := logging.Command(
 		ctx,
 		logging.CommandLogger{RootLogger: log.Desugar().Named("python")},
-		"pipenv", args...,
+		"python", args...,
 	)
 
-	lf := &serverAddress{
+	lf := &ServerAddress{
 		Log:     log,
 		HasAddr: make(chan struct{}),
 	}
 	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
-	cmd.Dir = "pkg/k2/language_host/python"
-	setProcAttr(cmd)
+
 	cleanup.OnKill(func(signal syscall.Signal) error {
 		cleanup.SignalProcessGroup(cmd.Process.Pid, syscall.SIGTERM)
 		return nil
