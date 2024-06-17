@@ -49,17 +49,17 @@ type DebugConfig struct {
 	Mode    string
 }
 
-func copyToTempDir(name, content string) string {
+func copyToTempDir(ctx context.Context, name, content string) string {
+	log := logging.GetLogger(ctx).Sugar()
 	f, err := os.CreateTemp("", fmt.Sprintf("k2_%s*.py", name))
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to create temp file: %v", err)
 	}
 	defer f.Close()
 
 	if _, err := f.WriteString(content); err != nil {
-		panic(err)
+		log.Fatalf("failed to write to temp file: %v", name, err)
 	}
-
 	return f.Name()
 
 }
@@ -67,7 +67,7 @@ func copyToTempDir(name, content string) string {
 func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *ServerAddress) {
 	log := logging.GetLogger(ctx).Sugar()
 	// copy the language host to the temp directory
-	hostPath := copyToTempDir("python_language_host", pythonLanguageHost)
+	hostPath := copyToTempDir(ctx, "python_language_host", pythonLanguageHost)
 
 	args := []string{hostPath}
 	if debugConfig.Enabled {
