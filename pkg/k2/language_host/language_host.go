@@ -69,7 +69,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 	// copy the language host to the temp directory
 	hostPath := copyToTempDir(ctx, "python_language_host", pythonLanguageHost)
 
-	args := []string{hostPath}
+	args := []string{"run", "python", hostPath}
 	if debugConfig.Enabled {
 		if debugConfig.Port > 0 {
 			args = append(args, "--debug-port", fmt.Sprintf("%d", debugConfig.Port))
@@ -82,7 +82,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 	cmd := logging.Command(
 		ctx,
 		logging.CommandLogger{RootLogger: log.Desugar().Named("python")},
-		"python", args...,
+		"pipenv", args...,
 	)
 
 	lf := &ServerAddress{
