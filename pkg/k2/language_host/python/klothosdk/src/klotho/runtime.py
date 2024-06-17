@@ -5,7 +5,7 @@ import grpc
 import yaml
 
 import klotho
-from .  import service_pb2_grpc as service_pb2_grpc
+from klotho  import service_pb2_grpc as service_pb2_grpc
 from klotho.provider import Provider
 from klotho.urn import URN
 

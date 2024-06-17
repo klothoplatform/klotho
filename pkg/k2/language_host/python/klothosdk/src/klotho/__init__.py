@@ -1,2 +1,2 @@
-from .application import Application
-from .output import Input, Output
+from klotho.application import Application
+from klotho.output import Input, Output
