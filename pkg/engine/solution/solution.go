@@ -1,6 +1,8 @@
 package solution
 
 import (
+	"context"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
@@ -8,6 +10,8 @@ import (
 
 type (
 	Solution interface {
+		Context() context.Context
+
 		KnowledgeBase() knowledgebase.TemplateKB
 		Constraints() *constraints.Constraints
 

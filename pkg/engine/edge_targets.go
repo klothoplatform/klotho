@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"slices"
 	"sync"
@@ -40,7 +41,7 @@ type (
 //
 // This is used to determine (on a best-effort basis) if an edge can be expanded
 // without fully solving the graph (which is expensive).
-func (e *Engine) EdgeCanBeExpanded(ctx *solutionContext, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
+func (e *Engine) EdgeCanBeExpanded(ctx *engineSolution, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
 	cacheable = true
 	edgeExpander := path_selection.EdgeExpand{Ctx: ctx}
 
@@ -155,12 +156,12 @@ that satisfies both source and target path satisfaction classifications.
 
 A partial set of valid targets can be generated using the filter criteria in the context's config.
 */
-func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[string][]string, error) {
-	inputGraph, err := unmarshallInputGraph(context.InputGraph)
+func (e *Engine) GetValidEdgeTargets(req *GetPossibleEdgesContext) (map[string][]string, error) {
+	inputGraph, err := unmarshallInputGraph(req.InputGraph)
 	if err != nil {
 		return nil, err
 	}
-	solutionCtx := NewSolution(e.Kb, "", &constraints.Constraints{})
+	solutionCtx := NewSolution(context.TODO(), e.Kb, "", &constraints.Constraints{})
 	err = solutionCtx.LoadGraph(inputGraph)
 	if err != nil {
 		return nil, err
@@ -187,23 +188,23 @@ func (e *Engine) GetValidEdgeTargets(context *GetPossibleEdgesContext) (map[stri
 	}
 	for _, id := range ids {
 		tag := GetResourceVizTag(e.Kb, DataflowView, id)
-		if len(context.Tags) > 0 && !slices.Contains(context.Tags, tag) {
+		if len(req.Tags) > 0 && !slices.Contains(req.Tags, tag) {
 			continue
 		}
 		isSource := true
 		isTarget := true
-		if len(context.Resources.Sources) > 0 && !slices.Contains(context.Resources.Sources, id) {
+		if len(req.Resources.Sources) > 0 && !slices.Contains(req.Resources.Sources, id) {
 			isSource = false
 		}
-		if len(context.Resources.Targets) > 0 && !slices.Contains(context.Resources.Targets, id) {
+		if len(req.Resources.Targets) > 0 && !slices.Contains(req.Resources.Targets, id) {
 			isTarget = false
 		}
 
-		if len(context.ResourceTypes.Sources) > 0 && !slices.ContainsFunc(context.ResourceTypes.Sources, qualifiedTypeMatcher(id)) {
+		if len(req.ResourceTypes.Sources) > 0 && !slices.ContainsFunc(req.ResourceTypes.Sources, qualifiedTypeMatcher(id)) {
 			isSource = false
 		}
 
-		if len(context.ResourceTypes.Targets) > 0 && !slices.ContainsFunc(context.ResourceTypes.Targets, qualifiedTypeMatcher(id)) {
+		if len(req.ResourceTypes.Targets) > 0 && !slices.ContainsFunc(req.ResourceTypes.Targets, qualifiedTypeMatcher(id)) {
 			isTarget = false
 		}
 

@@ -1,6 +1,8 @@
 package enginetesting
 
 import (
+	"context"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
@@ -11,6 +13,11 @@ import (
 type MockSolution struct {
 	mock.Mock
 	KB MockKB
+}
+
+func (m *MockSolution) Context() context.Context {
+	// context is not used for any computation-critical operations so for ease of use, don't mock it
+	return context.Background()
 }
 
 func (m *MockSolution) KnowledgeBase() knowledgebase.TemplateKB {

@@ -10,36 +10,48 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/tui"
 )
 
-func ApplyConstraints(ctx solution.Solution) error {
+func ApplyConstraints(sol solution.Solution) error {
+	prog := tui.GetProgress(sol.Context())
+
+	cs := sol.Constraints()
+	current, total := 0, len(cs.Application)+len(cs.Edges)+len(cs.Resources)
+
 	var errs error
-	for _, constraint := range ctx.Constraints().Application {
-		err := applyApplicationConstraint(ctx, constraint)
+	for _, constraint := range cs.Application {
+		err := applyApplicationConstraint(sol, constraint)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
 	}
 	if errs != nil {
 		return errs
 	}
 
-	for _, constraint := range ctx.Constraints().Edges {
-		err := applyEdgeConstraint(ctx, constraint)
+	for _, constraint := range cs.Edges {
+		err := applyEdgeConstraint(sol, constraint)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
 	}
 	if errs != nil {
 		return errs
 	}
 
-	resourceConstraints := ctx.Constraints().Resources
+	resourceConstraints := cs.Resources
 	for i := range resourceConstraints {
-		err := applySanitization(ctx, &resourceConstraints[i])
+		err := applySanitization(sol, &resourceConstraints[i])
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
 	}
 
 	return nil
