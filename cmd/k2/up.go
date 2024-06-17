@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	"os"
 	"path/filepath"
 	"time"
@@ -54,7 +55,7 @@ func up(cmd *cobra.Command, args []string) error {
 	if upConfig.outputPath == "" {
 		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 	}
-	langHost, addr := startPythonClient(ctx, DebugConfig{
+	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{
 		Enabled: upConfig.debugMode != "",
 		Port:    upConfig.debugPort,
 		Mode:    upConfig.debugMode,

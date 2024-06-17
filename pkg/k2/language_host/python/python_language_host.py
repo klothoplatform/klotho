@@ -1,16 +1,14 @@
 import argparse
 import runpy
 import signal
-import sys
 from concurrent import futures
 
 import grpc
 import yaml
 
-import service_pb2
-import service_pb2_grpc
-from debug_util import DebugMode, configure_debugging
+from klotho.debug_util import DebugMode, configure_debugging
 from klotho.runtime import instance as runtime
+from klotho import service_pb2, service_pb2_grpc
 
 
 class KlothoService(service_pb2_grpc.KlothoServiceServicer):

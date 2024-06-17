@@ -50,3 +50,4 @@ __debug_bin*
 .k2/
 
 __pycache__
+*.egg-info

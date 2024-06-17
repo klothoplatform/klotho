@@ -161,6 +161,9 @@ func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) er
 
 	if construct, exists := sm.state.Constructs[urn.ResourceID]; exists {
 		for k, v := range outputs {
+			if construct.Outputs == nil {
+				construct.Outputs = make(map[string]any)
+			}
 			construct.Outputs[k] = v
 		}
 		sm.state.Constructs[urn.ResourceID] = construct
