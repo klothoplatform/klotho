@@ -13,5 +13,5 @@ type LogProgress struct {
 }
 
 func (p LogProgress) Update(status string, current, total int) {
-	p.Logger.Sugar().Infof("%s %d/%d (%:.1f%%)", status, current, total, float64(current)/float64(total)*100)
+	p.Logger.Sugar().Infof("%s %d/%d (%.1f%%)", status, current, total, float64(current)/float64(total)*100)
 }

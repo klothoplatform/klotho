@@ -13,7 +13,7 @@ var progressKey contextKey = "progress"
 func GetProgress(ctx context.Context) Progress {
 	p := ctx.Value(progressKey)
 	if p == nil {
-		return LogProgress{Logger: logging.GetLogger(ctx)}
+		return LogProgress{Logger: logging.GetLogger(ctx).Named("progress")}
 	}
 	return p.(Progress)
 }
