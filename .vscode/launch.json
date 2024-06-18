@@ -95,25 +95,28 @@
                 "${file}"
             ],
             "env": {
-                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}"
+                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}",
+                "AWS_REGION": "${env:AWS_REGION}",
             }
         },
         {
             "name": "Python Debugger: Attach",
             "type": "debugpy",
             "request": "attach",
-            "connect": {
-              "host": "localhost",
-              "port": 5678
+            "listen": {
+                "host": "localhost",
+                "port": 5678,
             },
-            "preLaunchTask": "sleep5",
         },
     ],
     "compounds": [
-    {
-      "name": "Debug: k2 + infra.py",
-      "configurations": ["Debug: k2", "Python Debugger: Attach"],
-      "stopAll": true,
-    }
-  ]
+        {
+            "name": "Debug: k2 + infra.py",
+            "configurations": [
+                "Debug: k2",
+                "Python Debugger: Attach"
+            ],
+            "stopAll": true,
+        }
+    ]
 }
