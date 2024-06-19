@@ -1,4 +1,4 @@
-package pulumi
+package stack
 
 import (
 	"context"
@@ -13,23 +13,23 @@ import (
 	"go.uber.org/zap"
 )
 
-type StackState struct {
+type State struct {
 	Version    int
 	Deployment apitype.DeploymentV3
 	Outputs    map[string]any
 	Resources  map[construct.ResourceId]apitype.ResourceV3
 }
 
-func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
+func GetState(ctx context.Context, stack auto.Stack) (State, error) {
 	rawState, err := stack.Export(ctx)
 	if err != nil {
-		return StackState{}, err
+		return State{}, err
 	}
 
 	unmarshalledState := apitype.DeploymentV3{}
 	err = json.Unmarshal(rawState.Deployment, &unmarshalledState)
 	if err != nil {
-		return StackState{}, err
+		return State{}, err
 	}
 
 	zap.S().Debugf("unmarshalled state: %v", unmarshalledState)
@@ -44,13 +44,13 @@ func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
 		}
 	}
 	if !foundStackResource {
-		return StackState{}, fmt.Errorf("could not find pulumi:pulumi:Stack resource in state")
+		return State{}, fmt.Errorf("could not find pulumi:pulumi:Stack resource in state")
 	}
 
 	stackOutputs := make(map[string]any)
 	outputs, ok := stackResource.Outputs["$outputs"].(map[string]any)
 	if !ok {
-		return StackState{}, fmt.Errorf("failed to parse stack outputs")
+		return State{}, fmt.Errorf("failed to parse stack outputs")
 	}
 	for key, value := range outputs {
 		stackOutputs[key] = value
@@ -59,7 +59,7 @@ func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
 	resourceIdByUrn := make(map[string]string)
 	urns, ok := stackResource.Outputs["$urns"].(map[string]any)
 	if !ok {
-		return StackState{}, fmt.Errorf("failed to parse resource URNs")
+		return State{}, fmt.Errorf("failed to parse resource URNs")
 	}
 	for id, rawUrn := range urns {
 		if urn, ok := rawUrn.(string); ok {
@@ -85,7 +85,7 @@ func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
 		resourcesByResourceId[parsedId] = res
 	}
 
-	return StackState{
+	return State{
 		Version:    rawState.Version,
 		Deployment: unmarshalledState,
 		Outputs:    stackOutputs,
@@ -93,7 +93,7 @@ func GetStackState(ctx context.Context, stack auto.Stack) (StackState, error) {
 	}, nil
 }
 
-func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference StackReference, summary *auto.UpResult) error {
+func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference Reference, summary *auto.UpResult) error {
 	constructName := stackReference.ConstructURN.ResourceID
 	construct, exists := sm.GetConstruct(constructName)
 	if !exists {
@@ -131,4 +131,24 @@ func determineNextStatus(currentStatus model.ConstructStatus, result string) mod
 	default:
 		return model.ConstructUnknown
 	}
+}
+
+type StateManager struct {
+	ConstructStackState map[model.URN]State
+}
+
+func NewStateManager() *StateManager {
+	return &StateManager{
+		ConstructStackState: make(map[model.URN]State),
+	}
+}
+
+func (sm *StateManager) GetResourceState(urn model.URN, id construct.ResourceId) (apitype.ResourceV3, bool) {
+	stackState, exists := sm.ConstructStackState[urn]
+	if !exists {
+		return apitype.ResourceV3{}, false
+	}
+
+	res, exists := stackState.Resources[id]
+	return res, exists
 }

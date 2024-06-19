@@ -3,6 +3,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Id?: string
     Vpc: aws.ec2.Vpc
     Tags: ModelCaseWrapper<Record<string, string>>
 }
@@ -15,4 +16,14 @@ function create(args: Args): aws.ec2.InternetGateway {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function properties(object: aws.ec2.InternetGateway, args: Args) {
+    return {
+        Id: object.id,
+    }
+}
+
+function importResource(args: Args): aws.ec2.InternetGateway {
+    return aws.ec2.InternetGateway.get(args.Name, args.Id)
 }

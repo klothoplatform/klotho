@@ -7,7 +7,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/spf13/cobra"
 )
 
@@ -57,10 +57,10 @@ func down(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error loading state: %w", err)
 	}
 
-	var stackReferences []pulumi.StackReference
+	var stackReferences []stack.Reference
 	for name, construct := range sm.GetAllConstructs() {
 		constructPath := filepath.Join(projectPath, name)
-		stackReference := pulumi.StackReference{
+		stackReference := stack.Reference{
 			ConstructURN: *construct.URN,
 			Name:         name,
 			IacDirectory: constructPath,

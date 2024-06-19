@@ -22,7 +22,7 @@ func cli() {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = cleanup.Execute(syscall.SIGTERM)
-			panic(r) // re-throw panic after cleanup
+			panic(r)
 		}
 	}()
 

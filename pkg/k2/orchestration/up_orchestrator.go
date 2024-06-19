@@ -3,12 +3,13 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"path/filepath"
 	"time"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"gopkg.in/yaml.v3"
 )
@@ -16,13 +17,22 @@ import (
 type UpOrchestrator struct {
 	*Orchestrator
 	LanguageHostClient pb.KlothoServiceClient
+	StackStateManager  *stack.StateManager
+	ConstructEvaluator *constructs.ConstructEvaluator
 }
 
-func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient, outputPath string) *UpOrchestrator {
+func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient, outputPath string) (*UpOrchestrator, error) {
+	ssm := stack.NewStateManager()
+	ce, err := constructs.NewConstructEvaluator(sm, ssm)
+	if err != nil {
+		return nil, err
+	}
 	return &UpOrchestrator{
 		Orchestrator:       NewOrchestrator(sm, outputPath),
 		LanguageHostClient: languageHostClient,
-	}
+		StackStateManager:  ssm,
+		ConstructEvaluator: ce,
+	}, nil
 }
 
 func transitionPendingToDoing(sm *model.StateManager, construct *model.ConstructState) error {
@@ -95,7 +105,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 					return err
 				}
 
-				err = pulumi.RunStackDown(ctx, pulumi.StackReference{
+				err = stack.RunDown(ctx, stack.Reference{
 					ConstructURN: *c.URN,
 					Name:         c.URN.ResourceID,
 					IacDirectory: filepath.Join(uo.OutputDirectory, c.URN.ResourceID),
@@ -125,7 +135,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			if dryRun {
-				_, err = pulumi.RunStackPreview(ctx, stackRef)
+				_, err = stack.RunPreview(ctx, stackRef)
 				if err != nil {
 					return err
 				}
@@ -137,10 +147,11 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			// Run pulumi up command for the construct
-			upResult, stackState, err := pulumi.RunStackUp(ctx, stackRef)
+			upResult, stackState, err := stack.RunUp(ctx, stackRef)
 			if err != nil {
 				return fmt.Errorf("error running pulumi up command: %w", err)
 			}
+			uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = stackState
 
 			err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
 			if err != nil {
@@ -148,7 +159,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			// Update construct state based on the up result
-			err = pulumi.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
+			err = stack.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
 			if err != nil {
 				return err
 			}
@@ -168,7 +179,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	return err
 }
 
-func (uo *UpOrchestrator) resolveOutputValues(stackReference pulumi.StackReference, stackState pulumi.StackState) (map[string]any, error) {
+func (uo *UpOrchestrator) resolveOutputValues(stackReference stack.Reference, stackState stack.State) (map[string]any, error) {
 	outputs := map[string]map[string]interface{}{
 		stackReference.ConstructURN.String(): stackState.Outputs,
 	}

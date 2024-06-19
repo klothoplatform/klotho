@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -50,6 +51,17 @@ func (p pulumiStateConverter) ConvertState(reader io.Reader) (State, error) {
 	return internalModel, errs
 }
 
+func (p pulumiStateConverter) ConvertResource(resource Resource) (
+	*construct.Resource,
+	error,
+) {
+	mapping, ok := p.templates[resource.Type]
+	if !ok {
+		zap.S().Debugf("no mapping found for resource type %s", resource.Type)
+		return nil, nil
+	}
+	return p.convertResource(resource, mapping)
+}
 func (p pulumiStateConverter) convertResource(resource Resource, template statetemplate.StateTemplate) (
 	*construct.Resource,
 	error,
@@ -69,6 +81,18 @@ func (p pulumiStateConverter) convertResource(resource Resource, template statet
 			properties[mapping] = v
 		}
 	}
+
+	//TODO: find a better way to handle subnet types
+	if id.QualifiedTypeName() == "aws:subnet" {
+		if rawCidr, ok := properties["CidrBlock"]; ok {
+			if cidr, ok := rawCidr.(string); ok && slices.Contains([]string{"10.0.0.0/18", "10.0.64.0/18"}, cidr) {
+				properties["Type"] = "public"
+			} else {
+				properties["Type"] = "private"
+			}
+		}
+	}
+
 	// Convert the keys to camel case
 	klothoResource := &construct.Resource{
 		ID:         id,

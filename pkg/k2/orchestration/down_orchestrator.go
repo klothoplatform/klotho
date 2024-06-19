@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +16,7 @@ type (
 	}
 
 	DownRequest struct {
-		StackReferences []pulumi.StackReference
+		StackReferences []stack.Reference
 		DryRun          bool
 	}
 )
@@ -57,7 +57,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
 			return err
 		}
-		err := pulumi.RunStackDown(ctx, ref)
+		err := stack.RunDown(ctx, ref)
 		if err != nil {
 			if err2 := sm.TransitionConstructState(&c, model.ConstructDeleteFailed); err != nil {
 				return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)

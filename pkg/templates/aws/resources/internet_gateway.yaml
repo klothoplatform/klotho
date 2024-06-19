@@ -11,6 +11,10 @@ properties:
         direction: downstream
         resources:
           - aws:vpc
+  Id:
+    type: string
+    configuration_disabled: true
+    deployTime: true
   aws:tags:
     type: model
 

@@ -1,4 +1,4 @@
-package pulumi
+package stack
 
 import (
 	"context"
@@ -17,14 +17,14 @@ import (
 	"go.uber.org/zap"
 )
 
-type StackReference struct {
+type Reference struct {
 	ConstructURN model.URN
 	Name         string
 	IacDirectory string
 	AwsRegion    string
 }
 
-func InitializeStack(projectName string, stackName string, stackDirectory string, ctx context.Context) (auto.Stack, error) {
+func Initialize(projectName string, stackName string, stackDirectory string, ctx context.Context) (auto.Stack, error) {
 	// PulumiHome customizes the location of $PULUMI_HOME where metadata is stored and plugins are installed.
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -64,25 +64,25 @@ func InitializeStack(projectName string, stackName string, stackDirectory string
 	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
 }
 
-func RunStackUp(ctx context.Context, stackReference StackReference) (auto.UpResult, StackState, error) {
+func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
-		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 	zap.S().Infof("Created/Selected stack %q\n", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "Failed to install dependencies")
+		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return auto.UpResult{}, StackState{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
 	zap.S().Info("Successfully set config")
@@ -96,20 +96,20 @@ func RunStackUp(ctx context.Context, stackReference StackReference) (auto.UpResu
 	)
 	if err != nil {
 		zap.S().Errorf("Failed to update stack: %v\n\n", err)
-		return upResult, StackState{}, errors2.WrapErrf(err, "Failed to update stack")
+		return upResult, State{}, errors2.WrapErrf(err, "Failed to update stack")
 	}
 
 	zap.S().Infof("Successfully deployed stack %s", stackName)
 
-	stackState, err := GetStackState(ctx, s)
+	stackState, err := GetState(ctx, s)
 	return upResult, stackState, err
 }
 
-func RunStackPreview(ctx context.Context, stackReference StackReference) (auto.PreviewResult, error) {
+func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResult, error) {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
 		return auto.PreviewResult{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
@@ -145,10 +145,10 @@ func RunStackPreview(ctx context.Context, stackReference StackReference) (auto.P
 	return previewResult, nil
 }
 
-func RunStackDown(ctx context.Context, stackReference StackReference) error {
+func RunDown(ctx context.Context, stackReference Reference) error {
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	s, err := InitializeStack("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
 	if err != nil {
 		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}

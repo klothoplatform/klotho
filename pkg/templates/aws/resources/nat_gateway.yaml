@@ -27,6 +27,10 @@ properties:
         selection_operator: spread
     description: The subnet in which to deploy the NAT Gateway. The subnet must be
       a public subnet.
+  Id:
+    type: string
+    configuration_disabled: true
+    deployTime: true
   aws:tags:
     type: model
 

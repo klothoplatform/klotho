@@ -16,7 +16,8 @@ class ContainerArgs:
                  context: Optional[Input[str]] = None,
                  dockerfile: Optional[Input[str]] = None,
                  port: Optional[Input[int]] = None,
-                 network: Optional[Network] = None):
+                 network: Optional[Network] = None,
+                 enable_execute_command: Optional[Input[bool]] = None):
         set(self, "image", image)
         if source_hash is not None:
             set(self, "source_hash", source_hash)
@@ -32,6 +33,8 @@ class ContainerArgs:
             set(self, "port", port)
         if network is not None:
             set(self, "network", network)
+        if enable_execute_command is not None:
+            set(self, "enable_execute_command", enable_execute_command)
 
     @property
     def image(self) -> Input[str]:
@@ -97,6 +100,14 @@ class ContainerArgs:
     def network(self, value: Optional[Network]) -> None:
         set(self, "network", value)
 
+    @property
+    def enable_execute_command(self) -> Optional[Input[bool]]:
+        return get(self, "enable_execute_command")
+
+    @enable_execute_command.setter
+    def enable_execute_command(self, value: Optional[Input[bool]]) -> None:
+        set(self, "enable_execute_command", value)
+
 
 class Container(Construct):
 
@@ -116,6 +127,7 @@ class Container(Construct):
             dockerfile: Optional[Input[str]] = None,
             port: Optional[Input[int]] = None,
             network: Optional[Network] = None,
+            enable_execute_command: Optional[Input[bool]] = None,
             opts: Optional[ConstructOptions] = None):
         ...
 
@@ -138,7 +150,7 @@ class Container(Construct):
             dockerfile: Optional[Input[str]] = None,
             port: Optional[Input[int]] = None,
             network: Optional[Network] = None,
-    ):
+            enable_execute_command: Optional[Input[bool]] = None):
         if network is None:
             network = get_default_construct("aws", Network)
 
@@ -153,7 +165,8 @@ class Container(Construct):
                 "Context": context,
                 "Dockerfile": dockerfile,
                 "Port": port,
-                "Network": network
+                "Network": network,
+                "EnableExecuteCommand": enable_execute_command
             },
             opts=opts,
         )

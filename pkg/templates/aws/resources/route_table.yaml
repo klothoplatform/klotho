@@ -29,6 +29,10 @@ properties:
         description: A reference to an internet gateway resource to which traffic
           is directed.
     description: Defines a list of routing rules for directing network traffic.
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
   aws:tags:
     type: model
 

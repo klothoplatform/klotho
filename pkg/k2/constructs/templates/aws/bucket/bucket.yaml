@@ -28,6 +28,6 @@ outputs:
   BucketName:
     description: The name of the S3 bucket
     value: ${resources:Bucket#BucketName}
-  FixedValue:
-    description: A fixed value
-    value: some fixed value ${resources:Bucket.Name}
+  BucketArn:
+    description: The Amazon Resource Name (ARN) of the S3 bucket
+    value: ${stack:Bucket.arn}

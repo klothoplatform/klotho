@@ -1,0 +1,8 @@
+qualified_type_name: aws:route_table
+iac_qualified_type: aws:ec2/routeTable:RouteTable
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags
+  vpcId: Vpc#Id

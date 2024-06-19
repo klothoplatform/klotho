@@ -34,7 +34,7 @@ class Output(Generic[T_co]):
             self._value = value.value
             self._is_resolved = value.is_resolved
         self._value = value
-        self._is_resolved = False
+        self._is_resolved = value is not None
         self.callback = callback
 
         runtime.output_references[self.id] = self
@@ -71,7 +71,13 @@ class Output(Generic[T_co]):
 
     @staticmethod
     def all(outputs: list["Output[T_co]"], callback: Callable[..., T_co] = None) -> "Output[T_co]":
-        def run(*values: T_co) -> T_co:
+        """
+        Creates a new Output that represents the output of applying a callback function to the list of given outputs.
+        :param outputs:
+        :param callback:
+        :return: The new Output
+        """
+        def run(*values: T) -> T:
             return callback(*values)
 
         return Output({
@@ -79,3 +85,17 @@ class Output(Generic[T_co]):
             *[dep for output in outputs for dep in output.depends_on]
         }
             , None, None, run)
+
+    @classmethod
+    def concat(cls, *args: "Input[str]") -> "Output[str]":
+        """
+        Concatenates the string representations of all the given inputs.
+        :param args: The inputs to concatenate.
+        :return: A new Output representing the concatenated string.
+                """
+        inputs = [arg if isinstance(arg, Output) else Output(set(), None, arg) for arg in args]
+
+        def run(*values: str) -> str:
+            return "".join(values)
+
+        return cls.all(inputs, run)

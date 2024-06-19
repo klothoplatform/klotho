@@ -147,7 +147,10 @@ func up(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	o := orchestration.NewUpOrchestrator(sm, client, appDir)
+	o, err := orchestration.NewUpOrchestrator(sm, client, appDir)
+	if err != nil {
+		return fmt.Errorf("error creating up orchestrator: %w", err)
+	}
 
 	err = o.RunUpCommand(ctx, ir, commonCfg.dryRun)
 	if err != nil {

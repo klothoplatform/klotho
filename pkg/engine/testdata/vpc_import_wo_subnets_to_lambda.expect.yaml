@@ -78,12 +78,12 @@ resources:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-image-ecr_repo
     aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table:
-        RouteTable: aws:route_table:vpc:lambda_function-vpc-route_table
-        Subnet: aws:subnet:vpc:lambda_function-vpc
+        RouteTableId: aws:route_table:vpc:lambda_function-vpc-route_table#Id
+        SubnetId: aws:subnet:vpc:lambda_function-vpc#Id
     aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:route_table_association:subnet-1-subnet-1-route_table:
-        RouteTable: aws:route_table:vpc:subnet-1-route_table
-        Subnet: aws:subnet:vpc:subnet-1
+        RouteTableId: aws:route_table:vpc:subnet-1-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-1#Id
     aws:route_table:vpc:lambda_function-vpc-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -150,14 +150,14 @@ resources:
         Index: 0
         Region: aws:region:region-0
     aws:route_table_association:subnet-2-subnet-2-route_table:
-        RouteTable: aws:route_table:vpc:subnet-2-route_table
-        Subnet: aws:subnet:vpc:subnet-2
+        RouteTableId: aws:route_table:vpc:subnet-2-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-2#Id
     aws:availability_zone:region-0:availability_zone-1:
         Index: 1
         Region: aws:region:region-0
     aws:route_table_association:subnet-3-subnet-3-route_table:
-        RouteTable: aws:route_table:vpc:subnet-3-route_table
-        Subnet: aws:subnet:vpc:subnet-3
+        RouteTableId: aws:route_table:vpc:subnet-3-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-3#Id
     aws:route_table:vpc:subnet-2-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0

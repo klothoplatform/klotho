@@ -1,0 +1,9 @@
+qualified_type_name: aws:nat_gateway
+iac_qualified_type: aws:ec2/natGateway:NatGateway
+
+property_mappings:
+  arn: Arn
+  id: Id
+  allocationId: ElasticIp#Id
+  subnetId: Subnet#Id
+  tags: Tags

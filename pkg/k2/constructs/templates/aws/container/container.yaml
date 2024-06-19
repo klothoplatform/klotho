@@ -2,52 +2,35 @@ id: klotho.aws.Container
 version: 1.0.0
 description: A construct for creating a docker container from an image or Dockerfile
 resources:
-  RestApi:
-    type: aws:rest_api
-    name: ${inputs:Name}-api
-  RootApiMethod:
-    type: aws:api_method
-    namespace: ${resources:RestApi.Name}
-    name: root-method
+  LoadBalancer:
+    type: aws:load_balancer
+    name: ${inputs:Name}-lb
     properties:
-      HttpMethod: ANY
-  RootApiIntegration:
-    type: aws:api_integration
-    namespace: ${resources:RestApi.Name}
-    name: root-integration
+      Type: network
+      Scheme: internet-facing
+      Subnets:
+        - ${inputs:Network.Resources.PublicSubnet1}
+        - ${inputs:Network.Resources.PublicSubnet2}
+  Listener:
+    type: aws:load_balancer_listener
+    namespace: ${resources:LoadBalancer.Name}
+    name: ${inputs:Name}-listener
     properties:
-      Method: ${resources:RootApiMethod}
-      Route: /
-  ProxyApiMethod:
-    type: aws:api_method
-    namespace: ${resources:RestApi.Name}
-    name: proxy-any-method
-    properties:
-      HttpMethod: ANY
-  ProxyApiIntegration:
-    type: aws:api_integration
-    namespace: ${resources:RestApi.Name}
-    name: proxy-any-integration
-    properties:
-      Method: ${resources:ProxyApiMethod}
-      Route: /{proxy+}
-  EcrImage:
-    type: aws:ecr_image
-    name: ${inputs:Name}-image
-    properties:
-      BaseImage: busybox
+      LoadBalancer: ${resources:LoadBalancer}
+      Port: 80
+      Protocol: TCP
   TaskDefinition:
     type: aws:ecs_task_definition
     name: ${inputs:Name}-task
     properties:
       Cpu: ${inputs:Cpu}
       Memory: ${inputs:Memory}
-      ContainerDefinitions[0].PortMappings[0]:
-        ContainerPort: ${inputs:Port}
-        HostPort: ${inputs:Port}
+      ContainerDefinitions[0].PortMappings:
+        -  ContainerPort: ${inputs:Port}
+           HostPort: ${inputs:Port}
+           Protocol: TCP
       ContainerDefinitions[0].Cpu: ${inputs:Cpu}
       ContainerDefinitions[0].Memory: ${inputs:Memory}
-      ContainerDefinitions[0].Image: ${resources:EcrImage#ImageName}
       RequiresCompatibilities:
        - FARGATE
   Service:
@@ -57,24 +40,24 @@ resources:
       LaunchType: FARGATE
       TaskDefinition: ${resources:TaskDefinition}
       LoadBalancers[0].ContainerPort: ${inputs:Port}
+      EnableExecuteCommand: ${inputs:EnableExecuteCommand}
+
+  TargetGroup:
+    type: aws:target_group
+    name: ${inputs:Name}-tg
+    properties:
+      Port: ${inputs:Port}
+      Protocol: TCP
+      Vpc: ${inputs:Network.Resources.Vpc}
 
 edges:
-  - from: RestApi
-    to: ProxyApiIntegration
+  - from: Listener
+    to: TargetGroup
 
-  - from: ProxyApiMethod
-    to: ProxyApiIntegration
-
-  - from: ProxyApiIntegration
+  - from: LoadBalancer
     to: Service
 
-  - from: RestApi
-    to: RootApiIntegration
-
-  - from: RootApiMethod
-    to: RootApiIntegration
-
-  - from: RootApiIntegration
+  - from: TargetGroup
     to: Service
 
 inputs:
@@ -91,6 +74,11 @@ inputs:
     validation:
       minimum: 1
       maximum: 4096
+  EnableExecuteCommand:
+    name: Enable Execute Command
+    description: Whether to enable the execute command functionality for the container
+    type: boolean
+    default: false
   Memory:
     name: Memory
     description: The amount of memory to allocate to the container
@@ -136,19 +124,23 @@ inputs:
     type: Construct<klotho.aws.Network>
 
 input_rules:
-  - if: and (inputs "Dockerfile") (not (inputs "Image"))
+  - if: '{{ and (inputs "Dockerfile") (not (inputs "Image")) }}'
     then:
       resources:
         EcrImage:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
           properties:
-            ImageName: ${inputs:Name}
             Dockerfile: ${inputs:Dockerfile}
             Context: ${inputs:Context}
+        TaskDefinition:
+          properties:
+            ContainerDefinitions[0].Image: ${resources:EcrImage#ImageName}
     else:
       resources:
-        EcrImage:
+        TaskDefinition:
           properties:
-            ImageName: ${inputs:Image}
+            ContainerDefinitions[0].Image: ${inputs:Image}
 
 outputs:
   TestValue:

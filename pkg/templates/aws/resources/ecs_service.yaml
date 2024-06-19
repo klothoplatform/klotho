@@ -314,7 +314,7 @@ consumption:
 
 path_satisfaction:
   as_target:
-    - network
+    - network#SecurityGroups
     - service_discovery
   as_source:
     - network#Subnets

@@ -7,10 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/pulumi"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 )
 
@@ -43,9 +42,8 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	return o.infraGenerator, nil
 }
 
-// Shared and helper functions
-func (o *Orchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (pulumi.StackReference, error) {
-	constructOutDir := filepath.Join(o.OutputDirectory, constructUrn.ResourceID)
+func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
+	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
 	c := state.Constructs[constructUrn.ResourceID]
 	inputs := make(map[string]any)
 	var merr multierr.Error
@@ -57,29 +55,26 @@ func (o *Orchestrator) EvaluateConstruct(ctx context.Context, state model.State,
 		inputs[k] = v.Value
 	}
 	if len(merr) > 0 {
-		return pulumi.StackReference{}, merr.ErrOrNil()
+		return stack.Reference{}, merr.ErrOrNil()
 	}
 
 	urn := *c.URN
-	constructEvaluator, err := constructs.NewConstructEvaluator(urn, inputs, state)
+
+	cs, err := uo.ConstructEvaluator.Evaluate(urn)
 	if err != nil {
-		return pulumi.StackReference{}, fmt.Errorf("error creating construct evaluator: %w", err)
+		return stack.Reference{}, err
 	}
-	_, cs, err := constructEvaluator.Evaluate()
+	ig, err := uo.InfraGenerator()
 	if err != nil {
-		return pulumi.StackReference{}, fmt.Errorf("error evaluating construct: %w", err)
-	}
-	ig, err := o.InfraGenerator()
-	if err != nil {
-		return pulumi.StackReference{}, fmt.Errorf("error getting infra generator: %w", err)
+		return stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
 	}
 
 	err = ig.Run(ctx, cs, constructOutDir)
 	if err != nil {
-		return pulumi.StackReference{}, fmt.Errorf("error running infra generator: %w", err)
+		return stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
 	}
 
-	return pulumi.StackReference{
+	return stack.Reference{
 		ConstructURN: urn,
 		Name:         urn.ResourceID,
 		IacDirectory: constructOutDir,

@@ -233,8 +233,8 @@ resources:
         Type: public
         Vpc: aws:vpc:vpc-0
     aws:route_table_association:subnet-2-subnet-2-route_table:
-        RouteTable: aws:route_table:vpc-0:subnet-2-route_table
-        Subnet: aws:subnet:vpc-0:subnet-2
+        RouteTableId: aws:route_table:vpc-0:subnet-2-route_table#Id
+        SubnetId: aws:subnet:vpc-0:subnet-2#Id
     aws:route_table:vpc-0:subnet-2-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -268,8 +268,8 @@ resources:
         Type: public
         Vpc: aws:vpc:vpc-0
     aws:route_table_association:subnet-3-subnet-3-route_table:
-        RouteTable: aws:route_table:vpc-0:subnet-3-route_table
-        Subnet: aws:subnet:vpc-0:subnet-3
+        RouteTableId: aws:route_table:vpc-0:subnet-3-route_table#Id
+        SubnetId: aws:subnet:vpc-0:subnet-3#Id
     aws:route_table:vpc-0:subnet-3-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -324,11 +324,11 @@ resources:
         Type: private
         Vpc: aws:vpc:vpc-0
     aws:route_table_association:subnet-0-subnet-0-route_table:
-        RouteTable: aws:route_table:vpc-0:subnet-0-route_table
-        Subnet: aws:subnet:vpc-0:subnet-0
+        RouteTableId: aws:route_table:vpc-0:subnet-0-route_table#Id
+        SubnetId: aws:subnet:vpc-0:subnet-0#Id
     aws:route_table_association:subnet-1-subnet-1-route_table:
-        RouteTable: aws:route_table:vpc-0:subnet-1-route_table
-        Subnet: aws:subnet:vpc-0:subnet-1
+        RouteTableId: aws:route_table:vpc-0:subnet-1-route_table#Id
+        SubnetId: aws:subnet:vpc-0:subnet-1#Id
     aws:security_group:vpc-0:rds-instance-2-security_group:
         EgressRules:
             - CidrBlocks:
