@@ -19,7 +19,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
-	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
@@ -30,7 +29,8 @@ import (
 
 type (
 	EngineMain struct {
-		Engine *Engine
+		Engine  *Engine
+		cleanup func()
 	}
 )
 
@@ -58,7 +58,7 @@ var getValidEdgeTargetsCfg struct {
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
-	clicommon.SetupRoot(root, &commonCfg)
+	em.cleanup = clicommon.SetupRoot(root, &commonCfg)
 
 	engineGroup := &cobra.Group{
 		ID:    "engine",
@@ -92,6 +92,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		GroupID: engineGroup.ID,
 		Run: func(cmd *cobra.Command, args []string) {
 			exitCode := em.RunEngine(cmd, args)
+			em.cleanup()
 			os.Exit(exitCode)
 		},
 	}
@@ -125,7 +126,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 }
 
 func (em *EngineMain) AddEngine() error {
-	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+	kb, err := templates.NewKBFromTemplates()
 	if err != nil {
 		return err
 	}

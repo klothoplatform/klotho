@@ -1,6 +1,7 @@
 package cleanup
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,8 +29,9 @@ func Execute(signal syscall.Signal) error {
 	return merr.ErrOrNil()
 }
 
-func InitializeHandler() {
-	// Set up signal handling
+func InitializeHandler(ctx context.Context) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
@@ -41,8 +43,9 @@ func InitializeHandler() {
 		if err != nil {
 			zap.S().Errorf("Error running executing cleanup: %v", err)
 		}
-		os.Exit(1)
+		cancel()
 	}()
+	return ctx
 }
 
 func SignalProcessGroup(pid int, signal syscall.Signal) {

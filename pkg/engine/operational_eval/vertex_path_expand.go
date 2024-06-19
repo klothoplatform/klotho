@@ -370,7 +370,13 @@ func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([
 		}
 		if expansion.SatisfactionEdge.Source != edge.Source || expansion.SatisfactionEdge.Target != edge.Target {
 			simple := construct.SimpleEdge{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID}
-			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification, requireFullBuild)
+			tempGraph, err := path_selection.BuildPathSelectionGraph(
+				runner.Eval.Solution.Context(),
+				simple,
+				eval.Solution.KnowledgeBase(),
+				expansion.Classification,
+				requireFullBuild,
+			)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
 				continue

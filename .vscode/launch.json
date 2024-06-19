@@ -97,7 +97,8 @@
             "env": {
                 "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}",
                 "AWS_REGION": "${env:AWS_REGION}",
-            }
+            },
+            "console": "integratedTerminal"
         },
         {
             "name": "Python Debugger: Attach",

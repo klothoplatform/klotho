@@ -111,7 +111,13 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 		var tempGraph construct.Graph
 		if buildTempGraph {
 			var err error
-			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification, !requireFullBuild)
+			tempGraph, err = path_selection.BuildPathSelectionGraph(
+				eval.Solution.Context(),
+				edge,
+				kb,
+				satisfication.Classification,
+				!requireFullBuild,
+			)
 			if err != nil {
 				return fmt.Errorf("could not build temp graph for %s: %w", edge, err)
 			}

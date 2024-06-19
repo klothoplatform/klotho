@@ -41,9 +41,9 @@ type (
 //
 // This is used to determine (on a best-effort basis) if an edge can be expanded
 // without fully solving the graph (which is expensive).
-func (e *Engine) EdgeCanBeExpanded(ctx *engineSolution, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
+func (e *Engine) EdgeCanBeExpanded(sol *engineSolution, source construct.ResourceId, target construct.ResourceId) (result bool, cacheable bool, err error) {
 	cacheable = true
-	edgeExpander := path_selection.EdgeExpand{Ctx: ctx}
+	edgeExpander := path_selection.EdgeExpand{Ctx: sol}
 
 	if source.Matches(target) {
 		return false, cacheable, nil
@@ -77,14 +77,14 @@ func (e *Engine) EdgeCanBeExpanded(ctx *engineSolution, source construct.Resourc
 
 		if satisfaction.Source.PropertyReference != "" {
 			cacheable = false
-			sourceReferencedResources, err = solution.GetResourcesFromPropertyReference(ctx, source, satisfaction.Source.PropertyReference)
+			sourceReferencedResources, err = solution.GetResourcesFromPropertyReference(sol, source, satisfaction.Source.PropertyReference)
 			if len(sourceReferencedResources) == 0 || err != nil {
 				continue // ignore satisfaction if we can't resolve the property reference
 			}
 		}
 		if satisfaction.Target.PropertyReference != "" {
 			cacheable = false
-			targetReferencedResources, err = solution.GetResourcesFromPropertyReference(ctx, target, satisfaction.Target.PropertyReference)
+			targetReferencedResources, err = solution.GetResourcesFromPropertyReference(sol, target, satisfaction.Target.PropertyReference)
 			if len(targetReferencedResources) == 0 || err != nil {
 				continue // ignore satisfaction if we can't resolve the property reference
 			}
@@ -100,10 +100,11 @@ func (e *Engine) EdgeCanBeExpanded(ctx *engineSolution, source construct.Resourc
 		}
 
 		tempGraph, err := path_selection.BuildPathSelectionGraph(
+			sol.Context(),
 			construct.SimpleEdge{
 				Source: tempSource,
 				Target: tempTarget,
-			}, ctx.KnowledgeBase(), classification, false)
+			}, sol.KnowledgeBase(), classification, false)
 		if err != nil {
 			return false, cacheable, err
 		}

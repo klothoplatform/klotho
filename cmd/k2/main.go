@@ -6,6 +6,8 @@ import (
 	"syscall"
 
 	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"go.uber.org/zap"
 
 	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	"github.com/spf13/cobra"
@@ -18,7 +20,6 @@ var commonCfg struct {
 
 func cli() {
 	// Set up signal and panic handling to ensure cleanup is executed
-	cleanup.InitializeHandler()
 	defer func() {
 		if r := recover(); r != nil {
 			_ = cleanup.Execute(syscall.SIGTERM)
@@ -26,8 +27,19 @@ func cli() {
 		}
 	}()
 
-	var rootCmd = &cobra.Command{Use: "app"}
-	clicommon.SetupRoot(rootCmd, &commonCfg.CommonConfig)
+	var rootCmd = &cobra.Command{
+		Use: "app",
+	}
+	clean := clicommon.SetupRoot(rootCmd, &commonCfg.CommonConfig)
+	defer clean()
+
+	pre := rootCmd.PersistentPreRun
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		cmd.SetContext(cleanup.InitializeHandler(cmd.Context()))
+		cmd.SilenceErrors = true
+		pre(cmd, args)
+	}
+
 	flags := rootCmd.PersistentFlags()
 	flags.BoolVarP(&commonCfg.dryRun, "dry-run", "n", false, "Dry run")
 
@@ -72,7 +84,8 @@ func cli() {
 	rootCmd.AddCommand(irCommand)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		logging.GetLogger(rootCmd.Context()).With(zap.Error(err)).Error("Failed to execute command")
+		clean()
 		os.Exit(1)
 	}
 }

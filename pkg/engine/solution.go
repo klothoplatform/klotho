@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -36,7 +37,7 @@ func NewSolution(ctx context.Context, kb knowledgebase.TemplateKB, globalTag str
 	sol := &engineSolution{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
-			Log:   zap.L().With(zap.String("graph", "dataflow")).Sugar(),
+			Log:   logging.GetLogger(ctx).With(zap.String("graph", "dataflow")).Sugar(),
 			Graph: construct.NewGraph(),
 			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
 		},

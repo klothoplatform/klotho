@@ -36,7 +36,7 @@ func (f *ServerAddress) Write(b []byte) (int, error) {
 	if len(matches) >= 2 {
 		// address is the first match
 		f.Address = matches[1]
-		f.Log.Infof("Found language host listening on %s", f.Address)
+		f.Log.Debugf("Found language host listening on %s", f.Address)
 		close(f.HasAddr)
 	}
 
@@ -81,7 +81,11 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 
 	cmd := logging.Command(
 		ctx,
-		logging.CommandLogger{RootLogger: log.Desugar().Named("python")},
+		logging.CommandLogger{
+			RootLogger:  log.Desugar().Named("python"),
+			StdoutLevel: zap.DebugLevel,
+			StderrLevel: zap.DebugLevel,
+		},
 		"pipenv", args...,
 	)
 
@@ -101,7 +105,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("failed to start Python client: %v", err)
 	}
-	log.Info("Python client started")
+	log.Debug("Python client started")
 
 	go func() {
 		err := cmd.Wait()

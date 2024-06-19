@@ -1,6 +1,7 @@
 package path_selection
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -9,7 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
-	"go.uber.org/zap"
+	"github.com/klothoplatform/klotho/pkg/logging"
 )
 
 // PHANTOM_PREFIX deliberately uses an invalid character so if it leaks into an actual input/output, it will
@@ -19,12 +20,14 @@ const GLUE_WEIGHT = 100
 const FUNCTIONAL_WEIGHT = 100000
 
 func BuildPathSelectionGraph(
+	ctx context.Context,
 	dep construct.SimpleEdge,
 	kb knowledgebase.TemplateKB,
 	classification string,
 	ignoreDirectEdge bool,
 ) (construct.Graph, error) {
-	zap.S().Debugf("Building path selection graph for %s", dep)
+	log := logging.GetLogger(ctx).Sugar()
+	log.Debugf("Building path selection graph for %s", dep)
 	tempGraph := construct.NewAcyclicGraph(graph.Weighted())
 
 	// Check to see if there is a direct edge which satisfies the classification and if so short circuit in building the temp graph
@@ -69,7 +72,7 @@ func BuildPathSelectionGraph(
 			dep, err,
 		)
 	}
-	zap.S().Debugf("Found %d paths %s", len(paths), dep)
+	log.Debugf("Found %d paths %s", len(paths), dep)
 	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Source})
 	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
@@ -131,7 +134,7 @@ func BuildPathSelectionGraph(
 			prevRes = id
 		}
 	}
-	zap.S().Debugf("Found %d paths for %s :: %s", satisfied_paths, dep, classification)
+	log.Debugf("Found %d paths for %s :: %s", satisfied_paths, dep, classification)
 
 	return tempGraph, nil
 }

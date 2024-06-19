@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,11 +60,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	}
 	log := logging.GetLogger(ctx).Sugar()
 
-	log.Infof("Pending Actions:")
-	for k, v := range actions {
-		log.Infof("%s: %s", k.String(), v)
-	}
-
 	var cs []model.ConstructState
 	constructState := uo.StateManager.GetState().Constructs
 	for cURN := range actions {
@@ -73,6 +69,15 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	deployOrder, err := sortConstructsByDependency(cs, actions)
 	if err != nil {
 		return fmt.Errorf("failed to determine deployment order: %w", err)
+	}
+
+	for _, group := range deployOrder {
+		for _, cURN := range group {
+			action := actions[cURN]
+			ctx := ConstructContext(ctx, cURN)
+			prog := tui.GetProgress(ctx)
+			prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
+		}
 	}
 
 	sm := uo.StateManager
@@ -174,6 +179,8 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				return fmt.Errorf("error registering resolved output values: %w", err)
 			}
 
+			prog := tui.GetProgress(ctx)
+			prog.Complete("Success")
 		}
 	}
 	return err

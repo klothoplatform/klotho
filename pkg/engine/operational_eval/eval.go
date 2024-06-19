@@ -14,11 +14,24 @@ import (
 	"go.uber.org/zap"
 )
 
+func (eval *Evaluator) updateSolveProgress() error {
+	prog := tui.GetProgress(eval.Solution.Context())
+
+	size, err := eval.unevaluated.Order()
+	if err != nil {
+		return err
+	}
+	totalSize, err := eval.graph.Order()
+	if err != nil {
+		return err
+	}
+	prog.Update("Solving", totalSize-size, totalSize)
+	return nil
+}
+
 func (eval *Evaluator) Evaluate() error {
 	defer eval.writeGraph("property_deps")
 	defer eval.writeExecOrder()
-
-	prog := tui.GetProgress(eval.Solution.Context())
 
 	for {
 		size, err := eval.unevaluated.Order()
@@ -27,10 +40,6 @@ func (eval *Evaluator) Evaluate() error {
 		}
 		if size == 0 {
 			return nil
-		}
-		totalSize, err := eval.graph.Order()
-		if err != nil {
-			return err
 		}
 
 		// add to evaluatedOrder so that in popReady it has the correct group number
@@ -77,8 +86,9 @@ func (eval *Evaluator) Evaluate() error {
 			} else {
 				props.Attributes[attribDuration] = duration.String()
 			}
-			size--
-			prog.Update("Solving", totalSize-size, totalSize)
+			if err := eval.updateSolveProgress(); err != nil {
+				return err
+			}
 		}
 		log.Debugf("Completed group in %s", time.Since(groupStart))
 		if errs != nil {

@@ -18,35 +18,27 @@ type LogOpts struct {
 	DefaultLevels   map[string]zapcore.Level
 }
 
-func (opts LogOpts) NewLogger() *zap.Logger {
-	var enc zapcore.Encoder
-	leveller := zap.NewAtomicLevel()
+func (opts LogOpts) Encoder() zapcore.Encoder {
 	switch opts.Encoding {
 	case "json":
 		if opts.Verbose {
-			enc = zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+			return zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 		} else {
-			enc = zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+			return zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
 		}
 	case "console", "pretty_console", "":
 		cfg := prettyconsole.NewEncoderConfig()
 		cfg.SkipLineEnding = true
 		cfg.EncodeTime = TimeOffsetFormatter(time.Now())
-		enc = prettyconsole.NewEncoder(cfg)
+		return prettyconsole.NewEncoder(cfg)
 	default:
 		panic(fmt.Errorf("unknown encoding %q", opts.Encoding))
 	}
-	if opts.Verbose {
-		leveller.SetLevel(zap.DebugLevel)
-	} else {
-		leveller.SetLevel(zap.InfoLevel)
-	}
+}
 
-	core := zapcore.NewCore(enc, os.Stderr, leveller)
-
+func (opts LogOpts) EntryLeveller(core zapcore.Core) zapcore.Core {
 	levels := opts.DefaultLevels
-	levelEnv, ok := os.LookupEnv("LOG_LEVEL")
-	if ok {
+	if levelEnv, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		values := strings.Split(levelEnv, ",")
 		levels = make(map[string]zapcore.Level, len(values))
 		for _, v := range values {
@@ -62,9 +54,13 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 		}
 	}
 
-	if levels != nil {
+	if len(levels) > 0 {
 		core = NewEntryLeveller(core, levels)
 	}
+	return core
+}
+
+func (opts LogOpts) CategoryCore(core zapcore.Core) zapcore.Core {
 	if opts.CategoryLogsDir != "" {
 		var categEnc zapcore.Encoder
 		switch opts.Encoding {
@@ -80,8 +76,27 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 			NewCategoryWriter(categEnc, opts.CategoryLogsDir),
 		)
 	}
+	return core
+}
 
-	return zap.New(core)
+func (opts LogOpts) NewCore(w zapcore.WriteSyncer) zapcore.Core {
+	enc := opts.Encoder()
+
+	leveller := zap.NewAtomicLevel()
+	if opts.Verbose {
+		leveller.SetLevel(zap.DebugLevel)
+	} else {
+		leveller.SetLevel(zap.InfoLevel)
+	}
+
+	core := zapcore.NewCore(enc, w, leveller)
+	core = opts.EntryLeveller(core)
+	core = opts.CategoryCore(core)
+	return core
+}
+
+func (opts LogOpts) NewLogger() *zap.Logger {
+	return zap.New(opts.NewCore(os.Stderr))
 }
 
 // TimeOffsetFormatter returns a time encoder that formats the time as an offset from the start time.

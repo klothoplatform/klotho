@@ -14,6 +14,7 @@ import (
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -68,7 +69,9 @@ func up(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	zap.L().Info("Waiting for Python server to start")
+	log := logging.GetLogger(cmd.Context()).Sugar()
+
+	log.Debug("Waiting for Python server to start")
 	if upConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
 		<-addr.HasAddr
