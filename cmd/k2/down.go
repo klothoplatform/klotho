@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
@@ -41,7 +42,13 @@ func down(cmd *cobra.Command, args []string) error {
 	env := args[3]
 
 	if downConfig.outputPath == "" {
-		(&downConfig).outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+		downConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+	}
+
+	debugDir := debug.GetDebugDir(cmd.Context())
+	if debugDir == "" {
+		debugDir = upConfig.outputPath
+		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
 	}
 
 	projectPath := filepath.Join(downConfig.outputPath, project, app, env)

@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/k2/language_host"
+
 	"go.uber.org/zap"
 
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
@@ -56,6 +58,13 @@ func up(cmd *cobra.Command, args []string) error {
 	if upConfig.outputPath == "" {
 		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 	}
+
+	debugDir := debug.GetDebugDir(cmd.Context())
+	if debugDir == "" {
+		debugDir = upConfig.outputPath
+		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
+	}
+
 	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{
 		Enabled: upConfig.debugMode != "",
 		Port:    upConfig.debugPort,

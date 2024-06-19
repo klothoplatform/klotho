@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/term"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/cobra"
@@ -109,31 +110,37 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 			tui.NewModel(int(commonCfg.verbose)),
 			tea.WithoutSignalHandler(),
 			tea.WithContext(root.Context()),
+			tea.WithOutput(os.Stderr),
 		)
-		log := zap.New(tui.NewLogCore(logOpts, int(commonCfg.verbose), prog))
-		zap.ReplaceGlobals(log)
-		go func() {
-			_, err := prog.Run()
-			if err != nil {
-				zap.S().With(zap.Error(err)).Error("TUI exited with error")
-			} else {
-				zap.S().Debug("TUI exited")
+		if term.IsTerminal(os.Stderr.Fd()) {
+			log := zap.New(tui.NewLogCore(logOpts, int(commonCfg.verbose), prog))
+			zap.ReplaceGlobals(log)
+			go func() {
+				_, err := prog.Run()
+				if err != nil {
+					zap.S().With(zap.Error(err)).Error("TUI exited with error")
+				} else {
+					zap.S().Debug("TUI exited")
+				}
+			}()
+			go func() {
+				<-cmd.Context().Done()
+				zap.S().Debug("Shutting down TUI due to context closure")
+				prog.Quit()
+			}()
+			zap.S().Debug("Starting TUI")
+			cmd.SetContext(tui.WithProgram(cmd.Context(), prog))
+			tuiClose = func() {
+				zap.L().Debug("Shutting down TUI")
+				prog.Quit()
+				prog.Wait()
 			}
-		}()
-		go func() {
-			<-cmd.Context().Done()
-			zap.S().Debug("Shutting down TUI due to context closure")
-			prog.Quit()
-		}()
-		zap.S().Debug("Starting TUI")
-		cmd.SetContext(tui.WithProgram(cmd.Context(), prog))
+		} else {
+			log := logOpts.NewLogger()
+			zap.ReplaceGlobals(log)
+		}
 
 		profileClose = setupProfiling(commonCfg)
-		tuiClose = func() {
-			zap.L().Debug("Shutting down TUI")
-			prog.Quit()
-			prog.Wait()
-		}
 	}
 
 	return func() {
