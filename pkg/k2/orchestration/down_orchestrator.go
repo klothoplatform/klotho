@@ -46,7 +46,6 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 	}()
 
-	// Create a map to cache stack references
 	stackRefCache := make(map[string]stack.Reference)
 
 	actions := make(map[model.URN]model.ConstructActionType)
@@ -60,14 +59,14 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 		constructsToDelete = append(constructsToDelete, c)
 
-		// Cache the stack reference
+		// Cache the stack reference for later use outside this loop
 		stackRefCache[ref.ConstructURN.ResourceID] = ref
 
-		// Set all actions to ConstructActionDelete
 		actions[*c.URN] = model.ConstructActionDelete
 	}
 
-	// Sort constructs by reverse deployment order
+	// sorConstructsByDependency returns the result in deploy order
+	// so we'll reverse the resulting slice to get the delete order
 	deleteOrder, err := sortConstructsByDependency(constructsToDelete, actions)
 	if err != nil {
 		return fmt.Errorf("failed to determine deployment order: %w", err)
@@ -89,6 +88,10 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}
 			ctx := ConstructContext(ctx, *construct.URN)
+
+			// All resources need to be deleted so they have to start in a delete pending state initially.
+			// This is a bit awkward since we have to transition twice, but these states are used at different
+			// times for things like the up command
 			if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
 				return err
 			}
@@ -96,7 +99,6 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				return err
 			}
 
-			// Retrieve the stack reference from the cache
 			stackRef := stackRefCache[construct.URN.ResourceID]
 
 			err := stack.RunDown(ctx, stackRef)
