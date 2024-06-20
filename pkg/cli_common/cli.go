@@ -35,6 +35,7 @@ func (f *verbosityFlag) Set(s string) error {
 			return err
 		}
 		*f = verbosityFlag(l)
+		return nil
 	}
 	if v {
 		*f++
@@ -101,6 +102,7 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 				"engine.opeval": zap.WarnLevel,
 				"dot":           zap.WarnLevel,
 				"npm":           zap.WarnLevel,
+				"pulumi.events": zap.WarnLevel,
 			},
 		}
 		if commonCfg.jsonLog {

@@ -2,6 +2,7 @@ package stack
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -66,7 +67,6 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 }
 
 func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
-	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
@@ -90,11 +90,11 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 	}
 
 	log.Debug("Starting update")
-	prog.UpdateIndeterminate("Deploying stack") // TODO how to measure pulumi up progress
 
 	upResult, err := s.Up(
 		ctx,
 		optup.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.up"), zap.InfoLevel)),
+		optup.EventStreams(Events(ctx, "Deploying")),
 		optup.Refresh(),
 	)
 	if err != nil {
@@ -108,7 +108,6 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 }
 
 func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResult, error) {
-	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
@@ -132,11 +131,11 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 	}
 
 	log.Debug("Starting preview")
-	prog.UpdateIndeterminate("Previewing stack") // TODO how to measure pulumi preview progress
 
 	previewResult, err := s.Preview(
 		ctx,
 		optpreview.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.preview"), zap.InfoLevel)),
+		optpreview.EventStreams(Events(ctx, "Previewing")),
 		optpreview.Refresh(),
 	)
 	if err != nil {
@@ -149,7 +148,6 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 }
 
 func RunDown(ctx context.Context, stackReference Reference) error {
-	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
@@ -168,14 +166,14 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 	}
 
 	log.Debug("Starting destroy")
-	prog.UpdateIndeterminate("Destroying stack") // TODO how to measure pulumi down progress
 
 	// wire up our destroy to stream progress to stdout
 	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.destroy"), zap.InfoLevel))
 	refresh := optdestroy.Refresh()
+	eventStream := optdestroy.EventStreams(Events(ctx, "Destroying"))
 
 	// run the destroy to remove our resources
-	_, err = s.Destroy(ctx, stdoutStreamer, refresh)
+	_, err = s.Destroy(ctx, stdoutStreamer, eventStream, refresh)
 	if err != nil {
 		return errors2.WrapErrf(err, "Failed to destroy stack")
 	}
@@ -194,15 +192,18 @@ func InstallDependencies(ctx context.Context, stackDirectory string) error {
 	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
 	log.Debugf("Installing pulumi dependencies in %s", stackDirectory)
-	prog.UpdateIndeterminate("Pulumi dependencies") // TODO how to measure npm install progress
+	prog.UpdateIndeterminate("Installing pulumi packages")
 	npmCmd := logging.Command(
 		ctx,
 		logging.CommandLogger{
 			RootLogger:  log.Desugar().Named("npm"),
 			StdoutLevel: zap.DebugLevel,
 		},
-		"npm", "install",
+		"npm", "install", "--loglevel", "silly", "--no-fund", "--no-audit",
 	)
+	npmProg := &NpmProgress{Progress: prog}
+	npmCmd.Stdout = io.MultiWriter(npmCmd.Stdout, npmProg)
+	npmCmd.Stderr = io.MultiWriter(npmCmd.Stderr, npmProg)
 	npmCmd.Dir = stackDirectory
 	return npmCmd.Run()
 }

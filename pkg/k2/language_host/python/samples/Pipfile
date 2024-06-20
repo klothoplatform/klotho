@@ -7,7 +7,7 @@ name = "pypi"
 klotho = {file = ".."}
 
 [dev-packages]
+debugpy = "*"
 
 [requires]
 python_version = "3.12"
-python_full_version = "3.12.4"
