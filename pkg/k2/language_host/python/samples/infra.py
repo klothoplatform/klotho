@@ -19,7 +19,7 @@ app = klotho.Application(
 )
 
 # Create a Container resource
-# container = aws.Container('my-container', image="my-image:latest")
+container = aws.Container('my-container', image="my-image:latest")
 
 # Create a Bucket resource
 bucket = aws.Bucket(

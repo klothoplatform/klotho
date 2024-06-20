@@ -1,6 +1,7 @@
 package path_selection
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -89,6 +90,7 @@ func TestBuildPathSelectionGraph(t *testing.T) {
 				Return((*knowledgebase.EdgeTemplate)(nil))
 
 			got, err := BuildPathSelectionGraph(
+				context.Background(),
 				construct.SimpleEdge{Source: dep.Source, Target: dep.Target},
 				kb,
 				tt.args.classification,

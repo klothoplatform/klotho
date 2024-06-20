@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
 
@@ -59,7 +61,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 		err := stack.RunDown(ctx, ref)
 		if err != nil {
-			if err2 := sm.TransitionConstructState(&c, model.ConstructDeleteFailed); err != nil {
+			if err2 := sm.TransitionConstructState(&c, model.ConstructDeleteFailed); err2 != nil {
 				return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
 			}
 			return err
@@ -68,6 +70,8 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				return err
 			}
 		}
+		prog := tui.GetProgress(ctx)
+		prog.Complete("Success")
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -191,7 +192,7 @@ func (eval *Evaluator) EvalutedOrder() [][]Key {
 
 func (eval *Evaluator) Log() *zap.SugaredLogger {
 	if eval.log == nil {
-		eval.log = zap.S().Named("engine.opeval")
+		eval.log = logging.GetLogger(eval.Solution.Context()).Named("engine.opeval").Sugar()
 	}
 	return eval.log.With("group", len(eval.evaluatedOrder))
 }

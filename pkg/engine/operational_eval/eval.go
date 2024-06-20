@@ -10,12 +10,29 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
+
+func (eval *Evaluator) updateSolveProgress() error {
+	prog := tui.GetProgress(eval.Solution.Context())
+
+	size, err := eval.unevaluated.Order()
+	if err != nil {
+		return err
+	}
+	totalSize, err := eval.graph.Order()
+	if err != nil {
+		return err
+	}
+	prog.Update("Solving", totalSize-size, totalSize)
+	return nil
+}
 
 func (eval *Evaluator) Evaluate() error {
 	defer eval.writeGraph("property_deps")
 	defer eval.writeExecOrder()
+
 	for {
 		size, err := eval.unevaluated.Order()
 		if err != nil {
@@ -68,6 +85,9 @@ func (eval *Evaluator) Evaluate() error {
 				log.Errorf("failed to get properties for %s: %s", k, err)
 			} else {
 				props.Attributes[attribDuration] = duration.String()
+			}
+			if err := eval.updateSolveProgress(); err != nil {
+				return err
 			}
 		}
 		log.Debugf("Completed group in %s", time.Since(groupStart))

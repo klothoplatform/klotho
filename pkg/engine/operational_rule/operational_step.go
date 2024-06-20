@@ -10,6 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 )
 
@@ -324,7 +325,8 @@ func (ctx OperationalRuleContext) SetField(resource, fieldResource *construct.Re
 	if err != nil {
 		return fmt.Errorf("error appending field %s#%s with %s: %w", resource.ID, path, fieldResource.ID, err)
 	}
-	zap.S().Infof("appended field %s#%s with %s", resource.ID, path, fieldResource.ID)
+	log := logging.GetLogger(ctx.Solution.Context())
+	log.Sugar().Infof("appended field %s#%s with %s", resource.ID, path, fieldResource.ID)
 	ctx.namespace(resource, fieldResource, oldId)
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
@@ -65,6 +66,9 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 }
 
 func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
+	prog := tui.GetProgress(ctx)
+	log := logging.GetLogger(ctx).Sugar()
+
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
@@ -72,7 +76,7 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 	if err != nil {
 		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
-	zap.S().Infof("Created/Selected stack %q\n", stackName)
+	log.Debugf("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
@@ -85,27 +89,28 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
-	zap.S().Info("Successfully set config")
-
-	zap.S().Info("Starting update")
+	log.Debug("Starting update")
+	prog.UpdateIndeterminate("Deploying stack") // TODO how to measure pulumi up progress
 
 	upResult, err := s.Up(
 		ctx,
-		optup.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.up"), zap.InfoLevel)),
+		optup.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.up"), zap.InfoLevel)),
 		optup.Refresh(),
 	)
 	if err != nil {
-		zap.S().Errorf("Failed to update stack: %v\n\n", err)
 		return upResult, State{}, errors2.WrapErrf(err, "Failed to update stack")
 	}
 
-	zap.S().Infof("Successfully deployed stack %s", stackName)
+	log.Infof("Successfully deployed stack %s", stackName)
 
 	stackState, err := GetState(ctx, s)
 	return upResult, stackState, err
 }
 
 func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResult, error) {
+	prog := tui.GetProgress(ctx)
+	log := logging.GetLogger(ctx).Sugar()
+
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
@@ -113,7 +118,7 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 	if err != nil {
 		return auto.PreviewResult{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
-	zap.S().Infof("Created/Selected stack %q\n", stackName)
+	log.Infof("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
@@ -126,26 +131,27 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
-	zap.S().Info("Successfully set config")
-
-	zap.S().Info("Starting preview")
+	log.Debug("Starting preview")
+	prog.UpdateIndeterminate("Previewing stack") // TODO how to measure pulumi preview progress
 
 	previewResult, err := s.Preview(
 		ctx,
-		optpreview.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.preview"), zap.InfoLevel)),
+		optpreview.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.preview"), zap.InfoLevel)),
 		optpreview.Refresh(),
 	)
 	if err != nil {
-		zap.S().Errorf("Failed to preview stack: %v\n\n", err)
 		return previewResult, errors2.WrapErrf(err, "Failed to preview stack")
 	}
 
-	zap.S().Infof("Successfully previewed stack %s", stackName)
+	log.Infof("Successfully previewed stack %s", stackName)
 
 	return previewResult, nil
 }
 
 func RunDown(ctx context.Context, stackReference Reference) error {
+	prog := tui.GetProgress(ctx)
+	log := logging.GetLogger(ctx).Sugar()
+
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
@@ -153,7 +159,7 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 
-	zap.S().Infof("Created/Selected stack %q\n", stackName)
+	log.Debugf("Created/Selected stack %q", stackName)
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
@@ -161,38 +167,38 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 		return errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
-	zap.S().Info("Successfully set config")
-
-	zap.S().Info("Starting destroy")
+	log.Debug("Starting destroy")
+	prog.UpdateIndeterminate("Destroying stack") // TODO how to measure pulumi down progress
 
 	// wire up our destroy to stream progress to stdout
-	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(zap.L().Named("pulumi.destroy"), zap.InfoLevel))
+	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.destroy"), zap.InfoLevel))
 	refresh := optdestroy.Refresh()
 
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer, refresh)
 	if err != nil {
-		zap.S().Errorf("Failed to destroy stack: %v\n\n", err)
 		return errors2.WrapErrf(err, "Failed to destroy stack")
 	}
 
-	zap.S().Infof("Successfully destroyed stack %s", stackName)
+	log.Infof("Successfully destroyed stack %s", stackName)
 
-	zap.S().Infof("Removing stack %s", stackName)
+	log.Infof("Removing stack %s", stackName)
 	err = s.Workspace().RemoveStack(ctx, stackName)
 	if err != nil {
-		zap.S().Errorf("Failed to remove stack: %v\n", err)
 		return errors2.WrapErrf(err, "Failed to remove stack")
 	}
 	return nil
 }
 
 func InstallDependencies(ctx context.Context, stackDirectory string) error {
-	zap.S().Infof("Installing pulumi dependencies in %s", stackDirectory)
+	prog := tui.GetProgress(ctx)
+	log := logging.GetLogger(ctx).Sugar()
+	log.Debugf("Installing pulumi dependencies in %s", stackDirectory)
+	prog.UpdateIndeterminate("Pulumi dependencies") // TODO how to measure npm install progress
 	npmCmd := logging.Command(
 		ctx,
 		logging.CommandLogger{
-			RootLogger:  zap.L().Named("npm"),
+			RootLogger:  log.Desugar().Named("npm"),
 			StdoutLevel: zap.DebugLevel,
 		},
 		"npm", "install",

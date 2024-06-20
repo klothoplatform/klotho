@@ -1,9 +1,11 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -16,8 +18,8 @@ import (
 )
 
 type (
-	// solutionContext implements [solution_context.SolutionContext]
-	solutionContext struct {
+	// engineSolution implements [solution_context.SolutionContext]
+	engineSolution struct {
 		solution.DecisionRecords
 
 		KB           knowledgebase.TemplateKB
@@ -27,14 +29,15 @@ type (
 		propertyEval *property_eval.Evaluator
 		globalTag    string
 		outputs      map[string]construct.Output
+		ctx          context.Context
 	}
 )
 
-func NewSolution(kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *solutionContext {
-	ctx := &solutionContext{
+func NewSolution(ctx context.Context, kb knowledgebase.TemplateKB, globalTag string, constraints *constraints.Constraints) *engineSolution {
+	sol := &engineSolution{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
-			Log:   zap.L().With(zap.String("graph", "dataflow")).Sugar(),
+			Log:   logging.GetLogger(ctx).With(zap.String("graph", "dataflow")).Sugar(),
 			Graph: construct.NewGraph(),
 			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
 		},
@@ -42,12 +45,13 @@ func NewSolution(kb knowledgebase.TemplateKB, globalTag string, constraints *con
 		constraints: constraints,
 		globalTag:   globalTag,
 		outputs:     make(map[string]construct.Output),
+		ctx:         ctx,
 	}
-	ctx.propertyEval = property_eval.NewEvaluator(ctx)
-	return ctx
+	sol.propertyEval = property_eval.NewEvaluator(sol)
+	return sol
 }
 
-func (s *solutionContext) Solve() error {
+func (s *engineSolution) Solve() error {
 	err := s.propertyEval.Evaluate()
 	if err != nil {
 		return err
@@ -55,31 +59,35 @@ func (s *solutionContext) Solve() error {
 	return s.captureOutputs()
 }
 
-func (s *solutionContext) RawView() construct.Graph {
+func (s *engineSolution) Context() context.Context {
+	return s.ctx
+}
+
+func (s *engineSolution) RawView() construct.Graph {
 	return solution.NewRawView(s)
 }
 
-func (s *solutionContext) OperationalView() solution.OperationalView {
+func (s *engineSolution) OperationalView() solution.OperationalView {
 	return (*MakeOperationalView)(s)
 }
 
-func (s *solutionContext) DeploymentGraph() construct.Graph {
+func (s *engineSolution) DeploymentGraph() construct.Graph {
 	return s.Deployment
 }
 
-func (s *solutionContext) DataflowGraph() construct.Graph {
+func (s *engineSolution) DataflowGraph() construct.Graph {
 	return s.Dataflow
 }
 
-func (s *solutionContext) KnowledgeBase() knowledgebase.TemplateKB {
+func (s *engineSolution) KnowledgeBase() knowledgebase.TemplateKB {
 	return s.KB
 }
 
-func (s *solutionContext) Constraints() *constraints.Constraints {
+func (s *engineSolution) Constraints() *constraints.Constraints {
 	return s.constraints
 }
 
-func (s *solutionContext) LoadGraph(graph construct.Graph) error {
+func (s *engineSolution) LoadGraph(graph construct.Graph) error {
 	if graph == nil {
 		return nil
 	}
@@ -142,11 +150,11 @@ func (s *solutionContext) LoadGraph(graph construct.Graph) error {
 	})
 }
 
-func (s *solutionContext) GlobalTag() string {
+func (s *engineSolution) GlobalTag() string {
 	return s.globalTag
 }
 
-func (s *solutionContext) captureOutputs() error {
+func (s *engineSolution) captureOutputs() error {
 	outputConstraints := s.Constraints().Outputs
 	var err multierr.Error
 	for _, outputConstraint := range outputConstraints {
@@ -168,6 +176,6 @@ func (s *solutionContext) captureOutputs() error {
 	return err.ErrOrNil()
 }
 
-func (s *solutionContext) Outputs() map[string]construct.Output {
+func (s *engineSolution) Outputs() map[string]construct.Output {
 	return s.outputs
 }

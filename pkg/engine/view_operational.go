@@ -9,7 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 )
 
-type MakeOperationalView solutionContext
+type MakeOperationalView engineSolution
 
 func (view *MakeOperationalView) Traits() *graph.Traits {
 	return view.Dataflow.Traits()
@@ -74,7 +74,7 @@ func (view *MakeOperationalView) AddVerticesFrom(g construct.Graph) error {
 }
 
 func (view *MakeOperationalView) raw() solution.RawAccessView {
-	return solution.NewRawView((*solutionContext)(view))
+	return solution.NewRawView((*engineSolution)(view))
 }
 
 func (view *MakeOperationalView) MakeResourcesOperational(resources []*construct.Resource) error {

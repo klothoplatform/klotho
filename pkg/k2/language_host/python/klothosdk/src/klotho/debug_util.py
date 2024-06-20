@@ -10,10 +10,8 @@ def configure_debugging(port: int, mode: DebugMode = DebugMode.VSCODE):
     if mode == DebugMode.VSCODE:
         import debugpy
 
-        debugpy.listen(("localhost", port))
         print("Waiting for debugger attach...")
-
-        debugpy.wait_for_client()
+        debugpy.connect(("localhost", port))
         print("Debugger attached.")
     elif mode == DebugMode.INTELLIJ:
         import pydevd_pycharm

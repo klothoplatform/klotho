@@ -31,7 +31,7 @@ func NewEngine(kb knowledgebase.TemplateKB) *Engine {
 }
 
 func (e *Engine) Run(ctx context.Context, req *SolveRequest) (solution.Solution, error) {
-	sol := NewSolution(e.Kb, req.GlobalTag, &req.Constraints)
+	sol := NewSolution(ctx, e.Kb, req.GlobalTag, &req.Constraints)
 	err := sol.LoadGraph(req.InitialState)
 	if err != nil {
 		return sol, err

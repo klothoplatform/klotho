@@ -11,8 +11,8 @@ import (
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
 //go:generate mockgen -source=./path_expansion.go --destination=../operational_eval/path_expansion_mock_test.go --package=operational_eval
@@ -308,6 +308,7 @@ func expandPath(
 	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
+	log := logging.GetLogger(ctx.Context()).Sugar()
 
 	if len(path) == 2 {
 		modifiesImport, err := checkModifiesImportedResource(input.SatisfactionEdge.Source.ID,
@@ -321,7 +322,7 @@ func expandPath(
 				input.SatisfactionEdge.Target.ID)
 		}
 	}
-	zap.S().Debugf("Resolving path %s", path)
+	log.Debugf("Resolving path %s", path)
 
 	type candidate struct {
 		id             construct.ResourceId
@@ -510,17 +511,17 @@ func expandPath(
 	return nil
 }
 
-func connectThroughNamespace(src, target *construct.Resource, ctx solution.Solution, result ExpansionResult) (
+func connectThroughNamespace(src, target *construct.Resource, sol solution.Solution, result ExpansionResult) (
 	connected bool,
 	errs error,
 ) {
-	kb := ctx.KnowledgeBase()
+	kb := sol.KnowledgeBase()
 	targetNamespaceResource, _ := kb.GetResourcesNamespaceResource(target)
 	if targetNamespaceResource.IsZero() {
 		return
 	}
 
-	downstreams, err := solution.Downstream(ctx, src.ID, knowledgebase.ResourceLocalLayer)
+	downstreams, err := solution.Downstream(sol, src.ID, knowledgebase.ResourceLocalLayer)
 	if err != nil {
 		return connected, err
 	}
@@ -531,7 +532,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution.Solut
 		if downId.QualifiedTypeName() != targetNamespaceResource.QualifiedTypeName() {
 			continue
 		}
-		down, err := ctx.RawView().Vertex(downId)
+		down, err := sol.RawView().Vertex(downId)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -544,7 +545,13 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution.Solut
 			continue
 		}
 		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, "", true)
+		tg, err := BuildPathSelectionGraph(
+			sol.Context(),
+			construct.SimpleEdge{Source: res, Target: target.ID},
+			kb,
+			"",
+			true,
+		)
 		if err != nil {
 			continue
 		}
@@ -553,7 +560,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution.Solut
 			Classification:   "",
 			TempGraph:        tg,
 		}
-		edges, err := expandEdge(ctx, input, result.Graph)
+		edges, err := expandEdge(sol, input, result.Graph)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue

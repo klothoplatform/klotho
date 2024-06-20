@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -73,7 +74,7 @@ func (args Args) Run(ctx *kong.Context) error {
 				return fmt.Errorf("could not parse target: %w", err)
 			}
 			edge.Target.Name = "target"
-			g, err := path_selection.BuildPathSelectionGraph(edge, kb, args.Classification, true)
+			g, err := path_selection.BuildPathSelectionGraph(context.Background(), edge, kb, args.Classification, true)
 			if err != nil {
 				return err
 			}

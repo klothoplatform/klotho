@@ -1,6 +1,7 @@
 package enginetesting
 
 import (
+	"context"
 	"testing"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -26,6 +27,10 @@ func NewTestSolution() *TestSolution {
 		deployment: construct.NewAcyclicGraph(),
 	}
 	return sol
+}
+
+func (sol *TestSolution) Context() context.Context {
+	return context.Background()
 }
 
 func (sol *TestSolution) LoadState(t *testing.T, initGraph ...any) {

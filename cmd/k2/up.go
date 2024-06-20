@@ -4,16 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/k2/language_host"
+
 	"go.uber.org/zap"
 
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -55,6 +58,13 @@ func up(cmd *cobra.Command, args []string) error {
 	if upConfig.outputPath == "" {
 		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 	}
+
+	debugDir := debug.GetDebugDir(cmd.Context())
+	if debugDir == "" {
+		debugDir = upConfig.outputPath
+		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
+	}
+
 	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{
 		Enabled: upConfig.debugMode != "",
 		Port:    upConfig.debugPort,
@@ -68,7 +78,9 @@ func up(cmd *cobra.Command, args []string) error {
 		}
 	}()
 
-	zap.L().Info("Waiting for Python server to start")
+	log := logging.GetLogger(cmd.Context()).Sugar()
+
+	log.Debug("Waiting for Python server to start")
 	if upConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
 		<-addr.HasAddr
