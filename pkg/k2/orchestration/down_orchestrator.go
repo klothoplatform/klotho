@@ -50,7 +50,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 	stackRefCache := make(map[string]stack.Reference)
 
 	actions := make(map[model.URN]model.ConstructActionType)
-	constructsToDelete := []model.ConstructState{}
+	var constructsToDelete []model.ConstructState
 	for _, ref := range request.StackReferences {
 		c, exists := sm.GetConstruct(ref.ConstructURN.ResourceID)
 		if !exists {
