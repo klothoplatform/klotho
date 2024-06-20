@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 
@@ -45,6 +46,11 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 	}()
 
+	// Create a map to cache stack references
+	stackRefCache := make(map[string]stack.Reference)
+
+	actions := make(map[model.URN]model.ConstructActionType)
+	constructsToDelete := []model.ConstructState{}
 	for _, ref := range request.StackReferences {
 		c, exists := sm.GetConstruct(ref.ConstructURN.ResourceID)
 		if !exists {
@@ -52,26 +58,59 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 			// This should never happen as we just build StackReferences from the state
 			return fmt.Errorf("construct %s not found in state", ref.ConstructURN.ResourceID)
 		}
-		ctx := ConstructContext(ctx, *c.URN)
-		if err := sm.TransitionConstructState(&c, model.ConstructDeletePending); err != nil {
-			return err
+		constructsToDelete = append(constructsToDelete, c)
+
+		// Cache the stack reference
+		stackRefCache[ref.ConstructURN.ResourceID] = ref
+
+		// Set all actions to ConstructActionDelete
+		actions[*c.URN] = model.ConstructActionDelete
+	}
+
+	// Sort constructs by reverse deployment order
+	deleteOrder, err := sortConstructsByDependency(constructsToDelete, actions)
+	if err != nil {
+		return fmt.Errorf("failed to determine deployment order: %w", err)
+	}
+	slices.Reverse(deleteOrder)
+
+	for _, group := range deleteOrder {
+		for _, cURN := range group {
+			action := actions[cURN]
+			ctx := ConstructContext(ctx, cURN)
+			prog := tui.GetProgress(ctx)
+			prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
 		}
-		if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
-			return err
-		}
-		err := stack.RunDown(ctx, ref)
-		if err != nil {
-			if err2 := sm.TransitionConstructState(&c, model.ConstructDeleteFailed); err2 != nil {
-				return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
+	}
+	for _, group := range deleteOrder {
+		for _, cURN := range group {
+			construct, exists := sm.GetConstruct(cURN.ResourceID)
+			if !exists {
+				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}
-			return err
-		} else {
-			if err := sm.TransitionConstructState(&c, model.ConstructDeleteComplete); err != nil {
+			ctx := ConstructContext(ctx, *construct.URN)
+			if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
 				return err
 			}
+			if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
+				return err
+			}
+
+			// Retrieve the stack reference from the cache
+			stackRef := stackRefCache[construct.URN.ResourceID]
+
+			err := stack.RunDown(ctx, stackRef)
+			if err != nil {
+				if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
+					return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
+				}
+				return err
+			} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
+				return err
+			}
+			prog := tui.GetProgress(ctx)
+			prog.Complete("Success")
 		}
-		prog := tui.GetProgress(ctx)
-		prog.Complete("Success")
 	}
 	return nil
 }

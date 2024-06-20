@@ -62,7 +62,8 @@ func up(cmd *cobra.Command, args []string) error {
 	debugDir := debug.GetDebugDir(cmd.Context())
 	if debugDir == "" {
 		debugDir = upConfig.outputPath
-		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
+		ctx = debug.WithDebugDir(cmd.Context(), debugDir)
+		cmd.SetContext(ctx)
 	}
 
 	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{
