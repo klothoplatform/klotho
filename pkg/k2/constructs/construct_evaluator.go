@@ -4,6 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
@@ -12,11 +18,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"go.uber.org/zap"
-	"reflect"
-	"regexp"
-	"strconv"
-	"strings"
-	"text/template"
 )
 
 type ConstructEvaluator struct {
@@ -322,12 +323,37 @@ func getValueFromCollection(collection any, key string) any {
 }
 
 // parse inputs
-func (ce *ConstructEvaluator) parseInputs(c *Construct) {
+func (ce *ConstructEvaluator) parseInputs(c *Construct) error {
 	for key, value := range c.ConstructTemplate.Inputs {
 		if _, hasVal := c.Inputs[key]; !hasVal && value.Default != nil {
 			c.Inputs[key] = value.Default
 		}
+
+		// If the template has a pulumi key, create a stack input
+		// instead of a regular input
+		if c.ConstructTemplate.Inputs[key].PulumiKey != "" {
+			anyKey, err := ce.interpolateValue(c, c.ConstructTemplate.Inputs[key].PulumiKey, InputRuleInterpolationContext)
+			if err != nil {
+				return err
+			}
+
+			pulumiKey, ok := anyKey.(string)
+			if !ok {
+				return fmt.Errorf("could not parse pulumi key")
+			}
+
+			value, ok := c.Inputs[key].(string)
+			if !ok {
+				return fmt.Errorf("could not parse input value: %#v", c.Inputs[key])
+			}
+
+			c.Inputs[key] = StackInput{
+				Value:     value,
+				PulumiKey: pulumiKey,
+			}
+		}
 	}
+	return nil
 }
 
 /*
@@ -395,13 +421,15 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Constr
 	}
 
 	c, err := NewConstruct(constructUrn, inputs)
-	ce.constructs[constructUrn] = c
-
 	if err != nil {
 		return nil, fmt.Errorf("could not create construct: %w", err)
 	}
+	ce.constructs[constructUrn] = c
 
-	ce.parseInputs(c)
+	err = ce.parseInputs(c)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse inputs: %w", err)
+	}
 	err = ce.importResources(c)
 	if err != nil {
 		return nil, fmt.Errorf("could not import resources: %w", err)

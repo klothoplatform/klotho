@@ -66,7 +66,13 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
 }
 
-func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
+type Input struct {
+	Value     string
+	PulumiKey string
+}
+
+func RunUp(ctx context.Context, stackInputs []Input, stackReference Reference) (auto.UpResult, State, error) {
+	//prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
@@ -81,6 +87,15 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
 		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to install dependencies")
+	}
+
+	// set all the stack inputs
+	for _, stackInput := range stackInputs {
+		err = s.SetConfig(ctx, stackInput.PulumiKey, auto.ConfigValue{Secret: true, Value: stackInput.Value})
+		if err != nil {
+			return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to set stack input")
+		}
+		log.Debugf("Set stack input %s", stackInput.PulumiKey)
 	}
 
 	// set stack configuration specifying the AWS region to deploy

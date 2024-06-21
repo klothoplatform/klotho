@@ -47,6 +47,7 @@ inputs:
     name: Master Username
     description: The master username for the database instance
     type: string
+    pulumi_key: ${resources:DatabaseInstance:Name}-username
     default: admin
     validation:
       minLength: 1
@@ -56,6 +57,7 @@ inputs:
     name: Master User Password
     description: The master user password for the database instance
     type: string
+    pulumi_key: ${resources:DatabaseInstance:Name}-password
     validation:
       minLength: 8
       maxLength: 128

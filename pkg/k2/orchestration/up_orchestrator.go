@@ -8,7 +8,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
-
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
@@ -92,10 +91,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 	for _, group := range deployOrder {
 		for _, cURN := range group {
-			if err != nil {
-				return err
-			}
-
 			c := uo.StateManager.GetState().Constructs[cURN.ResourceID]
 
 			outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
@@ -155,12 +150,26 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				continue
 			}
 
+			// write the stack inputs to the pulumi stack
+
 			if err = transitionPendingToDoing(sm, &c); err != nil {
 				return fmt.Errorf("error transitioning construct state: %w", err)
 			}
 
+			// take our stack inputs from the construct and convert them into
+			// inputs our stack understands
+			var stackInputs []stack.Input
+			for _, input := range c.Inputs {
+				if stackInput, ok := input.Value.(constructs.StackInput); ok {
+					stackInputs = append(stackInputs, stack.Input{
+						PulumiKey: stackInput.PulumiKey,
+						Value:     stackInput.Value,
+					})
+				}
+			}
+
 			// Run pulumi up command for the construct
-			upResult, stackState, err := stack.RunUp(ctx, stackRef)
+			upResult, stackState, err := stack.RunUp(ctx, stackInputs, stackRef)
 			if err != nil {
 				return fmt.Errorf("error running pulumi up command: %w", err)
 			}

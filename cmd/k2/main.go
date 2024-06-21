@@ -84,7 +84,8 @@ func cli() {
 	rootCmd.AddCommand(irCommand)
 
 	if err := rootCmd.Execute(); err != nil {
-		logging.GetLogger(rootCmd.Context()).Error("Failed to execute command", zap.Error(err))
+		logging.GetLogger(rootCmd.Context()).With(zap.Error(err)).Error("Failed to execute command")
+		logging.GetLogger(rootCmd.Context()).Error(fmt.Sprintf("Error: %v", err))
 		clean()
 		os.Exit(1)
 	}
