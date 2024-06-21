@@ -3,9 +3,11 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"path/filepath"
 	"time"
+
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -95,7 +97,12 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			c := uo.StateManager.GetState().Constructs[cURN.ResourceID]
+
+			outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
+
 			ctx := ConstructContext(ctx, *c.URN)
+			ctx = debug.WithDebugDir(ctx, outDir)
+			prog := tui.GetProgress(ctx)
 
 			// Run pulumi down command for deleted constructs
 			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
@@ -113,7 +120,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				err = stack.RunDown(ctx, stack.Reference{
 					ConstructURN: *c.URN,
 					Name:         c.URN.ResourceID,
-					IacDirectory: filepath.Join(uo.OutputDirectory, c.URN.ResourceID),
+					IacDirectory: outDir,
 					AwsRegion:    sm.GetState().DefaultRegion,
 				})
 
@@ -144,6 +151,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				if err != nil {
 					return err
 				}
+				prog.Complete("Success")
 				continue
 			}
 
@@ -179,7 +187,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				return fmt.Errorf("error registering resolved output values: %w", err)
 			}
 
-			prog := tui.GetProgress(ctx)
 			prog.Complete("Success")
 		}
 	}

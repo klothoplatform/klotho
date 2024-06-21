@@ -9,10 +9,12 @@ import (
 	prettyconsole "github.com/thessem/zap-prettyconsole"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 )
 
 type LogOpts struct {
 	Verbose         bool
+	Color           string
 	CategoryLogsDir string
 	Encoding        string
 	DefaultLevels   map[string]zapcore.Level
@@ -27,10 +29,26 @@ func (opts LogOpts) Encoder() zapcore.Encoder {
 			return zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
 		}
 	case "console", "pretty_console", "":
-		cfg := prettyconsole.NewEncoderConfig()
+		useColor := true
+		switch opts.Color {
+		case "auto":
+			useColor = term.IsTerminal(int(os.Stderr.Fd()))
+		case "always", "on":
+			useColor = true
+		case "never", "off":
+			useColor = false
+		}
+
+		if useColor {
+			cfg := prettyconsole.NewEncoderConfig()
+			cfg.SkipLineEnding = true
+			cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
+			return prettyconsole.NewEncoder(cfg)
+		}
+		cfg := zap.NewDevelopmentEncoderConfig()
 		cfg.SkipLineEnding = true
-		cfg.EncodeTime = TimeOffsetFormatter(time.Now())
-		return prettyconsole.NewEncoder(cfg)
+		cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
+		return zapcore.NewConsoleEncoder(cfg)
 	default:
 		panic(fmt.Errorf("unknown encoding %q", opts.Encoding))
 	}
@@ -102,9 +120,13 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 // TimeOffsetFormatter returns a time encoder that formats the time as an offset from the start time.
 // This is mostly useful for CLI logging not long-standing services as times beyond a few minutes will
 // be less readable.
-func TimeOffsetFormatter(start time.Time) zapcore.TimeEncoder {
-	const colStart = "\x1b[90m"
-	const colEnd = "\x1b[0m"
+func TimeOffsetFormatter(start time.Time, color bool) zapcore.TimeEncoder {
+	var colStart = "\x1b[90m"
+	var colEnd = "\x1b[0m"
+	if !color {
+		colStart = ""
+		colEnd = ""
+	}
 	return func(t time.Time, e zapcore.PrimitiveArrayEncoder) {
 		diff := t.Sub(start)
 		if diff < time.Second {

@@ -59,10 +59,9 @@ func up(cmd *cobra.Command, args []string) error {
 		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
 	}
 
-	debugDir := debug.GetDebugDir(cmd.Context())
-	if debugDir == "" {
-		debugDir = upConfig.outputPath
-		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
+	if debugDir := debug.GetDebugDir(ctx); debugDir == "" {
+		ctx = debug.WithDebugDir(ctx, upConfig.outputPath)
+		cmd.SetContext(ctx)
 	}
 
 	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{

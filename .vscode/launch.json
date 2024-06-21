@@ -84,7 +84,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/k2",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
             "args": [
                 "up",
                 "-v",
@@ -93,7 +93,7 @@
                 "--dry-run",
                 "--debug=vscode",
                 // "${file}"
-                "pkg/k2/language_host/python/samples/infra.py"
+                "infra.py"
             ],
             "env": {
                 "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}",

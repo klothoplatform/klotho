@@ -1,19 +1,21 @@
 package tui
 
 import (
+	_ "embed"
 	"strings"
 	"sync"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchellh/go-wordwrap"
 )
 
 type (
 	model struct {
 		mu             sync.Mutex
-		verbosity      int
+		verbosity      Verbosity
 		constructs     map[string]*constructModel
 		constructOrder []string
 
@@ -34,7 +36,14 @@ type (
 	}
 )
 
-func NewModel(verbosity int) *model {
+var (
+	//go:embed logo.txt
+	logo string
+
+	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+)
+
+func NewModel(verbosity Verbosity) *model {
 	return &model{
 		verbosity:  verbosity,
 		constructs: make(map[string]*constructModel),
@@ -52,11 +61,7 @@ func (m *model) constructModel(construct string) *constructModel {
 			progress: progress.New(),
 			spinner:  spinner.New(spinner.WithSpinner(spinner.Dot)),
 		}
-		switch m.verbosity {
-		case 0:
-		default:
-			cm.logs = NewRingBuffer[string](10)
-		}
+		cm.logs = NewRingBuffer[string](10)
 		m.constructs[construct] = cm
 		m.constructOrder = append(m.constructOrder, construct)
 	}
@@ -72,7 +77,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.consoleWidth = msg.Width
-		// TODO
 
 	case LogMessage:
 		if m.verbosity > 0 && msg.Message != "" {
@@ -95,7 +99,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if cm.hasProgress {
 			cmd = cm.progress.SetPercent(msg.Percent)
 		} else {
-			cmd = cm.spinner.Tick
+			cmd = tea.Batch(
+				cm.spinner.Tick,
+
+				// Reset the progress to 0. This isn't guaranteed, but if we switched from a progress
+				// to a spinner, most likely it's changing what's measured. By setting this to 0 now,
+				// we try to prevent the progress from "bouncing back" from the last value it was at (likely at 100%)
+				// due to the animation of the progress bar.
+				cm.progress.SetPercent(0.0),
+			)
 		}
 		cm.status = msg.Status
 
@@ -125,18 +137,20 @@ func (m *model) View() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	switch m.verbosity {
-	case 0:
+	if !m.verbosity.ShowLogs() {
 		return m.viewCompact()
-	case 1:
-		return m.viewVerbose()
-	default:
+	} else if m.verbosity.CombineLogs() {
 		return m.viewDebug()
+	} else {
+		return m.viewVerbose()
 	}
 }
 
 func (m *model) viewCompact() string {
 	sb := new(strings.Builder)
+	sb.WriteString(logoStyle.Render(logo))
+	sb.WriteString("\n")
+
 	for _, c := range m.constructOrder {
 		cm := m.constructs[c]
 
@@ -170,43 +184,67 @@ func (m *model) viewCompact() string {
 
 func (m *model) viewVerbose() string {
 	sb := new(strings.Builder)
+	sb.WriteString(logoStyle.Render(logo))
+	sb.WriteString("\n")
+
 	for _, c := range m.constructOrder {
 		cm := m.constructs[c]
 
 		if cm.complete {
-			sb.WriteString("─")
+			sb.WriteString("─ ")
 			sb.WriteString(c)
-			sb.WriteRune('\n')
+			sb.WriteString(" ")
+			sb.WriteString(cm.status)
+			sb.WriteString("\n")
 			continue
 		}
 		sb.WriteString("┌ ")
-		sb.WriteString(c)
-		sb.WriteString(" ")
-		sb.WriteString(cm.status)
-		sb.WriteString("\n├ ")
+		if c != "" {
+			sb.WriteString(c)
+			sb.WriteString(" ")
+			sb.WriteString(cm.status)
+			if cm.logs.Len() > 0 {
+				sb.WriteString("\n├ ")
+			} else {
+				sb.WriteString("\n└ ")
+			}
 
-		switch {
-		case cm.hasProgress:
-			sb.WriteString(cm.progress.View())
+			switch {
+			case cm.hasProgress:
+				sb.WriteString(cm.progress.View())
 
-		default:
-			sb.WriteString(cm.spinner.View())
+			default:
+				sb.WriteString(cm.spinner.View())
+			}
+			sb.WriteRune('\n')
 		}
-		sb.WriteRune('\n')
 
-		cm.logs.ForEach(func(_ int, msg string) {
+		cm.logs.ForEach(func(idx int, msg string) {
 			msg = wordwrap.WrapString(msg, uint(m.consoleWidth-4))
 			lines := strings.Split(msg, "\n")
-			sb.WriteString("├ ")
+
+			// If this is the first log message and there's no construct, the line already has a prefix of "┌ "
+			// so only write the prefix if it's not the case.
+			if !(idx == 0 && c == "") {
+				if idx == cm.logs.Len()-1 && len(lines) == 1 {
+					sb.WriteString("└ ")
+				} else {
+					sb.WriteString("├ ")
+				}
+			}
+
 			for i, l := range lines {
 				if i > 0 {
-					sb.WriteString("│ ")
+					if idx == cm.logs.Len()-1 && i == len(lines)-1 {
+						sb.WriteString("└ ")
+					} else {
+						sb.WriteString("│ ")
+					}
 				}
 				sb.WriteString(l)
 				sb.WriteRune('\n')
 			}
 		})
-		sb.WriteString("└")
 		sb.WriteRune('\n')
 	}
 	s := sb.String()
