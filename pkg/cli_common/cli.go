@@ -53,8 +53,6 @@ func (f *verbosityFlag) String() string {
 	return strconv.FormatInt(int64(*f), 10)
 }
 
-func (*verbosityFlag) IsBoolFlag() bool { return true }
-
 func setupProfiling(commonCfg *CommonConfig) func() {
 	if commonCfg.profileTo != "" {
 		err := os.MkdirAll(filepath.Dir(commonCfg.profileTo), 0755)
@@ -94,8 +92,10 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		cmd.SilenceUsage = true // Silence usage after args have been parsed
 
+		verbosity := tui.Verbosity(commonCfg.verbose)
+
 		logOpts := logging.LogOpts{
-			Verbose:         commonCfg.verbose > 0,
+			Verbose:         verbosity.DebugLogs(),
 			CategoryLogsDir: commonCfg.logsDir,
 			DefaultLevels: map[string]zapcore.Level{
 				"kb.load":       zap.WarnLevel,
@@ -108,14 +108,15 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 		if commonCfg.jsonLog {
 			logOpts.Encoding = "json"
 		}
-		prog := tea.NewProgram(
-			tui.NewModel(int(commonCfg.verbose)),
-			tea.WithoutSignalHandler(),
-			tea.WithContext(root.Context()),
-			tea.WithOutput(os.Stderr),
-		)
 		if term.IsTerminal(os.Stderr.Fd()) {
-			log := zap.New(tui.NewLogCore(logOpts, int(commonCfg.verbose), prog))
+			prog := tea.NewProgram(
+				tui.NewModel(verbosity),
+				tea.WithoutSignalHandler(),
+				tea.WithContext(root.Context()),
+				tea.WithOutput(os.Stderr),
+			)
+
+			log := zap.New(tui.NewLogCore(logOpts, verbosity, prog))
 			zap.ReplaceGlobals(log)
 			go func() {
 				_, err := prog.Run()
@@ -124,11 +125,6 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 				} else {
 					zap.S().Debug("TUI exited")
 				}
-			}()
-			go func() {
-				<-cmd.Context().Done()
-				zap.S().Debug("Shutting down TUI due to context closure")
-				prog.Quit()
 			}()
 			zap.S().Debug("Starting TUI")
 			cmd.SetContext(tui.WithProgram(cmd.Context(), prog))

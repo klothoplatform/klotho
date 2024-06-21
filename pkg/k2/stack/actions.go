@@ -199,6 +199,7 @@ func InstallDependencies(ctx context.Context, stackDirectory string) error {
 			RootLogger:  log.Desugar().Named("npm"),
 			StdoutLevel: zap.DebugLevel,
 		},
+		// loglevel silly is required for the NpmProgress to capture all logs
 		"npm", "install", "--loglevel", "silly", "--no-fund", "--no-audit",
 	)
 	npmProg := &NpmProgress{Progress: prog}

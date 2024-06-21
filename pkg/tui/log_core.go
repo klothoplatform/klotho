@@ -12,14 +12,14 @@ import (
 
 type LogCore struct {
 	zapcore.Core
-	verbosity int
+	verbosity Verbosity
 	program   *tea.Program
 	enc       zapcore.Encoder
 
 	construct string
 }
 
-func NewLogCore(opts logging.LogOpts, verbosity int, program *tea.Program) zapcore.Core {
+func NewLogCore(opts logging.LogOpts, verbosity Verbosity, program *tea.Program) zapcore.Core {
 	enc := opts.Encoder()
 	leveller := zap.NewAtomicLevel()
 	if opts.Verbose {
@@ -59,7 +59,11 @@ func (c *LogCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Chec
 }
 
 func (c *LogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
-	if c.verbosity >= 2 {
+	if !c.verbosity.ShowLogs() {
+		return nil
+	}
+
+	if c.verbosity.CombineLogs() {
 		buf, err := c.enc.EncodeEntry(ent, fields)
 		if err != nil {
 			return err
@@ -88,14 +92,10 @@ func (c *LogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	s := buf.String()
 	s = strings.TrimSuffix(s, "\n")
 
-	if construct != "" {
-		c.program.Send(LogMessage{
-			Construct: construct,
-			Message:   s,
-		})
-	} else {
-		c.program.Println(s)
-	}
+	c.program.Send(LogMessage{
+		Construct: construct,
+		Message:   s,
+	})
 
 	buf.Free()
 	return nil

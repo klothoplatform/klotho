@@ -102,6 +102,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 			ctx := ConstructContext(ctx, *c.URN)
 			ctx = debug.WithDebugDir(ctx, outDir)
+			prog := tui.GetProgress(ctx)
 
 			// Run pulumi down command for deleted constructs
 			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
@@ -150,6 +151,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				if err != nil {
 					return err
 				}
+				prog.Complete("Success")
 				continue
 			}
 
@@ -185,7 +187,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				return fmt.Errorf("error registering resolved output values: %w", err)
 			}
 
-			prog := tui.GetProgress(ctx)
 			prog.Complete("Success")
 		}
 	}
