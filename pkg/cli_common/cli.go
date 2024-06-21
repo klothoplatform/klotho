@@ -22,6 +22,7 @@ type (
 		verbose   verbosityFlag
 		logsDir   string
 		profileTo string
+		color     string
 	}
 
 	verbosityFlag int
@@ -85,6 +86,7 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Enable JSON logging")
 	flags.StringVar(&commonCfg.logsDir, "logs-dir", "", "Directory to write logs to")
 	flags.StringVar(&commonCfg.profileTo, "profiling", "", "Profile to file")
+	flags.StringVar(&commonCfg.color, "color", "auto", "Colorize output (auto, on, off)")
 
 	profileClose := func() {}
 	tuiClose := func() {}
@@ -96,6 +98,7 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 
 		logOpts := logging.LogOpts{
 			Verbose:         verbosity.DebugLogs(),
+			Color:           commonCfg.color,
 			CategoryLogsDir: commonCfg.logsDir,
 			DefaultLevels: map[string]zapcore.Level{
 				"kb.load":       zap.WarnLevel,

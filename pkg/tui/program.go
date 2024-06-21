@@ -34,7 +34,10 @@ func WithProgram(ctx context.Context, p *tea.Program) context.Context {
 }
 
 func GetProgram(ctx context.Context) *tea.Program {
-	return ctx.Value(programKey).(*tea.Program)
+	if prog := ctx.Value(programKey); prog != nil {
+		return prog.(*tea.Program)
+	}
+	return nil
 }
 
 func (p *TuiProgress) Update(status string, current, total int) {

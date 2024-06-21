@@ -11,9 +11,11 @@ import (
 
 func ConstructContext(ctx context.Context, construct model.URN) context.Context {
 	ctx = logging.WithLogger(ctx, logging.GetLogger(ctx).With(zap.String("construct", construct.ResourceID)))
-	ctx = tui.WithProgress(ctx, &tui.TuiProgress{
-		Prog:      tui.GetProgram(ctx),
-		Construct: construct.ResourceID,
-	})
+	if prog := tui.GetProgram(ctx); prog != nil {
+		ctx = tui.WithProgress(ctx, &tui.TuiProgress{
+			Prog:      prog,
+			Construct: construct.ResourceID,
+		})
+	}
 	return ctx
 }
