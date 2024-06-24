@@ -109,11 +109,13 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 				if dryRun {
 					log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
+					prog.Complete("Skipped")
 					continue
 				}
 
 				// Mark as deleting
 				if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
+					prog.Complete("Failed")
 					return err
 				}
 
@@ -125,11 +127,13 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				})
 
 				if err != nil {
+					prog.Complete("Failed")
 					return fmt.Errorf("error running pulumi down command: %w", err)
 				}
 
 				// Mark as deleted
 				if err := sm.TransitionConstructState(&c, model.ConstructDeleteComplete); err != nil {
+					prog.Complete("Failed")
 					return err
 				}
 				continue
@@ -137,18 +141,21 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 			// Only proceed if the construct is deployable
 			if !model.IsDeployable(c.Status) {
+				prog.Complete("Skipped")
 				continue
 			}
 
 			// Evaluate the construct
 			stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
 			if err != nil {
+				prog.Complete("Failed")
 				return fmt.Errorf("error evaluating construct %s: %w", cURN, err)
 			}
 
 			if dryRun {
 				_, err = stack.RunPreview(ctx, stackRef)
 				if err != nil {
+					prog.Complete("Failed")
 					return err
 				}
 				prog.Complete("Success")

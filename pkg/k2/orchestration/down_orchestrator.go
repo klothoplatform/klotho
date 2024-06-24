@@ -88,14 +88,17 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}
 			ctx := ConstructContext(ctx, *construct.URN)
+			prog := tui.GetProgress(ctx)
 
 			// All resources need to be deleted so they have to start in a delete pending state initially.
 			// This is a bit awkward since we have to transition twice, but these states are used at different
 			// times for things like the up command
 			if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
+				prog.Complete("Failed")
 				return err
 			}
 			if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
+				prog.Complete("Failed")
 				return err
 			}
 
@@ -103,14 +106,16 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 
 			err := stack.RunDown(ctx, stackRef)
 			if err != nil {
+				prog.Complete("Failed")
+
 				if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
 					return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
 				}
 				return err
 			} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
+				prog.Complete("Failed")
 				return err
 			}
-			prog := tui.GetProgress(ctx)
 			prog.Complete("Success")
 		}
 	}
