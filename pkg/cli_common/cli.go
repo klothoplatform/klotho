@@ -97,7 +97,7 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 		verbosity := tui.Verbosity(commonCfg.verbose)
 
 		logOpts := logging.LogOpts{
-			Verbose:         verbosity.DebugLogs(),
+			Verbose:         verbosity.LogLevel() <= zapcore.DebugLevel,
 			Color:           commonCfg.color,
 			CategoryLogsDir: commonCfg.logsDir,
 			DefaultLevels: map[string]zapcore.Level{

@@ -1,5 +1,7 @@
 package tui
 
+import "go.uber.org/zap/zapcore"
+
 type Verbosity int
 
 var (
@@ -9,18 +11,30 @@ var (
 	VerbosityDebugMore Verbosity = 3
 )
 
-// DebugLogs controls zap logging verbosity, true = debug, false = info
-func (v Verbosity) DebugLogs() bool {
-	return v >= 2
-}
+func (v Verbosity) LogLevel() zapcore.Level {
+	switch v {
+	case VerbosityConcise:
+		return zapcore.ErrorLevel
 
-// ShowLogs controls whether to show logs in the TUI
-func (v Verbosity) ShowLogs() bool {
-	return v >= 1
+	case VerbosityVerbose:
+		return zapcore.InfoLevel
+
+	case VerbosityDebug:
+		return zapcore.DebugLevel
+
+	default:
+		return zapcore.DebugLevel
+	}
 }
 
 // CombineLogs controls whether to show all logs comingled in the TUI. In other words,
 // sorted by timestamp, not grouped by construct.
 func (v Verbosity) CombineLogs() bool {
-	return v >= 3
+	switch v {
+	case VerbosityConcise, VerbosityDebugMore:
+		return true
+
+	default:
+		return false
+	}
 }

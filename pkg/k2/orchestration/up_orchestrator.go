@@ -143,7 +143,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			// Evaluate the construct
 			stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
 			if err != nil {
-				return fmt.Errorf("error evaluating construct: %w", err)
+				return fmt.Errorf("error evaluating construct %s: %w", cURN, err)
 			}
 
 			if dryRun {

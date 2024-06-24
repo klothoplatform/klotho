@@ -137,7 +137,7 @@ func (m *model) View() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.verbosity.ShowLogs() {
+	if m.verbosity == VerbosityConcise {
 		return m.viewCompact()
 	} else if m.verbosity.CombineLogs() {
 		return m.viewDebug()

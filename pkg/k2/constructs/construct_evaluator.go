@@ -4,6 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
@@ -12,11 +18,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"go.uber.org/zap"
-	"reflect"
-	"regexp"
-	"strconv"
-	"strings"
-	"text/template"
 )
 
 type ConstructEvaluator struct {
@@ -43,7 +44,7 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Constraints, error) {
 	ci, err := ce.evaluateConstruct(constructUrn)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
+		return constraints.Constraints{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
 	}
 
 	marshaller := ConstructMarshaller{Construct: ci}
