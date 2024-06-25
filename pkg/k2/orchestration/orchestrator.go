@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
@@ -43,11 +42,11 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	return o.infraGenerator, nil
 }
 
-func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.StateManager, constructUrn model.URN) (constructs.Construct, stack.Reference, error) {
+func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.StateManager, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
 	c, exists := sm.GetConstructState(constructUrn.ResourceID)
 	if !exists {
-		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("construct %s not found in state", constructUrn.ResourceID)
+		return stack.Reference{}, fmt.Errorf("construct %s not found in state", constructUrn.ResourceID)
 	}
 	inputs := make(map[string]any)
 	var merr multierr.Error
@@ -59,27 +58,27 @@ func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.State
 		inputs[k] = v.Value
 	}
 	if len(merr) > 0 {
-		return constructs.Construct{}, stack.Reference{}, merr.ErrOrNil()
+		return stack.Reference{}, merr.ErrOrNil()
 	}
 
 	urn := *c.URN
 
-	construct, cs, err := uo.ConstructEvaluator.Evaluate(urn)
+	cs, err := uo.ConstructEvaluator.Evaluate(urn)
 	if err != nil {
-		return constructs.Construct{}, stack.Reference{}, err
+		return stack.Reference{}, err
 	}
 
 	ig, err := uo.InfraGenerator()
 	if err != nil {
-		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
+		return stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
 	}
 
 	err = ig.Run(ctx, cs, constructOutDir)
 	if err != nil {
-		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
+		return stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
 	}
 
-	return construct, stack.Reference{
+	return stack.Reference{
 		ConstructURN: urn,
 		Name:         urn.ResourceID,
 		IacDirectory: constructOutDir,

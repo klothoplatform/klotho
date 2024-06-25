@@ -41,24 +41,24 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}, nil
 }
 
-func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (Construct, constraints.Constraints, error) {
+func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Constraints, error) {
 	ci, err := ce.evaluateConstruct(constructUrn)
 	if err != nil {
-		return Construct{}, constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
+		return constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
 	}
 
 	marshaller := ConstructMarshaller{Construct: ci}
 	constraintList, err := marshaller.Marshal()
 	if err != nil {
-		return Construct{}, constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
+		return constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
 	}
 
 	cs, err := constraintList.ToConstraints()
 	if err != nil {
-		return Construct{}, constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
+		return constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
 	}
 
-	return *ci, cs, nil
+	return cs, nil
 }
 
 var interpolationPattern = regexp.MustCompile(`\$\{([^:]+):([^}]+)}`)
@@ -323,37 +323,12 @@ func getValueFromCollection(collection any, key string) any {
 }
 
 // parse inputs
-func (ce *ConstructEvaluator) parseInputs(c *Construct) error {
+func (ce *ConstructEvaluator) parseInputs(c *Construct) {
 	for key, value := range c.ConstructTemplate.Inputs {
 		if _, hasVal := c.Inputs[key]; !hasVal && value.Default != nil {
 			c.Inputs[key] = value.Default
 		}
-
-		// If the template has a pulumi key, create a stack input
-		// instead of a regular input
-		if c.ConstructTemplate.Inputs[key].PulumiKey != "" {
-			anyKey, err := ce.interpolateValue(c, c.ConstructTemplate.Inputs[key].PulumiKey, InputRuleInterpolationContext)
-			if err != nil {
-				return err
-			}
-
-			pulumiKey, ok := anyKey.(string)
-			if !ok {
-				return fmt.Errorf("could not parse pulumi key")
-			}
-
-			value, ok := c.Inputs[key].(string)
-			if !ok {
-				return fmt.Errorf("could not parse input value: %#v", c.Inputs[key])
-			}
-
-			c.Inputs[key] = StackInput{
-				Value:     value,
-				PulumiKey: pulumiKey,
-			}
-		}
 	}
-	return nil
 }
 
 /*
@@ -426,10 +401,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Constr
 	}
 	ce.constructs[constructUrn] = c
 
-	err = ce.parseInputs(c)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse inputs: %w", err)
-	}
+	ce.parseInputs(c)
 	err = ce.importResources(c)
 	if err != nil {
 		return nil, fmt.Errorf("could not import resources: %w", err)

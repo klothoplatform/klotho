@@ -139,7 +139,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			// Evaluate the construct
-			construct, stackRef, err := uo.EvaluateConstruct(ctx, uo.StateManager, *c.URN)
+			stackRef, err := uo.EvaluateConstruct(ctx, uo.StateManager, *c.URN)
 			if err != nil {
 				return fmt.Errorf("error evaluating construct: %w", err)
 			}
@@ -153,26 +153,12 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 				continue
 			}
 
-			// write the stack inputs to the pulumi stack
-
 			if err = transitionPendingToDoing(sm, &c); err != nil {
 				return fmt.Errorf("error transitioning construct state: %w", err)
 			}
 
-			// take our stack inputs from the construct and convert them into
-			// inputs our stack understands
-			var stackInputs []stack.Input
-			for _, input := range construct.Inputs {
-				if stackInput, ok := input.(constructs.StackInput); ok {
-					stackInputs = append(stackInputs, stack.Input{
-						PulumiKey: stackInput.PulumiKey,
-						Value:     stackInput.Value,
-					})
-				}
-			}
-
 			// Run pulumi up command for the construct
-			upResult, stackState, err := stack.RunUp(ctx, stackInputs, stackRef)
+			upResult, stackState, err := stack.RunUp(ctx, stackRef)
 			if err != nil {
 				return fmt.Errorf("error running pulumi up command: %w", err)
 			}

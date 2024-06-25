@@ -32,13 +32,6 @@ type (
 		Data map[string]any
 	}
 
-	// StackInput is a type we may store in the Inputs map of a Construct. It represents a reference a stack input
-	// such as pulumi.Config or pulumi.ConfigSecret.
-	StackInput struct {
-		Value     string
-		PulumiKey string
-	}
-
 	ResourceRef struct {
 		ResourceKey string
 		Property    string
