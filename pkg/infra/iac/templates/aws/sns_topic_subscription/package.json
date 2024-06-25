@@ -1,5 +1,5 @@
 {
-    "name": "sns_topic",
+    "name": "sns_topic_subscription",
     "dependencies": {
         "@pulumi/aws": "^5.37.0"
     }
