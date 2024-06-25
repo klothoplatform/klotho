@@ -41,24 +41,24 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}, nil
 }
 
-func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Constraints, error) {
+func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (Construct, constraints.Constraints, error) {
 	ci, err := ce.evaluateConstruct(constructUrn)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
+		return Construct{}, constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
 	}
 
 	marshaller := ConstructMarshaller{Construct: ci}
 	constraintList, err := marshaller.Marshal()
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
+		return Construct{}, constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
 	}
 
 	cs, err := constraintList.ToConstraints()
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
+		return Construct{}, constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
 	}
 
-	return cs, nil
+	return *ci, cs, nil
 }
 
 var interpolationPattern = regexp.MustCompile(`\$\{([^:]+):([^}]+)}`)
@@ -398,7 +398,7 @@ Evaluation Order:
 */
 func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Construct, error) {
 
-	cState, ok := ce.stateManager.GetConstruct(constructUrn.ResourceID)
+	cState, ok := ce.stateManager.GetConstructState(constructUrn.ResourceID)
 	if !ok {
 		return nil, fmt.Errorf("could not get state state for construct: %s", constructUrn)
 	}

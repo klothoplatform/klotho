@@ -91,7 +91,10 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 	for _, group := range deployOrder {
 		for _, cURN := range group {
-			c := uo.StateManager.GetState().Constructs[cURN.ResourceID]
+			c, exits := uo.StateManager.GetConstructState(cURN.ResourceID)
+			if !exits {
+				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
+			}
 
 			outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
 
@@ -136,7 +139,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			// Evaluate the construct
-			stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
+			construct, stackRef, err := uo.EvaluateConstruct(ctx, uo.StateManager, *c.URN)
 			if err != nil {
 				return fmt.Errorf("error evaluating construct: %w", err)
 			}
@@ -159,8 +162,8 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			// take our stack inputs from the construct and convert them into
 			// inputs our stack understands
 			var stackInputs []stack.Input
-			for _, input := range c.Inputs {
-				if stackInput, ok := input.Value.(constructs.StackInput); ok {
+			for _, input := range construct.Inputs {
+				if stackInput, ok := input.(constructs.StackInput); ok {
 					stackInputs = append(stackInputs, stack.Input{
 						PulumiKey: stackInput.PulumiKey,
 						Value:     stackInput.Value,

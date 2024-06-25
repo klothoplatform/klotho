@@ -121,7 +121,7 @@ func (sm *StateManager) UpdateResourceState(name string, status ConstructStatus,
 	return nil
 }
 
-func (sm *StateManager) GetConstruct(name string) (ConstructState, bool) {
+func (sm *StateManager) GetConstructState(name string) (ConstructState, bool) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -129,7 +129,7 @@ func (sm *StateManager) GetConstruct(name string) (ConstructState, bool) {
 	return construct, exists
 }
 
-func (sm *StateManager) SetConstruct(construct ConstructState) {
+func (sm *StateManager) SetConstructState(construct ConstructState) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
@@ -147,7 +147,7 @@ func (sm *StateManager) TransitionConstructState(construct *ConstructState, next
 		zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
 		construct.Status = nextStatus
 		construct.LastUpdated = time.Now().Format(time.RFC3339)
-		sm.SetConstruct(*construct)
+		sm.SetConstructState(*construct)
 		return nil
 	}
 	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)

@@ -95,7 +95,7 @@ func GetState(ctx context.Context, stack auto.Stack) (State, error) {
 
 func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference Reference, summary *auto.UpResult) error {
 	constructName := stackReference.ConstructURN.ResourceID
-	construct, exists := sm.GetConstruct(constructName)
+	construct, exists := sm.GetConstructState(constructName)
 	if !exists {
 		return fmt.Errorf("construct %s not found in state", constructName)
 	}
@@ -105,7 +105,7 @@ func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference Ref
 		return fmt.Errorf("failed to transition construct state: %v", err)
 	}
 	construct.LastUpdated = time.Now().Format(time.RFC3339)
-	sm.SetConstruct(construct)
+	sm.SetConstructState(construct)
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/k2/constructs"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
@@ -42,9 +43,12 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	return o.infraGenerator, nil
 }
 
-func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
+func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.StateManager, constructUrn model.URN) (constructs.Construct, stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
-	c := state.Constructs[constructUrn.ResourceID]
+	c, exists := sm.GetConstructState(constructUrn.ResourceID)
+	if !exists {
+		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("construct %s not found in state", constructUrn.ResourceID)
+	}
 	inputs := make(map[string]any)
 	var merr multierr.Error
 	for k, v := range c.Inputs {
@@ -55,30 +59,31 @@ func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.Sta
 		inputs[k] = v.Value
 	}
 	if len(merr) > 0 {
-		return stack.Reference{}, merr.ErrOrNil()
+		return constructs.Construct{}, stack.Reference{}, merr.ErrOrNil()
 	}
 
 	urn := *c.URN
 
-	cs, err := uo.ConstructEvaluator.Evaluate(urn)
+	construct, cs, err := uo.ConstructEvaluator.Evaluate(urn)
 	if err != nil {
-		return stack.Reference{}, err
+		return constructs.Construct{}, stack.Reference{}, err
 	}
+
 	ig, err := uo.InfraGenerator()
 	if err != nil {
-		return stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
+		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
 	}
 
 	err = ig.Run(ctx, cs, constructOutDir)
 	if err != nil {
-		return stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
+		return constructs.Construct{}, stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
 	}
 
-	return stack.Reference{
+	return construct, stack.Reference{
 		ConstructURN: urn,
 		Name:         urn.ResourceID,
 		IacDirectory: constructOutDir,
-		AwsRegion:    state.DefaultRegion,
+		AwsRegion:    sm.GetState().DefaultRegion,
 	}, nil
 }
 
@@ -103,7 +108,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		var status model.ConstructStatus
 		var action model.ConstructActionType
 
-		construct, exists := o.StateManager.GetConstruct(c.URN.ResourceID)
+		construct, exists := o.StateManager.GetConstructState(c.URN.ResourceID)
 		if !exists {
 			// If the construct doesn't exist in the current state, it's a create action
 			action = model.ConstructActionCreate
