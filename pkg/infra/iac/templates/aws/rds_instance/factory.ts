@@ -31,14 +31,14 @@ function create(args: Args): aws.rds.Instance {
             engineVersion: args.EngineVersion,
             dbName: args.DatabaseName,
             //TMPL {{- if .Username }}
-            //TMPL {{username: .Username}}
+            //TMPL username: {{.Username}},
             //TMPL {{- else }}
             username: kloConfig.requireSecret(`${args.Name}-username`),
             //TMPL {{- end }}
             //TMPL {{- if .Password }}
-            //TMPL {{password: .Password}}
+            //TMPL password: {{ .Password }},
             //TMPL {{- else }}
-            password: args.Password || kloConfig.requireSecret(`${args.Name}-password`),
+            password: kloConfig.requireSecret(`${args.Name}-password`),
             //TMPL {{- end }}
             iamDatabaseAuthenticationEnabled: args.IamDatabaseAuthenticationEnabled,
             dbSubnetGroupName: args.SubnetGroup.name,

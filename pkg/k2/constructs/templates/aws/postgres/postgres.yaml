@@ -10,8 +10,8 @@ resources:
       InstanceClass: ${inputs:InstanceClass}
       AllocatedStorage: ${inputs:AllocatedStorage}
       EngineVersion: ${inputs:EngineVersion}
-      MasterUsername: ${inputs:Username}
-      MasterUserPassword: ${inputs:Password}
+      Username: ${inputs:Username}
+      Password: ${inputs:Password}
       DBName: ${inputs:DatabaseName}
       Port: ${inputs:Port}
 
