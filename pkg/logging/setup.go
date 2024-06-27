@@ -41,12 +41,10 @@ func (opts LogOpts) Encoder() zapcore.Encoder {
 
 		if useColor {
 			cfg := prettyconsole.NewEncoderConfig()
-			cfg.SkipLineEnding = true
 			cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
 			return prettyconsole.NewEncoder(cfg)
 		}
 		cfg := zap.NewDevelopmentEncoderConfig()
-		cfg.SkipLineEnding = true
 		cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
 		return zapcore.NewConsoleEncoder(cfg)
 	default:

@@ -21,7 +21,7 @@ func Test_edgeVertex_Dependencies(t *testing.T) {
 		{
 			name: "happy path",
 			v: &edgeVertex{
-				Edge: construct.SimpleEdge{
+				Edge: construct.Edge{
 					Source: construct.ResourceId{Name: "source"},
 					Target: construct.ResourceId{Name: "target"},
 				},

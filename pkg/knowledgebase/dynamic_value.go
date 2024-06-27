@@ -35,7 +35,8 @@ type (
 	// DynamicValueData provides the resource or edge to the templates as
 	// `{{ .Self }}` for resources
 	// `{{ .Source }}` and `{{ .Target }}` for edges
-	// and `{{ .Tag }}` for the global tag
+	// `{{ .Tag }}` for the global tag
+	// `{{ .EdgeData }}` for the edge data (see [construct.EdgeData])
 	DynamicValueData struct {
 		Resource  construct.ResourceId
 		Edge      *construct.Edge
@@ -286,6 +287,16 @@ func (data DynamicValueData) Log(level string, message string, args ...interface
 		l.Sugar().Warnf(message, args...)
 	}
 	return ""
+}
+
+func (data DynamicValueData) EdgeData() *construct.EdgeData {
+	if d, ok := data.Edge.Properties.Data.(construct.EdgeData); ok {
+		return &d
+	} else if !data.Edge.Source.IsZero() {
+		// default edge data to an empty struct
+		return &construct.EdgeData{}
+	}
+	return nil
 }
 
 func TemplateArgToRID(arg any) (construct.ResourceId, error) {

@@ -14,7 +14,7 @@
             "args": [
                 "Run",
                 "-i=${file}",
-                "-v",
+                "-v=2",
                 "-o=${fileBasenameNoExtension}",
                 "--profiling=${fileBasenameNoExtension}/engine.prof"
             ],
@@ -87,7 +87,7 @@
             "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
             "args": [
                 "up",
-                "-v",
+                "-v=2",
                 "-o=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "--dry-run",

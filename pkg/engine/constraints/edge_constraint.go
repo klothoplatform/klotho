@@ -25,9 +25,7 @@ type (
 	EdgeConstraint struct {
 		Operator ConstraintOperator `yaml:"operator" json:"operator"`
 		Target   Edge               `yaml:"target" json:"target"`
-		// TODO: implement support for edge data
-		// Data is a map of additional data that can be used to further specify the constraint
-		Data map[string]interface{} `yaml:"data" json:"data"`
+		Data     construct.EdgeData `yaml:"data" json:"data"`
 	}
 )
 

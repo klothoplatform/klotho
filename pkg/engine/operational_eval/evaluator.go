@@ -479,7 +479,13 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 
 		case *edgeVertex:
 			if key.Edge.Source == oldId || key.Edge.Target == oldId {
-				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
+				updated := UpdateEdgeId(
+					construct.SimpleEdge{Source: vertex.Edge.Source, Target: vertex.Edge.Target},
+					oldId,
+					newId,
+				)
+				vertex.Edge.Source = updated.Source
+				vertex.Edge.Target = updated.Target
 				replaceVertex(key, vertex)
 			}
 		case *pathExpandVertex:

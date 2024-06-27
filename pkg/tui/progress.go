@@ -24,5 +24,5 @@ func (p LogProgress) UpdateIndeterminate(status string) {
 }
 
 func (p LogProgress) Complete(status string) {
-	p.Logger.Sugar().Infof("Complete: %s", status)
+	p.Logger.Sugar().Debugf("Complete: %s", status)
 }

@@ -1,0 +1,40 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "ec2:DeleteNetworkInterface",
+                "ecr:*Image",
+                "ecr:*Layer*",
+                "ecr:*Repository",
+                "ecr:*RepositoryPolicy",
+                "ecr:Describe*",
+                "ecr:Get*",
+                "ecr:List*",
+                "ecr:TagResource",
+                "iam:*RolePolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole*",
+                "iam:GetRole*",
+                "iam:List*",
+                "iam:PutRole*",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:Update*",
+                "kms:RetireGrant",
+                "lambda:*Function*",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "logs:*LogGroup*",
+                "logs:PutRetentionPolicy",
+                "s3:Create*",
+                "s3:Delete*",
+                "s3:Get*",
+                "s3:List*",
+                "s3:Put*"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}

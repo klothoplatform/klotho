@@ -91,7 +91,7 @@ func TestEvaluator_RemoveEdge(t *testing.T) {
 			name: "remove edge",
 			initialState: []Vertex{
 				&edgeVertex{
-					Edge: construct.SimpleEdge{
+					Edge: construct.Edge{
 						Source: graphtest.ParseId(t, "a:a:a"),
 						Target: graphtest.ParseId(t, "a:a:b"),
 					},

@@ -65,10 +65,15 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 
 		for _, edge := range construct.EdgeKeys(prop.EdgeRules) {
 			rule := prop.EdgeRules[edge]
+			resEdge, err := eval.Solution.RawView().Edge(edge.Source, edge.Target)
+			if err != nil {
+				return fmt.Errorf("could not get edge for property vertex dependency calculation %s: %w", prop.Ref, err)
+			}
+			keyEdge := construct.ResourceEdgeToKeyEdge(resEdge)
 
 			edgeData := knowledgebase.DynamicValueData{
 				Resource: prop.Ref.Resource,
-				Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
+				Edge:     &keyEdge,
 			}
 			var corrected_edge_rules []knowledgebase.OperationalRule
 			for _, opRule := range rule {
@@ -168,7 +173,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	}
 
 	if v.shouldEvalEdges(eval.Solution.Constraints().Resources) {
-		if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
+		if err := v.evaluateEdgeOperational(eval, res, &opCtx); err != nil {
 			return err
 		}
 	}
@@ -328,6 +333,7 @@ func (v *propertyVertex) shouldEvalEdges(cs []constraints.ResourceConstraint) bo
 }
 
 func (v *propertyVertex) evaluateEdgeOperational(
+	eval *Evaluator,
 	res *construct.Resource,
 	opCtx operational_rule.OpRuleHandler,
 ) error {
@@ -338,12 +344,19 @@ func (v *propertyVertex) evaluateEdgeOperational(
 			// In case one of the previous rules changed the ID, update it
 			edge = UpdateEdgeId(edge, oldId, res.ID)
 
+			resEdge, err := eval.Solution.RawView().Edge(edge.Source, edge.Target)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not get edge from graph for %s: %w", edge, err))
+				continue
+			}
+			keyEdge := construct.ResourceEdgeToKeyEdge(resEdge)
+
 			opCtx.SetData(knowledgebase.DynamicValueData{
 				Resource: res.ID,
-				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
+				Edge:     &keyEdge,
 			})
 
-			err := opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
+			err = opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s -> %s operational rule for %s: %w",
@@ -512,7 +525,8 @@ func addConfigurationRuleToPropertyVertex(
 
 		switch v := v.(type) {
 		case *edgeVertex:
-			pv.EdgeRules[v.Edge] = append(pv.EdgeRules[v.Edge], knowledgebase.OperationalRule{
+			edge := construct.SimpleEdge{Source: v.Edge.Source, Target: v.Edge.Target}
+			pv.EdgeRules[edge] = append(pv.EdgeRules[edge], knowledgebase.OperationalRule{
 				If:                 rule.If,
 				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
 			})

@@ -33,6 +33,11 @@ func (sol *TestSolution) Context() context.Context {
 	return context.Background()
 }
 
+func (sol *TestSolution) UseEmptyTemplates() {
+	sol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+	sol.KB.On("GetEdgeTemplate", mock.Anything, mock.Anything).Return(&knowledgebase.EdgeTemplate{}, nil)
+}
+
 func (sol *TestSolution) LoadState(t *testing.T, initGraph ...any) {
 	graphtest.MakeGraph(t, sol.RawView(), initGraph...)
 

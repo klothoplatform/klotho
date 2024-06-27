@@ -1,0 +1,20 @@
+provider: aws
+resources:
+  lambda_function/lambda_test_app:
+
+  lambda_function/lambda_test_app -> ecr_image/lambda_test_app-image:
+  lambda_function/lambda_test_app -> iam_role/lambda_test_app-executionrole:
+  lambda_function/lambda_test_app -> s3_bucket/mybucket:
+  ecr_image/lambda_test_app-image:
+
+  ecr_image/lambda_test_app-image -> ecr_repo/lambda_test_app-image-ecr_repo:
+  iam_role/lambda_test_app-executionrole:
+
+  iam_role/lambda_test_app-executionrole -> log_group/lambda_test_app-log-group:
+  iam_role/lambda_test_app-executionrole -> s3_bucket/mybucket:
+  ecr_repo/lambda_test_app-image-ecr_repo:
+
+  log_group/lambda_test_app-log-group:
+
+  s3_bucket/mybucket:
+

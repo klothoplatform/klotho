@@ -185,12 +185,20 @@ func Test_propertyVertex_evaluateEdgeOperational(t *testing.T) {
 			assert := assert.New(t)
 			ctrl := gomock.NewController(t)
 			opctx := NewMockOpRuleHandler(ctrl)
-			opctx.EXPECT().SetData(knowledgebase.DynamicValueData{
-				Resource: tt.args.v.Ref.Resource,
-				Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
-			}).Times(1)
+			opctx.EXPECT().SetData(gomock.Cond(func(x any) bool {
+				data, ok := x.(knowledgebase.DynamicValueData)
+				if !ok {
+					return false
+				}
+				return data.Resource == tt.args.v.Ref.Resource && data.Edge.Source == construct.ResourceId{Name: "test"} && data.Edge.Target == construct.ResourceId{Name: "test2"}
+
+			})).Times(1)
 			opctx.EXPECT().HandleOperationalRule(rule, constraints.AddConstraintOperator).Return(nil).Times(1)
-			err := tt.args.v.evaluateEdgeOperational(tt.args.res, opctx)
+			sol := enginetesting.NewTestSolution()
+			sol.UseEmptyTemplates()
+			sol.LoadState(t, "::test -> ::test2")
+
+			err := tt.args.v.evaluateEdgeOperational(&Evaluator{Solution: sol}, tt.args.res, opctx)
 			if tt.wantErr {
 				assert.Error(err)
 				return
