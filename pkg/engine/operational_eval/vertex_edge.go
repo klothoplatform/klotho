@@ -19,7 +19,7 @@ type edgeVertex struct {
 }
 
 func (ev edgeVertex) Key() Key {
-	return Key{Edge: construct.SimpleEdge{Source: ev.Edge.Source, Target: ev.Edge.Target}}
+	return Key{Edge: construct.ToSimpleEdge(ev.Edge)}
 }
 
 func (ev *edgeVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
@@ -84,14 +84,13 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 }
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
-	edge := ev.Edge
-	se := construct.ToSimpleEdge(edge)
+	se := construct.ToSimpleEdge(ev.Edge)
 
 	cfgCtx := solution.DynamicCtx(eval.Solution)
 	opCtx := operational_rule.OperationalRuleContext{
 		Solution: eval.Solution,
 		Data: knowledgebase.DynamicValueData{
-			Edge: &edge,
+			Edge: &ev.Edge,
 		},
 	}
 

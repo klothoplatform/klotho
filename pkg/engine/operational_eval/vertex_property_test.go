@@ -2,7 +2,6 @@ package operational_eval
 
 import (
 	"fmt"
-	reflect "reflect"
 	"testing"
 
 	"github.com/dominikbraun/graph"
@@ -13,7 +12,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -27,7 +25,30 @@ func (d dynDataMatcher) Matches(x interface{}) bool {
 		return false
 	}
 
-	return dynData.Resource.Matches(d.data.Resource) && dynData.Path.String() == d.data.Path.String() && reflect.DeepEqual(dynData.Edge, d.data.Edge)
+	if !dynData.Resource.Matches(d.data.Resource) {
+		return false
+	}
+
+	if dynData.Path.String() != d.data.Path.String() {
+		return false
+	}
+
+	if dynData.Edge != d.data.Edge {
+		if dynData.Edge == nil || d.data.Edge == nil {
+			return false
+		}
+		if !dynData.Edge.Source.Matches(d.data.Edge.Source) {
+			return false
+		}
+		if !dynData.Edge.Target.Matches(d.data.Edge.Target) {
+			return false
+		}
+		if dynData.Edge.Properties.Data != d.data.Edge.Properties.Data {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (d dynDataMatcher) String() string {
@@ -327,12 +348,16 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				},
 			},
 			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
-				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
+				dcap.EXPECT().ExecuteOpRule(dynDataMatcher{knowledgebase.DynamicValueData{
 					Resource: resource.ID,
-					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
-				}, knowledgebase.OperationalRule{
+					Edge: &construct.Edge{
+						Source: construct.ResourceId{Name: "test"},
+						Target: construct.ResourceId{Name: "test2"},
+					},
+				}}, knowledgebase.OperationalRule{
 					If: "testE",
 				}).Return(nil)
+
 				dcap.EXPECT().GetChanges().Return(graphChanges{
 					edges: map[Key]set.Set[Key]{},
 				}).Times(2)
@@ -358,15 +383,21 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 				TransformRules: map[construct.SimpleEdge]*set.HashedSet[string, knowledgebase.OperationalRule]{},
 			},
 			mocks: func(dcap *MockdependencyCapturer, resource *construct.Resource, path construct.PropertyPath) {
-				dcap.EXPECT().ExecuteOpRule(knowledgebase.DynamicValueData{
-					Resource: resource.ID,
-					Edge:     &graph.Edge[construct.ResourceId]{Source: construct.ResourceId{Name: "test"}, Target: construct.ResourceId{Name: "test2"}},
-				}, knowledgebase.OperationalRule{
+				dcap.EXPECT().ExecuteOpRule(dynDataMatcher{
+					knowledgebase.DynamicValueData{
+						Resource: resource.ID,
+						Edge: &graph.Edge[construct.ResourceId]{
+							Source: construct.ResourceId{Name: "test"},
+							Target: construct.ResourceId{Name: "test2"},
+						},
+					}}, knowledgebase.OperationalRule{
 					If: "testE",
 				}).Return(nil)
+
 				dcap.EXPECT().GetChanges().Return(graphChanges{
 					edges: map[Key]set.Set[Key]{},
 				}).Times(1)
+
 				dcap.EXPECT().GetChanges().Return(graphChanges{
 					edges: map[Key]set.Set[Key]{
 						{Ref: construct.PropertyRef{
@@ -457,7 +488,12 @@ func Test_propertyVertex_Dependencies(t *testing.T) {
 			tt.mocks(dcap, resource, path)
 			testSol := enginetesting.NewTestSolution()
 			testSol.Constr = tt.constraints
-			testSol.KB.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+			testSol.UseEmptyTemplates()
+			initGraph := []any{resource}
+			for e := range tt.v.EdgeRules {
+				initGraph = append(initGraph, e)
+			}
+			testSol.LoadState(t, initGraph...)
 			err = testSol.RawView().AddVertex(resource)
 			if !assert.NoError(t, err) {
 				return

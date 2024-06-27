@@ -525,7 +525,7 @@ func addConfigurationRuleToPropertyVertex(
 
 		switch v := v.(type) {
 		case *edgeVertex:
-			edge := construct.SimpleEdge{Source: v.Edge.Source, Target: v.Edge.Target}
+			edge := construct.ToSimpleEdge(v.Edge)
 			pv.EdgeRules[edge] = append(pv.EdgeRules[edge], knowledgebase.OperationalRule{
 				If:                 rule.If,
 				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
