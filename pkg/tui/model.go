@@ -36,11 +36,13 @@ type (
 	}
 )
 
+const logoColor = "#816FA6"
+
 var (
 	//go:embed logo.txt
 	logo string
 
-	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(logoColor))
 )
 
 func NewModel(verbosity Verbosity) *model {
