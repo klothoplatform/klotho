@@ -229,7 +229,7 @@ func TestInitState(t *testing.T) {
 		t.Errorf("Expected DefaultRegion to be us-west-2, got %s", sm.state.DefaultRegion)
 	}
 
-	construct, exists := sm.GetConstruct("example-construct")
+	construct, exists := sm.GetConstructState("example-construct")
 	if !exists {
 		t.Fatalf("Expected construct example-construct to exist")
 	}

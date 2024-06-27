@@ -15,7 +15,7 @@ func TestUpdateResourceState(t *testing.T) {
 		t.Fatalf("Failed to parse URN: %v", err)
 	}
 	// Initialize the construct state in the StateManager
-	sm.SetConstruct(ConstructState{
+	sm.SetConstructState(ConstructState{
 		Status: ConstructPending,
 		URN:    parsedURN,
 	})
@@ -23,7 +23,7 @@ func TestUpdateResourceState(t *testing.T) {
 	if err := sm.UpdateResourceState("example-construct", ConstructCreatePending, "2023-06-11T00:00:00Z"); err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	construct, exists := sm.GetConstruct("example-construct")
+	construct, exists := sm.GetConstructState("example-construct")
 	if !exists {
 		t.Errorf("Expected construct example-construct to exist")
 	}

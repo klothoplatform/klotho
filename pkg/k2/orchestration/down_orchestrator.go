@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 
@@ -51,7 +50,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 	actions := make(map[model.URN]model.ConstructActionType)
 	var constructsToDelete []model.ConstructState
 	for _, ref := range request.StackReferences {
-		c, exists := sm.GetConstruct(ref.ConstructURN.ResourceID)
+		c, exists := sm.GetConstructState(ref.ConstructURN.ResourceID)
 		if !exists {
 			// This means there's a construct in our StackReferences that doesn't exist in the state
 			// This should never happen as we just build StackReferences from the state
@@ -65,13 +64,10 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		actions[*c.URN] = model.ConstructActionDelete
 	}
 
-	// sorConstructsByDependency returns the result in deploy order
-	// so we'll reverse the resulting slice to get the delete order
 	deleteOrder, err := sortConstructsByDependency(constructsToDelete, actions)
 	if err != nil {
 		return fmt.Errorf("failed to determine deployment order: %w", err)
 	}
-	slices.Reverse(deleteOrder)
 
 	for _, group := range deleteOrder {
 		for _, cURN := range group {
@@ -83,7 +79,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 	}
 	for _, group := range deleteOrder {
 		for _, cURN := range group {
-			construct, exists := sm.GetConstruct(cURN.ResourceID)
+			construct, exists := sm.GetConstructState(cURN.ResourceID)
 			if !exists {
 				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}

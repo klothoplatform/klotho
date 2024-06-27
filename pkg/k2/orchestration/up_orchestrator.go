@@ -8,7 +8,6 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/k2/constructs"
-
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
@@ -92,11 +91,10 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 	for _, group := range deployOrder {
 		for _, cURN := range group {
-			if err != nil {
-				return err
+			c, exits := uo.StateManager.GetConstructState(cURN.ResourceID)
+			if !exits {
+				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}
-
-			c := uo.StateManager.GetState().Constructs[cURN.ResourceID]
 
 			outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
 
@@ -141,7 +139,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			}
 
 			// Evaluate the construct
-			stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
+			stackRef, err := uo.EvaluateConstruct(ctx, uo.StateManager, *c.URN)
 			if err != nil {
 				return fmt.Errorf("error evaluating construct: %w", err)
 			}

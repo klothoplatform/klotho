@@ -42,9 +42,12 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	return o.infraGenerator, nil
 }
 
-func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
+func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.StateManager, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
-	c := state.Constructs[constructUrn.ResourceID]
+	c, exists := sm.GetConstructState(constructUrn.ResourceID)
+	if !exists {
+		return stack.Reference{}, fmt.Errorf("construct %s not found in state", constructUrn.ResourceID)
+	}
 	inputs := make(map[string]any)
 	var merr multierr.Error
 	for k, v := range c.Inputs {
@@ -64,6 +67,7 @@ func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.Sta
 	if err != nil {
 		return stack.Reference{}, err
 	}
+
 	ig, err := uo.InfraGenerator()
 	if err != nil {
 		return stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
@@ -78,7 +82,7 @@ func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.Sta
 		ConstructURN: urn,
 		Name:         urn.ResourceID,
 		IacDirectory: constructOutDir,
-		AwsRegion:    state.DefaultRegion,
+		AwsRegion:    sm.GetState().DefaultRegion,
 	}, nil
 }
 
@@ -103,7 +107,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		var status model.ConstructStatus
 		var action model.ConstructActionType
 
-		construct, exists := o.StateManager.GetConstruct(c.URN.ResourceID)
+		construct, exists := o.StateManager.GetConstructState(c.URN.ResourceID)
 		if !exists {
 			// If the construct doesn't exist in the current state, it's a create action
 			action = model.ConstructActionCreate

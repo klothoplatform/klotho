@@ -69,13 +69,13 @@
             "args": [
                 "up",
                 "-v",
-                "-o=${workspaceFolder}/out/${fileBasenameNoExtension}",
-                "--profiling=${workspaceFolder}/out/${fileBasenameNoExtension}/k2.prof",
+                "-o=${workspaceFolder}/out",
+                "--profiling=${workspaceFolder}/out/k2.prof",
                 "--dry-run",
                 "${file}"
             ],
             "env": {
-                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}"
+                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out"
             }
         },
         {
@@ -88,15 +88,15 @@
             "args": [
                 "up",
                 "-v",
-                "-o=${workspaceFolder}/out/${fileBasenameNoExtension}",
-                "--profiling=${workspaceFolder}/out/${fileBasenameNoExtension}/k2.prof",
+                "-o=${workspaceFolder}/out",
+                "--profiling=${workspaceFolder}/out/k2.prof",
                 "--dry-run",
                 "--debug=vscode",
                 // "${file}"
                 "infra.py"
             ],
             "env": {
-                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out/${fileBasenameNoExtension}",
+                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out",
                 "AWS_REGION": "${env:AWS_REGION}",
             },
             "console": "integratedTerminal"

@@ -327,8 +327,6 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/texttheater/golang-levenshtein v1.0.1 h1:+cRNoVrfiwufQPhoMzB6N0Yf/Mqajr6t1lOv8GyGE2U=
 github.com/texttheater/golang-levenshtein v1.0.1/go.mod h1:PYAKrbF5sAiq9wd+H82hs7gNaen0CplQ9uvm6+enD/8=
-github.com/thessem/zap-prettyconsole v0.4.0 h1:905GshsxOSVz44hm0mEr00Dk/gjf1Aoq3tkW1o2kKuw=
-github.com/thessem/zap-prettyconsole v0.4.0/go.mod h1:6bRZpKuje/vxEMEAlF22qPHkcO8kfJSrL/0NALxuZoQ=
 github.com/thessem/zap-prettyconsole v0.5.0 h1:AOu1GGUuDkGmj4tgRPSVf0vYGzDM+6cPWjKOcmjEcQs=
 github.com/thessem/zap-prettyconsole v0.5.0/go.mod h1:3qfsE7y+bLOq7EQ+fMZHD3HYEp24ULFf5nhLSx6rjrE=
 github.com/tweekmonster/luser v0.0.0-20161003172636-3fa38070dbd7 h1:X9dsIWPuuEJlPX//UmRKophhOKCGXc46RVIGuttks68=

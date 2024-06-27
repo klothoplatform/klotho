@@ -5,6 +5,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Arn: string
     SubnetGroup: aws.rds.SubnetGroup
     SecurityGroups: aws.ec2.SecurityGroup[]
     IamDatabaseAuthenticationEnabled: boolean
@@ -29,8 +30,16 @@ function create(args: Args): aws.rds.Instance {
             engine: args.Engine,
             engineVersion: args.EngineVersion,
             dbName: args.DatabaseName,
+            //TMPL {{- if .Username }}
+            //TMPL username: {{.Username}},
+            //TMPL {{- else }}
             username: kloConfig.requireSecret(`${args.Name}-username`),
+            //TMPL {{- end }}
+            //TMPL {{- if .Password }}
+            //TMPL password: {{ .Password }},
+            //TMPL {{- else }}
             password: kloConfig.requireSecret(`${args.Name}-password`),
+            //TMPL {{- end }}
             iamDatabaseAuthenticationEnabled: args.IamDatabaseAuthenticationEnabled,
             dbSubnetGroupName: args.SubnetGroup.name,
             vpcSecurityGroupIds: args.SecurityGroups.map((sg) => sg.id),
@@ -46,8 +55,8 @@ function create(args: Args): aws.rds.Instance {
 
 function properties(object: aws.rds.Instance, args: Args) {
     return {
-        Password: kloConfig.requireSecret(`${args.Name}-password`),
         Username: object.username,
+        Password: object.password,
         CredentialsSecretValue: pulumi.jsonStringify({
             username: object.username,
             password: object.password,

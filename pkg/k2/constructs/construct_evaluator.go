@@ -4,6 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
@@ -12,11 +18,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"go.uber.org/zap"
-	"reflect"
-	"regexp"
-	"strconv"
-	"strings"
-	"text/template"
 )
 
 type ConstructEvaluator struct {
@@ -372,7 +373,7 @@ Evaluation Order:
 */
 func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Construct, error) {
 
-	cState, ok := ce.stateManager.GetConstruct(constructUrn.ResourceID)
+	cState, ok := ce.stateManager.GetConstructState(constructUrn.ResourceID)
 	if !ok {
 		return nil, fmt.Errorf("could not get state state for construct: %s", constructUrn)
 	}
@@ -395,11 +396,10 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Constr
 	}
 
 	c, err := NewConstruct(constructUrn, inputs)
-	ce.constructs[constructUrn] = c
-
 	if err != nil {
 		return nil, fmt.Errorf("could not create construct: %w", err)
 	}
+	ce.constructs[constructUrn] = c
 
 	ce.parseInputs(c)
 	err = ce.importResources(c)
