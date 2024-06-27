@@ -161,6 +161,10 @@ func edgesEqual[K comparable](a, b graph.Edge[K]) bool {
 	if a.Properties.Data == nil || b.Properties.Data == nil {
 		// Can only safely check `==` if one is nil because a map cannot `==` anything else
 		return a.Properties.Data == b.Properties.Data
+	} else if aEq, ok := a.Properties.Data.(interface{ Equals(any) bool }); ok {
+		return aEq.Equals(b.Properties.Data)
+	} else if bEq, ok := b.Properties.Data.(interface{ Equals(any) bool }); ok {
+		return bEq.Equals(a.Properties.Data)
 	} else {
 		// Do the reflection last, since that is slow. We need to use reflection unlike for attributes
 		// because we don't know what type the data is.
@@ -175,9 +179,8 @@ func (s *MemoryStore[K, T]) AddEdge(sourceHash, targetHash K, edge graph.Edge[K]
 	if _, _, err := s.vertexWithLock(sourceHash); err != nil {
 		return fmt.Errorf("could not get source vertex: %w", &graph.VertexNotFoundError[K]{Key: sourceHash})
 	}
-
-	if _, ok := s.outEdges[sourceHash]; !ok {
-		s.outEdges[sourceHash] = make(map[K]graph.Edge[K])
+	if _, _, err := s.vertexWithLock(targetHash); err != nil {
+		return fmt.Errorf("could not get target vertex: %w", &graph.VertexNotFoundError[K]{Key: targetHash})
 	}
 
 	if existing, ok := s.outEdges[sourceHash][targetHash]; ok {
@@ -186,22 +189,20 @@ func (s *MemoryStore[K, T]) AddEdge(sourceHash, targetHash K, edge graph.Edge[K]
 		}
 	}
 
-	s.outEdges[sourceHash][targetHash] = edge
-
-	if _, _, err := s.vertexWithLock(targetHash); err != nil {
-		return fmt.Errorf("could not get target vertex: %w", &graph.VertexNotFoundError[K]{Key: targetHash})
-	}
-
-	if _, ok := s.inEdges[targetHash]; !ok {
-		s.inEdges[targetHash] = make(map[K]graph.Edge[K])
-	}
-
 	if existing, ok := s.inEdges[targetHash][sourceHash]; ok {
 		if !edgesEqual(existing, edge) {
 			return &graph.EdgeAlreadyExistsError[K]{Source: sourceHash, Target: targetHash}
 		}
 	}
 
+	if _, ok := s.outEdges[sourceHash]; !ok {
+		s.outEdges[sourceHash] = make(map[K]graph.Edge[K])
+	}
+	s.outEdges[sourceHash][targetHash] = edge
+
+	if _, ok := s.inEdges[targetHash]; !ok {
+		s.inEdges[targetHash] = make(map[K]graph.Edge[K])
+	}
 	s.inEdges[targetHash][sourceHash] = edge
 
 	return nil
