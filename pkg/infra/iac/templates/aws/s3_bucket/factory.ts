@@ -9,6 +9,7 @@ interface Args {
     SSEAlgorithm: string
     protect: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
+    Bucket: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -44,6 +45,8 @@ function properties(object: aws.s3.Bucket, args: Args) {
         AllBucketDirectory: pulumi.interpolate`${object.arn}/*`,
         Arn: object.arn,
         BucketRegionalDomainName: object.bucketRegionalDomainName,
+        Bucket: object.bucket,
+        // DS - Leaving BucketName in place for backward compatibility for fow
         BucketName: object.bucket,
     }
 }
@@ -56,4 +59,8 @@ function infraExports(
     return {
         BucketName: object.bucket,
     }
+}
+
+function importResource(args: Args): aws.s3.Bucket {
+    return aws.s3.Bucket.get(args.Name, args.Bucket)
 }

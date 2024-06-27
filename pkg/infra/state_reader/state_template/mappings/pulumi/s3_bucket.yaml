@@ -1,0 +1,12 @@
+qualified_type_name: aws:s3_bucket
+iac_qualified_type: aws:s3/bucket:Bucket
+
+property_mappings:
+  arn: Arn
+  bucket: Bucket
+  bucketRegionalDomainName: BucketRegionalDomainName,
+  forceDestroy: ForceDestroy
+  # TODO: implement support for nested properties
+  serverSideEncryptionConfiguration.rule.applyServerSideEncryptionByDefault.sseAlgorithm: SSEAlgorithm
+  tags: Tags
+  website.indexDocument: IndexDocument
