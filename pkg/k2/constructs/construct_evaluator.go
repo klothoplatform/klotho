@@ -44,7 +44,7 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Constraints, error) {
 	ci, err := ce.evaluateConstruct(constructUrn)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error evaluating construct: %w", err)
+		return constraints.Constraints{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
 	}
 
 	marshaller := ConstructMarshaller{Construct: ci}

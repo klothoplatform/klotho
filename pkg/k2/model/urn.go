@@ -90,7 +90,7 @@ func ParseURN(urnString string) (*URN, error) {
 }
 
 // String returns the URN as a string
-func (u *URN) String() string {
+func (u URN) String() string {
 	var sb strings.Builder
 	sb.WriteString("urn:")
 	sb.WriteString(u.AccountID)

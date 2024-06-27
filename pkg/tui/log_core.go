@@ -22,11 +22,7 @@ type LogCore struct {
 func NewLogCore(opts logging.LogOpts, verbosity Verbosity, program *tea.Program) zapcore.Core {
 	enc := opts.Encoder()
 	leveller := zap.NewAtomicLevel()
-	if opts.Verbose {
-		leveller.SetLevel(zap.DebugLevel)
-	} else {
-		leveller.SetLevel(zap.InfoLevel)
-	}
+	leveller.SetLevel(verbosity.LogLevel())
 
 	core := zapcore.NewCore(enc, os.Stderr, leveller)
 	core = &LogCore{
@@ -59,10 +55,6 @@ func (c *LogCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.Chec
 }
 
 func (c *LogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
-	if !c.verbosity.ShowLogs() {
-		return nil
-	}
-
 	if c.verbosity.CombineLogs() {
 		buf, err := c.enc.EncodeEntry(ent, fields)
 		if err != nil {
