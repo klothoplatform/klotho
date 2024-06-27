@@ -1,7 +1,7 @@
-from typing import Optional, overload
+from typing import Optional, overload, Any
 
-from klotho.output import Input, Output
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
+from klotho.output import Input, Output
 from klotho.type_util import set, get, get_output
 
 
@@ -87,5 +87,5 @@ class Bucket(Construct):
         return get_output(self, path="Arn", output_type=str)
 
     @property
-    def bucket_name(self) -> Output[str]:
-        return get_output(self, path="BucketName", output_type=str)
+    def bucket(self) -> Output[str]:
+        return get_output(self, path="Bucket", output_type=str)

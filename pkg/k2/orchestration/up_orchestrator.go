@@ -77,7 +77,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			action := actions[cURN]
 			ctx := ConstructContext(ctx, cURN)
 			prog := tui.GetProgress(ctx)
-			prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
+			prog.UpdateIndeterminate(fmt.Sprintf("Pending %s", action))
 		}
 	}
 
@@ -91,115 +91,120 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 
 	for _, group := range deployOrder {
 		for _, cURN := range group {
-			c, exits := uo.StateManager.GetConstructState(cURN.ResourceID)
-			if !exits {
+			c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
+			if !exists {
 				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 			}
-
-			outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
-
-			ctx := ConstructContext(ctx, *c.URN)
-			ctx = debug.WithDebugDir(ctx, outDir)
-			prog := tui.GetProgress(ctx)
-
-			// Run pulumi down command for deleted constructs
-			if actions[*c.URN] == model.ConstructActionDelete && model.IsDeletable(c.Status) {
-
-				if dryRun {
-					log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
-					prog.Complete("Skipped")
-					continue
-				}
-
-				// Mark as deleting
-				if err := sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
-					prog.Complete("Failed")
-					return err
-				}
-
-				err = stack.RunDown(ctx, stack.Reference{
-					ConstructURN: *c.URN,
-					Name:         c.URN.ResourceID,
-					IacDirectory: outDir,
-					AwsRegion:    sm.GetState().DefaultRegion,
-				})
-
-				if err != nil {
-					prog.Complete("Failed")
-					return fmt.Errorf("error running pulumi down command: %w", err)
-				}
-
-				// Mark as deleted
-				if err := sm.TransitionConstructState(&c, model.ConstructDeleteComplete); err != nil {
-					prog.Complete("Failed")
-					return err
-				}
-				continue
-			}
-
-			// Only proceed if the construct is deployable
-			if !model.IsDeployable(c.Status) {
-				prog.Complete("Skipped")
-				continue
-			}
-
-			// Evaluate the construct
-			stackRef, err := uo.EvaluateConstruct(ctx, uo.StateManager, *c.URN)
-			if err != nil {
-				prog.Complete("Failed")
-				return fmt.Errorf("error evaluating construct %s: %w", cURN, err)
-			}
-
-			if dryRun {
-				_, err = stack.RunPreview(ctx, stackRef)
-				if err != nil {
-					prog.Complete("Failed")
-					return err
-				}
-				prog.Complete("Success")
-				continue
-			}
-
-			if err = transitionPendingToDoing(sm, &c); err != nil {
-				return fmt.Errorf("error transitioning construct state: %w", err)
-			}
-
-			// Run pulumi up command for the construct
-			upResult, stackState, err := stack.RunUp(ctx, stackRef)
-			if err != nil {
-				return fmt.Errorf("error running pulumi up command: %w", err)
-			}
-			uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = stackState
-
-			err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
-			if err != nil {
-				return fmt.Errorf("error registering output values: %w", err)
-			}
-
-			// Update construct state based on the up result
-			err = stack.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
+			err = uo.executeAction(ctx, c, actions[cURN], dryRun)
 			if err != nil {
 				return err
 			}
-
-			// Resolve pending output values by calling the language host
-			resolvedOutputs, err := uo.resolveOutputValues(stackRef, stackState)
-			if err != nil {
-				return fmt.Errorf("error resolving output values: %w", err)
-			}
-			err = sm.RegisterOutputValues(stackRef.ConstructURN, resolvedOutputs)
-			if err != nil {
-				return fmt.Errorf("error registering resolved output values: %w", err)
-			}
-
-			prog.Complete("Success")
 		}
 	}
 	return err
 }
 
+func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) error {
+	sm := uo.StateManager
+	log := logging.GetLogger(ctx).Sugar()
+	outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
+
+	ctx = ConstructContext(ctx, *c.URN)
+	ctx = debug.WithDebugDir(ctx, outDir)
+	prog := tui.GetProgress(ctx)
+	prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
+
+	var err error
+	skipped := false
+
+	defer func() {
+		msg := "Success"
+		if err != nil {
+			msg = "Failed"
+		}
+		if skipped {
+			msg = "Skipped"
+		}
+		prog.Complete(msg)
+	}()
+
+	// Run pulumi down command for deleted constructs
+	if action == model.ConstructActionDelete && model.IsDeletable(c.Status) {
+		if dryRun {
+			log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
+			return nil
+		}
+
+		// Mark as deleting
+		if err = sm.TransitionConstructState(&c, model.ConstructDeleting); err != nil {
+			return err
+		}
+
+		err = stack.RunDown(ctx, stack.Reference{
+			ConstructURN: *c.URN,
+			Name:         c.URN.ResourceID,
+			IacDirectory: outDir,
+			AwsRegion:    sm.GetState().DefaultRegion,
+		})
+
+		if err != nil {
+			return fmt.Errorf("error running pulumi down command: %w", err)
+		}
+
+		// Mark as deleted
+		return sm.TransitionConstructState(&c, model.ConstructDeleteComplete)
+	}
+
+	// Only proceed if the construct is deployable
+	if !model.IsDeployable(c.Status) {
+		skipped = true
+		return nil
+	}
+
+	// Evaluate the construct
+	stackRef, err := uo.EvaluateConstruct(ctx, *uo.StateManager.GetState(), *c.URN)
+	if err != nil {
+		return fmt.Errorf("error evaluating construct: %w", err)
+	}
+
+	if dryRun {
+		_, err = stack.RunPreview(ctx, stackRef)
+		return err
+	}
+
+	if err = transitionPendingToDoing(sm, &c); err != nil {
+		return fmt.Errorf("error transitioning construct state: %w", err)
+	}
+
+	// Run pulumi up command for the construct
+	upResult, stackState, err := stack.RunUp(ctx, stackRef)
+	if err != nil {
+		return fmt.Errorf("error running pulumi up command: %w", err)
+	}
+	uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = stackState
+
+	err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
+	if err != nil {
+		return fmt.Errorf("error registering output values: %w", err)
+	}
+
+	// Update construct state based on the up result
+	err = stack.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
+	if err != nil {
+		return err
+	}
+
+	// Resolve pending output values by calling the language host
+	resolvedOutputs, err := uo.resolveOutputValues(stackRef, stackState)
+	if err != nil {
+		return fmt.Errorf("error resolving output values: %w", err)
+	}
+	uo.ConstructEvaluator.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
+	return sm.RegisterOutputValues(stackRef.ConstructURN, resolvedOutputs)
+}
+
 func (uo *UpOrchestrator) resolveOutputValues(stackReference stack.Reference, stackState stack.State) (map[string]any, error) {
-	outputs := map[string]map[string]interface{}{
+	outputs := map[string]map[string]any{
 		stackReference.ConstructURN.String(): stackState.Outputs,
 	}
 	payload, err := yaml.Marshal(outputs)

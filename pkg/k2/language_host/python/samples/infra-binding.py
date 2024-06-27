@@ -5,7 +5,7 @@ import klotho.aws as aws
 
 # Create the Application instance
 app = klotho.Application(
-    "my-app",
+    "binding-app",
     project=os.getenv(
         "PROJECT_NAME", "my-project"
     ),  # Default to 'my-project' or the environment variable value
@@ -16,8 +16,8 @@ app = klotho.Application(
     ),  # Default to 'us-east-1' or the environment variable value
 )
 
-# Create a Container resource
-container = aws.Container('my-container', dockerfile="Dockerfile")
-
 # Create a Bucket resource
 bucket = aws.Bucket("my-bucket", force_destroy=True)
+
+# Create a Container resource with a binding to the Bucket resource
+container = aws.Container('my-container', dockerfile="Dockerfile", bindings=[bucket])

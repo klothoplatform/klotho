@@ -1,0 +1,31 @@
+from: klotho.aws.Container
+to: klotho.aws.Bucket
+
+inputs:
+  ReadOnly:
+    name: Read Only
+    description: Whether the connection should be read only
+    type: boolean
+    default: false
+resources:
+  TaskDefinition:
+    properties:
+      ContainerDefinitions[0].Environment:
+        # TODO: implement destructuring of structs/maps -> map keys/values and arrays -> array elements
+  #        - ${from:resources.TaskDefinition.ContainerDefinitions[0].Environment...}
+        - Name: ${to.inputs:Name}_BUCKET_ENDPOINT
+          Value: ${to.outputs:BucketRegionalDomainName}
+input_rules:
+  - if: '{{ inputs "ReadOnly" }}'
+    then:
+      edges:
+        - from: ${from.resources:Service}
+          to: ${to.resources:Bucket}
+          data:
+            access: read
+    else:
+      edges:
+        - from: ${from.resources:Service}
+          to: ${to.resources:Bucket}
+          data:
+            access: read_write

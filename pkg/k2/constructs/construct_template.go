@@ -1,6 +1,7 @@
 package constructs
 
 import (
+	"errors"
 	"fmt"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"strings"
@@ -47,8 +48,6 @@ type (
 		Secret      bool               `yaml:"secret"`
 		PulumiKey   string             `yaml:"pulumi_key"`
 		Validation  ValidationTemplate `yaml:"validation"`
-		//resourcesNode *yaml.Node
-		//edgesNode     *yaml.Node
 	}
 
 	OutputTemplate struct {
@@ -78,6 +77,18 @@ type (
 		Pattern      string   `yaml:"pattern"`
 		Enum         []string `yaml:"enum"`
 		UniqueValues bool     `yaml:"unique_values"`
+	}
+
+	BindingTemplate struct {
+		From          ConstructTemplateId         `yaml:"from"`
+		To            ConstructTemplateId         `yaml:"to"`
+		Priority      int                         `yaml:"priority"`
+		Inputs        map[string]InputTemplate    `yaml:"inputs"`
+		Outputs       map[string]OutputTemplate   `yaml:"outputs"`
+		InputRules    []InputRuleTemplate         `yaml:"input_rules"`
+		Resources     map[string]ResourceTemplate `yaml:"resources"`
+		Edges         []EdgeTemplate              `yaml:"edges"`
+		resourceOrder []string
 	}
 )
 
@@ -170,66 +181,118 @@ func (e *EdgeTemplate) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (c *ConstructTemplate) UnmarshalYAML(value *yaml.Node) error {
-	// alias
-	type constructTemplate ConstructTemplate
+func (c *ConstructTemplate) ResourcesIterator() Iterator[string, ResourceTemplate] {
+	return Iterator[string, ResourceTemplate]{
+		source: c.Resources,
+		order:  c.resourceOrder,
+	}
+}
 
-	// Unmarshal the construct template from a yaml node
+func (c *ConstructTemplate) UnmarshalYAML(value *yaml.Node) error {
+	type constructTemplate ConstructTemplate
 	var template constructTemplate
 	if err := value.Decode(&template); err != nil {
 		return err
 	}
-
-	var resourceOrder []string
-	// Capture the resource order
-	for i := 0; i < len(value.Content); i += 2 {
-		keyNode := value.Content[i]
-		if keyNode.Value == "resources" {
-			for j := 0; j < len(value.Content[i+1].Content); j += 2 {
-				resourceOrder = append(resourceOrder, value.Content[i+1].Content[j].Value)
-			}
-		}
-	}
-
+	resourceOrder, _ := captureYAMLKeyOrder(value, "resources")
 	template.resourceOrder = resourceOrder
-	// Convert the alias to the actual type
 	*c = ConstructTemplate(template)
 	return nil
 }
 
-type ResourceIterator struct {
-	template *ConstructTemplate
-	index    int
+func (b *BindingTemplate) ResourcesIterator() Iterator[string, ResourceTemplate] {
+	return Iterator[string, ResourceTemplate]{
+		source: b.Resources,
+		order:  b.resourceOrder,
+	}
 }
 
-func (r *ResourceIterator) Next() (string, ResourceTemplate, bool) {
-	if r.index >= len(r.template.resourceOrder) || r.index >= len(r.template.Resources) {
-		return "", ResourceTemplate{}, false
+func (b *BindingTemplate) UnmarshalYAML(value *yaml.Node) error {
+	type bindingTemplate BindingTemplate
+	var template bindingTemplate
+	if err := value.Decode(&template); err != nil {
+		return err
+	}
+	resourceOrder, _ := captureYAMLKeyOrder(value, "resources")
+	template.resourceOrder = resourceOrder
+	*b = BindingTemplate(template)
+	return nil
+}
+
+func captureYAMLKeyOrder(rootNode *yaml.Node, sectionKey string) ([]string, error) {
+	var resourceOrder []string
+	foundKey := false
+	for i := 0; i < len(rootNode.Content); i += 2 {
+		if keyNode := rootNode.Content[i]; keyNode.Value == sectionKey {
+			foundKey = true
+			for j := 0; j < len(rootNode.Content[i+1].Content); j += 2 {
+				resourceOrder = append(resourceOrder, rootNode.Content[i+1].Content[j].Value)
+			}
+			break
+		}
 	}
 
-	// Get the next resource that actually exists in the template
-	for _, ok := r.template.Resources[r.template.resourceOrder[r.index]]; !ok && r.index < len(r.template.resourceOrder); r.index++ {
+	if !foundKey {
+		return nil, fmt.Errorf("could not find key: %s", sectionKey)
+	}
+
+	return resourceOrder, nil
+}
+
+type Iterator[K comparable, V any] struct {
+	source map[K]V
+	order  []K
+	index  int
+}
+
+func (r *Iterator[K, V]) Next() (K, V, bool) {
+	if r.index >= len(r.order) || r.index >= len(r.source) {
+		var zeroK K
+		var zeroV V
+
+		return zeroK, zeroV, false
+	}
+
+	// Get the next resource that actually exists in the map
+	for _, ok := r.source[r.order[r.index]]; !ok && r.index < len(r.order); r.index++ {
 		// do nothing
 	}
-	key := r.template.resourceOrder[r.index]
-	resource := r.template.Resources[key]
+	key := r.order[r.index]
+	resource := r.source[key]
 
 	r.index++
 	return key, resource, true
 }
 
-func (c *ConstructTemplate) ResourcesIterator() *ResourceIterator {
-	return &ResourceIterator{
-		template: c,
-	}
-}
+type IterFunc[K comparable, V any] func(K, V) error
 
-func (r *ResourceIterator) ForEach(f func(string, ResourceTemplate)) {
+var stopIteration = fmt.Errorf("stop iteration")
+
+func (r *Iterator[K, V]) ForEach(f IterFunc[K, V]) {
 	for key, resource, ok := r.Next(); ok; key, resource, ok = r.Next() {
-		f(key, resource)
+		if err := f(key, resource); err != nil {
+			if errors.Is(err, stopIteration) {
+				return
+			}
+		}
 	}
 }
 
-func (r *ResourceIterator) Reset() {
+func (r *Iterator[K, V]) Reset() {
 	r.index = 0
+}
+
+type BindingDirection string
+
+const (
+	BindingDirectionFrom = "from"
+	BindingDirectionTo   = "to"
+)
+
+func (c *ConstructTemplate) GetBindingTemplate(direction BindingDirection, other ConstructTemplateId) (BindingTemplate, error) {
+	if direction == BindingDirectionFrom {
+		return loadBindingTemplate(c.Id, c.Id, other)
+	} else {
+		return loadBindingTemplate(c.Id, other, c.Id)
+	}
 }

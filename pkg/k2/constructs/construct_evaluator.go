@@ -2,8 +2,12 @@ package constructs
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -17,7 +21,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
-	"go.uber.org/zap"
+	"github.com/klothoplatform/klotho/pkg/logging"
 )
 
 type ConstructEvaluator struct {
@@ -41,14 +45,18 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}, nil
 }
 
-func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Constraints, error) {
-	ci, err := ce.evaluateConstruct(constructUrn)
+func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN, state model.State, ctx context.Context) (constraints.Constraints, error) {
+	ci, err := ce.evaluateConstruct(constructUrn, state, ctx)
 	if err != nil {
 		return constraints.Constraints{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
 	}
+	err = ce.evaluateBindings(ci, ctx)
+	if err != nil {
+		return constraints.Constraints{}, fmt.Errorf("error evaluating bindings: %w", err)
+	}
 
-	marshaller := ConstructMarshaller{Construct: ci}
-	constraintList, err := marshaller.Marshal()
+	marshaller := ConstructMarshaller{ConstructEvaluator: ce}
+	constraintList, err := marshaller.Marshal(constructUrn)
 	if err != nil {
 		return constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
 	}
@@ -61,7 +69,10 @@ func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN) (constraints.Cons
 	return cs, nil
 }
 
+// Matches one or more interpolation groups in a string e.g., ${inputs:foo.bar}-baz-${resource:Boz}
 var interpolationPattern = regexp.MustCompile(`\$\{([^:]+):([^}]+)}`)
+
+// Matches exactly one interpolation group e.g., ${inputs:foo.bar}
 var isolatedInterpolationPattern = regexp.MustCompile(`^\$\{([^:]+):([^}]+)}$`)
 
 /*
@@ -71,22 +82,19 @@ var isolatedInterpolationPattern = regexp.MustCompile(`^\$\{([^:]+):([^}]+)}$`)
 		The key can be a path to a value in the context. For example, ${inputs:foo.bar} will interpolate the value of the key bar in the foo input.
 		The target of a dot-separated path can be a map or a struct.
 		The path can also include brackets to access an array. For example, ${inputs:foo[0].bar} will interpolate the value of the key bar in the first element of the foo input array.
-
-		Allowable prefixes are:
-		- stack: Interpolates a value from a construct's IaC (pulumi) stack
-		- inputs: Interpolates a value from the inputs of the construct
-		- resources: Interpolates a value from the resources of the construct
-	    - edges: Interpolates a value from the edges of the construct
-	    - meta: Interpolates a value from the metadata of the construct
-
 	    A rawValue can contain a combination of interpolation expressions and literals. For example, "${inputs:foo.bar}-baz-${resource:Boz}" is a valid rawValue.
 */
-func (ce *ConstructEvaluator) interpolateValue(c *Construct, rawValue any, ctx InterpolationContext) (any, error) {
+func (ce *ConstructEvaluator) interpolateValue(c InterpolationSource, rawValue any, ctx InterpolationContext) (any, error) {
 	if ref, ok := rawValue.(ResourceRef); ok {
-		if ref.Type == ResourceRefTypeInterpolated {
+		switch ref.Type {
+		case ResourceRefTypeInterpolated:
 			return ce.interpolateValue(c, ref.ResourceKey, ctx)
+		case ResourceRefTypeTemplate:
+			ref.ConstructURN = ctx.Construct.URN
+			return ref, nil
+		default:
+			return rawValue, nil
 		}
-		return rawValue, nil
 	}
 
 	v := reflectutil.GetConcreteElement(reflect.ValueOf(rawValue))
@@ -94,7 +102,7 @@ func (ce *ConstructEvaluator) interpolateValue(c *Construct, rawValue any, ctx I
 
 	switch v.Kind() {
 	case reflect.String:
-		return ce.interpolateString(c, v.String(), ctx)
+		return ce.interpolateString(c.GetPropertySource(), v.String(), ctx)
 	case reflect.Slice:
 		length := v.Len()
 		interpolated := make([]any, length)
@@ -145,22 +153,33 @@ func (ce *ConstructEvaluator) interpolateValue(c *Construct, rawValue any, ctx I
 	}
 }
 
-func (ce *ConstructEvaluator) interpolateString(c *Construct, rawValue string, ctx InterpolationContext) (any, error) {
+func (ce *ConstructEvaluator) interpolateString(ps *PropertySource, rawValue string, ctx InterpolationContext) (any, error) {
 
 	// if the rawValue is an isolated interpolation expression, interpolate it and return the raw value
 	if isolatedInterpolationPattern.MatchString(rawValue) {
-		return ce.interpolateExpression(c, rawValue, ctx), nil
+		return ce.interpolateExpression(ps, rawValue, ctx)
 	}
 
-	// Replace each match in the rawValue
+	var err error
+
+	// Replace each match in the rawValue (mixed expressions are always interpolated as strings)
 	interpolated := interpolationPattern.ReplaceAllStringFunc(rawValue, func(match string) string {
-		return fmt.Sprint(ce.interpolateExpression(c, match, ctx))
+		var val any
+		val, err = ce.interpolateExpression(ps, match, ctx)
+		return fmt.Sprint(val)
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return interpolated, nil
 }
 
-func (ce *ConstructEvaluator) interpolateExpression(c *Construct, match string, ctx InterpolationContext) any {
+func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match string, ctx InterpolationContext) (any, error) {
+	if ps == nil {
+		return nil, errors.New("property source is nil")
+	}
+
 	// Split the match into prefix and key
 	parts := interpolationPattern.FindStringSubmatch(match)
 	prefix := parts[1]
@@ -168,54 +187,71 @@ func (ce *ConstructEvaluator) interpolateExpression(c *Construct, match string, 
 
 	// Check if the prefix is allowed
 	allowed := false
-	for _, p := range ctx {
-		if p == InterpolationSource(prefix) {
+	for _, p := range ctx.AllowedKeys {
+		if p == InterpolationSourceKey(prefix) || p == FromInterpolation && strings.HasPrefix(prefix, "from.") || p == ToInterpolation && strings.HasPrefix(prefix, "to.") {
 			allowed = true
 			break
 		}
 	}
 	if !allowed {
-		return ""
+		return "", fmt.Errorf("interpolation prefix '%s' is not allowed in the current context", prefix)
 	}
 
-	// Choose the correct map based on the prefix
-	var m any
-	switch prefix {
-	case "inputs":
-		m = c.Inputs
-	case "resources":
-		m = c.Resources
-	case "edges":
-		m = c.Edges
-	case "meta":
-		m = c.Meta
-	default:
-		return ""
+	// Choose the correct root property from the source based on the prefix
+	var p any
+	ok := false
+	if prefix == "inputs" || prefix == "resources" || prefix == "edges" || prefix == "meta" ||
+		strings.HasPrefix(prefix, "from.") ||
+		strings.HasPrefix(prefix, "to.") {
+		p, ok = ps.GetProperty(prefix)
+		if !ok {
+			return nil, fmt.Errorf("could not get %s", prefix)
+
+		}
+	} else {
+		return nil, fmt.Errorf("invalid prefix: %s", prefix)
 	}
 
 	// return an IaC reference if the key matches the IaC reference pattern
 	if iacRefPattern.MatchString(key) {
 		return ResourceRef{
-			ResourceKey: iacRefPattern.FindStringSubmatch(key)[1],
-			Property:    iacRefPattern.FindStringSubmatch(key)[2],
-			Type:        ResourceRefTypeIaC,
-		}
+			ResourceKey:  iacRefPattern.FindStringSubmatch(key)[1],
+			Property:     iacRefPattern.FindStringSubmatch(key)[2],
+			Type:         ResourceRefTypeIaC,
+			ConstructURN: ctx.Construct.URN,
+		}, nil
 	}
 
-	// special cases for resources
-	if prefix == "resources" {
+	prefixParts := strings.Split(prefix, ".")
+
+	// special cases for resources allowing for accessing the name of a resource directly instead of using .Id.Name
+	if prefix == "resources" || prefixParts[len(prefixParts)-1] == "resources" {
 		keyParts := strings.SplitN(key, ".", 2)
 		resourceKey := keyParts[0]
 		if len(keyParts) > 1 {
 			if path := keyParts[1]; path == "Name" {
-				return m.(map[string]*Resource)[resourceKey].Id.Name
+				return p.(map[string]*Resource)[resourceKey].Id.Name, nil
 			}
 
 		}
 	}
 
-	// Retrieve the value from the map
-	value := getValueFromCollection(m, key)
+	// associate any ResourceRefs with the URN of the property source they're being interpolated from
+	// if the prefix is "from" or "to", the URN of the property source is the "urn" field of that level in the property source
+	urnKey := "urn"
+	if prefixParts[0] == "from" || prefixParts[0] == "to" {
+		urnKey = fmt.Sprintf("%s.urn", prefixParts[0])
+	}
+	psURN, ok := GetTypedProperty[model.URN](ps, urnKey)
+	if !ok {
+		psURN = ctx.Construct.URN
+	}
+
+	// Retrieve the value from the designated property source
+	value, err := getValueFromSource(p, key)
+	if err != nil {
+		return nil, fmt.Errorf("could not get value from property source: %w", err)
+	}
 
 	keyAndRef := strings.Split(key, "#")
 	var refProperty string
@@ -227,21 +263,28 @@ func (ce *ConstructEvaluator) interpolateExpression(c *Construct, match string, 
 	if r, ok := value.(*Resource); ok {
 		if prefix == "inputs" {
 			return ResourceRef{
-				ResourceKey: r.Id.String(),
-				Property:    refProperty,
-				Type:        ResourceRefTypeIaC,
-			}
+				ResourceKey:  r.Id.String(),
+				Property:     refProperty,
+				Type:         ResourceRefTypeIaC,
+				ConstructURN: psURN,
+			}, nil
 		}
 
 		return ResourceRef{
-			ResourceKey: key,
-			Property:    refProperty,
-			Type:        ResourceRefTypeTemplate,
-		}
+			ResourceKey:  key,
+			Property:     refProperty,
+			Type:         ResourceRefTypeTemplate,
+			ConstructURN: psURN,
+		}, nil
+	}
+
+	if r, ok := value.(ResourceRef); ok {
+		r.ConstructURN = psURN
+		return r, nil
 	}
 
 	// Replace the match with the value
-	return value
+	return value, nil
 }
 
 // iacRefPattern is a regular expression pattern that matches an IaC reference
@@ -249,12 +292,12 @@ func (ce *ConstructEvaluator) interpolateExpression(c *Construct, match string, 
 
 var iacRefPattern = regexp.MustCompile(`^([a-zA-Z0-9_-]+)#([a-zA-Z0-9._-]+)$`)
 
-func getValueFromCollection(collection any, key string) any {
-	value := collection
+func getValueFromSource(collection any, key string) (any, error) {
+	value := reflect.ValueOf(collection)
 
 	keyAndRef := strings.Split(key, "#")
 	if len(keyAndRef) > 2 {
-		return nil
+		return nil, fmt.Errorf("invalid engine reference property reference: %s", key)
 	}
 
 	var refProperty string
@@ -275,60 +318,56 @@ func getValueFromCollection(collection any, key string) any {
 			key := keyAndIndex[0]
 			index, err := strconv.Atoi(keyAndIndex[1])
 			if err != nil {
-				return nil
+				return nil, fmt.Errorf("could not parse index: %w", err)
 			}
 
-			value = collection.(map[string]any)[key]
-			kind := reflect.TypeOf(value).Kind()
+			value, err = reflectutil.GetField(value, key)
+			if err != nil {
+				return nil, fmt.Errorf("could not get field: %w", err)
+			}
+			kind := value.Kind()
 
 			switch kind {
 			case reflect.Slice | reflect.Array:
-				value = reflect.ValueOf(value).Index(index).Interface()
+				value = value.Index(index)
 			case reflect.Map:
-				value = value.(map[string]any)[fmt.Sprint(index)]
+				value, err = reflectutil.GetField(value, key)
+				if err != nil {
+					return nil, fmt.Errorf("could not get field: %w", err)
+				}
 			default:
-				return nil
+				return nil, fmt.Errorf("invalid type: %s", kind)
 			}
 		} else {
 			// The part does not contain brackets
-			mr := reflect.ValueOf(value)
-			if mr.Kind() == reflect.Map {
-				v := mr.MapIndex(reflect.ValueOf(part))
+			if value.Kind() == reflect.Map {
+				v := value.MapIndex(reflect.ValueOf(part))
 				if v.IsValid() {
-					value = v.Interface()
+					value = v
 				} else {
-					return nil
+					return nil, fmt.Errorf("could not get value for key: %s", key)
 				}
-			} else if r, ok := value.(*Resource); ok {
+			} else if r, ok := value.Interface().(*Resource); ok {
 				if len(parts) == 1 {
 					return ResourceRef{
 						ResourceKey: part,
 						Property:    refProperty,
 						Type:        ResourceRefTypeTemplate,
-					}
+					}, nil
 				} else {
-					value = r.Properties[part]
+					value = reflect.ValueOf(r.Properties[part])
 				}
 			} else {
-				rVal, err := reflectutil.GetField(reflect.ValueOf(value), part)
+				rVal, err := reflectutil.GetField(value, part)
 				if err != nil {
-					return nil
+					return nil, fmt.Errorf("could not get field: %w", err)
 				}
-				value = rVal.Interface()
+				value = rVal
 			}
 		}
 	}
 
-	return value
-}
-
-// parse inputs
-func (ce *ConstructEvaluator) parseInputs(c *Construct) {
-	for key, value := range c.ConstructTemplate.Inputs {
-		if _, hasVal := c.Inputs[key]; !hasVal && value.Default != nil {
-			c.Inputs[key] = value.Default
-		}
-	}
+	return value.Interface(), nil
 }
 
 /*
@@ -349,12 +388,13 @@ Example:
 
 in the example input() is a function that returns the value of the input with the given key
 */
-func (ce *ConstructEvaluator) evaluateInputRules(c *Construct) {
-	for _, rule := range c.ConstructTemplate.InputRules {
-		if err := ce.evaluateInputRule(c, rule); err != nil {
-			panic(err)
+func (ce *ConstructEvaluator) evaluateInputRules(o InfraOwner, interpolationCtx InterpolationContext) error {
+	for _, rule := range o.GetInputRules() {
+		if err := ce.evaluateInputRule(o, rule, interpolationCtx); err != nil {
+			return fmt.Errorf("could not evaluate input rule: %w", err)
 		}
 	}
+	return nil
 }
 
 /*
@@ -371,28 +411,34 @@ Evaluation Order:
 	Binding Edges
 	Binding Conflict Resolvers
 */
-func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Construct, error) {
+func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state model.State, ctx context.Context) (*Construct, error) {
 
-	cState, ok := ce.stateManager.GetConstructState(constructUrn.ResourceID)
+	cState, ok := state.Constructs[constructUrn.ResourceID]
 	if !ok {
 		return nil, fmt.Errorf("could not get state state for construct: %s", constructUrn)
 	}
 
 	inputs := make(map[string]any)
-	for k, v := range cState.Inputs {
-		if v.Status != "" && v.Status != model.InputStatusResolved {
-			return nil, fmt.Errorf("input '%s' is not resolved", k)
-		}
 
-		if iURN, ok := v.Value.(model.URN); ok {
-			ic, ok := ce.constructs[iURN]
-			if !ok {
-				return nil, fmt.Errorf("could not find construct %s", iURN)
-			}
-			inputs[k] = ic
-		} else {
-			inputs[k] = v.Value
+	templateId, err := ParseConstructTemplateId(constructUrn.Subtype)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse construct template id: %w", err)
+
+	}
+	ct, err := loadConstructTemplate(templateId)
+	if err != nil {
+		return nil, fmt.Errorf("could not load construct template: %w", err)
+	}
+	for k, v := range cState.Inputs {
+		inputTemplate, ok := ct.Inputs[k]
+		if !ok {
+			zap.S().Warnf("input %s not found in construct template", k)
 		}
+		v, err := ce.resolveInput(k, v, inputTemplate)
+		if err != nil {
+			return nil, err
+		}
+		inputs[k] = v
 	}
 
 	c, err := NewConstruct(constructUrn, inputs)
@@ -401,57 +447,333 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN) (*Constr
 	}
 	ce.constructs[constructUrn] = c
 
-	ce.parseInputs(c)
-	err = ce.importResources(c)
-	if err != nil {
+	if err = ce.initBindings(c, state); err != nil {
+		return nil, fmt.Errorf("could not initialize bindings: %w", err)
+	}
+
+	if err = ce.importResources(c, ctx); err != nil {
 		return nil, fmt.Errorf("could not import resources: %w", err)
 	}
-	ce.evaluateResources(c)
-	ce.evaluateEdges(c)
-	ce.evaluateInputRules(c)
-	ce.evaluateOutputs(c)
+
+	if err = ce.evaluateResources(c, NewInterpolationContext(c, ResourceInterpolationContext)); err != nil {
+		return nil, fmt.Errorf("could not evaluate resources: %w", err)
+	}
+
+	if err = ce.evaluateEdges(c, NewInterpolationContext(c, EdgeInterpolationContext)); err != nil {
+		return nil, fmt.Errorf("could not evaluate edges: %w", err)
+	}
+
+	if err = ce.evaluateInputRules(c, NewInterpolationContext(c, InputRuleInterpolationContext)); err != nil {
+		return nil, fmt.Errorf("could not evaluate input rules: %w", err)
+	}
+
+	if err = ce.evaluateOutputs(c, NewInterpolationContext(c, OutputInterpolationContext)); err != nil {
+		return nil, fmt.Errorf("could not evaluate outputs: %w", err)
+	}
 
 	return c, nil
 }
 
-func (ce *ConstructEvaluator) evaluateEdges(c *Construct) {
-	for _, edge := range c.ConstructTemplate.Edges {
-		c.Edges = append(c.Edges, ce.resolveEdge(c, edge))
+// resolveInput converts a model.Input to a construct.Input and adds it to the inputs map.
+// If the value of the input is a URN, it resolves the URN to a construct.
+// If the input's status is not "resolved", it returns an error.
+func (ce *ConstructEvaluator) resolveInput(k string, v model.Input, t InputTemplate) (any, error) {
+	if v.Status != "" && v.Status != model.InputStatusResolved {
+		return nil, fmt.Errorf("input '%s' is not resolved", k)
+	}
+	var resolvedValue any
+	switch {
+	case strings.HasPrefix(t.Type, "Construct<"):
+		cType := strings.TrimSuffix(strings.TrimPrefix(t.Type, "Construct<"), ">")
+
+		if iURN, ok := v.Value.(model.URN); ok && iURN.IsResource() && iURN.Type == "construct" && iURN.Subtype == cType {
+			ic, ok := ce.constructs[iURN]
+			if !ok {
+				return nil, fmt.Errorf("could not find construct %s", iURN)
+			}
+			resolvedValue = ic
+		} else {
+			return nil, fmt.Errorf("invalid construct URN: %v", v.Value)
+		}
+	case t.Type == "path":
+		var err error
+		pStr, ok := v.Value.(string)
+		if !ok {
+			return "", fmt.Errorf("invalid path type: expected string, got %T", v.Value)
+		}
+		resolvedValue, err = handlePathInput(pStr)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		resolvedValue = v.Value
+	}
+	return resolvedValue, nil
+}
+
+func handlePathInput(value string) (string, error) {
+	if filepath.IsAbs(value) {
+		return value, nil
+	}
+
+	// handle relative paths
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("could not get working directory")
+	}
+	return filepath.Join(wd, value), nil
+}
+
+func (ce *ConstructEvaluator) getBindingDeclarations(constructURN model.URN, state model.State) ([]BindingDeclaration, error) {
+	var bindings []BindingDeclaration
+	var err error
+	for _, c := range state.Constructs {
+		if c.URN.Equals(constructURN) {
+			for _, b := range c.Bindings {
+				bindings = append(bindings, newBindingDeclaration(constructURN, b))
+			}
+			continue
+		}
+		for _, b := range c.Bindings {
+			if b.URN.Equals(constructURN) {
+				for _, b := range c.Bindings {
+					bindings = append(bindings, newBindingDeclaration(*c.URN, b))
+				}
+			}
+		}
+	}
+	return bindings, err
+}
+
+func newBindingDeclaration(constructURN model.URN, b model.Binding) BindingDeclaration {
+	return BindingDeclaration{
+		From:   constructURN,
+		To:     *b.URN,
+		Inputs: b.Inputs,
 	}
 }
 
-func (ce *ConstructEvaluator) evaluateResources(c *Construct) {
+func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) error {
+	declarations, err := ce.getBindingDeclarations(c.URN, state)
+	if err != nil {
+		return fmt.Errorf("could not get bindings: %w", err)
+	}
 
-	c.ConstructTemplate.ResourcesIterator().ForEach(func(key string, resource ResourceTemplate) {
-		c.Resources[key] = ce.resolveResource(c, key, resource)
+	for _, d := range declarations {
+		if !d.From.Equals(c.URN) && !d.To.Equals(c.URN) {
+			return fmt.Errorf("binding %s -> %s is not valid on construct of type %s", d.From, d.To, c.ConstructTemplate.Id)
+		}
+
+		if _, ok := d.Inputs["from"]; ok {
+			return errors.New("from is a reserved input name")
+		}
+		if _, ok := d.Inputs["to"]; ok {
+			return errors.New("to is a reserved input name")
+		}
+
+		b, err := ce.newBinding(c.URN, d.From, d.To)
+		if err != nil {
+			return fmt.Errorf("could not create binding: %w", err)
+		}
+
+		inputs := make(map[string]any)
+		for key, inputTemplate := range b.BindingTemplate.Inputs {
+			mVal, ok := d.Inputs[key]
+			if !ok {
+				continue
+			}
+			if mVal.Status != "" && mVal.Status != model.InputStatusResolved {
+				return fmt.Errorf("input '%s' is not resolved", key)
+			}
+			resolvedValue, err := ce.resolveInput(key, mVal, inputTemplate)
+			if err != nil {
+				return fmt.Errorf("could not resolve input: %w", err)
+			}
+			inputs[key] = resolvedValue
+		}
+		populateDefaultInputValues(inputs, b.BindingTemplate.Inputs)
+		b.Inputs = inputs
+
+		c.Bindings = append(c.Bindings, b)
+	}
+	return nil
+}
+
+func (ce *ConstructEvaluator) evaluateBindings(c *Construct, ctx context.Context) error {
+	for _, binding := range c.OrderedBindings() {
+		if err := ce.evaluateBinding(c, binding, ctx); err != nil {
+			return fmt.Errorf("could not evaluate binding: %w", err)
+		}
+	}
+	if err := ce.applyBindings(c); err != nil {
+		return fmt.Errorf("could not apply bindings: %w", err)
+	}
+
+	return nil
+}
+
+func (ce *ConstructEvaluator) evaluateBinding(c *Construct, b *Binding, ctx context.Context) error {
+	if b.BindingTemplate.From.Name == "" || b.BindingTemplate.To.Name == "" {
+		return nil // assume that this binding does not modify the current construct
+	}
+	var err error
+	if err = ce.importResources(b, ctx); err != nil {
+		return fmt.Errorf("could not import resources: %w", err)
+	}
+
+	if b.From != nil && c.URN.Equals(b.From.GetURN()) {
+		// only import "to" resources if the binding is from the current construct
+		if err = ce.importBindingToResources(b, ctx); err != nil {
+			return fmt.Errorf("could not import binding resources: %w", err)
+		}
+	}
+
+	interpolationCtx := NewInterpolationContext(c, BindingInterpolationContext)
+
+	if err = ce.evaluateResources(b, interpolationCtx); err != nil {
+		return fmt.Errorf("could not evaluate resources: %w", err)
+	}
+
+	if err = ce.evaluateEdges(b, interpolationCtx); err != nil {
+		return fmt.Errorf("could not evaluate edges: %w", err)
+	}
+
+	if err = ce.evaluateInputRules(b, interpolationCtx); err != nil {
+		return fmt.Errorf("could not evaluate input rules: %w", err)
+	}
+
+	if err = ce.evaluateOutputs(b, interpolationCtx); err != nil {
+		return fmt.Errorf("could not evaluate outputs: %w", err)
+	}
+	return nil
+}
+
+func (ce *ConstructEvaluator) evaluateEdges(c InfraOwner, interpolationCtx InterpolationContext) error {
+	for _, edge := range c.GetTemplateEdges() {
+		e, err := ce.resolveEdge(c, edge, interpolationCtx)
+		if err != nil {
+			return fmt.Errorf("could not resolve edge: %w", err)
+		}
+		c.SetEdges(append(c.GetEdges(), e))
+	}
+	return nil
+}
+
+// applyBindings applies the bindings to the construct by merging the resources, edges, and output declarations
+// of the construct's bindings with the construct's resources, edges, and output declarations
+func (ce *ConstructEvaluator) applyBindings(c *Construct) error {
+	for _, binding := range c.Bindings {
+		// Merge resources
+		for key, bRes := range binding.Resources {
+			if res, exists := c.Resources[key]; exists {
+				res.Properties = mergeProperties(res.Properties, bRes.Properties)
+			} else {
+				c.Resources[key] = bRes
+			}
+		}
+
+		// Merge edges
+		for _, edge := range binding.Edges {
+			if !edgeExists(c.Edges, edge) {
+				c.Edges = append(c.Edges, edge)
+			}
+		}
+
+		// Merge output declarations
+		for key, output := range binding.OutputDeclarations {
+			if _, exists := c.OutputDeclarations[key]; !exists {
+				c.OutputDeclarations[key] = output
+			} else {
+				// If output already exists, log a warning or handle the conflict as needed
+				logging.GetLogger(context.Background()).Sugar().Warnf("Output %s already exists in construct, skipping binding output", key)
+			}
+		}
+
+		// Merge imported resources
+		for id, properties := range binding.ImportedResources {
+			res, exists := c.ImportedResources[id]
+			if !exists {
+				c.ImportedResources[id] = properties
+			} else {
+				c.ImportedResources[id] = mergeProperties(res, properties)
+			}
+		}
+	}
+
+	return nil
+}
+
+func mergeProperties(existing, new construct.Properties) construct.Properties {
+	merged := make(construct.Properties)
+
+	for k, v := range existing {
+		merged[k] = v
+	}
+	for k, v := range new {
+		// If property exists in both, prefer the new value
+		merged[k] = v
+	}
+
+	return merged
+}
+
+func edgeExists(edges []*Edge, newEdge *Edge) bool {
+	for _, edge := range edges {
+		if edge.From == newEdge.From && edge.To == newEdge.To {
+			return true
+		}
+	}
+	return false
+}
+
+func (ce *ConstructEvaluator) evaluateResources(o ResourceOwner, interpolationCtx InterpolationContext) error {
+	var err error
+	i := o.GetTemplateResourcesIterator()
+	i.ForEach(func(key string, resource ResourceTemplate) error {
+		var r *Resource
+		r, err = ce.resolveResource(o, key, resource, interpolationCtx)
+		if err != nil {
+			return stopIteration
+		}
+		o.SetResource(key, r)
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-// getInputFunc generates a template function that returns the value of the current construct's input with the given key
-func getInputFunc(c *Construct) func(string) any {
+func GetPropertyFunc(ps *PropertySource) func(string) any {
 	return func(key string) any {
-		return c.Inputs[key]
+		i, ok := ps.GetProperty(fmt.Sprintf("inputs.%s", key))
+		if !ok {
+			return nil
+		}
+		return i
 	}
 }
 
-func (ce *ConstructEvaluator) templateFunctions(c *Construct) template.FuncMap {
+func (ce *ConstructEvaluator) templateFunctions(ps *PropertySource) template.FuncMap {
 	funcs := template.FuncMap{}
-	funcs["inputs"] = getInputFunc(c)
+	funcs["inputs"] = GetPropertyFunc(ps)
 	return funcs
 }
 
-func (ce *ConstructEvaluator) evaluateInputRule(c *Construct, rule InputRuleTemplate) error {
-	tmpl, err := template.New("input_rule").Funcs(ce.templateFunctions(c)).Parse(rule.If)
+func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemplate, interpolationCtx InterpolationContext) error {
+	tmpl, err := template.New("input_rule").Funcs(ce.templateFunctions(o.GetPropertySource())).Parse(rule.If)
 	if err != nil {
-		return fmt.Errorf("could not parse template: %w", err)
+		return fmt.Errorf("template parsing failed: %w", err)
 	}
 	var rawResult bytes.Buffer
 	if err := tmpl.Execute(&rawResult, nil); err != nil {
-		panic(err)
+		return fmt.Errorf("template execution failed: %w", err)
 	}
 
-	// TODO: look into additional handling for nil rawResult
-	boolResult, _ := strconv.ParseBool(rawResult.String())
+	boolResult, err := strconv.ParseBool(rawResult.String())
+	if err != nil {
+		return fmt.Errorf("result parsing failed: %w", err)
+	}
 	executeThen := boolResult
 
 	var body ConditionalExpressionTemplate
@@ -463,43 +785,53 @@ func (ce *ConstructEvaluator) evaluateInputRule(c *Construct, rule InputRuleTemp
 
 	// add raw resources to the context
 	for key, resource := range body.Resources {
-		c.Resources[key] = ce.resolveResource(c, key, resource)
+		r, err := ce.resolveResource(o, key, resource, interpolationCtx)
+		if err != nil {
+			return fmt.Errorf("could not resolve resource %s: %w", key, err)
+		}
+		o.SetResource(key, r)
 	}
 
 	for key, resource := range body.Resources {
-		rp, err := ce.interpolateValue(c, resource, InputRuleInterpolationContext)
+		rp, err := ce.interpolateValue(o, resource, interpolationCtx)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("could not interpolate resource %s: %w", key, err)
 		}
-		r := rp.(ResourceTemplate)
-		c.Resources[key] = ce.resolveResource(c, key, r)
+		rt := rp.(ResourceTemplate)
+
+		r, err := ce.resolveResource(o, key, rt, interpolationCtx)
+		if err != nil {
+			return fmt.Errorf("could not resolve resource %s : %w", key, err)
+		}
+		o.SetResource(key, r)
 	}
 
 	for _, edge := range body.Edges {
-		c.Edges = append(c.Edges, ce.resolveEdge(c, edge))
-
+		e, err := ce.resolveEdge(o, edge, interpolationCtx)
+		if err != nil {
+			return fmt.Errorf("could not resolve edge: %w", err)
+		}
+		o.SetEdges(append(o.GetEdges(), e))
 	}
-
 	return nil
 }
 
-func (ce *ConstructEvaluator) resolveResource(c *Construct, key string, rt ResourceTemplate) *Resource {
-
+func (ce *ConstructEvaluator) resolveResource(o ResourceOwner, key string, rt ResourceTemplate, interpolationCtx InterpolationContext) (*Resource, error) {
 	// update the resource if it already exists
-	resource := c.Resources[key]
-	if resource == nil {
+	resource, ok := o.GetResource(key)
+	if !ok {
 		resource = &Resource{Properties: map[string]any{}}
 	}
 
-	tmpl, err := ce.interpolateValue(c, rt, ResourceInterpolationContext)
+	tmpl, err := ce.interpolateValue(o, rt, interpolationCtx)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("could not interpolate resource %s: %w", key, err)
 	}
 
 	resTmpl := tmpl.(ResourceTemplate)
 	typeParts := strings.Split(resTmpl.Type, ":")
 	if len(typeParts) != 2 && resTmpl.Type != "" {
-		panic("Invalid resource type: " + resTmpl.Type)
+		return nil, fmt.Errorf("invalid resource type: %s", resTmpl.Type)
 	}
 
 	if len(typeParts) == 2 {
@@ -515,7 +847,7 @@ func (ce *ConstructEvaluator) resolveResource(c *Construct, key string, rt Resou
 		if resource.Id == (construct.ResourceId{}) {
 			resource.Id = id
 		} else if resource.Id != id {
-			panic("Resource id mismatch")
+			return nil, fmt.Errorf("resource id mismatch: %s", key)
 		}
 	}
 
@@ -542,78 +874,84 @@ func (ce *ConstructEvaluator) resolveResource(c *Construct, key string, rt Resou
 			resource.Properties[k] = v
 		}
 	}
-
-	return resource
+	return resource, nil
 }
 
-func (ce *ConstructEvaluator) resolveEdge(c *Construct, edge EdgeTemplate) *Edge {
-	from, err := ce.interpolateValue(c, edge.From, EdgeInterpolationContext)
+func (ce *ConstructEvaluator) resolveEdge(c InfraOwner, edge EdgeTemplate, interpolationCtx InterpolationContext) (*Edge, error) {
+	from, err := ce.interpolateValue(c, edge.From, interpolationCtx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	to, err := ce.interpolateValue(c, edge.To, EdgeInterpolationContext)
+	to, err := ce.interpolateValue(c, edge.To, interpolationCtx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	data, err := ce.interpolateValue(c, edge.Data, EdgeInterpolationContext)
+	data, err := ce.interpolateValue(c, edge.Data, interpolationCtx)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return &Edge{
 		From: from.(ResourceRef),
 		To:   to.(ResourceRef),
 		Data: data.(map[string]any),
-	}
+	}, nil
 }
 
-func (ce *ConstructEvaluator) evaluateOutputs(c *Construct) {
-	for key, output := range c.ConstructTemplate.Outputs {
-		output, err := ce.interpolateValue(c, output, OutputInterpolationContext)
+func (ce *ConstructEvaluator) evaluateOutputs(o InfraOwner, interpolationCtx InterpolationContext) error {
+	for key, output := range o.GetTemplateOutputs() {
+		output, err := ce.interpolateValue(o, output, interpolationCtx)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to interpolate value for output %s: %w", key, err)
 		}
+
 		outputTemplate, ok := output.(OutputTemplate)
 		if !ok {
-			panic("invalid output template")
+			return fmt.Errorf("invalid output template for output %s", key)
 		}
+
 		var value any
 		var ref construct.PropertyRef
+
 		r, ok := outputTemplate.Value.(ResourceRef)
 		if !ok {
 			value = outputTemplate.Value
 		} else {
-			serializedRef, err := c.SerializeRef(r)
+			serializedRef, err := ce.serializeRef(r)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to serialize ref for output %s: %w", key, err)
 			}
 
 			refString, ok := serializedRef.(string)
 			if !ok {
-				panic("invalid ref")
+				return fmt.Errorf("invalid ref string for output %s", key)
 			}
+
 			err = ref.Parse(refString)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to parse ref string for output %s: %w", key, err)
 			}
 		}
 
 		if ref != (construct.PropertyRef{}) && value != nil {
-			panic("output declaration must be a reference or a value")
+			return fmt.Errorf("output declaration must be a reference or a value for output %s", key)
 		}
 
-		c.OutputDeclarations[key] = OutputDeclaration{
+		o.DeclareOutput(key, OutputDeclaration{
 			Name:  key,
 			Ref:   ref,
 			Value: value,
-		}
+		})
 	}
+	return nil
 }
 
 var constructTypePattern = regexp.MustCompile(`^Construct<([\w.-]+)>$`)
 
-func (ce *ConstructEvaluator) importResources(c *Construct) error {
-	for iName, i := range c.ConstructTemplate.Inputs {
+func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context) error {
+	log := logging.GetLogger(ctx).Sugar()
+	importedResources := o.GetImportedResources()
+	for iName, i := range o.GetTemplateInputs() {
 		// parse construct type from input type in the form of Construct<type>
 		// get the construct from the evaluator if it exists and is the correct type or return an error
 		// then go through the resources of the construct and add them to the imported resources of the current construct
@@ -626,7 +964,7 @@ func (ce *ConstructEvaluator) importResources(c *Construct) error {
 			continue // skip the input if it is not a construct
 		}
 
-		resolvedInput, ok := c.Inputs[iName]
+		resolvedInput, ok := o.GetInput(iName)
 		if !ok {
 			return fmt.Errorf("could not find resolved input %s", iName)
 		}
@@ -650,11 +988,44 @@ func (ce *ConstructEvaluator) importResources(c *Construct) error {
 			if err != nil {
 				return fmt.Errorf("could not convert state: %w", err)
 			}
-			c.ImportedResources[rId] = cState.Properties
-			zap.S().Infof("imported resource %s", rId)
+			importedResources[rId] = cState.Properties
+			log.Infof("imported resource %s", rId)
 		}
 	}
 	return nil
+}
+
+func (ce *ConstructEvaluator) importBindingToResources(b *Binding, ctx context.Context) error {
+	log := logging.GetLogger(ctx).Sugar()
+	importedResources := b.GetImportedResources()
+	// TODO: DS - consider whether to include transitive resource imports
+	tc := b.To
+	stackState, ok := ce.stackStateManager.ConstructStackState[tc.URN]
+	if !ok {
+		return fmt.Errorf("could not find stack state for construct %s", tc.URN)
+	}
+	for rId, state := range stackState.Resources {
+		cState, err := ce.stateConverter.ConvertResource(stateconverter.Resource{
+			Urn:     string(state.URN),
+			Type:    string(state.Type),
+			Outputs: state.Outputs,
+		})
+		if err != nil {
+			return fmt.Errorf("could not convert state: %w", err)
+		}
+		if cState == nil {
+			continue
+		}
+		importedResources[rId] = cState.Properties
+		log.Infof("imported resource %s", rId)
+	}
+	return nil
+}
+
+func (ce *ConstructEvaluator) RegisterOutputValues(urn model.URN, outputs map[string]any) {
+	if c, ok := ce.constructs[urn]; ok {
+		c.Outputs = outputs
+	}
 }
 
 func loadStateConverter() (stateconverter.StateConverter, error) {
@@ -662,6 +1033,5 @@ func loadStateConverter() (stateconverter.StateConverter, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return stateconverter.NewStateConverter("pulumi", templates), nil
 }

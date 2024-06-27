@@ -92,11 +92,11 @@ func isValidTransition(currentStatus, nextStatus ConstructStatus) bool {
 }
 
 type (
-	ConstructActionType string
+	ConstructAction string
 )
 
 const (
-	ConstructActionCreate ConstructActionType = "create"
-	ConstructActionUpdate ConstructActionType = "update"
-	ConstructActionDelete ConstructActionType = "delete"
+	ConstructActionCreate ConstructAction = "create"
+	ConstructActionUpdate ConstructAction = "update"
+	ConstructActionDelete ConstructAction = "delete"
 )

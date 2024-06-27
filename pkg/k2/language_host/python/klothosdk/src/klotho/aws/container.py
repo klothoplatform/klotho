@@ -1,43 +1,53 @@
-from typing import Optional, overload
+from typing import Optional, overload, Union, TYPE_CHECKING, Type, TypeVar
 
 from klotho.aws.network import Network
-from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
+from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding
 from klotho.output import Input, Output
 from klotho.runtime_util import get_default_construct
 from klotho.type_util import set, get, get_output
 
+if TYPE_CHECKING:
+    from klotho.aws import Bucket
+
+BindingType = Union[Binding["Container", "Bucket"], "Bucket"]
+
 
 class ContainerArgs:
     def __init__(self,
-                 image: Input[str],
-                 source_hash: Optional[Input[str]] = None,
-                 cpu: Optional[Input[int]] = None,
-                 memory: Optional[Input[int]] = None,
+                 bindings: Optional[list[BindingType]] = None,
                  context: Optional[Input[str]] = None,
+                 cpu: Optional[Input[int]] = None,
                  dockerfile: Optional[Input[str]] = None,
+                 enable_execute_command: Optional[Input[bool]] = None,
+                 image: Optional[Input[str]] = None,
+                 memory: Optional[Input[int]] = None,
                  port: Optional[Input[int]] = None,
                  network: Optional[Network] = None,
-                 enable_execute_command: Optional[Input[bool]] = None):
-        set(self, "image", image)
-        if source_hash is not None:
-            set(self, "source_hash", source_hash)
-        if cpu is not None:
-            set(self, "cpu", cpu)
-        if memory is not None:
-            set(self, "memory", memory)
+                 source_hash: Optional[Input[str]] = None,
+                 ):
+        if bindings is not None:
+            set(self, "bindings", bindings)
         if context is not None:
             set(self, "context", context)
+        if cpu is not None:
+            set(self, "cpu", cpu)
         if dockerfile is not None:
             set(self, "dockerfile", dockerfile)
-        if port is not None:
-            set(self, "port", port)
-        if network is not None:
-            set(self, "network", network)
         if enable_execute_command is not None:
             set(self, "enable_execute_command", enable_execute_command)
+        if image is not None:
+            set(self, "image", image)
+        if memory is not None:
+            set(self, "memory", memory)
+        if network is not None:
+            set(self, "network", network)
+        if port is not None:
+            set(self, "port", port)
+        if source_hash is not None:
+            set(self, "source_hash", source_hash)
 
     @property
-    def image(self) -> Input[str]:
+    def image(self) -> Input[str] | None:
         return get(self, "image")
 
     @image.setter
@@ -93,7 +103,7 @@ class ContainerArgs:
         set(self, "port", value)
 
     @property
-    def network(self) -> Network:
+    def network(self) -> Network | None:
         return get(self, "network")
 
     @network.setter
@@ -119,38 +129,41 @@ class Container(Construct):
     def __init__(
             self,
             name: str,
-            image: Input[str],
-            source_hash: Optional[Input[str]] = None,
-            cpu: Optional[Input[int]] = None,
-            memory: Optional[Input[int]] = None,
+            bindings: Optional[list[BindingType]] = None,
             context: Optional[Input[str]] = None,
+            cpu: Optional[Input[int]] = None,
             dockerfile: Optional[Input[str]] = None,
-            port: Optional[Input[int]] = None,
-            network: Optional[Network] = None,
             enable_execute_command: Optional[Input[bool]] = None,
+            image: Optional[Input[str]] = None,
+            memory: Optional[Input[int]] = None,
+            network: Optional[Network] = None,
+            port: Optional[Input[int]] = None,
+            source_hash: Optional[Input[str]] = None,
             opts: Optional[ConstructOptions] = None):
         ...
 
     def __init__(self, name: str, *args, **kwargs):
         construct_args, opts = get_construct_args_opts(ContainerArgs, *args, **kwargs)
         if construct_args is not None:
-            self._internal_init(name, opts, **construct_args.__dict__)
+            self._internal_init(name, opts=opts, **construct_args.__dict__)
         else:
             self._internal_init(name, *args, **kwargs)
 
     def _internal_init(
             self,
             name: str,
-            image: Input[str] = None,
-            opts: Optional[ConstructOptions] = None,
-            source_hash: Optional[Input[str]] = None,
-            cpu: Optional[Input[int]] = None,
-            memory: Optional[Input[int]] = None,
+            image: Optional[Input[str]] = None,
             context: Optional[Input[str]] = None,
+            cpu: Optional[Input[int]] = None,
             dockerfile: Optional[Input[str]] = None,
-            port: Optional[Input[int]] = None,
+            enable_execute_command: Optional[Input[bool]] = None,
+            memory: Optional[Input[int]] = None,
             network: Optional[Network] = None,
-            enable_execute_command: Optional[Input[bool]] = None):
+            port: Optional[Input[int]] = None,
+            source_hash: Optional[Input[str]] = None,
+            bindings: Optional[list[BindingType]] = None,
+            opts: Optional[ConstructOptions] = None
+    ):
         if network is None:
             network = get_default_construct("aws", Network)
 
@@ -168,9 +181,10 @@ class Container(Construct):
                 "Network": network,
                 "EnableExecuteCommand": enable_execute_command
             },
+            bindings=bindings,
             opts=opts,
         )
 
     @property
-    def test_value(self) -> Output[str]:
-        return get_output(self, "TestValue", str)
+    def load_balancer_url(self) -> Output[str]:
+        return get_output(self, "LoadBalancerUrl", str)

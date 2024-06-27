@@ -90,7 +90,7 @@ inputs:
   Context:
     name: Context
     description: The context to use to build the container
-    type: string
+    type: path
     default: .
     validation:
       minLength: 1
@@ -98,7 +98,7 @@ inputs:
   Dockerfile:
     name: Dockerfile
     description: The Dockerfile to use to build the container
-    type: string
+    type: path
     default: Dockerfile
     validation:
       minLength: 1
@@ -143,7 +143,6 @@ input_rules:
             ContainerDefinitions[0].Image: ${inputs:Image}
 
 outputs:
-  TestValue:
-    name: TestValue
-    description: A fixed value
-    value: home.html
+  LoadBalancerUrl:
+    value: ${resources:LoadBalancer#NlbUri}
+    description: The URL of the load balancer

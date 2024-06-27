@@ -10,7 +10,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 )
 
 // Orchestrator is the base orchestrator for the K2 platform
@@ -42,28 +41,9 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	return o.infraGenerator, nil
 }
 
-func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.StateManager, constructUrn model.URN) (stack.Reference, error) {
+func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
-	c, exists := sm.GetConstructState(constructUrn.ResourceID)
-	if !exists {
-		return stack.Reference{}, fmt.Errorf("construct %s not found in state", constructUrn.ResourceID)
-	}
-	inputs := make(map[string]any)
-	var merr multierr.Error
-	for k, v := range c.Inputs {
-		if v.Status != "" && v.Status != model.InputStatusResolved {
-			merr.Append(fmt.Errorf("input '%s' is not resolved", k))
-			continue
-		}
-		inputs[k] = v.Value
-	}
-	if len(merr) > 0 {
-		return stack.Reference{}, merr.ErrOrNil()
-	}
-
-	urn := *c.URN
-
-	cs, err := uo.ConstructEvaluator.Evaluate(urn)
+	cs, err := uo.ConstructEvaluator.Evaluate(constructUrn, state, ctx)
 	if err != nil {
 		return stack.Reference{}, err
 	}
@@ -79,15 +59,15 @@ func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, sm *model.State
 	}
 
 	return stack.Reference{
-		ConstructURN: urn,
-		Name:         urn.ResourceID,
+		ConstructURN: constructUrn,
+		Name:         constructUrn.ResourceID,
 		IacDirectory: constructOutDir,
-		AwsRegion:    sm.GetState().DefaultRegion,
+		AwsRegion:    uo.StateManager.GetState().DefaultRegion,
 	}, nil
 }
 
-func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (map[model.URN]model.ConstructActionType, error) {
-	actions := make(map[model.URN]model.ConstructActionType)
+func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (map[model.URN]model.ConstructAction, error) {
+	actions := make(map[model.URN]model.ConstructAction)
 	state := o.StateManager.GetState()
 
 	//TODO: implement some kind of versioning check
@@ -105,7 +85,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 
 	for _, c := range ir.Constructs {
 		var status model.ConstructStatus
-		var action model.ConstructActionType
+		var action model.ConstructAction
 
 		construct, exists := o.StateManager.GetConstructState(c.URN.ResourceID)
 		if !exists {
@@ -126,6 +106,11 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 			// If the construct exists, it's an update action
 			action = model.ConstructActionUpdate
 			status = model.ConstructUpdatePending
+			construct.Inputs = c.Inputs
+			construct.Outputs = c.Outputs
+			construct.Bindings = c.Bindings
+			construct.Options = c.Options
+			construct.DependsOn = c.DependsOn
 		}
 
 		actions[*c.URN] = action
@@ -151,7 +136,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 
 // sortConstructsByDependency sorts the constructs based on their dependencies and returns the deployment order
 // in the form of sequential construct groups that can be deployed in parallel
-func sortConstructsByDependency(constructs []model.ConstructState, actions map[model.URN]model.ConstructActionType) ([][]model.URN, error) {
+func sortConstructsByDependency(constructs []model.ConstructState, actions map[model.URN]model.ConstructAction) ([][]model.URN, error) {
 	constructGraph := graph.NewAcyclicGraph()
 
 	// Add vertices and edges to the graph based on the construct dependencies.

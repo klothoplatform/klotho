@@ -66,16 +66,23 @@ func (g *InfraGenerator) Run(ctx context.Context, c constraints.Constraints, out
 }
 
 func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequest) (solution.Solution, error) {
-	sol, err := g.Engine.Run(ctx, &request.SolveRequest)
-	if err != nil {
-		return nil, err
-	}
+	sol, engineErr := g.Engine.Run(ctx, &request.SolveRequest)
 	log := logging.GetLogger(ctx)
 
 	log.Info("Engine finished running... Generating views")
 
 	var files []kio.File
 
+	log.Info("Serializing constraints")
+	constraintBytes, err := yaml.Marshal(request.Constraints)
+	if err != nil {
+		log.Error("Failed to marshal constraints")
+	}
+	constraintFile := &kio.RawFile{
+		FPath:   "constraints.yaml",
+		Content: constraintBytes,
+	}
+	files = append(files, constraintFile)
 	vizFiles, err := g.Engine.VisualizeViews(sol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate views %w", err)
@@ -111,7 +118,7 @@ func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequ
 		return nil, fmt.Errorf("failed to write output files: %w", err)
 	}
 
-	return sol, nil
+	return sol, engineErr
 }
 
 type iacRequest struct {

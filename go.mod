@@ -5,9 +5,9 @@ go 1.22.0
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/alecthomas/kong v0.9.0
-	github.com/alitto/pond v1.8.3
+	github.com/alitto/pond v1.9.0
 	github.com/charmbracelet/bubbles v0.18.0
-	github.com/charmbracelet/bubbletea v0.26.4
+	github.com/charmbracelet/bubbletea v0.26.6
 	github.com/charmbracelet/lipgloss v0.11.0
 	github.com/charmbracelet/x/term v0.1.1
 	github.com/coreos/go-oidc/v3 v3.10.0
@@ -15,7 +15,7 @@ require (
 	github.com/dominikbraun/graph v0.23.0
 	github.com/fatih/color v1.17.0
 	github.com/gojek/heimdall/v7 v7.0.3
-	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+	github.com/google/pprof v0.0.0-20240625030939-27f56978b8b0
 	github.com/google/uuid v1.6.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
@@ -24,11 +24,11 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/pkg/errors v0.9.1
-	github.com/pulumi/pulumi/sdk/v3 v3.119.0
+	github.com/pulumi/pulumi/sdk/v3 v3.121.0
 	github.com/r3labs/diff v1.1.0
 	github.com/schollz/progressbar/v3 v3.14.4
-	github.com/smacker/go-tree-sitter v0.0.0-20240514083259-c5d1f3f5f99e
-	github.com/spf13/cobra v1.8.0
+	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
+	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/thessem/zap-prettyconsole v0.5.0
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
@@ -37,7 +37,7 @@ require (
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/term v0.21.0
 	google.golang.org/grpc v1.64.0
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v3 v3.0.1
 	helm.sh/helm/v3 v3.15.1
 )
@@ -66,6 +66,7 @@ replace (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
+	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Code-Hex/dd v1.1.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect

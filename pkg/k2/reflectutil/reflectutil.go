@@ -103,3 +103,33 @@ func GetField(v reflect.Value, fieldExpr string) (reflect.Value, error) {
 
 	return v, nil
 }
+
+func GetTypedField[T any](v reflect.Value, fieldExpr string) (T, bool) {
+	var zero T
+	fieldValue, err := GetField(v, fieldExpr)
+	if err != nil {
+		return zero, false
+	}
+
+	return GetTypedValue[T](fieldValue)
+}
+
+func GetTypedValue[T any](v any) (T, bool) {
+	var typedValue T
+	var ok bool
+
+	var tKind reflect.Kind
+	var rVal reflect.Value
+	if rVal, ok = v.(reflect.Value); !ok {
+		rVal = reflect.ValueOf(v)
+	}
+	tKind = rVal.Kind()
+
+	if tKind != reflect.Pointer && tKind != reflect.Interface {
+		typedValue, ok = GetConcreteValue(rVal).(T)
+	} else {
+		typedValue, ok = rVal.Interface().(T)
+	}
+
+	return typedValue, ok
+}

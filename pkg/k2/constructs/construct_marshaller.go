@@ -2,6 +2,7 @@ package constructs
 
 import (
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"reflect"
 
@@ -12,16 +13,20 @@ import (
 type (
 	// ConstructMarshaller is a struct that marshals a Construct into a list of constraints
 	ConstructMarshaller struct {
-		Construct *Construct
+		ConstructEvaluator *ConstructEvaluator
 	}
 )
 
 // Marshal marshals a Construct into a list of constraints
-func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
+func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.ConstraintList, error) {
 	//TODO: consider look into capturing multiple errors instead of returning the first one
 	var cs constraints.ConstraintList
+	c, ok := m.ConstructEvaluator.constructs[constructURN]
+	if !ok {
+		return nil, fmt.Errorf("could not find construct %s", constructURN)
+	}
 
-	for id, r := range m.Construct.ImportedResources {
+	for id, r := range c.ImportedResources {
 		resourceConstraints, err := m.marshalImportedResource(id, r)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall imported resource: %w", err)
@@ -29,16 +34,16 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 		cs = append(cs, resourceConstraints...)
 	}
 
-	for _, r := range m.Construct.Resources {
-		resourceConstraints, err := m.marshalResource(r)
+	for _, r := range c.Resources {
+		resourceConstraints, err := m.marshalResource(c, r)
 		if err != nil {
 			err = fmt.Errorf("could not marshall resource: %w", err)
 			return nil, err
 		}
 		cs = append(cs, resourceConstraints...)
 	}
-	for _, e := range m.Construct.Edges {
-		edgeConstraints, err := m.marshalEdge(e)
+	for _, e := range c.Edges {
+		edgeConstraints, err := m.marshalEdge(c, e)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall edge: %w", err)
 		}
@@ -46,7 +51,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 		cs = append(cs, edgeConstraints...)
 	}
 
-	for _, o := range m.Construct.OutputDeclarations {
+	for _, o := range c.OutputDeclarations {
 		outputConstraints, err := m.marshalOutput(o)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall output: %w", err)
@@ -57,7 +62,7 @@ func (m *ConstructMarshaller) Marshal() (constraints.ConstraintList, error) {
 	return cs, nil
 }
 
-func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.ConstraintList, error) {
+func (m *ConstructMarshaller) marshalResource(c *Construct, r *Resource) (constraints.ConstraintList, error) {
 	var cs constraints.ConstraintList
 	cs = append(cs, &constraints.ApplicationConstraint{
 		Operator: "must_exist",
@@ -81,10 +86,10 @@ func (m *ConstructMarshaller) marshalResource(r *Resource) (constraints.Constrai
 }
 
 // marshalEdge marshals an Edge into a list of constraints
-func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, error) {
+func (m *ConstructMarshaller) marshalEdge(c *Construct, e *Edge) (constraints.ConstraintList, error) {
 
 	var from construct.ResourceId
-	ref, err := m.Construct.SerializeRef(e.From)
+	ref, err := m.ConstructEvaluator.serializeRef(e.From)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize from resource id: %w", err)
 	}
@@ -94,7 +99,7 @@ func (m *ConstructMarshaller) marshalEdge(e *Edge) (constraints.ConstraintList, 
 	}
 
 	var to construct.ResourceId
-	ref, err = m.Construct.SerializeRef(e.To)
+	ref, err = m.ConstructEvaluator.serializeRef(e.To)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize to resource id: %w", err)
 	}
@@ -156,10 +161,10 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 	return cs, nil
 }
 
-// marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's SerializeRef method
+// marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method
 func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 	if ref, ok := rawVal.(ResourceRef); ok {
-		return m.Construct.SerializeRef(ref)
+		return m.ConstructEvaluator.serializeRef(ref)
 	}
 
 	ref := reflectutil.GetConcreteElement(reflect.ValueOf(rawVal))
@@ -177,7 +182,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = m.Construct.SerializeRef(newField)
+				serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
 				if err != nil {
 					return nil, err
 				}
@@ -196,7 +201,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
 					var serializedRef any
-					serializedRef, err = m.Construct.SerializeRef(newField)
+					serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
 					if err != nil {
 						return nil, err
 					}
@@ -223,7 +228,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
 					var serializedRef any
-					serializedRef, err = m.Construct.SerializeRef(newField)
+					serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
 					if err != nil {
 						return nil, err
 					}
@@ -242,7 +247,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		if ref.IsValid() {
 			if newField, ok := ref.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = m.Construct.SerializeRef(newField)
+				serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
 				if err != nil {
 					return nil, err
 				}
@@ -255,46 +260,4 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		return ref.Interface(), nil
 	}
 	return nil, nil
-}
-
-type ConstraintValueProvider interface {
-	MarshalValue() any
-}
-
-// MarshalValue replaces a struct in place with the output of its MarshalValue method
-func MarshalValue(value any) any {
-	ref := reflectutil.GetConcreteElement(reflect.ValueOf(value))
-	switch ref.Kind() {
-	case reflect.Struct:
-		for i := 0; i < ref.NumField(); i++ {
-			field := reflectutil.GetConcreteValue(ref.Field(i))
-			MarshalValue(field)
-			if newField, ok := field.(ConstraintValueProvider); ok {
-				ref.Field(i).Set(reflect.ValueOf(newField.MarshalValue()))
-			}
-		}
-	case reflect.Map:
-		for _, key := range ref.MapKeys() {
-			field := reflectutil.GetConcreteValue(ref.MapIndex(key))
-			MarshalValue(field)
-			if newField, ok := field.(ConstraintValueProvider); ok {
-				ref.SetMapIndex(key, reflect.ValueOf(newField.MarshalValue()))
-			}
-		}
-	case reflect.Slice | reflect.Array:
-		for i := 0; i < ref.Len(); i++ {
-			field := reflectutil.GetConcreteValue(ref.Index(i))
-			MarshalValue(field)
-			if newField, ok := field.(ConstraintValueProvider); ok {
-				ref.Index(i).Set(reflect.ValueOf(newField.MarshalValue()))
-			}
-		}
-	case reflect.Interface | reflect.Pointer:
-		MarshalValue(reflectutil.GetConcreteValue(ref))
-	default:
-		if newField, ok := ref.Interface().(ConstraintValueProvider); ok {
-			ref.Set(reflect.ValueOf(newField.MarshalValue()))
-		}
-	}
-	return ref.Interface()
 }

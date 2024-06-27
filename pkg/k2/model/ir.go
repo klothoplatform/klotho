@@ -43,8 +43,8 @@ const (
 )
 
 type Binding struct {
-	URN         *URN   `yaml:"urn,omitempty"`
-	BindingType string `yaml:"binding_type,omitempty"`
+	URN    *URN             `yaml:"urn,omitempty"`
+	Inputs map[string]Input `yaml:"inputs,omitempty"`
 }
 
 func ReadIRFile(filename string) (*ApplicationEnvironment, error) {

@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import Optional, Type, TypeVar, Generic, Union, Any
 
-from klotho.output import Output
+from klotho.output import Output, Input
 from klotho.runtime import instance as runtime
 from klotho.urn import URN
+
+BindingType = TypeVar("BindingType", bound=Union["Binding", "Construct"])
 
 
 class ConstructOptions:
@@ -12,7 +14,13 @@ class ConstructOptions:
 
 
 class Construct:
-    def __init__(self, name, construct_type, properties: dict[str, any], opts: Optional[ConstructOptions] = None):
+    def __init__(self, name, construct_type, properties: dict[str, Any],
+                 bindings: Optional[list[BindingType]] = None,
+                 opts: Optional[ConstructOptions] = None):
+        if runtime.application is None:
+            raise Exception(
+                "Cannot create a construct without an application. Initialize the application first by calling klotho.Application().")
+
         self.urn = URN(
             account_id="my-account-id",  # TODO: Get this from the runtime or environment
             project=runtime.application.project,
@@ -36,6 +44,11 @@ class Construct:
         for k, v in properties.items():
             self.add_input(k, v)
 
+        for binding in bindings or []:
+            if isinstance(binding, Construct):
+                binding = Binding(binding, {})
+            self.add_binding(binding)
+
     def to_dict(self):
         data = {
             "type": self.construct_type,
@@ -45,13 +58,13 @@ class Construct:
             "status": self.status,
             "inputs": self.inputs,
             "outputs": self.outputs,
-            "bindings": self.bindings,
+            "bindings": [b.to_dict() for b in self.bindings],
             "options": self.options,
             "dependsOn": [str(d) for d in self.depends_on],
         }
         return {k: v for k, v in data.items() if v}
 
-    def add_input(self, name: str, value: any):
+    def add_input(self, name: str, value: Any):
         if value is not None:
             if isinstance(value, Construct):
                 self.depends_on.add(value.urn)
@@ -82,8 +95,20 @@ class Construct:
                     "status": "resolved"
                 }
 
+    def add_binding(self, binding: "Binding"):
+        self.bindings.append(binding)
+        self.depends_on.add(binding.to)
+        for v in binding.inputs.values():
+            for dep in {*v.depends_on, v.id}:
+                try:
+                    urn = URN.parse(dep)
+                    urn.output = ""
+                    self.depends_on.add(urn)
+                except ValueError:
+                    pass
 
-def get_construct_args_opts(construct_args_type, *args, **kwargs):
+
+def get_construct_args_opts(construct_args_type: Type, *args, **kwargs) -> tuple[Any, ConstructOptions]:
     """
     Return the construct args and options given the *args and **kwargs of a construct's
     __init__ method.
@@ -107,8 +132,33 @@ def get_construct_args_opts(construct_args_type, *args, **kwargs):
         if isinstance(a, construct_args_type):
             construct_args = a
 
-    # If opts is None, look it up in kwargs.
+    # If opts is None, see if "opts" is in kwargs, and, if so, if it's an instance of ConstructOptions.
     if opts is None:
-        opts = kwargs.get("opts")
+        o = kwargs.get("opts")
+        opts = o if isinstance(o, ConstructOptions) else ConstructOptions()
 
     return construct_args, opts
+
+
+FROM = TypeVar("FROM", bound=Construct)
+TO = TypeVar("TO", bound=Construct)
+
+
+class Binding(Generic[FROM, TO]):
+    def __init__(self, to: TO, inputs: Optional[dict[str, Input[Any]]]):
+        self._to: URN = to.urn
+        self._inputs: dict[str, Input[Any]] = inputs or {}
+
+    def to_dict(self):
+        return {
+            "urn": str(self._to),
+            "inputs": self._inputs
+        }
+
+    @property
+    def to(self):
+        return self._to
+
+    @property
+    def inputs(self):
+        return {**self._inputs}

@@ -1,12 +1,11 @@
 from: klotho.aws.Container
 to: klotho.aws.LoadBalancer
-# type: default (no value)
 inputs:
   Port:
     name: Port
     description: The port to expose on the load balancer
     type: number
-    default: ${from:resources.TaskDefinition.ContainerDefinitions[0].PortMappings[0].HostPort}
+    default: ${from.resources:TaskDefinition.ContainerDefinitions[0].PortMappings[0].HostPort}
     validation:
       minimum: 1
       maximum: 65535
@@ -46,21 +45,21 @@ inputs:
 resources:
   TargetGroup:
     type: aws:target_group
-    name: ${from:Name}-${to:Name}-tg
+    name: ${from.inputs:Name}-${to.inputs:Name}-tg
     properties:
       Port: ${inputs:Port}
       Protocol: HTTP
       HealthCheck: ${inputs:HealthCheck}
   Service:
     type: aws:ecs_service
-    name: ${from:Name}-service
+    name: ${from.inputs:Name}-service
     properties:
       LoadBalancers[0]:
         ContainerPort: ${inputs:Port}
-        TargetGroup: aws:target_group:${from:Name}-${binding:Name}-tg
-        ContainerName: ${from:resources.TaskDefinition.ContainerDefinitions[0].Name}
+        TargetGroup: aws:target_group:${from.inputs:Name}-${inputs:Name}-tg
+        ContainerName: ${from.resources:.TaskDefinition.ContainerDefinitions[0].Name}
 
 outputs:
   InvocationURL:
     description: The URL to use to invoke the service
-    value: ${to:outputs.DNSName}
+    value: ${to.outputs:DNSName}

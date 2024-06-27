@@ -30,4 +30,7 @@ outputs:
     value: ${resources:Bucket#BucketName}
   BucketArn:
     description: The Amazon Resource Name (ARN) of the S3 bucket
-    value: ${stack:Bucket.arn}
+    value: ${resources:Bucket#Arn}
+  BucketRegionalDomainName:
+    description: The regional domain name of the S3 bucket
+    value: ${resources:Bucket#BucketRegionalDomainName}
