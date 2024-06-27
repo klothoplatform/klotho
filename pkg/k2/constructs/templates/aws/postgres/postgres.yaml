@@ -31,8 +31,8 @@ inputs:
     type: number
     default: 20
     validation:
-      minimum: 5
-      maximum: 6144
+      minValue: 5
+      maxValue: 6144
 
   EngineVersion:
     name: Engine Version
@@ -47,7 +47,6 @@ inputs:
     name: Master Username
     description: The master username for the database instance
     type: string
-    pulumi_key: ${resources:DatabaseInstance:Name}-username
     default: admin
     validation:
       minLength: 1
@@ -57,7 +56,6 @@ inputs:
     name: Master User Password
     description: The master user password for the database instance
     type: string
-    pulumi_key: ${resources:DatabaseInstance:Name}-password
     validation:
       minLength: 8
       maxLength: 128
@@ -77,8 +75,8 @@ inputs:
     type: number
     default: 5432
     validation:
-      minimum: 1
-      maximum: 65535
+      minValue: 1
+      maxValue: 65535
 
   Network:
     name: Network
