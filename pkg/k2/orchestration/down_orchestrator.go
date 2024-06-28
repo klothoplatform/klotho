@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
@@ -79,16 +77,14 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 	}
 
-	var wg sync.WaitGroup
-	var allErrors multierr.Error
 	for _, group := range deleteOrder {
+		errChan := make(chan error, len(group))
+
 		for _, cURN := range group {
-			wg.Add(1)
 			go func(cURN model.URN) {
-				defer wg.Done()
 				construct, exists := sm.GetConstructState(cURN.ResourceID)
 				if !exists {
-					allErrors.Append(fmt.Errorf("construct %s not found in state", cURN.ResourceID))
+					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 					return
 				}
 				ctx := ConstructContext(ctx, *construct.URN)
@@ -99,12 +95,12 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				// times for things like the up command
 				if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
 					prog.Complete("Failed")
-					allErrors.Append(err)
+					errChan <- err
 					return
 				}
 				if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
 					prog.Complete("Failed")
-					allErrors.Append(err)
+					errChan <- err
 					return
 				}
 
@@ -115,23 +111,30 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 					prog.Complete("Failed")
 
 					if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
-						allErrors.Append(fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2))
+						errChan <- fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
 						return
 					}
-					allErrors.Append(err)
+					errChan <- err
 					return
 				} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
 					prog.Complete("Failed")
-					allErrors.Append(err)
+					errChan <- err
 					return
 				}
 				prog.Complete("Success")
+				errChan <- nil
 			}(cURN)
 		}
-		wg.Wait()
-		if allErrors.ErrOrNil() != nil {
-			return allErrors.ErrOrNil()
+		var errs []error
+		for i := 0; i < len(group); i++ {
+			if err := <-errChan; err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		if len(errs) > 0 {
+			return errors.Join(errs...)
 		}
 	}
-	return allErrors.ErrOrNil()
+	return nil
 }

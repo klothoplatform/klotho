@@ -2,9 +2,9 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
@@ -13,7 +13,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"gopkg.in/yaml.v3"
 )
@@ -91,29 +90,31 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 		}
 	}()
 
-	var wg sync.WaitGroup
-	var allErrors multierr.Error
 	for _, group := range deployOrder {
+		errChan := make(chan error, len(group))
+
 		for _, cURN := range group {
-			wg.Add(1)
 			go func(cURN model.URN) {
-				defer wg.Done()
 				c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
 				if !exists {
-					allErrors.Append(fmt.Errorf("construct %s not found in state", cURN.ResourceID))
+					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
 					return
 				}
-				if err := uo.executeAction(ctx, c, actions[cURN], dryRun); err != nil {
-					allErrors.Append(err)
-				}
+				errChan <- uo.executeAction(ctx, c, actions[cURN], dryRun)
 			}(cURN)
 		}
-		wg.Wait()
-		if allErrors.ErrOrNil() != nil {
-			return allErrors.ErrOrNil()
+		var errs []error
+		for i := 0; i < len(group); i++ {
+			if err := <-errChan; err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		if len(errs) > 0 {
+			return errors.Join(errs...)
 		}
 	}
-	return allErrors.ErrOrNil()
+	return nil
 }
 
 func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) error {
