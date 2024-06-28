@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"sync"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"github.com/klothoplatform/klotho/pkg/multierr"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
@@ -77,43 +78,60 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 			prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
 		}
 	}
+
+	var wg sync.WaitGroup
+	var allErrors multierr.Error
 	for _, group := range deleteOrder {
 		for _, cURN := range group {
-			construct, exists := sm.GetConstructState(cURN.ResourceID)
-			if !exists {
-				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
-			}
-			ctx := ConstructContext(ctx, *construct.URN)
-			prog := tui.GetProgress(ctx)
-
-			// All resources need to be deleted so they have to start in a delete pending state initially.
-			// This is a bit awkward since we have to transition twice, but these states are used at different
-			// times for things like the up command
-			if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
-				prog.Complete("Failed")
-				return err
-			}
-			if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
-				prog.Complete("Failed")
-				return err
-			}
-
-			stackRef := stackRefCache[construct.URN.ResourceID]
-
-			err := stack.RunDown(ctx, stackRef)
-			if err != nil {
-				prog.Complete("Failed")
-
-				if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
-					return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
+			wg.Add(1)
+			go func(cURN model.URN) {
+				defer wg.Done()
+				construct, exists := sm.GetConstructState(cURN.ResourceID)
+				if !exists {
+					allErrors.Append(fmt.Errorf("construct %s not found in state", cURN.ResourceID))
+					return
 				}
-				return err
-			} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
-				prog.Complete("Failed")
-				return err
-			}
-			prog.Complete("Success")
+				ctx := ConstructContext(ctx, *construct.URN)
+				prog := tui.GetProgress(ctx)
+
+				// All resources need to be deleted so they have to start in a delete pending state initially.
+				// This is a bit awkward since we have to transition twice, but these states are used at different
+				// times for things like the up command
+				if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
+					prog.Complete("Failed")
+					allErrors.Append(err)
+					return
+				}
+				if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
+					prog.Complete("Failed")
+					allErrors.Append(err)
+					return
+				}
+
+				stackRef := stackRefCache[construct.URN.ResourceID]
+
+				err := stack.RunDown(ctx, stackRef)
+				if err != nil {
+					prog.Complete("Failed")
+
+					if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
+						allErrors.Append(fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2))
+						return
+					}
+					allErrors.Append(err)
+					return
+				} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
+					prog.Complete("Failed")
+					allErrors.Append(err)
+					return
+				}
+				prog.Complete("Success")
+			}(cURN)
+		}
+		wg.Wait()
+		if allErrors.ErrOrNil() != nil {
+			return allErrors.ErrOrNil()
 		}
 	}
-	return nil
+	return allErrors.ErrOrNil()
 }
