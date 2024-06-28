@@ -28,7 +28,7 @@ func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchest
 	}
 }
 
-func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest) error {
+func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest, maxConcurrency int) error {
 	if request.DryRun {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
 		// and doesn't have any options for "--preview-only"
@@ -77,11 +77,14 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		}
 	}
 
+	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deleteOrder {
 		errChan := make(chan error, len(group))
 
 		for _, cURN := range group {
+			sem <- struct{}{}
 			go func(cURN model.URN) {
+				defer func() { <-sem }()
 				construct, exists := sm.GetConstructState(cURN.ResourceID)
 				if !exists {
 					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)

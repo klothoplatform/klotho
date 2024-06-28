@@ -55,7 +55,7 @@ func transitionPendingToDoing(sm *model.StateManager, construct *model.Construct
 	return sm.TransitionConstructState(construct, nextStatus)
 }
 
-func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool) error {
+func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
@@ -90,11 +90,14 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 		}
 	}()
 
+	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deployOrder {
 		errChan := make(chan error, len(group))
 
 		for _, cURN := range group {
+			sem <- struct{}{}
 			go func(cURN model.URN) {
+				defer func() { <-sem }()
 				c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
 				if !exists {
 					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
