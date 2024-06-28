@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+
+	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -895,7 +896,7 @@ func (ce *ConstructEvaluator) resolveEdge(c InfraOwner, edge EdgeTemplate, inter
 	return &Edge{
 		From: from.(ResourceRef),
 		To:   to.(ResourceRef),
-		Data: data.(map[string]any),
+		Data: data.(construct.EdgeData),
 	}, nil
 }
 

@@ -2,12 +2,12 @@ package constructs
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"reflect"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 )
 
 type (
@@ -118,7 +118,7 @@ func (m *ConstructMarshaller) marshalEdge(c *Construct, e *Edge) (constraints.Co
 			Source: from,
 			Target: to,
 		},
-		Data: v.(map[string]any),
+		Data: v.(construct.EdgeData),
 	}}, nil
 }
 
