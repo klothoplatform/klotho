@@ -1,4 +1,13 @@
-from typing import TypeVar, Generic, Union, Mapping, Any, TYPE_CHECKING, Callable
+from typing import (
+    TypeVar,
+    Generic,
+    Union,
+    Mapping,
+    Any,
+    TYPE_CHECKING,
+    Callable,
+    Optional,
+)
 from uuid import uuid4
 
 from klotho.runtime import instance as runtime
@@ -6,7 +15,7 @@ from klotho.runtime import instance as runtime
 if TYPE_CHECKING:
     pass
 
-T = TypeVar('T')
+T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 
 Input = Union[T, "Output[T]"]
@@ -16,11 +25,11 @@ InputType = Union[T, Mapping[str, Any]]
 
 class Output(Generic[T_co]):
     def __init__(
-            self,
-            depends_on: set[str],
-            id: str = None,
-            value: T_co | Input[T_co] | None = None,
-            callback: Callable[[T_co], T] = None,
+        self,
+        depends_on: Optional[set[str]] = None,
+        id: Optional[str] = None,
+        value: Optional[T_co | Input[T_co]] = None,
+        callback: Optional[Callable[[T_co], T]] = None,
     ):
         if id is not None:
             if id in runtime.output_references:
@@ -28,7 +37,7 @@ class Output(Generic[T_co]):
             self.id = id
         else:
             self.id = str(uuid4())
-        self.depends_on = set(depends_on)
+        self.depends_on = set(depends_on) if depends_on else set()
 
         if isinstance(value, Output) and value:
             self._value = value.value
@@ -65,26 +74,35 @@ class Output(Generic[T_co]):
     def resolve(self, resolved_deps):
         if self._is_resolved:
             return
-        self._value = self.callback(*resolved_deps) if self.callback else resolved_deps[0]
+        self._value = (
+            self.callback(*resolved_deps) if self.callback else resolved_deps[0]
+        )
         self._is_resolved = True
         runtime.outputs[self.id] = self._value
 
     @staticmethod
-    def all(outputs: list["Output[T_co]"], callback: Callable[..., T_co] = None) -> "Output[T_co]":
+    def all(
+        outputs: list["Output[T_co]"], callback: Callable[..., T_co] = None
+    ) -> "Output[T_co]":
         """
         Creates a new Output that represents the output of applying a callback function to the list of given outputs.
         :param outputs:
         :param callback:
         :return: The new Output
         """
+
         def run(*values: T) -> T:
             return callback(*values)
 
-        return Output({
-            *[output.id for output in outputs],
-            *[dep for output in outputs for dep in output.depends_on]
-        }
-            , None, None, run)
+        return Output(
+            {
+                *[output.id for output in outputs],
+                *[dep for output in outputs for dep in output.depends_on],
+            },
+            None,
+            None,
+            run,
+        )
 
     @classmethod
     def concat(cls, *args: "Input[str]") -> "Output[str]":
@@ -92,8 +110,10 @@ class Output(Generic[T_co]):
         Concatenates the string representations of all the given inputs.
         :param args: The inputs to concatenate.
         :return: A new Output representing the concatenated string.
-                """
-        inputs = [arg if isinstance(arg, Output) else Output(set(), None, arg) for arg in args]
+        """
+        inputs = [
+            arg if isinstance(arg, Output) else Output(set(), None, arg) for arg in args
+        ]
 
         def run(*values: str) -> str:
             return "".join(values)

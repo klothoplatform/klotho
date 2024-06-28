@@ -250,7 +250,8 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 	// Retrieve the value from the designated property source
 	value, err := getValueFromSource(p, key)
 	if err != nil {
-		return nil, fmt.Errorf("could not get value from property source: %w", err)
+		zap.S().Debugf("could not get value from source: %s", err)
+		return nil, nil
 	}
 
 	keyAndRef := strings.Split(key, "#")

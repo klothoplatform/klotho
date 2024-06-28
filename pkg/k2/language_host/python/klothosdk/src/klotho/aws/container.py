@@ -1,15 +1,17 @@
-from typing import Optional, overload, Union, TYPE_CHECKING, Type, TypeVar
+from typing import Optional, overload, Union, TYPE_CHECKING
 
 from klotho.aws.network import Network
-from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding
+from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding, add_binding
 from klotho.output import Input, Output
 from klotho.runtime_util import get_default_construct
 from klotho.type_util import set, get, get_output
 
 if TYPE_CHECKING:
-    from klotho.aws import Bucket
+    pass
 
-BindingType = Union[Binding["Container", "Bucket"], "Bucket"]
+BindingType = Union[
+    Binding["Bucket"], "Bucket"
+]
 
 
 class ContainerArgs:
@@ -188,3 +190,6 @@ class Container(Construct):
     @property
     def load_balancer_url(self) -> Output[str]:
         return get_output(self, "LoadBalancerUrl", str)
+
+    def bind(self, binding: BindingType) -> None:
+        add_binding(self, binding)

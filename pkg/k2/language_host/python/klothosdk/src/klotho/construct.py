@@ -4,7 +4,7 @@ from klotho.output import Output, Input
 from klotho.runtime import instance as runtime
 from klotho.urn import URN
 
-BindingType = TypeVar("BindingType", bound=Union["Binding", "Construct"])
+BindingType = Union["Binding", "Construct"]
 
 
 class ConstructOptions:
@@ -14,12 +14,19 @@ class ConstructOptions:
 
 
 class Construct:
-    def __init__(self, name, construct_type, properties: dict[str, Any],
-                 bindings: Optional[list[BindingType]] = None,
-                 opts: Optional[ConstructOptions] = None):
+    def __init__(
+        self,
+        name,
+        construct_type,
+        properties: dict[str, Any],
+        bindings: Optional[list[BindingType]] = None,
+        opts: Optional[ConstructOptions] = None,
+    ):
         if runtime.application is None:
             raise Exception(
-                "Cannot create a construct without an application. Initialize the application first by calling klotho.Application().")
+                "Cannot create a construct without an application. "
+                "Initialize the application first by calling klotho.Application()."
+            )
 
         self.urn = URN(
             account_id="my-account-id",  # TODO: Get this from the runtime or environment
@@ -28,7 +35,7 @@ class Construct:
             environment=runtime.application.environment,
             type="construct",
             subtype=construct_type,
-            resource_id=name
+            resource_id=name,
         )
         self.name = name
         self.construct_type = construct_type
@@ -37,7 +44,7 @@ class Construct:
         self.pulumi_stack = None
         self.version = 1
         self.status = "new"  # Default status
-        self.bindings = []
+        self.bindings: list["Binding"] = []
         self.options = opts.__dict__ if opts else {}
         self.depends_on: set[URN] = set()
         runtime.add_construct(self)
@@ -45,9 +52,7 @@ class Construct:
             self.add_input(k, v)
 
         for binding in bindings or []:
-            if isinstance(binding, Construct):
-                binding = Binding(binding, {})
-            self.add_binding(binding)
+            add_binding(self, binding)
 
     def to_dict(self):
         data = {
@@ -90,25 +95,12 @@ class Construct:
                         pass
 
             else:
-                self.inputs[name] = {
-                    "value": value,
-                    "status": "resolved"
-                }
-
-    def add_binding(self, binding: "Binding"):
-        self.bindings.append(binding)
-        self.depends_on.add(binding.to)
-        for v in binding.inputs.values():
-            for dep in {*v.depends_on, v.id}:
-                try:
-                    urn = URN.parse(dep)
-                    urn.output = ""
-                    self.depends_on.add(urn)
-                except ValueError:
-                    pass
+                self.inputs[name] = {"value": value, "status": "resolved"}
 
 
-def get_construct_args_opts(construct_args_type: Type, *args, **kwargs) -> tuple[Any, ConstructOptions]:
+def get_construct_args_opts(
+    construct_args_type: Type, *args, **kwargs
+) -> tuple[Any, ConstructOptions]:
     """
     Return the construct args and options given the *args and **kwargs of a construct's
     __init__ method.
@@ -140,20 +132,18 @@ def get_construct_args_opts(construct_args_type: Type, *args, **kwargs) -> tuple
     return construct_args, opts
 
 
-FROM = TypeVar("FROM", bound=Construct)
 TO = TypeVar("TO", bound=Construct)
 
 
-class Binding(Generic[FROM, TO]):
+class Binding(Generic[TO]):
     def __init__(self, to: TO, inputs: Optional[dict[str, Input[Any]]]):
         self._to: URN = to.urn
-        self._inputs: dict[str, Input[Any]] = inputs or {}
+        self._inputs: dict[str, dict[str, Any]] = {}
+        for k, v in inputs.items() if inputs else {}:
+            self.add_input(k, v)
 
     def to_dict(self):
-        return {
-            "urn": str(self._to),
-            "inputs": self._inputs
-        }
+        return {"urn": str(self._to), "inputs": self._inputs}
 
     @property
     def to(self):
@@ -162,3 +152,46 @@ class Binding(Generic[FROM, TO]):
     @property
     def inputs(self):
         return {**self._inputs}
+
+    def add_input(self, name: str, value: Any):
+        if value is not None:
+            if isinstance(value, Construct):
+                self._inputs[name] = {
+                    "status": "pending",
+                    "dependsOn": str(value.urn),
+                }
+            elif isinstance(value, Output):
+                self._inputs[name] = {
+                    "value": None,
+                    "status": "pending",
+                    "dependsOn": str(value.id),
+                }
+
+            else:
+                self._inputs[name] = {"value": value, "status": "resolved"}
+
+
+def add_binding(source: Construct, binding: BindingType):
+    # If the binding is a Construct, wrap it in a Binding.
+    if isinstance(binding, Construct):
+        binding = Binding(binding, {})
+
+    if binding.to == source.urn:
+        raise ValueError("Cannot bind a construct to itself.")
+
+    # Replace any existing binding to the same construct.
+    source.bindings = [b for b in source.bindings if b.to != binding.to]
+    source.bindings.append(binding)
+
+    source.depends_on.add(binding.to)
+
+    # Add any input construct dependencies from the binding to the source.
+    for v in binding.inputs.values():
+        for dep in {*v.get("dependsOn", [])}:
+            try:
+                urn = URN.parse(dep)
+                urn.output = ""
+                source.depends_on.add(urn)
+            except ValueError:
+                # Ignore non-URN dependencies.
+                pass

@@ -1,6 +1,6 @@
 from typing import Optional, overload, Any
 
-from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
+from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding
 from klotho.output import Input, Output
 from klotho.type_util import set, get, get_output
 
@@ -82,6 +82,7 @@ class Bucket(Construct):
             opts=opts,
         )
 
+    # Outputs
     @property
     def arn(self) -> Output[str]:
         return get_output(self, path="Arn", output_type=str)
@@ -89,3 +90,18 @@ class Bucket(Construct):
     @property
     def bucket(self) -> Output[str]:
         return get_output(self, path="Bucket", output_type=str)
+
+    # Bindings
+    def use_read_only(self):
+        """
+        This method is used to create a binding for the bucket construct with read-only permissions.
+        :return:
+        """
+        return Binding(self, inputs={"ReadOnly": True})
+
+    def use_read_write(self):
+        """
+        This method is used to create a binding for the bucket construct with read-write permissions.
+        :return: Binding
+        """
+        return Binding(self, inputs={"ReadOnly": False})

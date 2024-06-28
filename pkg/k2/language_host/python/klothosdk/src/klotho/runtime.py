@@ -1,11 +1,11 @@
 import threading
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 
 import grpc
 import yaml
 
 import klotho
-from klotho  import service_pb2_grpc as service_pb2_grpc
+from klotho import service_pb2_grpc as service_pb2_grpc
 from klotho.provider import Provider
 from klotho.urn import URN
 
@@ -28,10 +28,10 @@ class Runtime:
     def __init__(self):
         if not self._initialized:
             self.constructs = {}
-            self.outputs: dict[str, any] = {}
+            self.outputs: dict[str, Any] = {}
             self.output_references: dict[str, "Output"] = {}
             self.application: Optional["klotho.Application"] = None
-            channel = grpc.insecure_channel('localhost:50051')
+            channel = grpc.insecure_channel("localhost:50051")
             self.stub = service_pb2_grpc.KlothoServiceStub(channel)
             self._initialized = True
             self.providers: dict[str, Provider] = {}
@@ -43,7 +43,9 @@ class Runtime:
         self.application = application
 
     def generate_yaml(self):
-        constructs = {name: construct.to_dict() for name, construct in self.constructs.items()}
+        constructs = {
+            name: construct.to_dict() for name, construct in self.constructs.items()
+        }
         output = {
             "schemaVersion": 1,  # Adjust this value as needed
             "version": 1,  # Adjust this value as needed
@@ -55,7 +57,9 @@ class Runtime:
         }
         return yaml.dump(output, sort_keys=False)
 
-    def resolve_output_references(self, constructs: dict[str, dict[str, any]]) -> dict[str, any]:
+    def resolve_output_references(
+        self, constructs: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         constructs is expected to be a dictionary of resource urn to resource outputs
         example:
@@ -74,8 +78,11 @@ class Runtime:
                 output_urn.output = output_name
                 self.outputs[str(output_urn)] = output_value
 
-        remaining_unresolved_outputs = {output_id: output for output_id, output in self.output_references.items() if
-                                        not output.is_resolved}
+        remaining_unresolved_outputs = {
+            output_id: output
+            for output_id, output in self.output_references.items()
+            if not output.is_resolved
+        }
         resolved_output_references = {}
         resolved_count = -1
         while resolved_count != 0:
