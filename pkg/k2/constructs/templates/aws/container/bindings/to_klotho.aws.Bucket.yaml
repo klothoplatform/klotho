@@ -12,7 +12,7 @@ resources:
     properties:
       ContainerDefinitions[0].Environment:
         # TODO: implement array spread
-  #        - ${from:resources.TaskDefinition.ContainerDefinitions[0].Environment...}
+        #        - ${from:resources.TaskDefinition.ContainerDefinitions[0].Environment...}
         - Name: ${to.inputs:Name}_BUCKET_ENDPOINT
           Value: ${to.outputs:BucketRegionalDomainName}
 input_rules:
@@ -22,10 +22,8 @@ input_rules:
         - from: ${from.resources:Service}
           to: ${to.resources:Bucket}
           data:
-            access: read
+            connection_type: readonly
     else:
       edges:
         - from: ${from.resources:Service}
           to: ${to.resources:Bucket}
-          data:
-            access: read_write
