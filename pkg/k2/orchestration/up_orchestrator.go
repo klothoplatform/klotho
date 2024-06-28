@@ -2,6 +2,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -54,7 +55,7 @@ func transitionPendingToDoing(sm *model.StateManager, construct *model.Construct
 	return sm.TransitionConstructState(construct, nextStatus)
 }
 
-func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool) error {
+func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
@@ -89,19 +90,34 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 		}
 	}()
 
+	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deployOrder {
+		errChan := make(chan error, len(group))
+
 		for _, cURN := range group {
-			c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
-			if !exists {
-				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
-			}
-			err = uo.executeAction(ctx, c, actions[cURN], dryRun)
-			if err != nil {
-				return err
+			sem <- struct{}{}
+			go func(cURN model.URN) {
+				defer func() { <-sem }()
+				c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
+				if !exists {
+					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
+					return
+				}
+				errChan <- uo.executeAction(ctx, c, actions[cURN], dryRun)
+			}(cURN)
+		}
+		var errs []error
+		for i := 0; i < len(group); i++ {
+			if err := <-errChan; err != nil {
+				errs = append(errs, err)
 			}
 		}
+
+		if len(errs) > 0 {
+			return errors.Join(errs...)
+		}
 	}
-	return err
+	return nil
 }
 
 func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) error {

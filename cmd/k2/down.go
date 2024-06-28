@@ -76,7 +76,7 @@ func down(cmd *cobra.Command, args []string) error {
 	}
 
 	o := orchestration.NewDownOrchestrator(sm, downConfig.outputPath)
-	err = o.RunDownCommand(cmd.Context(), orchestration.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun})
+	err = o.RunDownCommand(cmd.Context(), orchestration.DownRequest{StackReferences: stackReferences, DryRun: commonCfg.dryRun}, 5)
 	if err != nil {
 		return fmt.Errorf("error running down command: %w", err)
 	}

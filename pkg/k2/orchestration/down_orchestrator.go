@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/klothoplatform/klotho/pkg/k2/stack"
-
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
@@ -29,7 +28,7 @@ func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchest
 	}
 }
 
-func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest) error {
+func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest, maxConcurrency int) error {
 	if request.DryRun {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
 		// and doesn't have any options for "--preview-only"
@@ -77,42 +76,67 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 			prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
 		}
 	}
+
+	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deleteOrder {
+		errChan := make(chan error, len(group))
+
 		for _, cURN := range group {
-			construct, exists := sm.GetConstructState(cURN.ResourceID)
-			if !exists {
-				return fmt.Errorf("construct %s not found in state", cURN.ResourceID)
-			}
-			ctx := ConstructContext(ctx, *construct.URN)
-			prog := tui.GetProgress(ctx)
-
-			// All resources need to be deleted so they have to start in a delete pending state initially.
-			// This is a bit awkward since we have to transition twice, but these states are used at different
-			// times for things like the up command
-			if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
-				prog.Complete("Failed")
-				return err
-			}
-			if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
-				prog.Complete("Failed")
-				return err
-			}
-
-			stackRef := stackRefCache[construct.URN.ResourceID]
-
-			err := stack.RunDown(ctx, stackRef)
-			if err != nil {
-				prog.Complete("Failed")
-
-				if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
-					return fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
+			sem <- struct{}{}
+			go func(cURN model.URN) {
+				defer func() { <-sem }()
+				construct, exists := sm.GetConstructState(cURN.ResourceID)
+				if !exists {
+					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
+					return
 				}
-				return err
-			} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
-				prog.Complete("Failed")
-				return err
+				ctx := ConstructContext(ctx, *construct.URN)
+				prog := tui.GetProgress(ctx)
+
+				// All resources need to be deleted so they have to start in a delete pending state initially.
+				// This is a bit awkward since we have to transition twice, but these states are used at different
+				// times for things like the up command
+				if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
+					prog.Complete("Failed")
+					errChan <- err
+					return
+				}
+				if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
+					prog.Complete("Failed")
+					errChan <- err
+					return
+				}
+
+				stackRef := stackRefCache[construct.URN.ResourceID]
+
+				err := stack.RunDown(ctx, stackRef)
+				if err != nil {
+					prog.Complete("Failed")
+
+					if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
+						errChan <- fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
+						return
+					}
+					errChan <- err
+					return
+				} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
+					prog.Complete("Failed")
+					errChan <- err
+					return
+				}
+				prog.Complete("Success")
+				errChan <- nil
+			}(cURN)
+		}
+		var errs []error
+		for i := 0; i < len(group); i++ {
+			if err := <-errChan; err != nil {
+				errs = append(errs, err)
 			}
-			prog.Complete("Success")
+		}
+
+		if len(errs) > 0 {
+			return errors.Join(errs...)
 		}
 	}
 	return nil

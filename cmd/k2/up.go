@@ -163,7 +163,7 @@ func up(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error creating up orchestrator: %w", err)
 	}
 
-	err = o.RunUpCommand(ctx, ir, commonCfg.dryRun)
+	err = o.RunUpCommand(ctx, ir, commonCfg.dryRun, 5)
 	if err != nil {
 		return fmt.Errorf("error running up command: %w", err)
 	}
