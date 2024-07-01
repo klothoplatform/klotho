@@ -1,16 +1,10 @@
 from: klotho.aws.Container
 to: klotho.aws.Postgres
 type: read
-inputs:
-  ReadOnly:
-    name: Read Only
-    description: Whether the connection should be read only
-    type: boolean
-    default: false
 resources:
   TaskDefinition:
     ContainerDefinitions[0].Environment:
-#      - ${...from.resources:TaskDefinition.ContainerDefinitions[0].Environment}
+      #      - ${...from.resources:TaskDefinition.ContainerDefinitions[0].Environment}
       - Name: ${to.inputs:Name}_POSTGRES_ENDPOINT
         Value: ${to:outputs.Endpoint}
       - Name: ${to.inputs:Name}_POSTGRES_DATABASE
@@ -24,13 +18,5 @@ resources:
       - Name: ${to.inputs:Name}_POSTGRES_CONNECTION_STRING
         Value: ${to.outputs:ConnectionString}
 edges:
-input_rules:
-  - if: ${to.inputs:ReadOnly}
-    then:
-      - from: ${from.resources:Service}
-        to: ${to.resources:RDSInstance}
-        action: read
-    else:
-      - from: ${from.resources:Service}
-        to: ${to.resources:RDSInstance}
-        action: read_write
+  - from: ${from.resources:Service}
+    to: ${to.resources:RDSInstance}

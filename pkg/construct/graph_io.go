@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
 	"gopkg.in/yaml.v3"
 )
@@ -78,12 +79,22 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 		}
 		sort.Sort(SortedIds(targets))
 		for _, target := range targets {
+			edgeValue := nullNode
+			edge := adj[source][target]
+			if data, ok := edge.Properties.Data.(EdgeData); ok && data != (EdgeData{}) {
+				edgeValue = &yaml.Node{}
+				err = edgeValue.Encode(data)
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+			}
 			edges.Content = append(edges.Content,
 				&yaml.Node{
 					Kind:  yaml.ScalarNode,
 					Value: fmt.Sprintf("%s -> %s", source, target),
 				},
-				nullNode)
+				edgeValue)
 		}
 	}
 	if len(edges.Content) == 0 {
@@ -157,12 +168,12 @@ func (g YamlGraph) MarshalYAML() (interface{}, error) {
 }
 
 func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
-	type graph struct {
+	type graphHelper struct {
 		Resources map[ResourceId]Properties `yaml:"resources"`
-		Edges     map[SimpleEdge]struct{}   `yaml:"edges"`
+		Edges     map[SimpleEdge]EdgeData   `yaml:"edges"`
 		Outputs   map[string]Output         `yaml:"outputs"`
 	}
-	var y graph
+	var y graphHelper
 	if err := n.Decode(&y); err != nil {
 		return err
 	}
@@ -190,8 +201,10 @@ func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 		})
 		errs = errors.Join(errs, err)
 	}
-	for e := range y.Edges {
-		err := g.Graph.AddEdge(e.Source, e.Target)
+	for e, data := range y.Edges {
+		err := g.Graph.AddEdge(e.Source, e.Target, func(ep *graph.EdgeProperties) {
+			ep.Data = data
+		})
 		errs = errors.Join(errs, err)
 	}
 
@@ -208,6 +221,13 @@ func (g *YamlGraph) UnmarshalYAML(n *yaml.Node) error {
 type SimpleEdge struct {
 	Source ResourceId
 	Target ResourceId
+}
+
+func ToSimpleEdge(e Edge) SimpleEdge {
+	return SimpleEdge{
+		Source: e.Source,
+		Target: e.Target,
+	}
 }
 
 func (e SimpleEdge) String() string {

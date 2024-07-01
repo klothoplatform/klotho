@@ -42,7 +42,12 @@ func (g LoggingGraph[K, T]) AddEdge(sourceHash K, targetHash K, options ...func(
 	if err != nil {
 		g.Log.Errorf("AddEdge(%v -> %v) error: %v", sourceHash, targetHash, err)
 	} else {
-		g.Log.Debugf("AddEdge(%v -> %v)", sourceHash, targetHash)
+		e, _ := g.Graph.Edge(sourceHash, targetHash)
+		if e.Properties.Data == nil {
+			g.Log.Debugf("AddEdge(%v -> %v)", sourceHash, targetHash)
+		} else {
+			g.Log.Debugf("AddEdge(%v -> %v, %+v)", sourceHash, targetHash, e.Properties.Data)
+		}
 	}
 	return err
 }

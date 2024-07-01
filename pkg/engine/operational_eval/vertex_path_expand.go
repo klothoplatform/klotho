@@ -202,7 +202,11 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return err
 	}
 
-	se := construct.Edge{Source: edge.Source, Target: edge.Target}
+	se := construct.Edge{
+		Source:     edge.Source,
+		Target:     edge.Target,
+		Properties: edge.Properties,
+	}
 	se.Source.Name = ""
 	se.Target.Name = ""
 
@@ -394,71 +398,101 @@ func (runner *pathExpandVertexRunner) addResourcesAndEdges(
 	v *pathExpandVertex,
 ) error {
 	eval := runner.Eval
+	op := eval.Solution.OperationalView()
+
 	adj, err := result.Graph.AdjacencyMap()
 	if err != nil {
 		return err
 	}
+	// Copy the edge data from a constraint that matches the expansion
+	// which enables setting, for example, lambda -> s3_bucket readonly,
+	// then applying that to the iam_role -> s3_bucket edge, which is what actually
+	// does something.
+	var data construct.EdgeData
+	for _, ec := range runner.Eval.Solution.Constraints().Edges {
+		if ec.Target.Source.Matches(v.SatisfactionEdge.Source) && ec.Target.Target.Matches(v.SatisfactionEdge.Target) {
+			data = ec.Data
+			break
+		}
+	}
+
 	if len(adj) > 2 {
-		_, err := eval.Solution.OperationalView().Edge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
+		_, err := op.Edge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
 		if err == nil {
-			if err := eval.Solution.OperationalView().RemoveEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target); err != nil {
+			if err := op.RemoveEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target); err != nil {
 				return err
 			}
 		} else if !errors.Is(err, graph.ErrEdgeNotFound) {
 			return err
 		}
 	} else if len(adj) == 2 {
-		err = eval.Solution.RawView().AddEdge(expansion.SatisfactionEdge.Source.ID, expansion.SatisfactionEdge.Target.ID)
-		if err != nil {
+		err = op.AddEdge(
+			expansion.SatisfactionEdge.Source.ID,
+			expansion.SatisfactionEdge.Target.ID,
+			graph.EdgeData(data),
+		)
+		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			// NOTE(gg): See note below why we're ignoring/allowing already exists errors.
 			return err
 		}
-		return eval.Solution.OperationalView().MakeEdgesOperational([]construct.Edge{
-			{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID},
-		})
 	}
 
 	// Once the path is selected & expanded, first add all the resources to the graph
 	var errs error
-	resources := []*construct.Resource{}
 	for pathId := range adj {
-		res, err := eval.Solution.OperationalView().Vertex(pathId)
+		_, err := op.Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			res, err = result.Graph.Vertex(pathId)
+			res, err := result.Graph.Vertex(pathId)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
-			errs = errors.Join(errs, eval.Solution.OperationalView().AddVertex(res))
+			err = op.AddVertex(res)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 
 		case err != nil:
 			errs = errors.Join(errs, err)
+			continue
 		}
-		resources = append(resources, res)
 	}
 	if errs != nil {
 		return errs
 	}
 
 	// After all the resources, then add all the dependencies
-	edges := []construct.Edge{}
 	for _, edgeMap := range adj {
 		for _, edge := range edgeMap {
-			err := eval.Solution.OperationalView().AddEdge(edge.Source, edge.Target)
-			if err != nil {
+			_, err := op.Edge(edge.Source, edge.Target)
+			switch {
+			case errors.Is(err, graph.ErrEdgeNotFound):
+				err := op.AddEdge(edge.Source, edge.Target, graph.EdgeData(data))
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+
+			case err != nil:
 				errs = errors.Join(errs, err)
+				continue
+
+			default:
+				// NOTE(gg): we could update the edge to set the edge data, but if that edge already existed it either:
+				// 1) was added as a different path expansion process (another classification)
+				// 2) was not added as part of path expansion
+				// If (1), then the edge data is already correct
+				// If (2), then the edge isn't unique to the expansion, so don't copy the edge data. This may not be the
+				// correct behaviour, but without a use-case it's hard to tell.
 			}
-			edges = append(edges, edge)
 		}
 	}
 	if errs != nil {
 		return errs
 	}
-	if err := eval.AddResources(resources...); err != nil {
-		return err
-	}
-	return eval.AddEdges(edges...)
+	return nil
 }
 
 func (runner *pathExpandVertexRunner) addSubExpansion(

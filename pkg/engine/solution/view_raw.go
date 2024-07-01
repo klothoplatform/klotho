@@ -128,9 +128,9 @@ func (view RawAccessView) AddEdge(source, target construct.ResourceId, options .
 	}
 	if !srcRt.NoIac && !dstRt.NoIac && (et != nil && !et.NoIac) {
 		if et != nil && et.DeploymentOrderReversed {
-			deplErr = view.inner.DeploymentGraph().AddEdge(target, source)
+			deplErr = view.inner.DeploymentGraph().AddEdge(target, source, options...)
 		} else {
-			deplErr = view.inner.DeploymentGraph().AddEdge(source, target)
+			deplErr = view.inner.DeploymentGraph().AddEdge(source, target, options...)
 		}
 		if errors.Is(dfErr, graph.ErrEdgeAlreadyExists) && errors.Is(deplErr, graph.ErrEdgeAlreadyExists) {
 			return graph.ErrEdgeAlreadyExists

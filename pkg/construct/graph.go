@@ -122,3 +122,11 @@ func ResolveIds(g Graph, ids []ResourceId) ([]*Resource, error) {
 	}
 	return resources, nil
 }
+
+func ResourceEdgeToKeyEdge(re ResourceEdge) Edge {
+	return Edge{
+		Source:     re.Source.ID,
+		Target:     re.Target.ID,
+		Properties: re.Properties,
+	}
+}

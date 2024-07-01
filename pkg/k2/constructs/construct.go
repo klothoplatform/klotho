@@ -32,7 +32,7 @@ type (
 	Edge struct {
 		From ResourceRef
 		To   ResourceRef
-		Data map[string]any
+		Data construct.EdgeData
 	}
 
 	ResourceRef struct {

@@ -3,8 +3,10 @@ package constructs
 import (
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 
 	"gopkg.in/yaml.v3"
 )
@@ -35,9 +37,9 @@ type (
 	}
 
 	EdgeTemplate struct {
-		From ResourceRef    `yaml:"from"`
-		To   ResourceRef    `yaml:"to"`
-		Data map[string]any `yaml:"data"`
+		From ResourceRef        `yaml:"from"`
+		To   ResourceRef        `yaml:"to"`
+		Data construct.EdgeData `yaml:"data"`
 	}
 
 	InputTemplate struct {
@@ -144,9 +146,9 @@ func (c *ConstructTemplateId) FromURN(urn model.URN) error {
 func (e *EdgeTemplate) UnmarshalYAML(value *yaml.Node) error {
 	// Unmarshal the edge template from a yaml node
 	var edge struct {
-		From string         `yaml:"from"`
-		To   string         `yaml:"to"`
-		Data map[string]any `yaml:"data"`
+		From string             `yaml:"from"`
+		To   string             `yaml:"to"`
+		Data construct.EdgeData `yaml:"data"`
 	}
 	if err := value.Decode(&edge); err != nil {
 		return err
