@@ -1,10 +1,11 @@
 package model
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
-	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -73,14 +74,13 @@ environment: "dev"
 default_region: "us-west-2"
 constructs:
   example-construct:
-    status: "pending"
+    status: "creating"
     last_updated: "2023-06-11T00:00:00Z"
     inputs: {}
     outputs: {}
     bindings: []
     options: {}
     dependsOn: []
-    pulumi_stack: "123e4567-e89b-12d3-a456-426614174000"
     urn: "urn:construct:example"
 `
 	tmpFile := createTempStateFile(t, stateContent)
@@ -105,21 +105,37 @@ constructs:
 	if construct, exists := sm.state.Constructs["example-construct"]; !exists {
 		t.Errorf("Expected construct example-construct to exist")
 	} else {
-		if construct.Status != ConstructPending {
-			t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
+		if construct.Status != ConstructCreating {
+			t.Errorf("Expected status to be %s, got %s", ConstructCreating, construct.Status)
 		}
 		if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 			t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
-		}
-		if construct.PulumiStack.String() != "123e4567-e89b-12d3-a456-426614174000" {
-			t.Errorf("Expected PulumiStack to be 123e4567-e89b-12d3-a456-426614174000, got %s", construct.PulumiStack.String())
 		}
 		if construct.URN.String() != "urn:construct:example" {
 			t.Errorf("Expected URN to be urn:construct:example, got %s", construct.URN.String())
 		}
 	}
+
+	// Test the non-existent case
+	nonExistentFile := createTempStateFile(t, "")
+	//defer removeTempFile(t, nonExistentFile)
+
+	sm = NewStateManager(nonExistentFile)
+	removeTempFile(t, nonExistentFile)
+	if err := sm.LoadState(); err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if sm.state != nil && sm.state.SchemaVersion != 1 {
+		t.Errorf("Expected default state, got %v", sm.state)
+	}
 }
 
+// Test invalid YAML case using a custom marshaller to throw an error
+type InvalidOutput struct{}
+
+func (InvalidOutput) MarshalYAML() (interface{}, error) {
+	return nil, fmt.Errorf("intentional marshal error")
+}
 func TestSaveState(t *testing.T) {
 	tmpFile := createTempStateFile(t, "")
 	defer removeTempFile(t, tmpFile)
@@ -132,14 +148,13 @@ func TestSaveState(t *testing.T) {
 	constructURN, _ := ParseURN("urn:construct:example")
 	sm.state.Constructs = map[string]ConstructState{
 		"example-construct": {
-			Status:      ConstructPending,
+			Status:      ConstructCreating,
 			LastUpdated: "2023-06-11T00:00:00Z",
 			Inputs:      make(map[string]Input),
 			Outputs:     make(map[string]any),
 			Bindings:    []Binding{},
 			Options:     make(map[string]interface{}),
 			DependsOn:   []*URN{},
-			PulumiStack: UUID{uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")},
 			URN:         constructURN,
 		},
 	}
@@ -173,20 +188,28 @@ func TestSaveState(t *testing.T) {
 	if construct, exists := state.Constructs["example-construct"]; !exists {
 		t.Errorf("Expected construct example-construct to exist")
 	} else {
-		if construct.Status != ConstructPending {
-			t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
+		if construct.Status != ConstructCreating {
+			t.Errorf("Expected status to be %s, got %s", ConstructCreating, construct.Status)
 		}
 		if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 			t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
-		}
-		if construct.PulumiStack.String() != "123e4567-e89b-12d3-a456-426614174000" {
-			t.Errorf("Expected PulumiStack to be 123e4567-e89b-12d3-a456-426614174000, got %s", construct.PulumiStack.String())
 		}
 		if construct.URN.String() != "urn:construct:example" {
 			t.Errorf("Expected URN to be urn:construct:example, got %s", construct.URN.String())
 		}
 	}
+
+	sm.state.Constructs["invalid-construct"] = ConstructState{
+		URN: constructURN,
+		Outputs: map[string]any{
+			"invalid": InvalidOutput{},
+		},
+	}
+	if err := sm.SaveState(); err == nil {
+		t.Errorf("Expected error for invalid YAML, got nil")
+	}
 }
+
 func TestInitState(t *testing.T) {
 	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
@@ -233,8 +256,8 @@ func TestInitState(t *testing.T) {
 	if !exists {
 		t.Fatalf("Expected construct example-construct to exist")
 	}
-	if construct.Status != ConstructPending {
-		t.Errorf("Expected status to be %s, got %s", ConstructPending, construct.Status)
+	if construct.Status != ConstructCreating {
+		t.Errorf("Expected status to be %s, got %s", ConstructCreating, construct.Status)
 	}
 	if construct.LastUpdated == "" {
 		t.Errorf("Expected last updated to be set, got empty string")
@@ -264,19 +287,213 @@ func TestTransitionConstructState(t *testing.T) {
 	defer removeTempFile(t, tmpFile)
 
 	sm := NewStateManager(tmpFile)
-	URN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
 		t.Fatalf("Failed to parse URN: %v", err)
 	}
-	construct := &ConstructState{Status: ConstructPending, URN: URN}
-	if err := sm.TransitionConstructState(construct, ConstructCreatePending); err != nil {
+
+	construct := ConstructState{
+		Status: ConstructCreating,
+		URN:    parsedURN,
+	}
+	sm.SetConstructState(construct)
+
+	// Test valid transition
+	if err := sm.TransitionConstructState(&construct, ConstructCreateComplete); err != nil {
 		t.Errorf("Expected valid transition, got error: %v", err)
 	}
-	if construct.Status != ConstructCreatePending {
-		t.Errorf("Expected status %s, got %s", ConstructCreatePending, construct.Status)
+	if construct.Status != ConstructCreateComplete {
+		t.Errorf("Expected status %s, got %s", ConstructCreateComplete, construct.Status)
 	}
 
-	if err := sm.TransitionConstructState(construct, ConstructPending); err == nil {
+	// Update the construct state in the state manager
+	sm.SetConstructState(construct)
+
+	// Test invalid transition
+	if err := sm.TransitionConstructState(&construct, ConstructCreateComplete); err == nil {
 		t.Errorf("Expected error for invalid transition, got nil")
+	}
+}
+
+func TestUpdateResourceState(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+
+	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	if err != nil {
+		t.Fatalf("Failed to parse URN: %v", err)
+	}
+	// Initialize the construct state in the StateManager
+	sm.SetConstructState(ConstructState{
+		Status: ConstructCreating,
+		URN:    parsedURN,
+	})
+
+	if err := sm.UpdateResourceState("example-construct", ConstructCreateComplete, "2023-06-11T00:00:00Z"); err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	construct, exists := sm.GetConstructState("example-construct")
+	if !exists {
+		t.Errorf("Expected construct example-construct to exist")
+	}
+	if construct.Status != ConstructCreateComplete {
+		t.Errorf("Expected status to be %s, got %s", ConstructCreateComplete, construct.Status)
+	}
+	if construct.LastUpdated != "2023-06-11T00:00:00Z" {
+		t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
+	}
+}
+
+func TestGetState(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+	sm.state.ProjectURN = "urn:project:example"
+	sm.state.AppURN = "urn:app:example"
+	sm.state.Environment = "dev"
+	sm.state.DefaultRegion = "us-west-2"
+
+	state := sm.GetState()
+	if state.ProjectURN != "urn:project:example" {
+		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", state.ProjectURN)
+	}
+	if state.AppURN != "urn:app:example" {
+		t.Errorf("Expected AppURN to be urn:app:example, got %s", state.AppURN)
+	}
+	if state.Environment != "dev" {
+		t.Errorf("Expected Environment to be dev, got %s", state.Environment)
+	}
+	if state.DefaultRegion != "us-west-2" {
+		t.Errorf("Expected DefaultRegion to be us-west-2, got %s", state.DefaultRegion)
+	}
+}
+
+func TestGetAllConstructs(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+	constructURN, _ := ParseURN("urn:construct:example")
+	sm.state.Constructs = map[string]ConstructState{
+		"example-construct": {
+			Status:      ConstructCreating,
+			LastUpdated: "2023-06-11T00:00:00Z",
+			Inputs:      make(map[string]Input),
+			Outputs:     make(map[string]any),
+			Bindings:    []Binding{},
+			Options:     make(map[string]interface{}),
+			DependsOn:   []*URN{},
+			URN:         constructURN,
+		},
+	}
+
+	constructs := sm.GetAllConstructs()
+	if len(constructs) != 1 {
+		t.Errorf("Expected 1 construct, got %d", len(constructs))
+	}
+	if construct, exists := constructs["example-construct"]; !exists {
+		t.Errorf("Expected construct example-construct to exist")
+	} else {
+		if construct.Status != ConstructCreating {
+			t.Errorf("Expected status to be %s, got %s", ConstructCreating, construct.Status)
+		}
+		if construct.LastUpdated != "2023-06-11T00:00:00Z" {
+			t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
+		}
+		if construct.URN.String() != "urn:construct:example" {
+			t.Errorf("Expected URN to be urn:construct:example, got %s", construct.URN.String())
+		}
+	}
+}
+
+func TestRegisterOutputValues(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+
+	constructURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container")
+	dependentURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Service:dependent-service")
+
+	construct := ConstructState{
+		Status:      ConstructCreating,
+		URN:         constructURN,
+		Outputs:     make(map[string]any),
+		Inputs:      make(map[string]Input),
+		LastUpdated: "2023-06-11T00:00:00Z",
+	}
+	dependentConstruct := ConstructState{
+		Status: ConstructCreating,
+		URN:    dependentURN,
+		Inputs: map[string]Input{
+			"image": {
+				Value:     nil,
+				Encrypted: false,
+				Status:    InputStatusPending,
+				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+			},
+			"port": {
+				Value:     nil,
+				Encrypted: false,
+				Status:    InputStatusPending,
+				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+			},
+		},
+	}
+
+	sm.SetConstructState(construct)
+	sm.SetConstructState(dependentConstruct)
+
+	outputs := map[string]any{
+		"image": "nginx:latest",
+		"port":  80,
+	}
+
+	err := sm.RegisterOutputValues(*constructURN, outputs)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	updatedConstruct, exists := sm.GetConstructState("my-container")
+	if !exists {
+		t.Errorf("Expected construct my-container to exist")
+	}
+
+	if !reflect.DeepEqual(updatedConstruct.Outputs, outputs) {
+		t.Errorf("Expected Outputs to be %v, got %v", outputs, updatedConstruct.Outputs)
+	}
+
+	updatedDependentConstruct, exists := sm.GetConstructState("dependent-service")
+	if !exists {
+		t.Errorf("Expected construct dependent-service to exist")
+	}
+
+	expectedInputs := map[string]Input{
+		"image": {
+			Value:     "nginx:latest",
+			Encrypted: false,
+			Status:    InputStatusResolved,
+			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+		},
+		"port": {
+			Value:     80,
+			Encrypted: false,
+			Status:    InputStatusResolved,
+			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+		},
+	}
+
+	if !reflect.DeepEqual(updatedDependentConstruct.Inputs, expectedInputs) {
+		t.Errorf("Expected Inputs to be %v, got %v", expectedInputs, updatedDependentConstruct.Inputs)
+	}
+
+	// Test with invalid construct URN
+	invalidURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:invalid-container")
+	err = sm.RegisterOutputValues(*invalidURN, outputs)
+	if err == nil {
+		t.Errorf("Expected error for non-existent construct, got nil")
 	}
 }

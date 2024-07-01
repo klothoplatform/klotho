@@ -48,7 +48,7 @@ func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 
 	for urn, construct := range ir.Constructs {
 		sm.state.Constructs[urn] = ConstructState{
-			Status:      ConstructPending,
+			Status:      ConstructCreating,
 			LastUpdated: time.Now().Format(time.RFC3339),
 			Inputs:      construct.Inputs,
 			Outputs:     construct.Outputs,
@@ -71,7 +71,7 @@ func (sm *StateManager) LoadState() error {
 	data, err := os.ReadFile(sm.stateFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			sm.state = &State{}
+			sm.state = nil
 			return nil
 		}
 		return err
@@ -143,70 +143,70 @@ func (sm *StateManager) GetAllConstructs() map[string]ConstructState {
 }
 
 func (sm *StateManager) TransitionConstructState(construct *ConstructState, nextStatus ConstructStatus) error {
-	if isValidTransition(construct.Status, nextStatus) {
-		zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
-		construct.Status = nextStatus
-		construct.LastUpdated = time.Now().Format(time.RFC3339)
-		sm.SetConstructState(*construct)
-		return nil
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	if !isValidTransition(construct.Status, nextStatus) {
+		return fmt.Errorf("invalid transition from %s to %s", construct.Status, nextStatus)
 	}
-	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
+
+	zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
+	construct.Status = nextStatus
+	construct.LastUpdated = time.Now().Format(time.RFC3339)
+	sm.state.Constructs[construct.URN.ResourceID] = *construct
+	return nil
 }
 
 // RegisterOutputValues registers the resolved output values of a construct in the state manager and resolves any inputs that depend on the provided outputs
 func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	// Check if the construct state is initialized
 	if sm.state.Constructs == nil {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	if construct, exists := sm.state.Constructs[urn.ResourceID]; exists {
-		if construct.Outputs == nil {
-			construct.Outputs = make(map[string]any)
-		}
-
-		for k, v := range outputs {
-			if construct.Outputs == nil {
-				construct.Outputs = make(map[string]any)
-			}
-			construct.Outputs[k] = v
-		}
-		sm.state.Constructs[urn.ResourceID] = construct
-	} else {
+	// Retrieve the construct state for the given URN
+	construct, exists := sm.state.Constructs[urn.ResourceID]
+	if !exists {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	// Resolve inputs that depend on the outputs of this construct or that directly reference this construct
+	// Initialize the Outputs map if it is nil
+	if construct.Outputs == nil {
+		construct.Outputs = make(map[string]any)
+	}
+
+	// Update the Outputs map with the provided outputs
+	for key, value := range outputs {
+		construct.Outputs[key] = value
+	}
+	sm.state.Constructs[urn.ResourceID] = construct
+
+	// Update dependent constructs
 	for _, c := range sm.state.Constructs {
 		if urn.Equals(c.URN) {
 			continue // Skip the construct that provided the outputs
 		}
 
-		hasDep := false
-		// Skip constructs that don't depend on this construct
-		for _, dep := range c.DependsOn {
-			if dep.Equals(urn) {
-				hasDep = true
-				break
-			}
-		}
-		if !hasDep {
-			continue
-		}
-
-		for k, input := range c.Inputs {
+		updated := false
+		for key, input := range c.Inputs {
 			if input.DependsOn == urn.String() {
-				input.Status = InputStatusResolved
-				input.Value = urn
-				c.Inputs[k] = input
-			}
-
-			if o, ok := outputs[input.DependsOn]; ok {
-				input.Value = o
-				input.Status = InputStatusResolved
-				c.Inputs[k] = input
+				// Check if the output key matches the input key
+				if output, ok := outputs[key]; ok {
+					input.Value = output
+					input.Status = InputStatusResolved
+					c.Inputs[key] = input
+					updated = true
+				}
 			}
 		}
 
+		// Update the construct state if it was modified
+		if updated {
+			sm.state.Constructs[c.URN.ResourceID] = c
+		}
 	}
 
 	return nil

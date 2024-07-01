@@ -96,11 +96,6 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				// All resources need to be deleted so they have to start in a delete pending state initially.
 				// This is a bit awkward since we have to transition twice, but these states are used at different
 				// times for things like the up command
-				if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
-					prog.Complete("Failed")
-					errChan <- err
-					return
-				}
 				if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
 					prog.Complete("Failed")
 					errChan <- err

@@ -91,9 +91,9 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		if !exists {
 			// If the construct doesn't exist in the current state, it's a create action
 			action = model.ConstructActionCreate
-			status = model.ConstructCreatePending
+			status = model.ConstructCreating
 			construct = model.ConstructState{
-				Status:      model.ConstructPending,
+				Status:      model.ConstructCreating,
 				LastUpdated: time.Now().Format(time.RFC3339),
 				Inputs:      c.Inputs,
 				Outputs:     c.Outputs,
@@ -105,7 +105,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 		} else {
 			// If the construct exists, it's an update action
 			action = model.ConstructActionUpdate
-			status = model.ConstructUpdatePending
+			status = model.ConstructUpdating
 			construct.Inputs = c.Inputs
 			construct.Outputs = c.Outputs
 			construct.Bindings = c.Bindings
@@ -124,7 +124,7 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 	for k, v := range o.StateManager.GetState().Constructs {
 		if _, ok := ir.Constructs[k]; !ok {
 			actions[*v.URN] = model.ConstructActionDelete
-			err := o.StateManager.TransitionConstructState(&v, model.ConstructDeletePending)
+			err := o.StateManager.TransitionConstructState(&v, model.ConstructDeleting)
 			if err != nil {
 				return nil, err
 			}

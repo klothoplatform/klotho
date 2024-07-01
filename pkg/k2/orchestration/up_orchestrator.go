@@ -38,23 +38,6 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 	}, nil
 }
 
-func transitionPendingToDoing(sm *model.StateManager, construct *model.ConstructState) error {
-	var nextStatus model.ConstructStatus
-
-	switch construct.Status {
-	case model.ConstructCreatePending:
-		nextStatus = model.ConstructCreating
-	case model.ConstructUpdatePending:
-		nextStatus = model.ConstructUpdating
-	case model.ConstructDeletePending:
-		nextStatus = model.ConstructDeleting
-	default:
-		return fmt.Errorf("construct %s is not in a pending state", construct.URN.ResourceID)
-	}
-
-	return sm.TransitionConstructState(construct, nextStatus)
-}
-
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
@@ -186,10 +169,6 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	if dryRun {
 		_, err = stack.RunPreview(ctx, stackRef)
 		return err
-	}
-
-	if err = transitionPendingToDoing(sm, &c); err != nil {
-		return fmt.Errorf("error transitioning construct state: %w", err)
 	}
 
 	// Run pulumi up command for the construct
