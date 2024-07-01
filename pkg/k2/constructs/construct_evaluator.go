@@ -76,6 +76,8 @@ var interpolationPattern = regexp.MustCompile(`\$\{([^:]+):([^}]+)}`)
 // Matches exactly one interpolation group e.g., ${inputs:foo.bar}
 var isolatedInterpolationPattern = regexp.MustCompile(`^\$\{([^:]+):([^}]+)}$`)
 
+var spreadPattern = regexp.MustCompile(`\.\.\.}$`)
+
 /*
 	 interpolateValue interpolates a value based on the context of the construct
 		rawValue is the value to interpolate. The format of a raw value is ${<prefix>:<key>} where prefix is the type of value to interpolate and key is the key to interpolate
@@ -106,13 +108,29 @@ func (ce *ConstructEvaluator) interpolateValue(c InterpolationSource, rawValue a
 		return ce.interpolateString(c.GetPropertySource(), v.String(), ctx)
 	case reflect.Slice:
 		length := v.Len()
-		interpolated := make([]any, length)
+		var interpolated []any
 		for i := 0; i < length; i++ {
+			// handle spread operator by injecting the spread value into the array at the current index
+			originalValue := reflectutil.GetConcreteValue(v.Index(i))
+			if originalString, ok := originalValue.(string); ok && spreadPattern.MatchString(originalString) {
+				unspreadPath := originalString[:len(originalString)-4] + "}"
+				spreadValue, err := ce.interpolateValue(c, unspreadPath, ctx)
+				if err != nil {
+					return nil, err
+				}
+				if reflect.TypeOf(spreadValue).Kind() != reflect.Slice {
+					return nil, errors.New("spread value must be a slice")
+				}
+				for i := 0; i < reflect.ValueOf(spreadValue).Len(); i++ {
+					interpolated = append(interpolated, reflect.ValueOf(spreadValue).Index(i).Interface())
+				}
+				continue
+			}
 			value, err := ce.interpolateValue(c, v.Index(i).Interface(), ctx)
 			if err != nil {
 				return nil, err
 			}
-			interpolated[i] = value
+			interpolated = append(interpolated, value)
 		}
 		return interpolated, nil
 	case reflect.Map:
@@ -249,7 +267,7 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 	}
 
 	// Retrieve the value from the designated property source
-	value, err := getValueFromSource(p, key)
+	value, err := getValueFromSource(p, key, false)
 	if err != nil {
 		zap.S().Debugf("could not get value from source: %s", err)
 		return nil, nil
@@ -294,7 +312,10 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 
 var iacRefPattern = regexp.MustCompile(`^([a-zA-Z0-9_-]+)#([a-zA-Z0-9._-]+)$`)
 
-func getValueFromSource(collection any, key string) (any, error) {
+// getValueFromSource retrieves a value from a collection based on a key
+// the flat parameter is used to determine if the key is a flat key or a path (mixed keys aren't supported at the moment)
+// e.g (flat = true): key = "foo.bar" -> value = collection["foo."bar"], flat = false: key = "foo.bar" -> value = collection["foo"]["bar"]
+func getValueFromSource(collection any, key string, flat bool) (any, error) {
 	value := reflect.ValueOf(collection)
 
 	keyAndRef := strings.Split(key, "#")
@@ -308,25 +329,41 @@ func getValueFromSource(collection any, key string) (any, error) {
 		key = keyAndRef[0]
 	}
 
-	// Split the key into parts
-	parts := strings.Split(key, ".")
+	// Split the key into parts if not flat
+	parts := []string{key}
+	if !flat {
+		parts = strings.Split(key, ".")
+	}
+
+	var err error
+	var lastValidValue reflect.Value
+	lastValidIndex := -1
 
 	// Traverse the map/struct/array according to the parts
-	for _, part := range parts {
+	for i, part := range parts {
 		// Check if the part contains brackets
-		if strings.Contains(part, "[") && strings.Contains(part, "]") {
+		if strings.Contains(part, "[") && strings.HasSuffix(part, "]") {
 			// Split the part into the key and the index
 			keyAndIndex := strings.Split(strings.TrimRight(strings.TrimLeft(part, "["), "]"), "[")
 			key := keyAndIndex[0]
-			index, err := strconv.Atoi(keyAndIndex[1])
+			var index int
+			index, err = strconv.Atoi(keyAndIndex[1])
 			if err != nil {
-				return nil, fmt.Errorf("could not parse index: %w", err)
+				err = fmt.Errorf("could not parse index: %w", err)
+				break
 			}
 
-			value, err = reflectutil.GetField(value, key)
-			if err != nil {
-				return nil, fmt.Errorf("could not get field: %w", err)
+			if r, ok := value.Interface().(*Resource); ok {
+				lastValidValue = reflect.ValueOf(r.Properties)
+				value, err = reflectutil.GetField(lastValidValue, part)
+			} else {
+				value, err = reflectutil.GetField(value, key)
 			}
+			if err != nil {
+				err = fmt.Errorf("could not get field: %w", err)
+				break
+			}
+
 			kind := value.Kind()
 
 			switch kind {
@@ -335,10 +372,11 @@ func getValueFromSource(collection any, key string) (any, error) {
 			case reflect.Map:
 				value, err = reflectutil.GetField(value, key)
 				if err != nil {
-					return nil, fmt.Errorf("could not get field: %w", err)
+					err = fmt.Errorf("could not get field: %w", err)
+					break
 				}
 			default:
-				return nil, fmt.Errorf("invalid type: %s", kind)
+				err = fmt.Errorf("invalid type: %s", kind)
 			}
 		} else {
 			// The part does not contain brackets
@@ -347,7 +385,8 @@ func getValueFromSource(collection any, key string) (any, error) {
 				if v.IsValid() {
 					value = v
 				} else {
-					return nil, fmt.Errorf("could not get value for key: %s", key)
+					err = fmt.Errorf("could not get value for key: %s", key)
+					break
 				}
 			} else if r, ok := value.Interface().(*Resource); ok {
 				if len(parts) == 1 {
@@ -357,19 +396,35 @@ func getValueFromSource(collection any, key string) (any, error) {
 						Type:        ResourceRefTypeTemplate,
 					}, nil
 				} else {
-					value = reflect.ValueOf(r.Properties[part])
+					lastValidValue = reflect.ValueOf(r.Properties)
+					value, err = reflectutil.GetField(lastValidValue, part)
+					if err != nil {
+						err = fmt.Errorf("could not get field: %w", err)
+						break
+					}
 				}
 			} else {
-				rVal, err := reflectutil.GetField(value, part)
+				var rVal reflect.Value
+				rVal, err = reflectutil.GetField(value, part)
 				if err != nil {
-					return nil, fmt.Errorf("could not get field: %w", err)
+					err = fmt.Errorf("could not get field: %w", err)
+					break
 				}
 				value = rVal
 			}
 		}
+		if err == nil && i == len(parts)-1 {
+			return value.Interface(), nil
+		}
+		lastValidValue = value
+		lastValidIndex = i
 	}
 
-	return value.Interface(), nil
+	if lastValidIndex > -1 {
+		return getValueFromSource(lastValidValue.Interface(), strings.Join(parts[lastValidIndex+1:], "."), true)
+	}
+
+	return value.Interface(), err
 }
 
 /*

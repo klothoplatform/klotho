@@ -11,8 +11,7 @@ resources:
   TaskDefinition:
     properties:
       ContainerDefinitions[0].Environment:
-        # TODO: implement array spread
-        #        - ${from:resources.TaskDefinition.ContainerDefinitions[0].Environment...}
+        - ${from.resources:TaskDefinition.ContainerDefinitions[0].Environment...}
         - Name: ${to.inputs:Name}_BUCKET_ENDPOINT
           Value: ${to.outputs:BucketRegionalDomainName}
 input_rules:

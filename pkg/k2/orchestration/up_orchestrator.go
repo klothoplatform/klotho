@@ -117,15 +117,19 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	skipped := false
 
 	defer func() {
+		r := recover()
 		msg := "Success"
-		if err != nil {
+		if err != nil || r != nil {
 			msg = "Failed"
 		}
-		if skipped {
+		if skipped && err == nil {
 			msg = "Skipped"
 		}
 
 		prog.Complete(msg)
+		if r != nil {
+			panic(r)
+		}
 	}()
 
 	if action == model.ConstructActionDelete {
