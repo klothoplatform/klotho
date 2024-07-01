@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -29,7 +30,7 @@ func createTempStateFile(t *testing.T, content string) string {
 func removeTempFile(t *testing.T, filePath string) {
 	t.Logf("Removing temp file: %s", filePath)
 	if err := os.Remove(filePath); err != nil {
-		t.Fatalf("Failed to remove temp file: %v", err)
+		t.Logf("Failed to remove temp file: %v", err)
 	}
 }
 
@@ -116,17 +117,26 @@ constructs:
 		}
 	}
 
-	// Test the non-existent case
-	nonExistentFile := createTempStateFile(t, "")
-	//defer removeTempFile(t, nonExistentFile)
-
-	sm = NewStateManager(nonExistentFile)
-	removeTempFile(t, nonExistentFile)
-	if err := sm.LoadState(); err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	// Test case where os.ReadFile returns an error other than os.ErrNotExist
+	removeTempFile(t, tmpFile)
+	if err := os.WriteFile(tmpFile, []byte(stateContent), 0000); err != nil {
+		t.Fatalf("Failed to write protected state file: %v", err)
 	}
-	if sm.state != nil && sm.state.SchemaVersion != 1 {
-		t.Errorf("Expected default state, got %v", sm.state)
+	if err := sm.LoadState(); err == nil {
+		t.Errorf("Expected error when reading protected state file, got nil")
+	} else {
+		if !strings.Contains(err.Error(), os.ErrPermission.Error()) {
+			t.Errorf("Expected error message to contain '%s', got '%s'", os.ErrPermission.Error(), err.Error())
+		}
+	}
+
+	// Test case where os.ReadFile returns os.ErrNotExist
+	removeTempFile(t, tmpFile)
+	if err := sm.LoadState(); err != nil {
+		t.Errorf("Expected no error when state file does not exist, got %v", err)
+	}
+	if sm.state != nil {
+		t.Errorf("Expected state to be nil, got %+v", sm.state)
 	}
 }
 
@@ -325,12 +335,14 @@ func TestUpdateResourceState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse URN: %v", err)
 	}
+
 	// Initialize the construct state in the StateManager
 	sm.SetConstructState(ConstructState{
 		Status: ConstructCreating,
 		URN:    parsedURN,
 	})
 
+	// Test valid update
 	if err := sm.UpdateResourceState("example-construct", ConstructCreateComplete, "2023-06-11T00:00:00Z"); err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -343,6 +355,32 @@ func TestUpdateResourceState(t *testing.T) {
 	}
 	if construct.LastUpdated != "2023-06-11T00:00:00Z" {
 		t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
+	}
+
+	// Test invalid transition
+	if err := sm.UpdateResourceState("example-construct", ConstructCreateComplete, "2023-06-12T00:00:00Z"); err == nil {
+		t.Errorf("Expected error for invalid transition, got nil")
+	} else {
+		expectedErrMsg := "invalid transition from create_complete to create_complete"
+		if err.Error() != expectedErrMsg {
+			t.Errorf("Expected error message to be '%s', got '%s'", expectedErrMsg, err.Error())
+		}
+	}
+
+	// Test construct not found
+	if err := sm.UpdateResourceState("non-existent-construct", ConstructCreateComplete, "2023-06-11T00:00:00Z"); err == nil {
+		t.Errorf("Expected error for non-existent construct, got nil")
+	} else {
+		expectedErrMsg := "construct non-existent-construct not found"
+		if err.Error() != expectedErrMsg {
+			t.Errorf("Expected error message to be '%s', got '%s'", expectedErrMsg, err.Error())
+		}
+	}
+
+	// Test case where sm.state.Constructs is nil
+	sm.state.Constructs = nil
+	if err := sm.UpdateResourceState("example-construct", ConstructCreateComplete, "2023-06-11T00:00:00Z"); err == nil {
+		t.Errorf("Expected error for construct not found when state constructs is nil, got nil")
 	}
 }
 
@@ -421,7 +459,7 @@ func TestRegisterOutputValues(t *testing.T) {
 	construct := ConstructState{
 		Status:      ConstructCreating,
 		URN:         constructURN,
-		Outputs:     make(map[string]any),
+		Outputs:     nil,
 		Inputs:      make(map[string]Input),
 		LastUpdated: "2023-06-11T00:00:00Z",
 	}
@@ -447,6 +485,7 @@ func TestRegisterOutputValues(t *testing.T) {
 	sm.SetConstructState(construct)
 	sm.SetConstructState(dependentConstruct)
 
+	// Case with valid outputs
 	outputs := map[string]any{
 		"image": "nginx:latest",
 		"port":  80,
@@ -495,5 +534,28 @@ func TestRegisterOutputValues(t *testing.T) {
 	err = sm.RegisterOutputValues(*invalidURN, outputs)
 	if err == nil {
 		t.Errorf("Expected error for non-existent construct, got nil")
+	}
+
+	// Case with no outputs
+	err = sm.RegisterOutputValues(*constructURN, nil)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	updatedConstruct, exists = sm.GetConstructState("my-container")
+	if !exists {
+		t.Errorf("Expected construct my-container to exist")
+	}
+
+	// Expected Outputs should still be the original outputs since nil should not change the map
+	if !reflect.DeepEqual(updatedConstruct.Outputs, outputs) {
+		t.Errorf("Expected Outputs to be %v, got %v", outputs, updatedConstruct.Outputs)
+	}
+
+	// Case where sm.state.Constructs is nil
+	sm.state.Constructs = nil
+	err = sm.RegisterOutputValues(*constructURN, outputs)
+	if err == nil {
+		t.Errorf("Expected error for constructs not being initialized, got nil")
 	}
 }
