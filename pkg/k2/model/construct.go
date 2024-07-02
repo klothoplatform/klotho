@@ -35,25 +35,38 @@ const (
 )
 
 var validTransitions = map[ConstructStatus][]ConstructStatus{
-	ConstructCreating:       {ConstructCreateComplete, ConstructCreateFailed},
+	ConstructCreating:       {ConstructCreating, ConstructCreateComplete, ConstructCreateFailed},
 	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting},
 	ConstructCreateFailed:   {ConstructCreating, ConstructDeleting},
-	ConstructUpdating:       {ConstructUpdateComplete, ConstructUpdateFailed},
+	ConstructUpdating:       {ConstructUpdating, ConstructUpdateComplete, ConstructUpdateFailed},
 	ConstructUpdateComplete: {ConstructUpdating, ConstructDeleting},
 	ConstructUpdateFailed:   {ConstructUpdating, ConstructDeleting},
-	ConstructDeleting:       {ConstructDeleteComplete, ConstructDeleteFailed},
+	ConstructDeleting:       {ConstructDeleting, ConstructDeleteComplete, ConstructDeleteFailed},
 	ConstructDeleteComplete: {ConstructCreating},
 	ConstructDeleteFailed:   {ConstructUpdating, ConstructDeleting},
 	ConstructUnknown:        {},
 }
 
-func IsDeployable(status ConstructStatus) bool {
+func IsUpdatable(status ConstructStatus) bool {
 	for _, nextStatus := range validTransitions[status] {
-		if nextStatus == ConstructCreating || nextStatus == ConstructUpdating {
+		if nextStatus == ConstructUpdating {
 			return true
 		}
 	}
 	return false
+}
+
+func IsCreatable(status ConstructStatus) bool {
+	for _, nextStatus := range validTransitions[status] {
+		if nextStatus == ConstructCreating {
+			return true
+		}
+	}
+	return false
+}
+
+func IsDeployable(status ConstructStatus) bool {
+	return IsCreatable(status) || IsUpdatable(status)
 }
 
 func IsDeletable(status ConstructStatus) bool {

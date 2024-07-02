@@ -157,6 +157,32 @@ func (sm *StateManager) TransitionConstructState(construct *ConstructState, next
 	return nil
 }
 
+func (sm *StateManager) TransitionConstructFailed(construct *ConstructState) error {
+	switch construct.Status {
+	case ConstructCreating:
+		return sm.TransitionConstructState(construct, ConstructCreateFailed)
+	case ConstructUpdating:
+		return sm.TransitionConstructState(construct, ConstructUpdateFailed)
+	case ConstructDeleting:
+		return sm.TransitionConstructState(construct, ConstructDeleteFailed)
+	default:
+		return fmt.Errorf("Initial state %s must be one of Creating, Updating, or Deleting", construct.Status)
+	}
+}
+
+func (sm *StateManager) TransitionConstructComplete(construct *ConstructState) error {
+	switch construct.Status {
+	case ConstructCreating:
+		return sm.TransitionConstructState(construct, ConstructCreateComplete)
+	case ConstructUpdating:
+		return sm.TransitionConstructState(construct, ConstructUpdateComplete)
+	case ConstructDeleting:
+		return sm.TransitionConstructState(construct, ConstructDeleteComplete)
+	default:
+		return fmt.Errorf("Initial state %s must be one of Creating, Updating, or Deleting", construct.Status)
+	}
+}
+
 // RegisterOutputValues registers the resolved output values of a construct in the state manager and resolves any inputs that depend on the provided outputs
 func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) error {
 	sm.mutex.Lock()

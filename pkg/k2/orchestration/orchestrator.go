@@ -103,9 +103,13 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 				URN:         c.URN,
 			}
 		} else {
-			// If the construct exists, it's an update action
-			action = model.ConstructActionUpdate
-			status = model.ConstructUpdating
+			if model.IsCreatable(construct.Status) {
+				action = model.ConstructActionCreate
+				status = model.ConstructCreating
+			} else if model.IsUpdatable(construct.Status) {
+				action = model.ConstructActionUpdate
+				status = model.ConstructUpdating
+			}
 			construct.Inputs = c.Inputs
 			construct.Outputs = c.Outputs
 			construct.Bindings = c.Bindings
@@ -123,7 +127,13 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 	// Find deleted constructs
 	for k, v := range o.StateManager.GetState().Constructs {
 		if _, ok := ir.Constructs[k]; !ok {
+			if v.Status == model.ConstructDeleteComplete {
+				continue
+			}
 			actions[*v.URN] = model.ConstructActionDelete
+			if !model.IsDeletable(v.Status) {
+				return nil, fmt.Errorf("construct %s is not deletable", v.URN.ResourceID)
+			}
 			err := o.StateManager.TransitionConstructState(&v, model.ConstructDeleting)
 			if err != nil {
 				return nil, err

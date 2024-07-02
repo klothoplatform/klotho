@@ -3,21 +3,30 @@ package constructs
 import (
 	"embed"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed templates/*
 var templates embed.FS
 
-var cachedConstructs = make(map[ConstructTemplateId]ConstructTemplate)
-var cachedBindings = make(map[string]BindingTemplate)
+var (
+	cachedConstructs = make(map[ConstructTemplateId]ConstructTemplate)
+	cachedBindings   = make(map[string]BindingTemplate)
+	muConstructs     sync.RWMutex
+	muBindings       sync.RWMutex
+)
 
 func loadConstructTemplate(id ConstructTemplateId) (ConstructTemplate, error) {
+	muConstructs.RLock()
 	if template, ok := cachedConstructs[id]; ok {
+		muConstructs.RUnlock()
 		return template, nil
 	}
+	muConstructs.RUnlock()
 
 	if !strings.HasPrefix(id.Package, "klotho.") {
 		return ConstructTemplate{}, fmt.Errorf("invalid package: %s", id.Package)
@@ -39,7 +48,9 @@ func loadConstructTemplate(id ConstructTemplateId) (ConstructTemplate, error) {
 		return ConstructTemplate{}, fmt.Errorf("failed to unmarshal yaml: %w", err)
 	}
 
+	muConstructs.Lock()
 	cachedConstructs[template.Id] = template
+	muConstructs.Unlock()
 
 	return template, nil
 }
@@ -62,9 +73,12 @@ func loadBindingTemplate(owner ConstructTemplateId, from ConstructTemplateId, to
 
 	cacheKey := fmt.Sprintf("%s/%s", owner.String(), bindingKey)
 
+	muBindings.RLock()
 	if template, ok := cachedBindings[cacheKey]; ok {
+		muBindings.RUnlock()
 		return template, nil
 	}
+	muBindings.RUnlock()
 
 	constructDir, err := getConstructTemplateDir(owner)
 	if err != nil {
@@ -85,7 +99,9 @@ func loadBindingTemplate(owner ConstructTemplateId, from ConstructTemplateId, to
 	}
 
 	// Cache the binding template for future use
+	muBindings.Lock()
 	cachedBindings[cacheKey] = template
+	muBindings.Unlock()
 
 	return template, nil
 }

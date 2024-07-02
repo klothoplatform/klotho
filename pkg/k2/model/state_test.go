@@ -325,6 +325,120 @@ func TestTransitionConstructState(t *testing.T) {
 	}
 }
 
+func TestTransitionConstructFailed(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	if err != nil {
+		t.Fatalf("Failed to parse URN: %v", err)
+	}
+
+	construct := ConstructState{
+		Status: ConstructCreating,
+		URN:    parsedURN,
+	}
+	sm.SetConstructState(construct)
+
+	// Test valid transition from Creating to CreateFailed
+	if err := sm.TransitionConstructFailed(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructCreateFailed {
+		t.Errorf("Expected status %s, got %s", ConstructCreateFailed, construct.Status)
+	}
+
+	// Update the construct state in the state manager
+	sm.SetConstructState(construct)
+
+	// Test valid transition from Updating to UpdateFailed
+	construct.Status = ConstructUpdating
+	if err := sm.TransitionConstructFailed(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructUpdateFailed {
+		t.Errorf("Expected status %s, got %s", ConstructUpdateFailed, construct.Status)
+	}
+
+	// Test valid transition from Deleting to DeleteFailed
+	construct.Status = ConstructDeleting
+	if err := sm.TransitionConstructFailed(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructDeleteFailed {
+		t.Errorf("Expected status %s, got %s", ConstructDeleteFailed, construct.Status)
+	}
+
+	// Test invalid initial state
+	construct.Status = ConstructUnknown
+	if err := sm.TransitionConstructFailed(&construct); err == nil {
+		t.Errorf("Expected error for invalid initial state, got nil")
+	} else {
+		expectedErrMsg := fmt.Sprintf("Initial state %s must be one of Creating, Updating, or Deleting", ConstructUnknown)
+		if err.Error() != expectedErrMsg {
+			t.Errorf("Expected error message to be '%s', got '%s'", expectedErrMsg, err.Error())
+		}
+	}
+}
+
+func TestTransitionConstructComplete(t *testing.T) {
+	tmpFile := createTempStateFile(t, "")
+	defer removeTempFile(t, tmpFile)
+
+	sm := NewStateManager(tmpFile)
+	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
+	if err != nil {
+		t.Fatalf("Failed to parse URN: %v", err)
+	}
+
+	construct := ConstructState{
+		Status: ConstructCreating,
+		URN:    parsedURN,
+	}
+	sm.SetConstructState(construct)
+
+	// Test valid transition from Creating to CreateComplete
+	if err := sm.TransitionConstructComplete(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructCreateComplete {
+		t.Errorf("Expected status %s, got %s", ConstructCreateComplete, construct.Status)
+	}
+
+	// Update the construct state in the state manager
+	sm.SetConstructState(construct)
+
+	// Test valid transition from Updating to UpdateComplete
+	construct.Status = ConstructUpdating
+	if err := sm.TransitionConstructComplete(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructUpdateComplete {
+		t.Errorf("Expected status %s, got %s", ConstructUpdateComplete, construct.Status)
+	}
+
+	// Test valid transition from Deleting to DeleteComplete
+	construct.Status = ConstructDeleting
+	if err := sm.TransitionConstructComplete(&construct); err != nil {
+		t.Errorf("Expected valid transition, got error: %v", err)
+	}
+	if construct.Status != ConstructDeleteComplete {
+		t.Errorf("Expected status %s, got %s", ConstructDeleteComplete, construct.Status)
+	}
+
+	// Test invalid initial state
+	construct.Status = ConstructUnknown
+	if err := sm.TransitionConstructComplete(&construct); err == nil {
+		t.Errorf("Expected error for invalid initial state, got nil")
+	} else {
+		expectedErrMsg := fmt.Sprintf("Initial state %s must be one of Creating, Updating, or Deleting", ConstructUnknown)
+		if err.Error() != expectedErrMsg {
+			t.Errorf("Expected error message to be '%s', got '%s'", expectedErrMsg, err.Error())
+		}
+	}
+}
+
 func TestUpdateResourceState(t *testing.T) {
 	tmpFile := createTempStateFile(t, "")
 	defer removeTempFile(t, tmpFile)

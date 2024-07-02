@@ -106,8 +106,9 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 
 	indexTs := &kio.RawFile{
 		FPath:   `index.ts`,
-		Content: buf.Bytes(),
+		Content: make([]byte, buf.Len()),
 	}
+	copy(indexTs.Content, buf.Bytes())
 
 	pJson, err := tc.PackageJSON()
 	if err != nil {

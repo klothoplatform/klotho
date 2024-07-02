@@ -9,9 +9,10 @@ func TestIsDeployable(t *testing.T) {
 		status   ConstructStatus
 		expected bool
 	}{
-		{ConstructCreating, false},
-		{ConstructUpdating, false},
+		{ConstructCreating, true},
+		{ConstructUpdating, true},
 		{ConstructCreateComplete, true},
+		{ConstructUnknown, false},
 	}
 
 	for _, test := range tests {
@@ -29,7 +30,7 @@ func TestIsDeletable(t *testing.T) {
 		expected bool
 	}{
 		{ConstructCreateComplete, true},
-		{ConstructDeleting, false},
+		{ConstructUnknown, false},
 		{ConstructUpdateComplete, true},
 	}
 
