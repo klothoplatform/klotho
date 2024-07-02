@@ -58,5 +58,6 @@ targets = [
 ]
 
 if __name__ == "__main__":
+    print(f"Building ref {ref} = version {version}")
     for goos, arch in targets:
         release(goos, arch, "dist")
