@@ -2,71 +2,46 @@ package model
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/fstest"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
-func createTempStateFile(t *testing.T, content string) string {
-	tmpFile, err := os.CreateTemp("", "state-*.yaml")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	if content != "" {
-		if _, err := tmpFile.Write([]byte(content)); err != nil {
-			t.Fatalf("Failed to write to temp file: %v", err)
-		}
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
-	}
-	t.Logf("Created temp file: %s", tmpFile.Name())
-	return tmpFile.Name()
+type MockFS struct {
+	fstest.MapFS
 }
 
-func removeTempFile(t *testing.T, filePath string) {
-	t.Logf("Removing temp file: %s", filePath)
-	if err := os.Remove(filePath); err != nil {
-		t.Logf("Failed to remove temp file: %v", err)
+func (mfs *MockFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	if strings.Contains(name, "protected") {
+		return fmt.Errorf("permission denied")
 	}
+	mfs.MapFS[name] = &fstest.MapFile{
+		Data:    data,
+		Mode:    perm,
+		ModTime: time.Now(),
+	}
+	return nil
 }
 
-func TestNewStateManager(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
-
-	sm := NewStateManager(tmpFile)
-	if sm.stateFile != tmpFile {
-		t.Errorf("Expected stateFile to be %s, got %s", tmpFile, sm.stateFile)
+func (mfs *MockFS) ReadFile(name string) ([]byte, error) {
+	file, exists := mfs.MapFS[name]
+	if !exists {
+		return nil, os.ErrNotExist
 	}
-	if sm.state.SchemaVersion != 1 {
-		t.Errorf("Expected SchemaVersion to be 1, got %d", sm.state.SchemaVersion)
-	}
-	if sm.state.Version != 1 {
-		t.Errorf("Expected Version to be 1, got %d", sm.state.Version)
-	}
+	return file.Data, nil
 }
 
-func TestCheckStateFileExists(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-
-	sm := NewStateManager(tmpFile)
-	defer func() {
-		removeTempFile(t, tmpFile)
-		if sm.CheckStateFileExists() {
-			t.Errorf("Expected CheckStateFileExists to return false")
-		}
-	}()
-	if !sm.CheckStateFileExists() {
-		t.Errorf("Expected CheckStateFileExists to return true")
-	}
-}
-
-func TestLoadState(t *testing.T) {
-	stateContent := `
+func createMockFS() *MockFS {
+	return &MockFS{
+		MapFS: fstest.MapFS{
+			"state.yaml": &fstest.MapFile{
+				Data: []byte(`
 schemaVersion: 1
 version: 1
 project_urn: "urn:project:example"
@@ -82,12 +57,51 @@ constructs:
     bindings: []
     options: {}
     dependsOn: []
+    pulumi_stack: "123e4567-e89b-12d3-a456-426614174000"
     urn: "urn:construct:example"
-`
-	tmpFile := createTempStateFile(t, stateContent)
-	defer removeTempFile(t, tmpFile)
+`),
+			},
+		},
+	}
+}
 
-	sm := NewStateManager(tmpFile)
+func TestNewStateManager(t *testing.T) {
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
+
+	sm := NewStateManager(mockFS, stateFile)
+	if sm.stateFile != stateFile {
+		t.Errorf("Expected stateFile to be %s, got %s", stateFile, sm.stateFile)
+	}
+	if sm.state.SchemaVersion != 1 {
+		t.Errorf("Expected SchemaVersion to be 1, got %d", sm.state.SchemaVersion)
+	}
+	if sm.state.Version != 1 {
+		t.Errorf("Expected Version to be 1, got %d", sm.state.Version)
+	}
+}
+
+func TestCheckStateFileExists(t *testing.T) {
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
+
+	sm := NewStateManager(mockFS, stateFile)
+
+	if !sm.CheckStateFileExists() {
+		t.Errorf("Expected CheckStateFileExists to return true")
+	}
+
+	delete(mockFS.MapFS, stateFile)
+	if sm.CheckStateFileExists() {
+		t.Errorf("Expected CheckStateFileExists to return false")
+	}
+}
+
+func TestLoadState(t *testing.T) {
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
+
+	sm := NewStateManager(mockFS, stateFile)
 	if err := sm.LoadState(); err != nil {
 		t.Errorf("Failed to load state: %v", err)
 	}
@@ -117,21 +131,28 @@ constructs:
 		}
 	}
 
-	// Test case where os.ReadFile returns an error other than os.ErrNotExist
-	removeTempFile(t, tmpFile)
-	if err := os.WriteFile(tmpFile, []byte(stateContent), 0000); err != nil {
-		t.Fatalf("Failed to write protected state file: %v", err)
+	// Test case where ReadFile returns an error other than file does not exist
+	mockFS = &MockFS{
+		MapFS: fstest.MapFS{},
+	}
+	sm = NewStateManager(mockFS, stateFile)
+	// Simulate a permission error by writing a file with invalid content that cannot be unmarshalled
+	if err := mockFS.WriteFile(stateFile, []byte("content"), 0644); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
 	}
 	if err := sm.LoadState(); err == nil {
-		t.Errorf("Expected error when reading protected state file, got nil")
+		t.Errorf("Expected error when reading invalid state file, got nil")
 	} else {
-		if !strings.Contains(err.Error(), os.ErrPermission.Error()) {
-			t.Errorf("Expected error message to contain '%s', got '%s'", os.ErrPermission.Error(), err.Error())
+		if !strings.Contains(err.Error(), "cannot unmarshal") {
+			t.Errorf("Expected error message to contain 'cannot unmarshal', got '%s'", err.Error())
 		}
 	}
 
-	// Test case where os.ReadFile returns os.ErrNotExist
-	removeTempFile(t, tmpFile)
+	// Test case where ReadFile returns file does not exist
+	mockFS = &MockFS{
+		MapFS: fstest.MapFS{},
+	}
+	sm = NewStateManager(mockFS, stateFile)
 	if err := sm.LoadState(); err != nil {
 		t.Errorf("Expected no error when state file does not exist, got %v", err)
 	}
@@ -147,10 +168,10 @@ func (InvalidOutput) MarshalYAML() (interface{}, error) {
 	return nil, fmt.Errorf("intentional marshal error")
 }
 func TestSaveState(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	sm.state.ProjectURN = "urn:project:example"
 	sm.state.AppURN = "urn:app:example"
 	sm.state.Environment = "dev"
@@ -173,7 +194,7 @@ func TestSaveState(t *testing.T) {
 		t.Errorf("Failed to save state: %v", err)
 	}
 
-	data, err := os.ReadFile(tmpFile)
+	data, err := mockFS.ReadFile(stateFile)
 	if err != nil {
 		t.Errorf("Failed to read state file: %v", err)
 	}
@@ -243,10 +264,10 @@ func TestInitState(t *testing.T) {
 		},
 	}
 
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	sm.InitState(ir)
 
 	if sm.state.ProjectURN != "urn:project:example" {
@@ -293,10 +314,10 @@ func TestInitState(t *testing.T) {
 }
 
 func TestTransitionConstructState(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
 		t.Fatalf("Failed to parse URN: %v", err)
@@ -326,10 +347,10 @@ func TestTransitionConstructState(t *testing.T) {
 }
 
 func TestTransitionConstructFailed(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
 		t.Fatalf("Failed to parse URN: %v", err)
@@ -383,10 +404,10 @@ func TestTransitionConstructFailed(t *testing.T) {
 }
 
 func TestTransitionConstructComplete(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
 		t.Fatalf("Failed to parse URN: %v", err)
@@ -440,10 +461,10 @@ func TestTransitionConstructComplete(t *testing.T) {
 }
 
 func TestUpdateResourceState(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 
 	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
 	if err != nil {
@@ -499,10 +520,10 @@ func TestUpdateResourceState(t *testing.T) {
 }
 
 func TestGetState(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	sm.state.ProjectURN = "urn:project:example"
 	sm.state.AppURN = "urn:app:example"
 	sm.state.Environment = "dev"
@@ -524,10 +545,10 @@ func TestGetState(t *testing.T) {
 }
 
 func TestGetAllConstructs(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 	constructURN, _ := ParseURN("urn:construct:example")
 	sm.state.Constructs = map[string]ConstructState{
 		"example-construct": {
@@ -562,10 +583,10 @@ func TestGetAllConstructs(t *testing.T) {
 }
 
 func TestRegisterOutputValues(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+	mockFS := createMockFS()
+	stateFile := "state.yaml"
 
-	sm := NewStateManager(tmpFile)
+	sm := NewStateManager(mockFS, stateFile)
 
 	constructURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container")
 	dependentURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Service:dependent-service")

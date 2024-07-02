@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"sync"
 	"time"
@@ -10,7 +11,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ReadWriteFS interface {
+	fs.FS
+	WriteFile(name string, data []byte, perm fs.FileMode) error
+}
+
+type OSFS struct{}
+
+func (OSFS) Open(name string) (fs.File, error) {
+	return os.Open(name)
+}
+
+func (OSFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(name, data, perm)
+}
+
 type StateManager struct {
+	fs        ReadWriteFS
 	stateFile string
 	state     *State
 	mutex     sync.Mutex
@@ -26,8 +43,9 @@ type State struct {
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
 }
 
-func NewStateManager(stateFile string) *StateManager {
+func NewStateManager(fsys ReadWriteFS, stateFile string) *StateManager {
 	return &StateManager{
+		fs:        fsys,
 		stateFile: stateFile,
 		state: &State{
 			SchemaVersion: 1,
@@ -38,7 +56,7 @@ func NewStateManager(stateFile string) *StateManager {
 }
 
 func (sm *StateManager) CheckStateFileExists() bool {
-	_, err := os.Stat(sm.stateFile)
+	_, err := fs.Stat(sm.fs, sm.stateFile)
 	return err == nil
 }
 
@@ -68,7 +86,7 @@ func (sm *StateManager) LoadState() error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	data, err := os.ReadFile(sm.stateFile)
+	data, err := fs.ReadFile(sm.fs, sm.stateFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sm.state = nil
@@ -87,7 +105,7 @@ func (sm *StateManager) SaveState() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(sm.stateFile, data, 0644)
+	return sm.fs.WriteFile(sm.stateFile, data, 0644)
 }
 
 func (sm *StateManager) GetState() *State {
