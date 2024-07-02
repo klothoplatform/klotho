@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +11,17 @@ if ref is None:
     version = "dev"
 else:
     version = ref.split("/")[-1]
+
+
+arch_to_zig_target = {
+    "amd64": "x86_64",
+    "arm64": "aarch64",
+}
+
+goos_to_zig_target = {
+    "linux": "linux",
+    "darwin": "macos",
+}
 
 
 def release(goos, arch, out_dir):
@@ -33,9 +45,17 @@ def release(goos, arch, out_dir):
             # both 'iac' and 'k2' do iac rendering
             prog_env["CGO_ENABLED"] = "1"
 
-            if goos == "linux":
-                prog_env["CC"] = "zig cc -target x86_64-linux-musl"
-                prog_env["CXX"] = "zig c++ -target x86_64-linux-musl"
+            zig_arch = arch_to_zig_target[arch]
+            zig_os = goos_to_zig_target[goos]
+            if goos != sys.platform or platform.machine() != zig_arch:
+                suffix = ""
+                # Add -musl suffix for linux builds to support being run in alpine
+                # containers and similar environments
+                if goos == "linux":
+                    suffix = "-musl"
+                prog_env["CC"] = f"zig cc -target {zig_arch}-{zig_os}{suffix}"
+                prog_env["CXX"] = f"zig c++ -target {zig_arch}-{zig_os}{suffix}"
+                print(f"Using zig to build for {goos}/{arch} with {prog_env['CC']}")
 
         cmd = [*args, f"-o={out_dir}/{prog}_{goos}_{arch}", f"./cmd/{prog}"]
         print(f"running {cmd}")
@@ -43,7 +63,7 @@ def release(goos, arch, out_dir):
             cmd,
             stdout=sys.stdout,
             stderr=sys.stderr,
-            env=env,
+            env=prog_env,
         )
         try:
             proc.check_returncode()
@@ -59,5 +79,6 @@ targets = [
 
 if __name__ == "__main__":
     print(f"Building ref {ref} = version {version}")
+    print(f"on {sys.platform} {platform.machine()}")
     for goos, arch in targets:
         release(goos, arch, "dist")
