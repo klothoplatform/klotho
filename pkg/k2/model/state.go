@@ -188,38 +188,32 @@ func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) er
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	// Check if the construct state is initialized
 	if sm.state.Constructs == nil {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	// Retrieve the construct state for the given URN
 	construct, exists := sm.state.Constructs[urn.ResourceID]
 	if !exists {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	// Initialize the Outputs map if it is nil
 	if construct.Outputs == nil {
 		construct.Outputs = make(map[string]any)
 	}
 
-	// Update the Outputs map with the provided outputs
 	for key, value := range outputs {
 		construct.Outputs[key] = value
 	}
 	sm.state.Constructs[urn.ResourceID] = construct
 
-	// Update dependent constructs
 	for _, c := range sm.state.Constructs {
 		if urn.Equals(c.URN) {
-			continue // Skip the construct that provided the outputs
+			continue
 		}
 
 		updated := false
 		for key, input := range c.Inputs {
 			if input.DependsOn == urn.String() {
-				// Check if the output key matches the input key
 				if output, ok := outputs[key]; ok {
 					input.Value = output
 					input.Status = InputStatusResolved
@@ -229,7 +223,6 @@ func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) er
 			}
 		}
 
-		// Update the construct state if it was modified
 		if updated {
 			sm.state.Constructs[c.URN.ResourceID] = c
 		}
