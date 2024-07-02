@@ -47,6 +47,7 @@ jobs:
 
       - name: Build
         run: |
+          go install go.uber.org/mock/mockgen@latest
           go generate ./...
           python3 ./release.py
 
