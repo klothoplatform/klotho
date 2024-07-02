@@ -42,11 +42,16 @@ func ParseURN(urnString string) (*URN, error) {
 	matches := re.FindAllString(urnString, -1)
 
 	if len(matches) < 2 {
-		return nil, fmt.Errorf("invalid URN format")
+		return nil, fmt.Errorf("invalid URN format: not enough parts")
 	}
 
 	if matches[0] == "urn" {
 		matches = matches[1:]
+	}
+
+	// check again as the above line can truncate to < 2
+	if len(matches) < 2 {
+		return nil, fmt.Errorf("invalid URN format: missing account ID or project")
 	}
 
 	urn := &URN{
@@ -63,7 +68,7 @@ func ParseURN(urnString string) (*URN, error) {
 	if len(matches) > 4 && matches[4] != "" {
 		typeParts := strings.Split(matches[4], "/")
 		if len(typeParts) != 2 {
-			return nil, fmt.Errorf("invalid URN type format")
+			return nil, fmt.Errorf("invalid URN type format: %s", matches[4])
 		}
 		urn.Type = typeParts[0]
 		urn.Subtype = typeParts[1]
@@ -83,7 +88,7 @@ func ParseURN(urnString string) (*URN, error) {
 	}
 
 	if len(matches) > 7 {
-		return nil, fmt.Errorf("invalid URN format")
+		return nil, fmt.Errorf("invalid URN format: too many parts")
 	}
 
 	return urn, nil
@@ -130,12 +135,12 @@ func (u *URN) MarshalYAML() (interface{}, error) {
 func (u *URN) UnmarshalYAML(value *yaml.Node) error {
 	var urnString string
 	if err := value.Decode(&urnString); err != nil {
-		return err
+		return fmt.Errorf("error decoding YAML value: %w", err)
 	}
 
 	parsedUrn, err := ParseURN(urnString)
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing URN: %w", err)
 	}
 
 	*u = *parsedUrn
@@ -143,19 +148,13 @@ func (u *URN) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func (u *URN) Equals(other any) bool {
-	if other == nil {
+	otherUrn, ok := other.(*URN)
+	if !ok || otherUrn == nil {
 		return false
 	}
-	if u == other {
+
+	if u == otherUrn {
 		return true
-	}
-	var otherUrn URN
-	if oup, ok := other.(*URN); ok {
-		otherUrn = *oup
-	} else if ou, ok := other.(URN); ok {
-		otherUrn = ou
-	} else {
-		return false
 	}
 
 	if u.AccountID != otherUrn.AccountID {

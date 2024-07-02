@@ -145,7 +145,7 @@ func up(cmd *cobra.Command, args []string) error {
 
 	stateFile := filepath.Join(appDir, "state.yaml")
 
-	sm := model.NewStateManager(stateFile)
+	sm := model.NewStateManager(model.OSFS{}, stateFile)
 
 	if !sm.CheckStateFileExists() {
 		sm.InitState(ir)

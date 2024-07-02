@@ -19,58 +19,54 @@ const (
 	ConstructCreating       ConstructStatus = "creating"
 	ConstructCreateComplete ConstructStatus = "create_complete"
 	ConstructCreateFailed   ConstructStatus = "create_failed"
-	ConstructCreatePending  ConstructStatus = "create_pending"
 
 	// Update-related statuses
 	ConstructUpdating       ConstructStatus = "updating"
 	ConstructUpdateComplete ConstructStatus = "update_complete"
 	ConstructUpdateFailed   ConstructStatus = "update_failed"
-	ConstructUpdatePending  ConstructStatus = "update_pending"
 
 	// Delete-related statuses
 	ConstructDeleting       ConstructStatus = "deleting"
 	ConstructDeleteComplete ConstructStatus = "delete_complete"
 	ConstructDeleteFailed   ConstructStatus = "delete_failed"
-	ConstructDeletePending  ConstructStatus = "delete_pending"
-
-	// Pending status
-	ConstructPending ConstructStatus = "pending"
-
-	// Operational statuses
-	ConstructOperational ConstructStatus = "operational"
-	ConstructInoperative ConstructStatus = "inoperative"
-	ConstructNoChange    ConstructStatus = "no_change"
 
 	// Unknown status
 	ConstructUnknown ConstructStatus = "unknown"
 )
 
 var validTransitions = map[ConstructStatus][]ConstructStatus{
-	ConstructPending:        {ConstructPending, ConstructCreatePending, ConstructUpdatePending, ConstructDeletePending},
-	ConstructCreatePending:  {ConstructCreatePending, ConstructCreating, ConstructDeletePending},
-	ConstructCreating:       {ConstructCreateComplete, ConstructCreateFailed, ConstructDeletePending},
-	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting, ConstructDeletePending},
-	ConstructCreateFailed:   {ConstructPending, ConstructDeletePending},
-	ConstructUpdating:       {ConstructUpdateComplete, ConstructUpdateFailed, ConstructDeletePending},
-	ConstructUpdateComplete: {ConstructOperational, ConstructDeletePending, ConstructUpdatePending},
-	ConstructUpdateFailed:   {ConstructUpdatePending, ConstructDeletePending},
-	ConstructDeleting:       {ConstructDeleteComplete, ConstructDeleteFailed, ConstructDeletePending},
-	ConstructDeleteComplete: {ConstructUpdatePending},
-	ConstructDeleteFailed:   {ConstructDeletePending, ConstructDeleting, ConstructUpdatePending},
-	ConstructUpdatePending:  {ConstructUpdatePending, ConstructUpdating, ConstructDeletePending},
-	ConstructDeletePending:  {ConstructDeletePending, ConstructDeleting},
-	ConstructOperational:    {ConstructUpdating, ConstructDeleting, ConstructInoperative, ConstructDeletePending, ConstructUpdatePending},
-	ConstructInoperative:    {ConstructOperational, ConstructUpdating, ConstructDeleting, ConstructDeletePending},
-	ConstructUnknown:        {ConstructPending, ConstructCreating, ConstructUpdatePending, ConstructDeletePending},
+	ConstructCreating:       {ConstructCreating, ConstructCreateComplete, ConstructCreateFailed},
+	ConstructCreateComplete: {ConstructUpdating, ConstructDeleting},
+	ConstructCreateFailed:   {ConstructCreating, ConstructDeleting},
+	ConstructUpdating:       {ConstructUpdating, ConstructUpdateComplete, ConstructUpdateFailed},
+	ConstructUpdateComplete: {ConstructUpdating, ConstructDeleting},
+	ConstructUpdateFailed:   {ConstructUpdating, ConstructDeleting},
+	ConstructDeleting:       {ConstructDeleting, ConstructDeleteComplete, ConstructDeleteFailed},
+	ConstructDeleteComplete: {ConstructCreating},
+	ConstructDeleteFailed:   {ConstructUpdating, ConstructDeleting},
+	ConstructUnknown:        {},
 }
 
-func IsDeployable(status ConstructStatus) bool {
+func IsUpdatable(status ConstructStatus) bool {
 	for _, nextStatus := range validTransitions[status] {
-		if nextStatus == ConstructCreating || nextStatus == ConstructUpdating {
+		if nextStatus == ConstructUpdating {
 			return true
 		}
 	}
 	return false
+}
+
+func IsCreatable(status ConstructStatus) bool {
+	for _, nextStatus := range validTransitions[status] {
+		if nextStatus == ConstructCreating {
+			return true
+		}
+	}
+	return false
+}
+
+func IsDeployable(status ConstructStatus) bool {
+	return IsCreatable(status) || IsUpdatable(status)
 }
 
 func IsDeletable(status ConstructStatus) bool {
@@ -83,7 +79,11 @@ func IsDeletable(status ConstructStatus) bool {
 }
 
 func isValidTransition(currentStatus, nextStatus ConstructStatus) bool {
-	for _, validStatus := range validTransitions[currentStatus] {
+	validTransitions, exists := validTransitions[currentStatus]
+	if !exists {
+		return false
+	}
+	for _, validStatus := range validTransitions {
 		if validStatus == nextStatus {
 			return true
 		}

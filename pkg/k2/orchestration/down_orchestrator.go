@@ -55,6 +55,9 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 			// This should never happen as we just build StackReferences from the state
 			return fmt.Errorf("construct %s not found in state", ref.ConstructURN.ResourceID)
 		}
+		if c.Status == model.ConstructDeleteComplete {
+			continue
+		}
 		constructsToDelete = append(constructsToDelete, c)
 
 		// Cache the stack reference for later use outside this loop
@@ -93,14 +96,12 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				ctx := ConstructContext(ctx, *construct.URN)
 				prog := tui.GetProgress(ctx)
 
-				// All resources need to be deleted so they have to start in a delete pending state initially.
-				// This is a bit awkward since we have to transition twice, but these states are used at different
-				// times for things like the up command
-				if err := sm.TransitionConstructState(&construct, model.ConstructDeletePending); err != nil {
-					prog.Complete("Failed")
-					errChan <- err
+				if construct.Status == model.ConstructDeleteComplete || construct.Status == model.ConstructCreating {
+					prog.Complete("Skipped")
+					errChan <- sm.TransitionConstructState(&construct, model.ConstructDeleteComplete)
 					return
 				}
+
 				if err := sm.TransitionConstructState(&construct, model.ConstructDeleting); err != nil {
 					prog.Complete("Failed")
 					errChan <- err
@@ -113,13 +114,12 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 				if err != nil {
 					prog.Complete("Failed")
 
-					if err2 := sm.TransitionConstructState(&construct, model.ConstructDeleteFailed); err2 != nil {
-						errChan <- fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
-						return
+					if err2 := sm.TransitionConstructFailed(&construct); err2 != nil {
+						err = fmt.Errorf("%v: error transitioning construct state to delete failed: %v", err, err2)
 					}
 					errChan <- err
 					return
-				} else if err := sm.TransitionConstructState(&construct, model.ConstructDeleteComplete); err != nil {
+				} else if err := sm.TransitionConstructComplete(&construct); err != nil {
 					prog.Complete("Failed")
 					errChan <- err
 					return

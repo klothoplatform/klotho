@@ -53,7 +53,7 @@ func down(cmd *cobra.Command, args []string) error {
 
 	projectPath := filepath.Join(downConfig.outputPath, project, app, env)
 	stateFile := filepath.Join(projectPath, "state.yaml")
-	sm := model.NewStateManager(stateFile)
+	sm := model.NewStateManager(model.OSFS{}, stateFile)
 
 	if !sm.CheckStateFileExists() {
 		return fmt.Errorf("state file does not exist: %s", stateFile)

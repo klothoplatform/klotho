@@ -3,19 +3,27 @@ package constructs
 import (
 	"embed"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed templates/*
 var templates embed.FS
 
-var cachedConstructs = make(map[ConstructTemplateId]ConstructTemplate)
-var cachedBindings = make(map[string]BindingTemplate)
+var (
+	cachedConstructs = make(map[ConstructTemplateId]ConstructTemplate)
+	cachedBindings   = make(map[string]BindingTemplate)
+	mu               sync.Mutex
+)
 
 func loadConstructTemplate(id ConstructTemplateId) (ConstructTemplate, error) {
+	mu.Lock()
+	defer mu.Unlock()
 	if template, ok := cachedConstructs[id]; ok {
+
 		return template, nil
 	}
 
@@ -45,6 +53,8 @@ func loadConstructTemplate(id ConstructTemplateId) (ConstructTemplate, error) {
 }
 
 func loadBindingTemplate(owner ConstructTemplateId, from ConstructTemplateId, to ConstructTemplateId) (BindingTemplate, error) {
+	mu.Lock()
+	defer mu.Unlock()
 	if owner != from && owner != to {
 		return BindingTemplate{}, fmt.Errorf("owner must be either from or to")
 	}

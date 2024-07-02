@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"sync"
 	"time"
@@ -10,7 +11,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ReadWriteFS interface {
+	fs.FS
+	WriteFile(name string, data []byte, perm fs.FileMode) error
+}
+
+type OSFS struct{}
+
+func (OSFS) Open(name string) (fs.File, error) {
+	return os.Open(name)
+}
+
+func (OSFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(name, data, perm)
+}
+
 type StateManager struct {
+	fs        ReadWriteFS
 	stateFile string
 	state     *State
 	mutex     sync.Mutex
@@ -26,8 +43,9 @@ type State struct {
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
 }
 
-func NewStateManager(stateFile string) *StateManager {
+func NewStateManager(fsys ReadWriteFS, stateFile string) *StateManager {
 	return &StateManager{
+		fs:        fsys,
 		stateFile: stateFile,
 		state: &State{
 			SchemaVersion: 1,
@@ -38,7 +56,7 @@ func NewStateManager(stateFile string) *StateManager {
 }
 
 func (sm *StateManager) CheckStateFileExists() bool {
-	_, err := os.Stat(sm.stateFile)
+	_, err := fs.Stat(sm.fs, sm.stateFile)
 	return err == nil
 }
 
@@ -48,7 +66,7 @@ func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
 
 	for urn, construct := range ir.Constructs {
 		sm.state.Constructs[urn] = ConstructState{
-			Status:      ConstructPending,
+			Status:      ConstructCreating,
 			LastUpdated: time.Now().Format(time.RFC3339),
 			Inputs:      construct.Inputs,
 			Outputs:     construct.Outputs,
@@ -68,10 +86,10 @@ func (sm *StateManager) LoadState() error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	data, err := os.ReadFile(sm.stateFile)
+	data, err := fs.ReadFile(sm.fs, sm.stateFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			sm.state = &State{}
+			sm.state = nil
 			return nil
 		}
 		return err
@@ -87,7 +105,7 @@ func (sm *StateManager) SaveState() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(sm.stateFile, data, 0644)
+	return sm.fs.WriteFile(sm.stateFile, data, 0644)
 }
 
 func (sm *StateManager) GetState() *State {
@@ -143,70 +161,89 @@ func (sm *StateManager) GetAllConstructs() map[string]ConstructState {
 }
 
 func (sm *StateManager) TransitionConstructState(construct *ConstructState, nextStatus ConstructStatus) error {
-	if isValidTransition(construct.Status, nextStatus) {
-		zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
-		construct.Status = nextStatus
-		construct.LastUpdated = time.Now().Format(time.RFC3339)
-		sm.SetConstructState(*construct)
-		return nil
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	if !isValidTransition(construct.Status, nextStatus) {
+		return fmt.Errorf("invalid transition from %s to %s", construct.Status, nextStatus)
 	}
-	return fmt.Errorf("invalid state transition from %s to %s", construct.Status, nextStatus)
+
+	zap.L().Debug("Transitioning construct", zap.String("urn", construct.URN.String()), zap.String("from", string(construct.Status)), zap.String("to", string(nextStatus)))
+	construct.Status = nextStatus
+	construct.LastUpdated = time.Now().Format(time.RFC3339)
+	sm.state.Constructs[construct.URN.ResourceID] = *construct
+	return nil
+}
+
+func (sm *StateManager) TransitionConstructFailed(construct *ConstructState) error {
+	switch construct.Status {
+	case ConstructCreating:
+		return sm.TransitionConstructState(construct, ConstructCreateFailed)
+	case ConstructUpdating:
+		return sm.TransitionConstructState(construct, ConstructUpdateFailed)
+	case ConstructDeleting:
+		return sm.TransitionConstructState(construct, ConstructDeleteFailed)
+	default:
+		return fmt.Errorf("Initial state %s must be one of Creating, Updating, or Deleting", construct.Status)
+	}
+}
+
+func (sm *StateManager) TransitionConstructComplete(construct *ConstructState) error {
+	switch construct.Status {
+	case ConstructCreating:
+		return sm.TransitionConstructState(construct, ConstructCreateComplete)
+	case ConstructUpdating:
+		return sm.TransitionConstructState(construct, ConstructUpdateComplete)
+	case ConstructDeleting:
+		return sm.TransitionConstructState(construct, ConstructDeleteComplete)
+	default:
+		return fmt.Errorf("Initial state %s must be one of Creating, Updating, or Deleting", construct.Status)
+	}
 }
 
 // RegisterOutputValues registers the resolved output values of a construct in the state manager and resolves any inputs that depend on the provided outputs
 func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) error {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
 	if sm.state.Constructs == nil {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	if construct, exists := sm.state.Constructs[urn.ResourceID]; exists {
-		if construct.Outputs == nil {
-			construct.Outputs = make(map[string]any)
-		}
-
-		for k, v := range outputs {
-			if construct.Outputs == nil {
-				construct.Outputs = make(map[string]any)
-			}
-			construct.Outputs[k] = v
-		}
-		sm.state.Constructs[urn.ResourceID] = construct
-	} else {
+	construct, exists := sm.state.Constructs[urn.ResourceID]
+	if !exists {
 		return fmt.Errorf("%s not found in state", urn.String())
 	}
 
-	// Resolve inputs that depend on the outputs of this construct or that directly reference this construct
+	if construct.Outputs == nil {
+		construct.Outputs = make(map[string]any)
+	}
+
+	for key, value := range outputs {
+		construct.Outputs[key] = value
+	}
+	sm.state.Constructs[urn.ResourceID] = construct
+
 	for _, c := range sm.state.Constructs {
 		if urn.Equals(c.URN) {
-			continue // Skip the construct that provided the outputs
-		}
-
-		hasDep := false
-		// Skip constructs that don't depend on this construct
-		for _, dep := range c.DependsOn {
-			if dep.Equals(urn) {
-				hasDep = true
-				break
-			}
-		}
-		if !hasDep {
 			continue
 		}
 
-		for k, input := range c.Inputs {
+		updated := false
+		for key, input := range c.Inputs {
 			if input.DependsOn == urn.String() {
-				input.Status = InputStatusResolved
-				input.Value = urn
-				c.Inputs[k] = input
-			}
-
-			if o, ok := outputs[input.DependsOn]; ok {
-				input.Value = o
-				input.Status = InputStatusResolved
-				c.Inputs[k] = input
+				if output, ok := outputs[key]; ok {
+					input.Value = output
+					input.Status = InputStatusResolved
+					c.Inputs[key] = input
+					updated = true
+				}
 			}
 		}
 
+		if updated {
+			sm.state.Constructs[c.URN.ResourceID] = c
+		}
 	}
 
 	return nil

@@ -38,23 +38,6 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 	}, nil
 }
 
-func transitionPendingToDoing(sm *model.StateManager, construct *model.ConstructState) error {
-	var nextStatus model.ConstructStatus
-
-	switch construct.Status {
-	case model.ConstructCreatePending:
-		nextStatus = model.ConstructCreating
-	case model.ConstructUpdatePending:
-		nextStatus = model.ConstructUpdating
-	case model.ConstructDeletePending:
-		nextStatus = model.ConstructDeleting
-	default:
-		return fmt.Errorf("construct %s is not in a pending state", construct.URN.ResourceID)
-	}
-
-	return sm.TransitionConstructState(construct, nextStatus)
-}
-
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
@@ -141,11 +124,17 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		if skipped {
 			msg = "Skipped"
 		}
+
 		prog.Complete(msg)
 	}()
 
-	// Run pulumi down command for deleted constructs
-	if action == model.ConstructActionDelete && model.IsDeletable(c.Status) {
+	if action == model.ConstructActionDelete {
+		if !model.IsDeletable(c.Status) {
+			skipped = true
+			log.Debugf("Skipping construct %s, status is %s", c.URN.ResourceID, c.Status)
+			return nil
+		}
+
 		if dryRun {
 			log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
 			return nil
@@ -164,16 +153,20 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		})
 
 		if err != nil {
+			if err2 := sm.TransitionConstructFailed(&c); err2 != nil {
+				log.Errorf("Error transitioning construct state: %v", err2)
+			}
 			return fmt.Errorf("error running pulumi down command: %w", err)
 		}
 
 		// Mark as deleted
-		return sm.TransitionConstructState(&c, model.ConstructDeleteComplete)
+		return sm.TransitionConstructComplete(&c)
 	}
 
 	// Only proceed if the construct is deployable
 	if !model.IsDeployable(c.Status) {
 		skipped = true
+		log.Debugf("Skipping construct %s, status is %s", c.URN.ResourceID, c.Status)
 		return nil
 	}
 
@@ -188,13 +181,12 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		return err
 	}
 
-	if err = transitionPendingToDoing(sm, &c); err != nil {
-		return fmt.Errorf("error transitioning construct state: %w", err)
-	}
-
 	// Run pulumi up command for the construct
 	upResult, stackState, err := stack.RunUp(ctx, stackRef)
 	if err != nil {
+		if err2 := sm.TransitionConstructFailed(&c); err2 != nil {
+			log.Errorf("Error transitioning construct state: %v", err2)
+		}
 		return fmt.Errorf("error running pulumi up command: %w", err)
 	}
 	uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = stackState

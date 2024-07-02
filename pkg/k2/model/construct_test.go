@@ -4,33 +4,65 @@ import (
 	"testing"
 )
 
-func TestUpdateResourceState(t *testing.T) {
-	tmpFile := createTempStateFile(t, "")
-	defer removeTempFile(t, tmpFile)
+func TestIsDeployable(t *testing.T) {
+	tests := []struct {
+		status   ConstructStatus
+		expected bool
+	}{
+		{ConstructCreating, true},
+		{ConstructUpdating, true},
+		{ConstructCreateComplete, true},
+		{ConstructUnknown, false},
+	}
 
-	sm := NewStateManager(tmpFile)
+	for _, test := range tests {
+		t.Run(string(test.status), func(t *testing.T) {
+			if result := IsDeployable(test.status); result != test.expected {
+				t.Errorf("IsDeployable(%s) = %v; want %v", test.status, result, test.expected)
+			}
+		})
+	}
+}
 
-	parsedURN, err := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.S3:example-construct")
-	if err != nil {
-		t.Fatalf("Failed to parse URN: %v", err)
+func TestIsDeletable(t *testing.T) {
+	tests := []struct {
+		status   ConstructStatus
+		expected bool
+	}{
+		{ConstructCreateComplete, true},
+		{ConstructUnknown, false},
+		{ConstructUpdateComplete, true},
 	}
-	// Initialize the construct state in the StateManager
-	sm.SetConstructState(ConstructState{
-		Status: ConstructPending,
-		URN:    parsedURN,
-	})
 
-	if err := sm.UpdateResourceState("example-construct", ConstructCreatePending, "2023-06-11T00:00:00Z"); err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	for _, test := range tests {
+		t.Run(string(test.status), func(t *testing.T) {
+			if result := IsDeletable(test.status); result != test.expected {
+				t.Errorf("IsDeletable(%s) = %v; want %v", test.status, result, test.expected)
+			}
+		})
 	}
-	construct, exists := sm.GetConstructState("example-construct")
-	if !exists {
-		t.Errorf("Expected construct example-construct to exist")
+}
+
+func TestIsValidTransition(t *testing.T) {
+	tests := []struct {
+		currentStatus ConstructStatus
+		nextStatus    ConstructStatus
+		expected      bool
+	}{
+		{ConstructCreating, ConstructCreateComplete, true},
+		{ConstructCreating, ConstructCreateFailed, true},
+		{ConstructCreateComplete, ConstructUpdating, true},
+		{ConstructCreateFailed, ConstructCreating, true},
+		{ConstructDeleteComplete, ConstructCreating, true},
+		{ConstructStatus("fake"), ConstructCreating, false}, // Invalid current status"}
+		{ConstructDeleteComplete, ConstructUpdating, false}, // Invalid transition
 	}
-	if construct.Status != ConstructCreatePending {
-		t.Errorf("Expected status to be %s, got %s", ConstructCreatePending, construct.Status)
-	}
-	if construct.LastUpdated != "2023-06-11T00:00:00Z" {
-		t.Errorf("Expected last updated to be 2023-06-11T00:00:00Z, got %s", construct.LastUpdated)
+
+	for _, test := range tests {
+		t.Run(string(test.currentStatus)+" to "+string(test.nextStatus), func(t *testing.T) {
+			if result := isValidTransition(test.currentStatus, test.nextStatus); result != test.expected {
+				t.Errorf("isValidTransition(%s, %s) = %v; want %v", test.currentStatus, test.nextStatus, result, test.expected)
+			}
+		})
 	}
 }
