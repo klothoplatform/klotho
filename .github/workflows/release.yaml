@@ -1,9 +1,11 @@
 name: Generate Release Artifacts
 
 on:
+  workflow_dispatch:
   release:
     types:
       - created
+
 permissions:
   contents: write
   checks: write
