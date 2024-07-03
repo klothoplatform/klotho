@@ -4,6 +4,7 @@ on:
   release:
     types:
       - created
+
 permissions:
   contents: write
   checks: write
@@ -27,24 +28,22 @@ jobs:
         with:
           go-version: '1.22.3'
 
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v1
         with:
-          version: 0.9.1
-
-      - name: Get the version
-        id: get_version
-        run: echo VERSION=$(echo $GITHUB_REF | cut -d / -f 3) >> $GITHUB_OUTPUT
+          version: 0.13.0
 
       - name: Build
         run: |
-          npm install -g typescript
-          mkdir dist
+          go install go.uber.org/mock/mockgen@latest
           go generate ./...
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC="zig cc -target x86_64-linux-musl" CXX="zig c++ -target x86_64-linux-musl" go build --tags extended -o dist/klotho_linux_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
-          CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build --tags extended -o dist/klotho_darwin_amd64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build --tags extended -o dist/klotho_darwin_arm64 -ldflags="-X 'main.Version=${{ steps.get_version.outputs.VERSION }}' -s -w" ./cmd/klotho
-          chmod +x dist
+          python3 ./release.py
 
       - name: Upload build-artifacts
         uses: alexellis/upload-assets@0.2.2
