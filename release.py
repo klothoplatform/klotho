@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ref = os.getenv("GITHUB_REF")
+ref = os.getenv("GITHUB_REF")  # eg. 'refs/tags/v0.0.3-test'
 if ref is None:
     version = "dev"
 else:
@@ -47,7 +47,7 @@ def release(goos, arch, out_dir):
 
             zig_arch = arch_to_zig_target[arch]
             zig_os = goos_to_zig_target[goos]
-            if goos != sys.platform or platform.machine() != zig_arch:
+            if goos != sys.platform:
                 suffix = ""
                 # Add -musl suffix for linux builds to support being run in alpine
                 # containers and similar environments
@@ -69,6 +69,7 @@ def release(goos, arch, out_dir):
             proc.check_returncode()
         except subprocess.CalledProcessError as e:
             raise Exception(f"Failed to build for {prog} {goos}/{arch}") from e
+        print(f"Successfuly built {prog} for {goos}/{arch}")
 
 
 targets = [
