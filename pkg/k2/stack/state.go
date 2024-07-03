@@ -9,6 +9,9 @@ import (
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optdestroy"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optpreview"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/apitype"
 	"go.uber.org/zap"
 )
@@ -20,7 +23,17 @@ type State struct {
 	Resources  map[construct.ResourceId]apitype.ResourceV3
 }
 
-func GetState(ctx context.Context, stack auto.Stack) (State, error) {
+type StackInterface interface {
+	Export(ctx context.Context) (apitype.UntypedDeployment, error)
+	Up(ctx context.Context, opts ...optup.Option) (auto.UpResult, error)
+	Preview(ctx context.Context, opts ...optpreview.Option) (auto.PreviewResult, error)
+	Destroy(ctx context.Context, opts ...optdestroy.Option) (auto.DestroyResult, error)
+	SetConfig(ctx context.Context, key string, value auto.ConfigValue) error
+	Workspace() auto.Workspace
+}
+
+// GetState retrieves the state of a stack
+func GetState(ctx context.Context, stack StackInterface) (State, error) {
 	rawState, err := stack.Export(ctx)
 	if err != nil {
 		return State{}, err

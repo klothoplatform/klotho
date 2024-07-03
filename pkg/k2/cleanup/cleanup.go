@@ -2,11 +2,11 @@ package cleanup
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	"go.uber.org/zap"
 )
 
@@ -19,14 +19,14 @@ func OnKill(callback Callback) {
 }
 
 func Execute(signal syscall.Signal) error {
-	var merr multierr.Error
+	var errs []error
 
 	for _, cb := range callbacks {
 		if err := cb(signal); err != nil {
-			merr.Append(err)
+			errs = append(errs, err)
 		}
 	}
-	return merr.ErrOrNil()
+	return errors.Join(errs...)
 }
 
 func InitializeHandler(ctx context.Context) context.Context {

@@ -26,11 +26,11 @@ type Reference struct {
 	AwsRegion    string
 }
 
-func Initialize(projectName string, stackName string, stackDirectory string, ctx context.Context) (auto.Stack, error) {
+func Initialize(projectName string, stackName string, stackDirectory string, ctx context.Context) (StackInterface, error) {
 	// PulumiHome customizes the location of $PULUMI_HOME where metadata is stored and plugins are installed.
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return auto.Stack{}, errors2.WrapErrf(err, "Failed to get user home directory")
+		return nil, errors2.WrapErrf(err, "Failed to get user home directory")
 
 	}
 	pulumiHomeDir := filepath.Join(homeDir, ".k2", "pulumi")
@@ -39,7 +39,7 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	// create pulumi home directory if it does not exist
 	if _, err := os.Stat(pulumiHomeDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(pulumiHomeDir, 0755); err != nil {
-			return auto.Stack{}, errors2.WrapErrf(err, "Failed to create pulumi home directory")
+			return nil, errors2.WrapErrf(err, "Failed to create pulumi home directory")
 		}
 	}
 
@@ -47,7 +47,7 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	stateDir := filepath.Join(pulumiHomeDir, "state")
 	if _, err := os.Stat(stateDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(stateDir, 0755); err != nil {
-			return auto.Stack{}, errors2.WrapErrf(err, "Failed to create stack state directory")
+			return nil, errors2.WrapErrf(err, "Failed to create stack state directory")
 		}
 	}
 
@@ -63,7 +63,8 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	envvars := auto.EnvVars(map[string]string{
 		"PULUMI_CONFIG_PASSPHRASE": "",
 	})
-	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
+	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
+	return &stack, err
 }
 
 func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
