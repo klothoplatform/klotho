@@ -364,10 +364,15 @@ func getValueFromSource(source any, key string, flat bool) (any, error) {
 				break
 			}
 
+			value = reflectutil.GetConcreteElement(value)
 			kind := value.Kind()
 
 			switch kind {
 			case reflect.Slice | reflect.Array:
+				if index >= value.Len() {
+					err = fmt.Errorf("index out of bounds: %d", index)
+					break
+				}
 				value = value.Index(index)
 			case reflect.Map:
 				value, err = reflectutil.GetField(value, key)
@@ -396,6 +401,7 @@ func getValueFromSource(source any, key string, flat bool) (any, error) {
 						Type:        ResourceRefTypeTemplate,
 					}, nil
 				} else {
+					// if the parent is a resource, children are implicitly properties of the resource
 					lastValidValue = reflect.ValueOf(r.Properties)
 					value, err = reflectutil.GetField(lastValidValue, part)
 					if err != nil {
@@ -432,20 +438,20 @@ func getValueFromSource(source any, key string, flat bool) (any, error) {
 }
 
 /*
-	evaluateInputRules evaluates the input rules of the construct
+evaluateInputRules evaluates the input rules of the construct
 
 An input rule is a conditional expression that determines a set of resources, edges, and outputs based on the inputs of the construct
 An input rule is evaluated by checking the if condition and then evaluating the then or else condition based on the result
 the if condition is a go template that can access the inputs of the construct
 input rules cannot use interpolation in the if condition
 
-Example:
-  - if: {{ eq input("foo") "bar" }}
-    then:
-    resources:
-    "my-resource":
-    properties:
-    foo: "bar"
+	Example:
+	  - if: {{ eq inputs("foo") "bar" }}
+		then:
+		resources:
+		  "my-resource":
+		properties:
+		  foo: "bar"
 
 in the example input() is a function that returns the value of the input with the given key
 */

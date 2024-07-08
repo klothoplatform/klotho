@@ -20,4 +20,6 @@ app = klotho.Application(
 bucket = aws.Bucket("my-bucket", force_destroy=True)
 
 # Create a Container resource with a binding to the Bucket resource
-container = aws.Container('my-container', dockerfile="Dockerfile", bindings=[bucket])
+container = aws.Container(
+    "my-container", dockerfile="Dockerfile", bindings=[bucket.use_read_only()]
+)
