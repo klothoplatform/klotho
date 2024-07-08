@@ -103,7 +103,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	return nil
 }
 
-func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) error {
+func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) (err error) {
 	sm := uo.StateManager
 	log := logging.GetLogger(ctx).Sugar()
 	outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
@@ -113,7 +113,6 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	prog := tui.GetProgress(ctx)
 	prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
 
-	var err error
 	skipped := false
 
 	defer func() {

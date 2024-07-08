@@ -33,9 +33,6 @@ resources:
       ContainerDefinitions[0].Memory: ${inputs:Memory}
       RequiresCompatibilities:
        - FARGATE
-      ContainerDefinitions[0].Environment:
-        - Name: key1
-          Value: value1
   Service:
     type: aws:ecs_service
     name: ${inputs:Name}-service

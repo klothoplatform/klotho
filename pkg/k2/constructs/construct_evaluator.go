@@ -312,11 +312,11 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 
 var iacRefPattern = regexp.MustCompile(`^([a-zA-Z0-9_-]+)#([a-zA-Z0-9._-]+)$`)
 
-// getValueFromSource retrieves a value from a collection based on a key
+// getValueFromSource retrieves a value from a property source based on a key
 // the flat parameter is used to determine if the key is a flat key or a path (mixed keys aren't supported at the moment)
 // e.g (flat = true): key = "foo.bar" -> value = collection["foo."bar"], flat = false: key = "foo.bar" -> value = collection["foo"]["bar"]
-func getValueFromSource(collection any, key string, flat bool) (any, error) {
-	value := reflect.ValueOf(collection)
+func getValueFromSource(source any, key string, flat bool) (any, error) {
+	value := reflect.ValueOf(source)
 
 	keyAndRef := strings.Split(key, "#")
 	if len(keyAndRef) > 2 {
@@ -413,9 +413,13 @@ func getValueFromSource(collection any, key string, flat bool) (any, error) {
 				value = rVal
 			}
 		}
-		if err == nil && i == len(parts)-1 {
+		if err != nil {
+			break
+		}
+		if i == len(parts)-1 {
 			return value.Interface(), nil
 		}
+
 		lastValidValue = value
 		lastValidIndex = i
 	}
