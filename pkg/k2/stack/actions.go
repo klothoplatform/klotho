@@ -16,6 +16,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 )
 
@@ -26,32 +27,26 @@ type Reference struct {
 	AwsRegion    string
 }
 
-func Initialize(projectName string, stackName string, stackDirectory string, ctx context.Context) (StackInterface, error) {
-	// PulumiHome customizes the location of $PULUMI_HOME where metadata is stored and plugins are installed.
+func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName string, stackDirectory string) (StackInterface, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, errors2.WrapErrf(err, "Failed to get user home directory")
-
 	}
 	pulumiHomeDir := filepath.Join(homeDir, ".k2", "pulumi")
-	ph := auto.PulumiHome(pulumiHomeDir)
 
-	// create pulumi home directory if it does not exist
-	if _, err := os.Stat(pulumiHomeDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(pulumiHomeDir, 0755); err != nil {
+	if exists, err := afero.DirExists(fs, pulumiHomeDir); !exists || err != nil {
+		if err := fs.MkdirAll(pulumiHomeDir, 0755); err != nil {
 			return nil, errors2.WrapErrf(err, "Failed to create pulumi home directory")
 		}
 	}
 
-	// create the stack directory if it does not exist
 	stateDir := filepath.Join(pulumiHomeDir, "state")
-	if _, err := os.Stat(stateDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(stateDir, 0755); err != nil {
+	if exists, err := afero.DirExists(fs, stateDir); !exists || err != nil {
+		if err := fs.MkdirAll(stateDir, 0755); err != nil {
 			return nil, errors2.WrapErrf(err, "Failed to create stack state directory")
 		}
 	}
 
-	// Project provides ProjectSettings to set once the workspace is created.
 	proj := auto.Project(workspace.Project{
 		Name:    tokens.PackageName("myproject"),
 		Runtime: workspace.NewProjectRuntimeInfo("nodejs", nil),
@@ -63,31 +58,35 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	envvars := auto.EnvVars(map[string]string{
 		"PULUMI_CONFIG_PASSPHRASE": "",
 	})
-	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
-	return &stack, err
+	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, auto.PulumiHome(pulumiHomeDir), secretsProvider)
+	if err != nil {
+		return nil, err
+	}
+	return &stack, nil
 }
 
-func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
+// RunUp performs an update of the stack
+func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.UpResult, *State, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, nil, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 	log.Debugf("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, nil, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, nil, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
 	log.Debug("Starting update")
@@ -99,36 +98,37 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 		optup.Refresh(),
 	)
 	if err != nil {
-		return upResult, State{}, errors2.WrapErrf(err, "Failed to update stack")
+		return nil, nil, errors2.WrapErrf(err, "Failed to update stack")
 	}
 
 	log.Infof("Successfully deployed stack %s", stackName)
 
 	stackState, err := GetState(ctx, s)
-	return upResult, stackState, err
+	return &upResult, &stackState, err
 }
 
-func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResult, error) {
+// RunPreview performs a preview of the stack
+func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.PreviewResult, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
 	log.Infof("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, errors2.WrapErrf(err, "Failed to install dependencies")
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, errors2.WrapErrf(err, "Failed to set stack configuration")
 	}
 
 	log.Debug("Starting preview")
@@ -140,20 +140,21 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 		optpreview.Refresh(),
 	)
 	if err != nil {
-		return previewResult, errors2.WrapErrf(err, "Failed to preview stack")
+		return nil, errors2.WrapErrf(err, "Failed to preview stack")
 	}
 
 	log.Infof("Successfully previewed stack %s", stackName)
 
-	return previewResult, nil
+	return &previewResult, nil
 }
 
-func RunDown(ctx context.Context, stackReference Reference) error {
+// RunDown destroys the stack and removes it
+func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
 		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
 	}
@@ -189,6 +190,7 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 	return nil
 }
 
+// InstallDependencies installs the necessary npm dependencies for the Pulumi project
 func InstallDependencies(ctx context.Context, stackDirectory string) error {
 	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()

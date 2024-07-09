@@ -14,6 +14,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
+	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,6 +23,7 @@ type UpOrchestrator struct {
 	LanguageHostClient pb.KlothoServiceClient
 	StackStateManager  *stack.StateManager
 	ConstructEvaluator *constructs.ConstructEvaluator
+	FS                 afero.Fs
 }
 
 func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient, outputPath string) (*UpOrchestrator, error) {
@@ -35,6 +37,7 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 		LanguageHostClient: languageHostClient,
 		StackStateManager:  ssm,
 		ConstructEvaluator: ce,
+		FS:                 afero.NewOsFs(),
 	}, nil
 }
 
@@ -145,7 +148,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 			return err
 		}
 
-		err = stack.RunDown(ctx, stack.Reference{
+		err = stack.RunDown(ctx, uo.FS, stack.Reference{
 			ConstructURN: *c.URN,
 			Name:         c.URN.ResourceID,
 			IacDirectory: outDir,
@@ -177,19 +180,19 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	}
 
 	if dryRun {
-		_, err = stack.RunPreview(ctx, stackRef)
+		_, err = stack.RunPreview(ctx, uo.FS, stackRef)
 		return err
 	}
 
 	// Run pulumi up command for the construct
-	upResult, stackState, err := stack.RunUp(ctx, stackRef)
+	upResult, stackState, err := stack.RunUp(ctx, uo.FS, stackRef)
 	if err != nil {
 		if err2 := sm.TransitionConstructFailed(&c); err2 != nil {
 			log.Errorf("Error transitioning construct state: %v", err2)
 		}
 		return fmt.Errorf("error running pulumi up command: %w", err)
 	}
-	uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = stackState
+	uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = *stackState
 
 	err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
 	if err != nil {
@@ -197,13 +200,13 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	}
 
 	// Update construct state based on the up result
-	err = stack.UpdateConstructStateFromUpResult(sm, stackRef, &upResult)
+	err = stack.UpdateConstructStateFromUpResult(sm, stackRef, upResult)
 	if err != nil {
 		return err
 	}
 
 	// Resolve pending output values by calling the language host
-	resolvedOutputs, err := uo.resolveOutputValues(stackRef, stackState)
+	resolvedOutputs, err := uo.resolveOutputValues(stackRef, *stackState)
 	if err != nil {
 		return fmt.Errorf("error resolving output values: %w", err)
 	}

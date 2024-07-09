@@ -2,18 +2,17 @@ package model
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/jarxorg/wfs"
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
 type StateManager struct {
-	fs        wfs.WriteFileFS
+	fs        afero.Fs
 	stateFile string
 	state     *State
 	mutex     sync.Mutex
@@ -29,7 +28,7 @@ type State struct {
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
 }
 
-func NewStateManager(fsys wfs.WriteFileFS, stateFile string) *StateManager {
+func NewStateManager(fsys afero.Fs, stateFile string) *StateManager {
 	return &StateManager{
 		fs:        fsys,
 		stateFile: stateFile,
@@ -42,8 +41,8 @@ func NewStateManager(fsys wfs.WriteFileFS, stateFile string) *StateManager {
 }
 
 func (sm *StateManager) CheckStateFileExists() bool {
-	_, err := fs.Stat(sm.fs, sm.stateFile)
-	return err == nil
+	exists, err := afero.Exists(sm.fs, sm.stateFile)
+	return err == nil && exists
 }
 
 func (sm *StateManager) InitState(ir *ApplicationEnvironment) {
@@ -72,7 +71,7 @@ func (sm *StateManager) LoadState() error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	data, err := fs.ReadFile(sm.fs, sm.stateFile)
+	data, err := afero.ReadFile(sm.fs, sm.stateFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			sm.state = nil
@@ -89,16 +88,18 @@ func (sm *StateManager) SaveState() error {
 
 	data, err := yaml.Marshal(sm.state)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling state: %w", err)
 	}
-	_, err = sm.fs.WriteFile(sm.stateFile, data, 0644)
-	return err
+	err = afero.WriteFile(sm.fs, sm.stateFile, data, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing state: %w", err)
+	}
+	return nil
 }
 
 func (sm *StateManager) GetState() *State {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-
 	return sm.state
 }
 

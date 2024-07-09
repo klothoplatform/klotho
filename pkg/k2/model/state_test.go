@@ -7,26 +7,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jarxorg/wfs/memfs"
+	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 )
 
 type MockFS struct {
-	memfs.MemFS
+	afero.Fs
 }
 
-func (mfs *MockFS) WriteFile(name string, data []byte, perm os.FileMode) (int, error) {
+func (mfs *MockFS) WriteFile(name string, data []byte, perm os.FileMode) error {
 	if strings.Contains(name, "protected") {
-		return 0, fmt.Errorf("permission denied")
+		return fmt.Errorf("permission denied")
 	}
-	return mfs.MemFS.WriteFile(name, data, perm)
+	return afero.WriteFile(mfs, name, data, perm)
 }
 
 func createMockFS() *MockFS {
-	mockFS := &MockFS{
-		MemFS: *memfs.New(),
-	}
-	if _, err := mockFS.WriteFile("state.yaml", []byte(`
+	mockFS := &MockFS{afero.NewMemMapFs()}
+	_ = mockFS.WriteFile("state.yaml", []byte(`
 schemaVersion: 1
 version: 1
 project_urn: "urn:project:example"
@@ -44,9 +42,7 @@ constructs:
     dependsOn: []
     pulumi_stack: "123e4567-e89b-12d3-a456-426614174000"
     urn: "urn:construct:example"
-`), 0644); err != nil {
-		panic(fmt.Sprintf("Failed to write file: %v", err))
-	}
+`), 0644)
 	return mockFS
 }
 
@@ -76,8 +72,8 @@ func TestCheckStateFileExists(t *testing.T) {
 		t.Errorf("Expected CheckStateFileExists to return true")
 	}
 
-	if err := mockFS.RemoveFile(stateFile); err != nil {
-		t.Fatalf("Failed to remove file: %v", err)
+	if err := mockFS.Remove(stateFile); err != nil {
+		t.Fatalf("Failed to remove state file: %v", err)
 	}
 
 	if sm.CheckStateFileExists() {
@@ -86,10 +82,22 @@ func TestCheckStateFileExists(t *testing.T) {
 }
 
 func TestLoadState(t *testing.T) {
-	mockFS := createMockFS()
+	mockFS := &MockFS{afero.NewMemMapFs()}
 	stateFile := "state.yaml"
 
 	sm := NewStateManager(mockFS, stateFile)
+
+	// Case when state file does not exist
+	if err := sm.LoadState(); err != nil {
+		t.Errorf("Expected no error when state file does not exist, got %v", err)
+	}
+	if sm.state != nil {
+		t.Errorf("Expected state to be nil, got %+v", sm.state)
+	}
+
+	// Case when state file exists
+	mockFS = createMockFS()
+	sm = NewStateManager(mockFS, stateFile)
 	if err := sm.LoadState(); err != nil {
 		t.Errorf("Failed to load state: %v", err)
 	}
@@ -119,13 +127,10 @@ func TestLoadState(t *testing.T) {
 		}
 	}
 
-	// Test case where ReadFile returns an error other than file does not exist
-	mockFS = &MockFS{
-		MemFS: *memfs.New(),
-	}
+	// Case with invalid content
+	mockFS = &MockFS{afero.NewMemMapFs()}
 	sm = NewStateManager(mockFS, stateFile)
-	// Simulate a permission error by writing a file with invalid content that cannot be unmarshalled
-	if _, err := mockFS.WriteFile(stateFile, []byte("content"), 0644); err != nil {
+	if err := mockFS.WriteFile(stateFile, []byte("invalid content"), 0644); err != nil {
 		t.Fatalf("Failed to write file: %v", err)
 	}
 	if err := sm.LoadState(); err == nil {
@@ -135,26 +140,14 @@ func TestLoadState(t *testing.T) {
 			t.Errorf("Expected error message to contain 'cannot unmarshal', got '%s'", err.Error())
 		}
 	}
-
-	// Test case where ReadFile returns file does not exist
-	mockFS = &MockFS{
-		MemFS: *memfs.New(),
-	}
-	sm = NewStateManager(mockFS, stateFile)
-	if err := sm.LoadState(); err != nil {
-		t.Errorf("Expected no error when state file does not exist, got %v", err)
-	}
-	if sm.state != nil {
-		t.Errorf("Expected state to be nil, got %+v", sm.state)
-	}
 }
 
-// Test invalid YAML case using a custom marshaller to throw an error
 type InvalidOutput struct{}
 
 func (InvalidOutput) MarshalYAML() (interface{}, error) {
 	return nil, fmt.Errorf("intentional marshal error")
 }
+
 func TestSaveState(t *testing.T) {
 	mockFS := createMockFS()
 	stateFile := "state.yaml"
@@ -182,7 +175,7 @@ func TestSaveState(t *testing.T) {
 		t.Errorf("Failed to save state: %v", err)
 	}
 
-	data, err := mockFS.ReadFile(stateFile)
+	data, err := afero.ReadFile(mockFS, stateFile)
 	if err != nil {
 		t.Errorf("Failed to read state file: %v", err)
 	}

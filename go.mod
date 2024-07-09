@@ -28,6 +28,7 @@ require (
 	github.com/r3labs/diff v1.1.0
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
+	github.com/spf13/afero v1.11.0
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/thessem/zap-prettyconsole v0.5.0
@@ -103,7 +104,6 @@ require (
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jarxorg/wfs v0.3.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
