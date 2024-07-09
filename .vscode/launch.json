@@ -102,7 +102,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: Attach",
+            "name": "Python Debugger: Listen",
             "type": "debugpy",
             "request": "attach",
             "listen": {
@@ -116,7 +116,7 @@
             "name": "Debug: k2 + infra.py",
             "configurations": [
                 "Debug: k2",
-                "Python Debugger: Attach"
+                "Python Debugger: Listen"
             ],
             "stopAll": true,
         }
