@@ -7,27 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jarxorg/wfs"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
-type ReadWriteFS interface {
-	fs.FS
-	WriteFile(name string, data []byte, perm fs.FileMode) error
-}
-
-type OSFS struct{}
-
-func (OSFS) Open(name string) (fs.File, error) {
-	return os.Open(name)
-}
-
-func (OSFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(name, data, perm)
-}
-
 type StateManager struct {
-	fs        ReadWriteFS
+	fs        wfs.WriteFileFS
 	stateFile string
 	state     *State
 	mutex     sync.Mutex
@@ -43,7 +29,7 @@ type State struct {
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
 }
 
-func NewStateManager(fsys ReadWriteFS, stateFile string) *StateManager {
+func NewStateManager(fsys wfs.WriteFileFS, stateFile string) *StateManager {
 	return &StateManager{
 		fs:        fsys,
 		stateFile: stateFile,
@@ -105,7 +91,8 @@ func (sm *StateManager) SaveState() error {
 	if err != nil {
 		return err
 	}
-	return sm.fs.WriteFile(sm.stateFile, data, 0644)
+	_, err = sm.fs.WriteFile(sm.stateFile, data, 0644)
+	return err
 }
 
 func (sm *StateManager) GetState() *State {

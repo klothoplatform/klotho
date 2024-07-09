@@ -2,46 +2,31 @@ package model
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
-	"testing/fstest"
-	"time"
 
+	"github.com/jarxorg/wfs/memfs"
 	"gopkg.in/yaml.v3"
 )
 
 type MockFS struct {
-	fstest.MapFS
+	memfs.MemFS
 }
 
-func (mfs *MockFS) WriteFile(name string, data []byte, perm fs.FileMode) error {
+func (mfs *MockFS) WriteFile(name string, data []byte, perm os.FileMode) (int, error) {
 	if strings.Contains(name, "protected") {
-		return fmt.Errorf("permission denied")
+		return 0, fmt.Errorf("permission denied")
 	}
-	mfs.MapFS[name] = &fstest.MapFile{
-		Data:    data,
-		Mode:    perm,
-		ModTime: time.Now(),
-	}
-	return nil
-}
-
-func (mfs *MockFS) ReadFile(name string) ([]byte, error) {
-	file, exists := mfs.MapFS[name]
-	if !exists {
-		return nil, os.ErrNotExist
-	}
-	return file.Data, nil
+	return mfs.MemFS.WriteFile(name, data, perm)
 }
 
 func createMockFS() *MockFS {
-	return &MockFS{
-		MapFS: fstest.MapFS{
-			"state.yaml": &fstest.MapFile{
-				Data: []byte(`
+	mockFS := &MockFS{
+		MemFS: *memfs.New(),
+	}
+	if _, err := mockFS.WriteFile("state.yaml", []byte(`
 schemaVersion: 1
 version: 1
 project_urn: "urn:project:example"
@@ -59,10 +44,10 @@ constructs:
     dependsOn: []
     pulumi_stack: "123e4567-e89b-12d3-a456-426614174000"
     urn: "urn:construct:example"
-`),
-			},
-		},
+`), 0644); err != nil {
+		panic(fmt.Sprintf("Failed to write file: %v", err))
 	}
+	return mockFS
 }
 
 func TestNewStateManager(t *testing.T) {
@@ -91,7 +76,10 @@ func TestCheckStateFileExists(t *testing.T) {
 		t.Errorf("Expected CheckStateFileExists to return true")
 	}
 
-	delete(mockFS.MapFS, stateFile)
+	if err := mockFS.RemoveFile(stateFile); err != nil {
+		t.Fatalf("Failed to remove file: %v", err)
+	}
+
 	if sm.CheckStateFileExists() {
 		t.Errorf("Expected CheckStateFileExists to return false")
 	}
@@ -133,11 +121,11 @@ func TestLoadState(t *testing.T) {
 
 	// Test case where ReadFile returns an error other than file does not exist
 	mockFS = &MockFS{
-		MapFS: fstest.MapFS{},
+		MemFS: *memfs.New(),
 	}
 	sm = NewStateManager(mockFS, stateFile)
 	// Simulate a permission error by writing a file with invalid content that cannot be unmarshalled
-	if err := mockFS.WriteFile(stateFile, []byte("content"), 0644); err != nil {
+	if _, err := mockFS.WriteFile(stateFile, []byte("content"), 0644); err != nil {
 		t.Fatalf("Failed to write file: %v", err)
 	}
 	if err := sm.LoadState(); err == nil {
@@ -150,7 +138,7 @@ func TestLoadState(t *testing.T) {
 
 	// Test case where ReadFile returns file does not exist
 	mockFS = &MockFS{
-		MapFS: fstest.MapFS{},
+		MemFS: *memfs.New(),
 	}
 	sm = NewStateManager(mockFS, stateFile)
 	if err := sm.LoadState(); err != nil {
