@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"runtime"
 
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/multierr"
 	pulumi "github.com/pulumi/pulumi/sdk/v3/go/auto"
 )
@@ -57,7 +57,7 @@ func installDocker() error {
 	default:
 		return errors.New("unsupported OS")
 	}
-	return errors2.WrapErrf(errors.New("docker not installed"), "install docker from %s", installUrl)
+	return fmt.Errorf("install docker from %s", installUrl)
 }
 
 func installPulumi() error {
@@ -65,7 +65,7 @@ func installPulumi() error {
 	ctx := context.Background()
 	_, err := pulumi.InstallPulumiCommand(ctx, nil)
 	if err != nil {
-		return errors2.WrapErrf(err, "failed to install pulumi")
+		return fmt.Errorf("failed to install pulumi: %w", err)
 	}
 	return nil
 }

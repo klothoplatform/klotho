@@ -2,11 +2,11 @@ package stack
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
@@ -30,20 +30,20 @@ type Reference struct {
 func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName string, stackDirectory string) (StackInterface, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "Failed to get user home directory")
+		return nil, fmt.Errorf("Failed to get user home directory: %w", err)
 	}
 	pulumiHomeDir := filepath.Join(homeDir, ".k2", "pulumi")
 
 	if exists, err := afero.DirExists(fs, pulumiHomeDir); !exists || err != nil {
 		if err := fs.MkdirAll(pulumiHomeDir, 0755); err != nil {
-			return nil, errors2.WrapErrf(err, "Failed to create pulumi home directory")
+			return nil, fmt.Errorf("Failed to create pulumi home directory: %w", err)
 		}
 	}
 
 	stateDir := filepath.Join(pulumiHomeDir, "state")
 	if exists, err := afero.DirExists(fs, stateDir); !exists || err != nil {
 		if err := fs.MkdirAll(stateDir, 0755); err != nil {
-			return nil, errors2.WrapErrf(err, "Failed to create stack state directory")
+			return nil, fmt.Errorf("Failed to create stack state directory: %w", err)
 		}
 	}
 
@@ -60,7 +60,7 @@ func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName 
 	})
 	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, auto.PulumiHome(pulumiHomeDir), secretsProvider)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 	return &stack, nil
 }
@@ -74,19 +74,19 @@ func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.Up
 
 	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return nil, nil, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 	log.Debugf("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return nil, nil, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, nil, fmt.Errorf("Failed to install dependencies: %w", err)
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return nil, nil, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, nil, fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting update")
@@ -98,7 +98,7 @@ func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.Up
 		optup.Refresh(),
 	)
 	if err != nil {
-		return nil, nil, errors2.WrapErrf(err, "Failed to update stack")
+		return nil, nil, fmt.Errorf("Failed to update stack: %w", err)
 	}
 
 	log.Infof("Successfully deployed stack %s", stackName)
@@ -116,19 +116,19 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 
 	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 	log.Infof("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, fmt.Errorf("Failed to install dependencies: %w", err)
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting preview")
@@ -140,7 +140,7 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 		optpreview.Refresh(),
 	)
 	if err != nil {
-		return nil, errors2.WrapErrf(err, "Failed to preview stack")
+		return nil, fmt.Errorf("Failed to preview stack: %w", err)
 	}
 
 	log.Infof("Successfully previewed stack %s", stackName)
@@ -156,7 +156,7 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	stackDirectory := stackReference.IacDirectory
 	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 
 	log.Debugf("Created/Selected stack %q", stackName)
@@ -164,7 +164,7 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to set stack configuration")
+		return fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting destroy")
@@ -177,7 +177,7 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer, eventStream, refresh)
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to destroy stack")
+		return fmt.Errorf("Failed to destroy stack: %w", err)
 	}
 
 	log.Infof("Successfully destroyed stack %s", stackName)
@@ -185,7 +185,7 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	log.Infof("Removing stack %s", stackName)
 	err = s.Workspace().RemoveStack(ctx, stackName)
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to remove stack")
+		return fmt.Errorf("Failed to remove stack: %w", err)
 	}
 	return nil
 }
