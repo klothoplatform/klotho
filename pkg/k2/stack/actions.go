@@ -65,7 +65,6 @@ func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName 
 	return &stack, nil
 }
 
-// RunUp performs an update of the stack
 func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.UpResult, *State, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
@@ -107,7 +106,6 @@ func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.Up
 	return &upResult, &stackState, err
 }
 
-// RunPreview performs a preview of the stack
 func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.PreviewResult, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
@@ -148,7 +146,6 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 	return &previewResult, nil
 }
 
-// RunDown destroys the stack and removes it
 func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	log := logging.GetLogger(ctx).Sugar()
 
@@ -190,7 +187,6 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	return nil
 }
 
-// InstallDependencies installs the necessary npm dependencies for the Pulumi project
 func InstallDependencies(ctx context.Context, stackDirectory string) error {
 	prog := tui.GetProgress(ctx)
 	log := logging.GetLogger(ctx).Sugar()
