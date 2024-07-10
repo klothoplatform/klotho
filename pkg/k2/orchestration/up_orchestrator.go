@@ -122,6 +122,8 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		msg := "Success"
 		if err != nil || r != nil {
 			msg = "Failed"
+		} else if dryRun {
+			msg += " (dry run)"
 		}
 		if skipped && err == nil {
 			msg = "Skipped"
