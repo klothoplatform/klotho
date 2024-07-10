@@ -2,11 +2,11 @@ package stack
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	errors2 "github.com/klothoplatform/klotho/pkg/errors"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
@@ -16,6 +16,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/auto/optup"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/tokens"
 	"github.com/pulumi/pulumi/sdk/v3/go/common/workspace"
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 )
 
@@ -26,32 +27,26 @@ type Reference struct {
 	AwsRegion    string
 }
 
-func Initialize(projectName string, stackName string, stackDirectory string, ctx context.Context) (auto.Stack, error) {
-	// PulumiHome customizes the location of $PULUMI_HOME where metadata is stored and plugins are installed.
+func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName string, stackDirectory string) (StackInterface, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return auto.Stack{}, errors2.WrapErrf(err, "Failed to get user home directory")
-
+		return nil, fmt.Errorf("Failed to get user home directory: %w", err)
 	}
 	pulumiHomeDir := filepath.Join(homeDir, ".k2", "pulumi")
-	ph := auto.PulumiHome(pulumiHomeDir)
 
-	// create pulumi home directory if it does not exist
-	if _, err := os.Stat(pulumiHomeDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(pulumiHomeDir, 0755); err != nil {
-			return auto.Stack{}, errors2.WrapErrf(err, "Failed to create pulumi home directory")
+	if exists, err := afero.DirExists(fs, pulumiHomeDir); !exists || err != nil {
+		if err := fs.MkdirAll(pulumiHomeDir, 0755); err != nil {
+			return nil, fmt.Errorf("Failed to create pulumi home directory: %w", err)
 		}
 	}
 
-	// create the stack directory if it does not exist
 	stateDir := filepath.Join(pulumiHomeDir, "state")
-	if _, err := os.Stat(stateDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(stateDir, 0755); err != nil {
-			return auto.Stack{}, errors2.WrapErrf(err, "Failed to create stack state directory")
+	if exists, err := afero.DirExists(fs, stateDir); !exists || err != nil {
+		if err := fs.MkdirAll(stateDir, 0755); err != nil {
+			return nil, fmt.Errorf("Failed to create stack state directory: %w", err)
 		}
 	}
 
-	// Project provides ProjectSettings to set once the workspace is created.
 	proj := auto.Project(workspace.Project{
 		Name:    tokens.PackageName("myproject"),
 		Runtime: workspace.NewProjectRuntimeInfo("nodejs", nil),
@@ -63,30 +58,34 @@ func Initialize(projectName string, stackName string, stackDirectory string, ctx
 	envvars := auto.EnvVars(map[string]string{
 		"PULUMI_CONFIG_PASSPHRASE": "",
 	})
-	return auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, ph, secretsProvider)
+	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, auto.PulumiHome(pulumiHomeDir), secretsProvider)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create or select stack: %w", err)
+	}
+	return &stack, nil
 }
 
-func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State, error) {
+func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.UpResult, *State, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 	log.Debugf("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, nil, fmt.Errorf("Failed to install dependencies: %w", err)
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return auto.UpResult{}, State{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, nil, fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting update")
@@ -98,36 +97,36 @@ func RunUp(ctx context.Context, stackReference Reference) (auto.UpResult, State,
 		optup.Refresh(),
 	)
 	if err != nil {
-		return upResult, State{}, errors2.WrapErrf(err, "Failed to update stack")
+		return nil, nil, fmt.Errorf("Failed to update stack: %w", err)
 	}
 
 	log.Infof("Successfully deployed stack %s", stackName)
 
 	stackState, err := GetState(ctx, s)
-	return upResult, stackState, err
+	return &upResult, &stackState, err
 }
 
-func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResult, error) {
+func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.PreviewResult, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
 
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 	log.Infof("Created/Selected stack %q", stackName)
 
 	err = InstallDependencies(ctx, stackDirectory)
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to install dependencies")
+		return nil, fmt.Errorf("Failed to install dependencies: %w", err)
 	}
 
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return auto.PreviewResult{}, errors2.WrapErrf(err, "Failed to set stack configuration")
+		return nil, fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting preview")
@@ -146,17 +145,17 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 
 	log.Infof("Successfully previewed stack %s", stackName)
 
-	return previewResult, nil
+	return &previewResult, nil
 }
 
-func RunDown(ctx context.Context, stackReference Reference) error {
+func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	log := logging.GetLogger(ctx).Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
-	s, err := Initialize("myproject", stackName, stackDirectory, ctx)
+	s, err := Initialize(ctx, fs, "myproject", stackName, stackDirectory)
 	if err != nil {
-		return errors2.WrapErrf(err, "failed to create or select stack: %s", stackName)
+		return fmt.Errorf("Failed to create or select stack: %w", err)
 	}
 
 	log.Debugf("Created/Selected stack %q", stackName)
@@ -164,7 +163,7 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 	// set stack configuration specifying the AWS region to deploy
 	err = s.SetConfig(ctx, "aws:region", auto.ConfigValue{Value: stackReference.AwsRegion})
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to set stack configuration")
+		return fmt.Errorf("Failed to set stack configuration: %w", err)
 	}
 
 	log.Debug("Starting destroy")
@@ -177,7 +176,7 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 	// run the destroy to remove our resources
 	_, err = s.Destroy(ctx, stdoutStreamer, eventStream, refresh)
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to destroy stack")
+		return fmt.Errorf("Failed to destroy stack: %w", err)
 	}
 
 	log.Infof("Successfully destroyed stack %s", stackName)
@@ -185,7 +184,7 @@ func RunDown(ctx context.Context, stackReference Reference) error {
 	log.Infof("Removing stack %s", stackName)
 	err = s.Workspace().RemoveStack(ctx, stackName)
 	if err != nil {
-		return errors2.WrapErrf(err, "Failed to remove stack")
+		return fmt.Errorf("Failed to remove stack: %w", err)
 	}
 	return nil
 }

@@ -154,10 +154,12 @@ func (r *ResourceRef) String() string {
 
 const (
 	// ResourceRefTypeTemplate is a reference to a resource template and will be fully resolved prior to constraint generation
+	// e.g., ${resources:resourceName.property} or ${resources:resourceName}
 	ResourceRefTypeTemplate ResourceRefType = "template"
 	// ResourceRefTypeIaC is a reference to an infrastructure as code resource that will be resolved by the engine
+	// e.g., ${resources:resourceName#property}
 	ResourceRefTypeIaC ResourceRefType = "iac"
-	// ResourceRefTypeInterpolated is a reference to an interpolated value.
+	// ResourceRefTypeInterpolated is an initial interpolation reference to a resource.
 	// An interpolated value will be evaluated during initial processing and will be converted to one of the other types.
 	ResourceRefTypeInterpolated ResourceRefType = "interpolated"
 )

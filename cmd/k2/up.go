@@ -17,6 +17,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -128,7 +129,6 @@ func up(cmd *cobra.Command, args []string) error {
 	// Take the IR -- generate and save a state file and stored in the
 	// output directory, the path should include the environment name and
 	// the project URN
-
 	appUrn, err := model.ParseURN(ir.AppURN)
 	if err != nil {
 		return fmt.Errorf("error parsing app URN: %w", err)
@@ -147,7 +147,7 @@ func up(cmd *cobra.Command, args []string) error {
 
 	stateFile := filepath.Join(appDir, "state.yaml")
 
-	sm := model.NewStateManager(model.OSFS{}, stateFile)
+	sm := model.NewStateManager(afero.NewOsFs(), stateFile)
 
 	if !sm.CheckStateFileExists() {
 		sm.InitState(ir)

@@ -8,12 +8,14 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/tui"
+	"github.com/spf13/afero"
 	"go.uber.org/zap"
 )
 
 type (
 	DownOrchestrator struct {
 		*Orchestrator
+		FS afero.Fs
 	}
 
 	DownRequest struct {
@@ -25,6 +27,7 @@ type (
 func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchestrator {
 	return &DownOrchestrator{
 		Orchestrator: NewOrchestrator(sm, outputPath),
+		FS:           afero.NewOsFs(),
 	}
 }
 
@@ -110,7 +113,7 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 
 				stackRef := stackRefCache[construct.URN.ResourceID]
 
-				err := stack.RunDown(ctx, stackRef)
+				err := stack.RunDown(ctx, do.FS, stackRef)
 				if err != nil {
 					prog.Complete("Failed")
 

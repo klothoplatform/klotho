@@ -28,6 +28,7 @@ require (
 	github.com/r3labs/diff v1.1.0
 	github.com/schollz/progressbar/v3 v3.14.4
 	github.com/smacker/go-tree-sitter v0.0.0-20240625050157-a31a98a7c0f6
+	github.com/spf13/afero v1.11.0
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/thessem/zap-prettyconsole v0.5.0

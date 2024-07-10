@@ -9,6 +9,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +54,7 @@ func down(cmd *cobra.Command, args []string) error {
 
 	projectPath := filepath.Join(downConfig.outputPath, project, app, env)
 	stateFile := filepath.Join(projectPath, "state.yaml")
-	sm := model.NewStateManager(model.OSFS{}, stateFile)
+	sm := model.NewStateManager(afero.NewOsFs(), stateFile)
 
 	if !sm.CheckStateFileExists() {
 		return fmt.Errorf("state file does not exist: %s", stateFile)
