@@ -138,10 +138,15 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 		optpreview.EventStreams(Events(ctx, "Previewing")),
 		optpreview.Refresh(),
 	)
-	if err != nil {
+
 		str := err.Error()
 		// Use the first line only, the rest of it is redundant with the first line or the live logging already shown
 		firstLine := strings.Split(str, "\n")[0]
+		
+		if auto.IsCompilationError(err) || auto.IsRuntimeError(err) || auto.IsCreateStack409Error(err) {
+			return nil, fmt.Errorf("Failed to preview stack: %s", firstLine)
+		}
+
 		log.Warnf("Failed to preview stack %s: %s", stackName, firstLine)
 
 		// Don't return an error for preview failures so that futher previewing can proceed
