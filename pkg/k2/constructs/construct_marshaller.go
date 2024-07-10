@@ -114,27 +114,6 @@ func (m *ConstructMarshaller) marshalEdge(c *Construct, e *Edge) (constraints.Co
 	}}, nil
 }
 
-// marshalImportedResource marshals an imported resource into a list of constraints
-func (m *ConstructMarshaller) marshalImportedResource(r construct.ResourceId, props map[string]any) (constraints.ConstraintList, error) {
-	// We don't need to marshal ResourceRefs of imported resources when generating constraints,
-	// as they were already marshaled when during evaluation of the construct that declared the imported resource.
-	var cs constraints.ConstraintList
-	cs = append(cs, &constraints.ApplicationConstraint{
-		Operator: "import",
-		Node:     r,
-	})
-	for k, v := range props {
-		cs = append(cs, &constraints.ResourceConstraint{
-			Operator: "equals",
-			Target:   r,
-			Property: k,
-			Value:    v,
-		})
-	}
-
-	return cs, nil
-}
-
 // marshalOutput marshals an OutputDeclaration into a list of constraints
 func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.ConstraintList, error) {
 	var cs constraints.ConstraintList
