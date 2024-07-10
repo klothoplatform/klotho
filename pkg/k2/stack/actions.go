@@ -140,7 +140,7 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 	if err != nil {
 		log.Warnf("Failed to preview stack %s: %v", stackName, err)
 		// Don't return an error for preview failures so that futher previewing can proceed
-		return previewResult, nil
+		return nil, nil
 	}
 
 	log.Infof("Successfully previewed stack %s", stackName)
