@@ -49,25 +49,26 @@ type DebugConfig struct {
 	Mode    string
 }
 
-func copyToTempDir(ctx context.Context, name, content string) string {
-	log := logging.GetLogger(ctx).Sugar()
+func copyToTempDir(name, content string) (string, error) {
 	f, err := os.CreateTemp("", fmt.Sprintf("k2_%s*.py", name))
 	if err != nil {
-		log.Fatalf("failed to create temp file: %v", err)
+		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer f.Close()
 
 	if _, err := f.WriteString(content); err != nil {
-		log.Fatalf("failed to write to temp file: %v", name, err)
+		return "", fmt.Errorf("failed to write to temp file: %w", err)
 	}
-	return f.Name()
+	return f.Name(), nil
 
 }
 
-func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *ServerAddress) {
+func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *ServerAddress, error) {
 	log := logging.GetLogger(ctx).Sugar()
-	// copy the language host to the temp directory
-	hostPath := copyToTempDir(ctx, "python_language_host", pythonLanguageHost)
+	hostPath, err := copyToTempDir("python_language_host", pythonLanguageHost)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not copy python language host to temp dir: %w", err)
+	}
 
 	args := []string{"run", "python", hostPath}
 	if debugConfig.Enabled {
@@ -103,7 +104,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 
 	log.Debugf("Executing: %s for %v", cmd.Path, cmd.Args)
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("failed to start Python client: %v", err)
+		return nil, nil, fmt.Errorf("failed to start Python client: %w", err)
 	}
 	log.Debug("Python client started")
 
@@ -116,5 +117,5 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 		}
 	}()
 
-	return cmd, lf
+	return cmd, lf, nil
 }

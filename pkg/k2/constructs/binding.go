@@ -25,7 +25,7 @@ type (
 		Edges              []*Edge
 		OutputDeclarations map[string]OutputDeclaration
 		Outputs            map[string]any
-		ImportedResources  map[construct.ResourceId]map[string]any
+		InitialGraph       construct.Graph
 	}
 )
 
@@ -71,8 +71,8 @@ func (b *Binding) GetTemplateOutputs() map[string]OutputTemplate {
 	return b.BindingTemplate.Outputs
 }
 
-func (b *Binding) GetImportedResources() map[construct.ResourceId]map[string]any {
-	return b.ImportedResources
+func (b *Binding) GetInitialGraph() construct.Graph {
+	return b.InitialGraph
 }
 
 func (b *Binding) DeclareOutput(key string, declaration OutputDeclaration) {
@@ -88,6 +88,14 @@ func (b *Binding) GetURN() model.URN {
 		return model.URN{}
 	}
 	return b.Owner.GetURN()
+}
+
+func (b *Binding) String() string {
+	e := Edge{
+		From: ResourceRef{ConstructURN: b.From.URN},
+		To:   ResourceRef{ConstructURN: b.To.URN},
+	}
+	return e.String()
 }
 
 func (b *Binding) GetPropertySource() *PropertySource {
@@ -169,6 +177,6 @@ func (ce *ConstructEvaluator) newBinding(owner, from, to model.URN) (*Binding, e
 		Edges:              []*Edge{},
 		OutputDeclarations: make(map[string]OutputDeclaration),
 		Outputs:            make(map[string]any),
-		ImportedResources:  make(map[construct.ResourceId]map[string]any),
+		InitialGraph:       construct.NewGraph(),
 	}, nil
 }

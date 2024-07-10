@@ -49,7 +49,7 @@ func (e *EdgeExpand) ExpandEdge(
 		Graph: construct.NewGraph(),
 	}
 
-	defer writeGraph(input, tempGraph, result.Graph)
+	defer writeGraph(ctx.Context(), input, tempGraph, result.Graph)
 	var errs error
 	// TODO: Revisit if we want to run on namespaces (this causes issue depending on what the namespace is)
 	// A file system can be a namespace and that doesnt really fit the reason we are running this at the moment

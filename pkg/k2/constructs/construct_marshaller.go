@@ -26,14 +26,6 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 		return nil, fmt.Errorf("could not find construct %s", constructURN)
 	}
 
-	for id, r := range c.ImportedResources {
-		resourceConstraints, err := m.marshalImportedResource(id, r)
-		if err != nil {
-			return nil, fmt.Errorf("could not marshall imported resource: %w", err)
-		}
-		cs = append(cs, resourceConstraints...)
-	}
-
 	for _, r := range c.Resources {
 		resourceConstraints, err := m.marshalResource(c, r)
 		if err != nil {

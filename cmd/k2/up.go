@@ -64,16 +64,18 @@ func up(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(ctx)
 	}
 
-	langHost, addr := language_host.StartPythonClient(ctx, language_host.DebugConfig{
+	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
 		Enabled: upConfig.debugMode != "",
 		Port:    upConfig.debugPort,
 		Mode:    upConfig.debugMode,
 	})
+	if err != nil {
+		return err
+	}
+
 	defer func() {
-		if langHost.Process != nil {
-			if err := langHost.Process.Kill(); err != nil {
-				zap.L().Warn("failed to kill Python client", zap.Error(err))
-			}
+		if err := langHost.Process.Kill(); err != nil {
+			zap.L().Warn("failed to kill Python client", zap.Error(err))
 		}
 	}()
 

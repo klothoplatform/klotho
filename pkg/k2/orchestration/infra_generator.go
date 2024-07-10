@@ -3,10 +3,11 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/infra/iac"
 	kio "github.com/klothoplatform/klotho/pkg/io"
@@ -39,18 +40,26 @@ func NewInfraGenerator() (*InfraGenerator, error) {
 	}, nil
 }
 
-func (g *InfraGenerator) Run(ctx context.Context, c constraints.Constraints, outDir string) error {
-	// TODO the engine currently assumes only 1 run globally, so the debug graphs and other files
-	// will get overwritten with each run. We should fix this.
+func writeYamlFile(path string, v any) error {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return yaml.NewEncoder(f).Encode(v)
+}
+
+func (g *InfraGenerator) Run(ctx context.Context, req engine.SolveRequest, outDir string) (solution.Solution, error) {
+	if err := writeYamlFile(filepath.Join(outDir, "engine_input.yaml"), req); err != nil {
+		return nil, fmt.Errorf("failed to write engine input: %w", err)
+	}
+
 	sol, errs := g.resolveResources(ctx, InfraRequest{
-		SolveRequest: engine.SolveRequest{
-			Constraints: c,
-			GlobalTag:   "k2",
-		},
-		OutputDir: outDir,
+		SolveRequest: req,
+		OutputDir:    outDir,
 	})
 	if errs != nil {
-		return fmt.Errorf("failed to resolve resources: %v", errs)
+		return nil, fmt.Errorf("failed to resolve resources: %v", errs)
 	}
 
 	err := g.generateIac(iacRequest{
@@ -59,30 +68,26 @@ func (g *InfraGenerator) Run(ctx context.Context, c constraints.Constraints, out
 		OutputDir:     outDir,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to generate iac: %w", err)
+		return nil, fmt.Errorf("failed to generate iac: %w", err)
 
 	}
-	return nil
+	return sol, nil
 }
 
 func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequest) (solution.Solution, error) {
-	sol, engineErr := g.Engine.Run(ctx, &request.SolveRequest)
 	log := logging.GetLogger(ctx)
+	log.Info("Running engine")
 
-	log.Info("Engine finished running... Generating views")
+	sol, engineErr := g.Engine.Run(ctx, &request.SolveRequest)
+	if engineErr != nil {
+		return nil, fmt.Errorf("Engine failed: %w", engineErr)
+	}
+
+	log.Info("Generating views")
 
 	var files []kio.File
 
 	log.Info("Serializing constraints")
-	constraintBytes, err := yaml.Marshal(request.Constraints)
-	if err != nil {
-		log.Error("Failed to marshal constraints")
-	}
-	constraintFile := &kio.RawFile{
-		FPath:   "constraints.yaml",
-		Content: constraintBytes,
-	}
-	files = append(files, constraintFile)
 	vizFiles, err := g.Engine.VisualizeViews(sol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate views %w", err)
@@ -118,7 +123,7 @@ func (g *InfraGenerator) resolveResources(ctx context.Context, request InfraRequ
 		return nil, fmt.Errorf("failed to write output files: %w", err)
 	}
 
-	return sol, engineErr
+	return sol, nil
 }
 
 type iacRequest struct {

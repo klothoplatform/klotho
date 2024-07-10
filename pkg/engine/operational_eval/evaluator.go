@@ -290,7 +290,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 	}
 	log := eval.Log().Named("enqueue")
 
-	var errs error
+	var errs EnqueueErrors
 	for key, v := range changes.nodes {
 		_, err := eval.graph.Vertex(key)
 		switch {
@@ -302,7 +302,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 				}
 			})
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
+				errs.Append(key, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
 			}
 			if eval.currentKey != nil {
@@ -310,21 +310,21 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 			}
 			log.Debugf("Enqueued %s", key)
 			if err := eval.unevaluated.AddVertex(v); err != nil {
-				errs = errors.Join(errs, err)
+				errs.Append(key, fmt.Errorf("could not add unevaluated vertex %s: %w", key, err))
 			}
 
 		case err == nil:
 			existing, err := eval.graph.Vertex(key)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
+				errs.Append(key, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 				continue
 			}
 			if v != existing {
 				existing.UpdateFrom(v)
 			}
 
-		case err != nil:
-			errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
+		default:
+			errs.Append(key, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 		}
 	}
 	if errs != nil {
@@ -337,7 +337,9 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 			log.Debug(source)
 		}
 		for target := range targets {
-			errs = errors.Join(errs, eval.addEdge(source, target))
+			if err := eval.addEdge(source, target); err != nil {
+				errs.Append(source, fmt.Errorf("-> %s: %w", target, err))
+			}
 		}
 	}
 	if errs != nil {

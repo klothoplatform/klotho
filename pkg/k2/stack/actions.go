@@ -139,7 +139,9 @@ func RunPreview(ctx context.Context, stackReference Reference) (auto.PreviewResu
 		optpreview.Refresh(),
 	)
 	if err != nil {
-		return previewResult, errors2.WrapErrf(err, "Failed to preview stack")
+		log.Warnf("Failed to preview stack %s: %v", stackName, err)
+		// Don't return an error for preview failures so that futher previewing can proceed
+		return previewResult, nil
 	}
 
 	log.Infof("Successfully previewed stack %s", stackName)

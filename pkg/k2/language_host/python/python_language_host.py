@@ -2,13 +2,47 @@ import argparse
 import runpy
 import signal
 from concurrent import futures
+from enum import Enum
+from time import sleep
 
 import grpc
 import yaml
-
-from klotho.debug_util import DebugMode, configure_debugging
-from klotho.runtime import instance as runtime
 from klotho import service_pb2, service_pb2_grpc
+from klotho.runtime import instance as runtime
+
+
+class DebugMode(Enum):
+    NONE = 0
+    VSCODE = 1
+    INTELLIJ = 2
+
+
+def configure_debugging(port: int, mode: DebugMode = DebugMode.VSCODE):
+    if mode == DebugMode.VSCODE:
+        import debugpy
+
+        print("Attaching to debugger...")
+        for i in range(10):
+            try:
+                debugpy.connect(("localhost", port))
+                break
+            except Exception as e:
+                if i == 9:
+                    raise e
+                sleep(i)  # simple linear backoff
+
+        print("Debugger attached.")
+    elif mode == DebugMode.INTELLIJ:
+        import pydevd_pycharm
+
+        pydevd_pycharm.settrace(
+            "localhost",
+            port=port,
+            stdoutToServer=True,
+            stderrToServer=True,
+            suspend=False,
+        )
+        print("Debugger attached.")
 
 
 class KlothoService(service_pb2_grpc.KlothoServiceServicer):
@@ -29,7 +63,8 @@ class KlothoService(service_pb2_grpc.KlothoServiceServicer):
         resources = yaml.safe_load(request.yaml_payload)
         resolved_outputs = yaml.safe_dump(runtime.resolve_output_references(resources))
         return service_pb2.RegisterConstructReply(
-            message="Resource registered successfully", yaml_payload=resolved_outputs)
+            message="Resource registered successfully", yaml_payload=resolved_outputs
+        )
 
 
 def serve() -> grpc.Server:
@@ -37,8 +72,8 @@ def serve() -> grpc.Server:
     service_pb2_grpc.add_KlothoServiceServicer_to_server(KlothoService(), server)
     port = server.add_insecure_port("127.0.0.1:0")
     if port == 0:
-        raise Exception('Failed to bind to port')
-    print(f'Starting server on port {port}')
+        raise Exception("Failed to bind to port")
+    print(f"Starting server on port {port}")
     server.start()
     # NOTE the following print is used to communicate to the go CLI the port the server is listening on
     # The format must be kept in sync with the address parsing logic and the flush=True ensures that it is written
@@ -50,8 +85,15 @@ def serve() -> grpc.Server:
 # simple cli to start the server with args
 def cli():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--debug", type=lambda c: DebugMode[c.upper()], default=DebugMode.NONE, help="Enable debugging")
-    ap.add_argument("--debug-port", type=int, default=5678, help="Port to run the debugger on")
+    ap.add_argument(
+        "--debug",
+        type=lambda c: DebugMode[c.upper()],
+        default=DebugMode.NONE,
+        help="Enable debugging",
+    )
+    ap.add_argument(
+        "--debug-port", type=int, default=5678, help="Port to run the debugger on"
+    )
 
     args = ap.parse_args()
 

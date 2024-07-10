@@ -11,12 +11,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	"go.uber.org/zap"
 
+	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/constraints"
+	"github.com/klothoplatform/klotho/pkg/engine"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	stateconverter "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_converter"
 	statetemplate "github.com/klothoplatform/klotho/pkg/infra/state_reader/state_template"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -26,10 +29,14 @@ import (
 )
 
 type ConstructEvaluator struct {
-	constructs        map[model.URN]*Construct
+	DryRun bool
+
 	stateManager      *model.StateManager
 	stackStateManager *stack.StateManager
 	stateConverter    stateconverter.StateConverter
+
+	mu         sync.Mutex
+	constructs map[model.URN]*Construct
 }
 
 func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*ConstructEvaluator, error) {
@@ -46,28 +53,31 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}, nil
 }
 
-func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN, state model.State, ctx context.Context) (constraints.Constraints, error) {
+func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN, state model.State, ctx context.Context) (engine.SolveRequest, error) {
 	ci, err := ce.evaluateConstruct(constructUrn, state, ctx)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
+		return engine.SolveRequest{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
 	}
 	err = ce.evaluateBindings(ci, ctx)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error evaluating bindings: %w", err)
+		return engine.SolveRequest{}, fmt.Errorf("error evaluating bindings: %w", err)
 	}
 
 	marshaller := ConstructMarshaller{ConstructEvaluator: ce}
 	constraintList, err := marshaller.Marshal(constructUrn)
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
+		return engine.SolveRequest{}, fmt.Errorf("error marshalling construct to constraints: %w", err)
 	}
 
 	cs, err := constraintList.ToConstraints()
 	if err != nil {
-		return constraints.Constraints{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
+		return engine.SolveRequest{}, fmt.Errorf("error converting constraint list to constraints: %w", err)
 	}
 
-	return cs, nil
+	return engine.SolveRequest{
+		Constraints:  cs,
+		InitialState: ci.InitialGraph,
+	}, nil
 }
 
 // Matches one or more interpolation groups in a string e.g., ${inputs:foo.bar}-baz-${resource:Boz}
@@ -506,7 +516,9 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 	if err != nil {
 		return nil, fmt.Errorf("could not create construct: %w", err)
 	}
+	ce.mu.Lock()
 	ce.constructs[constructUrn] = c
+	ce.mu.Unlock()
 
 	if err = ce.initBindings(c, state); err != nil {
 		return nil, fmt.Errorf("could not initialize bindings: %w", err)
@@ -540,36 +552,49 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 // If the input's status is not "resolved", it returns an error.
 func (ce *ConstructEvaluator) resolveInput(k string, v model.Input, t InputTemplate) (any, error) {
 	if v.Status != "" && v.Status != model.InputStatusResolved {
-		return nil, fmt.Errorf("input '%s' is not resolved", k)
+		if !ce.DryRun {
+			return nil, fmt.Errorf("input '%s' is not resolved", k)
+		}
 	}
-	var resolvedValue any
 	switch {
 	case strings.HasPrefix(t.Type, "Construct<"):
 		cType := strings.TrimSuffix(strings.TrimPrefix(t.Type, "Construct<"), ">")
 
-		if iURN, ok := v.Value.(model.URN); ok && iURN.IsResource() && iURN.Type == "construct" && iURN.Subtype == cType {
-			ic, ok := ce.constructs[iURN]
-			if !ok {
-				return nil, fmt.Errorf("could not find construct %s", iURN)
+		iURN, ok := v.Value.(model.URN)
+		if !ok {
+			urn, err := model.ParseURN(v.DependsOn)
+			if err != nil {
+				return nil, fmt.Errorf("input '%s' invalid DependsOn construct URN: %w", k, err)
 			}
-			resolvedValue = ic
+			iURN = *urn
+		}
+
+		if iURN.IsResource() && iURN.Type == "construct" && iURN.Subtype == cType {
+			ce.mu.Lock()
+			ic, ok := ce.constructs[iURN]
+			ce.mu.Unlock()
+
+			if !ok {
+				return nil, fmt.Errorf("input '%s' could not find construct %s", k, iURN)
+			}
+			return ic, nil
 		} else {
-			return nil, fmt.Errorf("invalid construct URN: %v", v.Value)
+			return nil, fmt.Errorf("input '%s' invalid construct URN: %+v", k, v)
 		}
 	case t.Type == "path":
 		var err error
 		pStr, ok := v.Value.(string)
 		if !ok {
-			return "", fmt.Errorf("invalid path type: expected string, got %T", v.Value)
+			return "", fmt.Errorf("input '%s' invalid path type: expected string, got %T", k, v.Value)
 		}
-		resolvedValue, err = handlePathInput(pStr)
+		path, err := handlePathInput(pStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("input '%s' could not handle path input: %w", k, err)
 		}
+		return path, nil
 	default:
-		resolvedValue = v.Value
+		return v.Value, nil
 	}
-	return resolvedValue, nil
 }
 
 func handlePathInput(value string) (string, error) {
@@ -642,9 +667,6 @@ func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) erro
 			mVal, ok := d.Inputs[key]
 			if !ok {
 				continue
-			}
-			if mVal.Status != "" && mVal.Status != model.InputStatusResolved {
-				return fmt.Errorf("input '%s' is not resolved", key)
 			}
 			resolvedValue, err := ce.resolveInput(key, mVal, inputTemplate)
 			if err != nil {
@@ -750,14 +772,14 @@ func (ce *ConstructEvaluator) applyBindings(c *Construct) error {
 			}
 		}
 
-		// Merge imported resources
-		for id, properties := range binding.ImportedResources {
-			res, exists := c.ImportedResources[id]
-			if !exists {
-				c.ImportedResources[id] = properties
-			} else {
-				c.ImportedResources[id] = mergeProperties(res, properties)
-			}
+		err := c.InitialGraph.AddVerticesFrom(binding.InitialGraph)
+		if err != nil {
+			return fmt.Errorf("could not add vertices from binding %s graph: %w", binding, err)
+		}
+
+		err = c.InitialGraph.AddEdgesFrom(binding.InitialGraph)
+		if err != nil {
+			return fmt.Errorf("could not add edges from binding %s graph: %w", binding, err)
 		}
 	}
 
@@ -1009,9 +1031,136 @@ func (ce *ConstructEvaluator) evaluateOutputs(o InfraOwner, interpolationCtx Int
 
 var constructTypePattern = regexp.MustCompile(`^Construct<([\w.-]+)>$`)
 
-func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context) error {
+func (ce *ConstructEvaluator) importFrom(ctx context.Context, o InfraOwner, ic *Construct) error {
 	log := logging.GetLogger(ctx).Sugar()
-	importedResources := o.GetImportedResources()
+
+	// TODO: DS - consider whether to include transitive resource imports
+
+	initGraph := o.GetInitialGraph()
+	sol := ic.Solution
+
+	stackState, hasState := ce.stackStateManager.ConstructStackState[ic.URN]
+
+	// NOTE(gg): using topo sort to get all resources, order doesn't matter
+	resourceIds, err := construct.TopologicalSort(sol.DataflowGraph())
+	if err != nil {
+		return fmt.Errorf("could not get resources from %s solution: %w", ic.URN, err)
+	}
+	resources := make(map[construct.ResourceId]*construct.Resource)
+	for _, rId := range resourceIds {
+		var res *construct.Resource
+		if hasState {
+			if state, ok := stackState.Resources[rId]; ok {
+				res, err = ce.stateConverter.ConvertResource(stateconverter.Resource{
+					Urn:     string(state.URN),
+					Type:    string(state.Type),
+					Outputs: state.Outputs,
+				})
+				if err != nil {
+					return fmt.Errorf("could not convert state for %s.%s: %w", ic.URN, rId, err)
+				}
+				log.Debugf("Imported %s from state", rId)
+			}
+		}
+		if res == nil {
+			res, err = sol.DataflowGraph().Vertex(rId)
+			if err != nil {
+				return fmt.Errorf("could not get resource %s.%s from solution: %w", ic.URN, rId, err)
+			}
+			log.Debugf("Imported %s from solution", rId)
+		}
+		tmpl, err := sol.KnowledgeBase().GetResourceTemplate(rId)
+		if err != nil {
+			return fmt.Errorf("could not get resource template %s.%s: %w", ic.URN, rId, err)
+		}
+
+		props := make(construct.Properties)
+		for k, v := range res.Properties {
+			props[k] = v
+		}
+		hasImportId := false
+		// set a fake import id, otherwise index.ts will have things like
+		//   Type.get("name", <no value>)
+		for k, prop := range tmpl.Properties {
+			if prop.Details().Required && prop.Details().DeployTime {
+				props[k] = "FAKE (dryrun)"
+				hasImportId = true
+				break
+			}
+		}
+		if !hasImportId {
+			continue
+		}
+
+		res = &construct.Resource{
+			ID:         res.ID,
+			Properties: props,
+			Imported:   true,
+		}
+
+		if err := initGraph.AddVertex(res); err != nil {
+			return fmt.Errorf("could not create imported resource %s from %s: %w", rId, ic.URN, err)
+		}
+		resources[rId] = res
+	}
+	err = filterImportProperties(resources)
+	if err != nil {
+		return fmt.Errorf("could not filter import properties for %s: %w", ic.URN, err)
+	}
+
+	edges, err := sol.DataflowGraph().Edges()
+	if err != nil {
+		return fmt.Errorf("could not get edges from %s solution: %w", ic.URN, err)
+	}
+	for _, e := range edges {
+		err := initGraph.AddEdge(e.Source, e.Target, func(ep *graph.EdgeProperties) {
+			ep.Data = e.Properties.Data
+		})
+		switch {
+		case err == nil:
+			log.Debugf("Imported edge %s -> %s from solution", e.Source, e.Target)
+
+		case errors.Is(err, graph.ErrVertexNotFound):
+			log.Debugf("Skipping import edge %s -> %s from solution", e.Source, e.Target)
+
+		default:
+			return fmt.Errorf("could not create imported edge %s -> %s from %s: %w", e.Source, e.Target, ic.URN, err)
+		}
+	}
+
+	return nil
+}
+
+// filterImportProperties filters out any references to resources that were skipped from importing.
+func filterImportProperties(resources map[construct.ResourceId]*construct.Resource) error {
+	var errs []error
+	clearProp := func(id construct.ResourceId, path construct.PropertyPath) {
+		if err := path.Remove(nil); err != nil {
+			errs = append(errs,
+				fmt.Errorf("error clearing %s: %w", construct.PropertyRef{Resource: id, Property: path.String()}, err),
+			)
+		}
+	}
+	for id, r := range resources {
+		_ = r.WalkProperties(func(path construct.PropertyPath, _ error) error {
+			switch v := path.Get().(type) {
+			case construct.ResourceId:
+				if _, ok := resources[v]; !ok {
+					clearProp(id, path)
+				}
+
+			case construct.PropertyRef:
+				if _, ok := resources[v.Resource]; !ok {
+					clearProp(id, path)
+				}
+			}
+			return nil
+		})
+	}
+	return errors.Join(errs...)
+}
+
+func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context) error {
 	for iName, i := range o.GetTemplateInputs() {
 		// parse construct type from input type in the form of Construct<type>
 		// get the construct from the evaluator if it exists and is the correct type or return an error
@@ -1020,8 +1169,7 @@ func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context)
 		if i.Type == "Construct" {
 			return errors.New("input of type Construct must have a type specified in the form of Construct<type>")
 		}
-		typeMatch := constructTypePattern.FindStringSubmatch(i.Type)
-		if len(typeMatch) == 0 {
+		if !constructTypePattern.MatchString(i.Type) {
 			continue // skip the input if it is not a construct
 		}
 
@@ -1035,58 +1183,32 @@ func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context)
 			return fmt.Errorf("value %v of input %s is not a construct", iName, resolvedInput)
 		}
 
-		// TODO: DS - consider whether to include transitive resource imports
-		stackState, ok := ce.stackStateManager.ConstructStackState[ic.URN]
-		if !ok {
-			return fmt.Errorf("could not find stack state for construct %s", ic.URN)
-		}
-		for rId, state := range stackState.Resources {
-			cState, err := ce.stateConverter.ConvertResource(stateconverter.Resource{
-				Urn:     string(state.URN),
-				Type:    string(state.Type),
-				Outputs: state.Outputs,
-			})
-			if err != nil {
-				return fmt.Errorf("could not convert state: %w", err)
-			}
-			importedResources[rId] = cState.Properties
-			log.Infof("imported resource %s", rId)
+		if err := ce.importFrom(ctx, o, ic); err != nil {
+			return fmt.Errorf("could not import resources from %s: %w", ic.URN, err)
 		}
 	}
 	return nil
 }
 
 func (ce *ConstructEvaluator) importBindingToResources(b *Binding, ctx context.Context) error {
-	log := logging.GetLogger(ctx).Sugar()
-	importedResources := b.GetImportedResources()
-	// TODO: DS - consider whether to include transitive resource imports
-	tc := b.To
-	stackState, ok := ce.stackStateManager.ConstructStackState[tc.URN]
-	if !ok {
-		return fmt.Errorf("could not find stack state for construct %s", tc.URN)
-	}
-	for rId, state := range stackState.Resources {
-		cState, err := ce.stateConverter.ConvertResource(stateconverter.Resource{
-			Urn:     string(state.URN),
-			Type:    string(state.Type),
-			Outputs: state.Outputs,
-		})
-		if err != nil {
-			return fmt.Errorf("could not convert state: %w", err)
-		}
-		if cState == nil {
-			continue
-		}
-		importedResources[rId] = cState.Properties
-		log.Infof("imported resource %s", rId)
-	}
-	return nil
+	return ce.importFrom(ctx, b, b.To)
 }
 
 func (ce *ConstructEvaluator) RegisterOutputValues(urn model.URN, outputs map[string]any) {
+	ce.mu.Lock()
+	defer ce.mu.Unlock()
 	if c, ok := ce.constructs[urn]; ok {
 		c.Outputs = outputs
 	}
+}
+
+func (ce *ConstructEvaluator) AddSolution(urn model.URN, sol solution.Solution) {
+	ce.mu.Lock()
+	defer ce.mu.Unlock()
+
+	// panic is fine here if urn isn't in map
+	// will only happen in programmer error cases
+	ce.constructs[urn].Solution = sol
 }
 
 func loadStateConverter() (stateconverter.StateConverter, error) {
