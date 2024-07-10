@@ -583,17 +583,17 @@ func TestRegisterOutputValues(t *testing.T) {
 		Status: ConstructCreating,
 		URN:    dependentURN,
 		Inputs: map[string]Input{
-			"image": {
+			"Image": {
 				Value:     nil,
 				Encrypted: false,
 				Status:    InputStatusPending,
-				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Image",
 			},
-			"port": {
+			"Port": {
 				Value:     nil,
 				Encrypted: false,
 				Status:    InputStatusPending,
-				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+				DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Port",
 			},
 		},
 	}
@@ -603,8 +603,8 @@ func TestRegisterOutputValues(t *testing.T) {
 
 	// Case with valid outputs
 	outputs := map[string]any{
-		"image": "nginx:latest",
-		"port":  80,
+		"urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Image": "nginx:latest",
+		"urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Port":  80,
 	}
 
 	err := sm.RegisterOutputValues(*constructURN, outputs)
@@ -627,17 +627,17 @@ func TestRegisterOutputValues(t *testing.T) {
 	}
 
 	expectedInputs := map[string]Input{
-		"image": {
+		"Image": {
 			Value:     "nginx:latest",
 			Encrypted: false,
 			Status:    InputStatusResolved,
-			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Image",
 		},
-		"port": {
+		"Port": {
 			Value:     80,
 			Encrypted: false,
 			Status:    InputStatusResolved,
-			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container",
+			DependsOn: "urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Port",
 		},
 	}
 
