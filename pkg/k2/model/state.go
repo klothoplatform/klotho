@@ -218,14 +218,19 @@ func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) er
 		}
 
 		updated := false
-		for key, input := range c.Inputs {
+		for k, input := range c.Inputs {
 			if input.DependsOn == urn.String() {
-				if output, ok := outputs[key]; ok {
-					input.Value = output
-					input.Status = InputStatusResolved
-					c.Inputs[key] = input
-					updated = true
-				}
+				input.Status = InputStatusResolved
+				input.Value = urn
+				c.Inputs[k] = input
+				updated = true
+			}
+
+			if o, ok := outputs[input.DependsOn]; ok {
+				input.Value = o
+				input.Status = InputStatusResolved
+				c.Inputs[k] = input
+				updated = true
 			}
 		}
 
