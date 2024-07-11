@@ -3,6 +3,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -43,6 +44,11 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 
 func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
+
+	err := os.MkdirAll(constructOutDir, 0755)
+	if err != nil {
+		return stack.Reference{}, fmt.Errorf("error creating construct output directory: %w", err)
+	}
 
 	req, err := uo.ConstructEvaluator.Evaluate(constructUrn, state, ctx)
 	if err != nil {
