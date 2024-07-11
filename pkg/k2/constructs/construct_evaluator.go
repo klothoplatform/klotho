@@ -1073,35 +1073,37 @@ func (ce *ConstructEvaluator) importFrom(ctx context.Context, o InfraOwner, ic *
 			if err != nil {
 				return fmt.Errorf("could not get resource %s.%s from solution: %w", ic.URN, rId, err)
 			}
-			log.Debugf("Imported %s from solution", rId)
-		}
-		tmpl, err := sol.KnowledgeBase().GetResourceTemplate(rId)
-		if err != nil {
-			return fmt.Errorf("could not get resource template %s.%s: %w", ic.URN, rId, err)
-		}
 
-		props := make(construct.Properties)
-		for k, v := range res.Properties {
-			props[k] = v
-		}
-		hasImportId := false
-		// set a fake import id, otherwise index.ts will have things like
-		//   Type.get("name", <no value>)
-		for k, prop := range tmpl.Properties {
-			if prop.Details().Required && prop.Details().DeployTime {
-				props[k] = "FAKE (dryrun)"
-				hasImportId = true
-				break
+			tmpl, err := sol.KnowledgeBase().GetResourceTemplate(rId)
+			if err != nil {
+				return fmt.Errorf("could not get resource template %s.%s: %w", ic.URN, rId, err)
 			}
-		}
-		if !hasImportId {
-			continue
-		}
 
-		res = &construct.Resource{
-			ID:         res.ID,
-			Properties: props,
-			Imported:   true,
+			props := make(construct.Properties)
+			for k, v := range res.Properties {
+				props[k] = v
+			}
+			hasImportId := false
+			// set a fake import id, otherwise index.ts will have things like
+			//   Type.get("name", <no value>)
+			for k, prop := range tmpl.Properties {
+				if prop.Details().Required && prop.Details().DeployTime {
+					props[k] = "FAKE (dryrun)"
+					hasImportId = true
+					break
+				}
+			}
+			if !hasImportId {
+				continue
+			}
+
+			res = &construct.Resource{
+				ID:         res.ID,
+				Properties: props,
+				Imported:   true,
+			}
+
+			log.Debugf("Imported %s from solution", rId)
 		}
 
 		if err := initGraph.AddVertex(res); err != nil {
