@@ -43,12 +43,12 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
 	uo.ConstructEvaluator.DryRun = dryRun
+	defer uo.FinalizeState(ctx)
 
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
 	}
-	log := logging.GetLogger(ctx).Sugar()
 
 	var cs []model.ConstructState
 	constructState := uo.StateManager.GetState().Constructs
@@ -69,14 +69,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			prog.UpdateIndeterminate(fmt.Sprintf("Pending %s", action))
 		}
 	}
-
-	sm := uo.StateManager
-	defer func() {
-		err = sm.SaveState()
-		if err != nil {
-			log.Errorf("Error saving state: %v", err)
-		}
-	}()
 
 	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deployOrder {

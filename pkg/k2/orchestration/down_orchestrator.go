@@ -9,7 +9,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/afero"
-	"go.uber.org/zap"
 )
 
 type (
@@ -39,14 +38,9 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 		return errors.New("Dryrun not supported in Down Command yet")
 	}
 
-	sm := do.StateManager
-	defer func() {
-		err := sm.SaveState()
-		if err != nil {
-			zap.S().Errorf("Error saving state: %v", err)
-		}
-	}()
+	defer do.FinalizeState(ctx)
 
+	sm := do.StateManager
 	stackRefCache := make(map[string]stack.Reference)
 
 	actions := make(map[model.URN]model.ConstructAction)
