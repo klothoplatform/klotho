@@ -42,23 +42,8 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 }
 
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
-	log := logging.GetLogger(ctx).Sugar()
 	uo.ConstructEvaluator.DryRun = dryRun
-
-	sm := uo.StateManager
-	defer func() {
-		// update constructs that are still operating to failed
-		for _, c := range sm.GetState().Constructs {
-			if sm.IsOperating(&c) {
-				if err := sm.TransitionConstructFailed(&c); err != nil {
-					log.Errorf("Error transitioning construct state: %v", err)
-				}
-			}
-		}
-		if err := sm.SaveState(); err != nil {
-			log.Errorf("Error saving state: %v", err)
-		}
-	}()
+	defer uo.FinalizeState(ctx)
 
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {

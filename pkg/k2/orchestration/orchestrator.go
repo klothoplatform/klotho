@@ -11,6 +11,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/constructs/graph"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"github.com/klothoplatform/klotho/pkg/logging"
 )
 
 // Orchestrator is the base orchestrator for the K2 platform
@@ -195,4 +196,20 @@ func sortConstructsByDependency(constructs []model.ConstructState, actions map[m
 		}
 	}
 	return graph.ResolveDeploymentGroups(constructGraph)
+}
+
+func (o *Orchestrator) FinalizeState(ctx context.Context) {
+	log := logging.GetLogger(ctx).Sugar()
+
+	sm := o.StateManager
+	for _, c := range sm.GetState().Constructs {
+		if sm.IsOperating(&c) {
+			if err := sm.TransitionConstructFailed(&c); err != nil {
+				log.Errorf("Error transitioning construct state: %v", err)
+			}
+		}
+	}
+	if err := sm.SaveState(); err != nil {
+		log.Errorf("Error saving state: %v", err)
+	}
 }
