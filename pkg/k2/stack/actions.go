@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/logging"
@@ -66,7 +67,7 @@ func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName 
 }
 
 func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.UpResult, *State, error) {
-	log := logging.GetLogger(ctx).Sugar()
+	log := logging.GetLogger(ctx).Named("pulumi.up").Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
@@ -92,7 +93,7 @@ func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.Up
 
 	upResult, err := s.Up(
 		ctx,
-		optup.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.up"), zap.InfoLevel)),
+		optup.ProgressStreams(logging.NewLoggerWriter(log.Desugar(), zap.InfoLevel)),
 		optup.EventStreams(Events(ctx, "Deploying")),
 		optup.Refresh(),
 	)
@@ -107,7 +108,7 @@ func RunUp(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.Up
 }
 
 func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*auto.PreviewResult, error) {
-	log := logging.GetLogger(ctx).Sugar()
+	log := logging.GetLogger(ctx).Named("pulumi.preview").Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
@@ -133,12 +134,24 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 
 	previewResult, err := s.Preview(
 		ctx,
-		optpreview.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.preview"), zap.InfoLevel)),
+		optpreview.ProgressStreams(logging.NewLoggerWriter(log.Desugar(), zap.InfoLevel)),
 		optpreview.EventStreams(Events(ctx, "Previewing")),
 		optpreview.Refresh(),
 	)
+
 	if err != nil {
-		return nil, fmt.Errorf("Failed to preview stack: %w", err)
+		str := err.Error()
+		// Use the first line only, the rest of it is redundant with the first line or the live logging already shown
+		firstLine := strings.Split(str, "\n")[0]
+
+		if auto.IsCompilationError(err) || auto.IsRuntimeError(err) || auto.IsCreateStack409Error(err) {
+			return nil, fmt.Errorf("Failed to preview stack: %s", firstLine)
+		}
+
+		log.Warnf("Failed to preview stack %s: %s", stackName, firstLine)
+
+		// Don't return an error for preview failures so that futher previewing can proceed
+		return nil, nil
 	}
 
 	log.Infof("Successfully previewed stack %s", stackName)
@@ -147,7 +160,7 @@ func RunPreview(ctx context.Context, fs afero.Fs, stackReference Reference) (*au
 }
 
 func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
-	log := logging.GetLogger(ctx).Sugar()
+	log := logging.GetLogger(ctx).Named("pulumi.destroy").Sugar()
 
 	stackName := stackReference.Name
 	stackDirectory := stackReference.IacDirectory
@@ -167,7 +180,7 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 	log.Debug("Starting destroy")
 
 	// wire up our destroy to stream progress to stdout
-	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(log.Desugar().Named("pulumi.destroy"), zap.InfoLevel))
+	stdoutStreamer := optdestroy.ProgressStreams(logging.NewLoggerWriter(log.Desugar(), zap.InfoLevel))
 	refresh := optdestroy.Refresh()
 	eventStream := optdestroy.EventStreams(Events(ctx, "Destroying"))
 
@@ -189,13 +202,14 @@ func RunDown(ctx context.Context, fs afero.Fs, stackReference Reference) error {
 
 func InstallDependencies(ctx context.Context, stackDirectory string) error {
 	prog := tui.GetProgress(ctx)
-	log := logging.GetLogger(ctx).Sugar()
+	log := logging.GetLogger(ctx).Named("npm").Sugar()
+
 	log.Debugf("Installing pulumi dependencies in %s", stackDirectory)
 	prog.UpdateIndeterminate("Installing pulumi packages")
 	npmCmd := logging.Command(
 		ctx,
 		logging.CommandLogger{
-			RootLogger:  log.Desugar().Named("npm"),
+			RootLogger:  log.Desugar(),
 			StdoutLevel: zap.DebugLevel,
 		},
 		// loglevel silly is required for the NpmProgress to capture all logs

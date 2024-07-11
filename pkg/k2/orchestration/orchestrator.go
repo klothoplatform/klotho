@@ -43,20 +43,23 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 
 func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
-	cs, err := uo.ConstructEvaluator.Evaluate(constructUrn, state, ctx)
+
+	req, err := uo.ConstructEvaluator.Evaluate(constructUrn, state, ctx)
 	if err != nil {
 		return stack.Reference{}, err
 	}
+	req.GlobalTag = "k2" // TODO make this meaningful?
 
 	ig, err := uo.InfraGenerator()
 	if err != nil {
 		return stack.Reference{}, fmt.Errorf("error getting infra generator: %w", err)
 	}
 
-	err = ig.Run(ctx, cs, constructOutDir)
+	sol, err := ig.Run(ctx, req, constructOutDir)
 	if err != nil {
 		return stack.Reference{}, fmt.Errorf("error running infra generator: %w", err)
 	}
+	uo.ConstructEvaluator.AddSolution(constructUrn, sol)
 
 	return stack.Reference{
 		ConstructURN: constructUrn,

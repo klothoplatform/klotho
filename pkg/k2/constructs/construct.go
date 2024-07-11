@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 
+	"sort"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"go.uber.org/zap"
-	"sort"
 )
 
 type (
@@ -20,8 +22,9 @@ type (
 		Edges              []*Edge
 		OutputDeclarations map[string]OutputDeclaration
 		Outputs            map[string]any
-		ImportedResources  map[construct.ResourceId]map[string]any
+		InitialGraph       construct.Graph
 		Bindings           []*Binding
+		Solution           solution.Solution
 	}
 
 	Resource struct {
@@ -118,8 +121,8 @@ func (c *Construct) GetResources() map[string]*Resource {
 	return c.Resources
 }
 
-func (c *Construct) GetImportedResources() map[construct.ResourceId]map[string]any {
-	return c.ImportedResources
+func (c *Construct) GetInitialGraph() construct.Graph {
+	return c.InitialGraph
 }
 
 func (c *Construct) DeclareOutput(key string, declaration OutputDeclaration) {
@@ -220,7 +223,7 @@ func NewConstruct(constructUrn model.URN, inputs map[string]any) (*Construct, er
 		Edges:              []*Edge{},
 		OutputDeclarations: make(map[string]OutputDeclaration),
 		Outputs:            make(map[string]any),
-		ImportedResources:  make(map[construct.ResourceId]map[string]any),
+		InitialGraph:       construct.NewGraph(),
 	}, nil
 }
 

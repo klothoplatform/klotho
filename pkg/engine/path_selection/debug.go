@@ -2,6 +2,7 @@ package path_selection
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/dot"
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -22,9 +24,9 @@ import (
 var seenFiles = make(set.Set[string])
 var seenFilesLock = new(sync.Mutex)
 
-func writeGraph(input ExpansionInput, working, result construct.Graph) {
+func writeGraph(ctx context.Context, input ExpansionInput, working, result construct.Graph) {
 	dir := "selection"
-	if debugDir := os.Getenv("KLOTHO_DEBUG_DIR"); debugDir != "" {
+	if debugDir := debug.GetDebugDir(ctx); debugDir != "" {
 		dir = filepath.Join(debugDir, "selection")
 	}
 	err := os.MkdirAll(dir, 0755)

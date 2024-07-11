@@ -2,16 +2,16 @@ package constructs
 
 import (
 	"fmt"
+	"reflect"
+	"text/template"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
-	"reflect"
-	"text/template"
 )
 
 type (
 	ResourceOwner interface {
-		GetImportedResources() map[construct.ResourceId]map[string]any
 		GetResource(resourceId string) (resource *Resource, ok bool)
 		SetResource(resourceId string, resource *Resource)
 		GetResources() map[string]*Resource
@@ -35,6 +35,7 @@ type (
 		DeclareOutput(key string, declaration OutputDeclaration)
 		GetTemplateInputs() map[string]InputTemplate
 		GetInput(name string) (value any, ok bool)
+		GetInitialGraph() construct.Graph
 	}
 
 	InterpolationSource interface {
@@ -79,9 +80,9 @@ func (ce *ConstructEvaluator) serializeRef(ref ResourceRef) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		importedResources := owner.GetImportedResources()
-		if _, ok := importedResources[resourceId]; !ok {
-			return nil, fmt.Errorf("resource with key %s not found", ref.ResourceKey)
+		initGraph := owner.GetInitialGraph()
+		if _, err = initGraph.Vertex(resourceId); err != nil {
+			return nil, fmt.Errorf("could not resolve ref %s: %w", ref, err)
 		}
 	}
 

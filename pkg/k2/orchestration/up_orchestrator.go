@@ -42,6 +42,8 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 }
 
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
+	uo.ConstructEvaluator.DryRun = dryRun
+
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
@@ -123,6 +125,8 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		msg := "Success"
 		if err != nil || r != nil {
 			msg = "Failed"
+		} else if dryRun {
+			msg += " (dry run)"
 		}
 		if skipped && err == nil {
 			msg = "Skipped"
