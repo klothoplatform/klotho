@@ -163,6 +163,10 @@ func (sm *StateManager) TransitionConstructState(construct *ConstructState, next
 	return nil
 }
 
+func (sm *StateManager) IsOperating(construct *ConstructState) bool {
+	return construct.Status == ConstructCreating || construct.Status == ConstructUpdating || construct.Status == ConstructDeleting
+}
+
 func (sm *StateManager) TransitionConstructFailed(construct *ConstructState) error {
 	switch construct.Status {
 	case ConstructCreating:

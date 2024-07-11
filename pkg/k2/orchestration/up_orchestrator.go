@@ -42,13 +42,28 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 }
 
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
+	log := logging.GetLogger(ctx).Sugar()
 	uo.ConstructEvaluator.DryRun = dryRun
+
+	sm := uo.StateManager
+	defer func() {
+		// update constructs that are still operating to failed
+		for _, c := range sm.GetState().Constructs {
+			if sm.IsOperating(&c) {
+				if err := sm.TransitionConstructFailed(&c); err != nil {
+					log.Errorf("Error transitioning construct state: %v", err)
+				}
+			}
+		}
+		if err := sm.SaveState(); err != nil {
+			log.Errorf("Error saving state: %v", err)
+		}
+	}()
 
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)
 	}
-	log := logging.GetLogger(ctx).Sugar()
 
 	var cs []model.ConstructState
 	constructState := uo.StateManager.GetState().Constructs
@@ -69,14 +84,6 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 			prog.UpdateIndeterminate(fmt.Sprintf("Pending %s", action))
 		}
 	}
-
-	sm := uo.StateManager
-	defer func() {
-		err = sm.SaveState()
-		if err != nil {
-			log.Errorf("Error saving state: %v", err)
-		}
-	}()
 
 	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deployOrder {

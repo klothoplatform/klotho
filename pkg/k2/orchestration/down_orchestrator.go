@@ -7,9 +7,9 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/afero"
-	"go.uber.org/zap"
 )
 
 type (
@@ -32,6 +32,7 @@ func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchest
 }
 
 func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest, maxConcurrency int) error {
+	log := logging.GetLogger(ctx).Sugar()
 	if request.DryRun {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
 		// and doesn't have any options for "--preview-only"
@@ -41,9 +42,16 @@ func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequ
 
 	sm := do.StateManager
 	defer func() {
-		err := sm.SaveState()
-		if err != nil {
-			zap.S().Errorf("Error saving state: %v", err)
+		// update constructs that are still operating to failed
+		for _, c := range sm.GetState().Constructs {
+			if sm.IsOperating(&c) {
+				if err := sm.TransitionConstructFailed(&c); err != nil {
+					log.Errorf("Error transitioning construct state: %v", err)
+				}
+			}
+		}
+		if err := sm.SaveState(); err != nil {
+			log.Errorf("Error saving state: %v", err)
 		}
 	}()
 
