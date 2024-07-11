@@ -1,0 +1,7 @@
+id: klotho.aws.API
+version: 1.0.0
+description: A construct for creating an API used to expose HTTP services
+resources:
+  RestAPI:
+    type: aws:rest_api
+    name: ${inputs:Name}-api

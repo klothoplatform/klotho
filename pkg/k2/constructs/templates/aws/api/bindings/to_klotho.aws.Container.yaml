@@ -1,0 +1,31 @@
+from: klotho.aws.API
+to: klotho.aws.Container
+
+inputs:
+  Method:
+    name: Method
+    description: The HTTP method to use
+    type: string
+    default: GET
+
+  Path:
+    name: Path
+    description: The path to use
+    type: string
+    default: /*
+
+resources:
+  Integration:
+    type: aws:api_integration
+    name: ${to.inputs:Name}
+    properties:
+      Route: ${inputs.Path}
+      Method: ${inputs.Method}
+
+edges:
+  - from: ${from.resources:RestAPI}
+    to: ${resources:Integration}
+    data:
+      connection_type: http
+  - from: ${resources:Integration}
+    to: ${to.resources:Service}
