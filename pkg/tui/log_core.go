@@ -39,9 +39,18 @@ func NewLogCore(opts logging.LogOpts, verbosity Verbosity, program *tea.Program)
 func (c *LogCore) With(f []zapcore.Field) zapcore.Core {
 	nc := *c
 	nc.Core = c.Core.With(f)
+	nc.enc = c.enc.Clone()
 	for _, field := range f {
 		if field.Key == "construct" {
 			nc.construct = field.String
+
+			if c.verbosity.CombineLogs() {
+				field.AddTo(nc.enc)
+			}
+			// else (if the field is the construct and we're not combining logs) don't add it to the encoder
+			// because the log lines will already be in its own construct section of the output.
+		} else {
+			field.AddTo(nc.enc)
 		}
 	}
 	return &nc
