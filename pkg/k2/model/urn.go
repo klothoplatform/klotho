@@ -148,43 +148,21 @@ func (u *URN) UnmarshalYAML(value *yaml.Node) error {
 }
 
 func (u *URN) Equals(other any) bool {
-	otherUrn, ok := other.(*URN)
-	if !ok || otherUrn == nil {
-		return false
+	switch other := other.(type) {
+	case URN:
+		if u == nil {
+			return false
+		}
+		return *u == other
+
+	case *URN:
+		if u == nil || other == nil {
+			return u == other
+		}
+		return *u == *other
 	}
 
-	if u == otherUrn {
-		return true
-	}
-
-	if u.AccountID != otherUrn.AccountID {
-		return false
-	}
-	if u.Project != otherUrn.Project {
-		return false
-	}
-	if u.Environment != otherUrn.Environment {
-		return false
-	}
-	if u.Application != otherUrn.Application {
-		return false
-	}
-	if u.Type != otherUrn.Type {
-		return false
-	}
-	if u.Subtype != otherUrn.Subtype {
-		return false
-	}
-	if u.ParentResourceID != otherUrn.ParentResourceID {
-		return false
-	}
-	if u.ResourceID != otherUrn.ResourceID {
-		return false
-	}
-	if u.Output != otherUrn.Output {
-		return false
-	}
-	return true
+	return false
 }
 
 func (u *URN) IsOutput() bool {

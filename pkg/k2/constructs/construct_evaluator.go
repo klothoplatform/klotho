@@ -128,9 +128,14 @@ func (ce *ConstructEvaluator) interpolateValue(c InterpolationSource, rawValue a
 				if err != nil {
 					return nil, err
 				}
+
+				if spreadValue == nil {
+					continue
+				}
 				if reflect.TypeOf(spreadValue).Kind() != reflect.Slice {
 					return nil, errors.New("spread value must be a slice")
 				}
+
 				for i := 0; i < reflect.ValueOf(spreadValue).Len(); i++ {
 					interpolated = append(interpolated, reflect.ValueOf(spreadValue).Index(i).Interface())
 				}
@@ -628,9 +633,7 @@ func (ce *ConstructEvaluator) getBindingDeclarations(constructURN model.URN, sta
 		}
 		for _, b := range c.Bindings {
 			if b.URN.Equals(constructURN) {
-				for _, b := range c.Bindings {
-					bindings = append(bindings, newBindingDeclaration(*c.URN, b))
-				}
+				bindings = append(bindings, newBindingDeclaration(*c.URN, b))
 			}
 		}
 	}
@@ -1062,6 +1065,9 @@ func (ce *ConstructEvaluator) importFrom(ctx context.Context, o InfraOwner, ic *
 					Type:    string(state.Type),
 					Outputs: state.Outputs,
 				})
+				// use the known resource id instead of the id that the state converter extrapolates from the resource urn, which may not be 100% accurate
+				res.ID = rId
+				res.Imported = true
 				if err != nil {
 					return fmt.Errorf("could not convert state for %s.%s: %w", ic.URN, rId, err)
 				}
