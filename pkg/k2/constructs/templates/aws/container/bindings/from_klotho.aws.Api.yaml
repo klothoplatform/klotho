@@ -1,0 +1,19 @@
+from: klotho.aws.API
+to: klotho.aws.Container
+
+resources:
+  APITargetGroup:
+    type: aws:target_group
+    name: ${from.inputs:Name}-${to.inputs:Name}-tg
+    properties:
+      Port: ${to.inputs:Port}
+      Protocol: TCP
+      Vpc: ${to.inputs:Network.Resources.Vpc}
+
+  Service:
+    properties:
+      LoadBalancers:
+        - ${to.resources:Service.LoadBalancers...}
+        - TargetGroup: ${resources:APITargetGroup}
+          ContainerName: ${to.resources:TaskDefinition.ContainerDefinitions[0].Name}
+          ContainerPort: ${to.inputs:Port}

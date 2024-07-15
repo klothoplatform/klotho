@@ -15,17 +15,21 @@ inputs:
     default: /*
 
 resources:
+  Method:
+    type: aws:api_method
+    name: ${to.inputs:Name}
+    properties:
+      HttpMethod: ${inputs:Method}
+
   Integration:
     type: aws:api_integration
     name: ${to.inputs:Name}
     properties:
-      Route: ${inputs.Path}
-      Method: ${inputs.Method}
+      Route: ${inputs:Path}
+      Method: ${resources:Method}
 
 edges:
   - from: ${from.resources:RestAPI}
     to: ${resources:Integration}
-    data:
-      connection_type: http
   - from: ${resources:Integration}
     to: ${to.resources:Service}

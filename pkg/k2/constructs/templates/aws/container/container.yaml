@@ -25,21 +25,26 @@ resources:
     properties:
       Cpu: ${inputs:Cpu}
       Memory: ${inputs:Memory}
-      ContainerDefinitions[0].PortMappings:
-        -  ContainerPort: ${inputs:Port}
-           HostPort: ${inputs:Port}
-           Protocol: TCP
-      ContainerDefinitions[0].Cpu: ${inputs:Cpu}
-      ContainerDefinitions[0].Memory: ${inputs:Memory}
+      ContainerDefinitions:
+        - Name: ${inputs:Name}
+          PortMappings:
+            - ContainerPort: ${inputs:Port}
+              HostPort: ${inputs:Port}
+              Protocol: TCP
+          Cpu: ${inputs:Cpu}
+          Memory: ${inputs:Memory}
       RequiresCompatibilities:
-       - FARGATE
+        - FARGATE
   Service:
     type: aws:ecs_service
     name: ${inputs:Name}-service
     properties:
       LaunchType: FARGATE
       TaskDefinition: ${resources:TaskDefinition}
-      LoadBalancers[0].ContainerPort: ${inputs:Port}
+      LoadBalancers:
+        - ContainerPort: ${inputs:Port}
+          TargetGroup: ${resources:TargetGroup}
+          ContainerName: ${resources:TaskDefinition.ContainerDefinitions[0].Name}
       EnableExecuteCommand: ${inputs:EnableExecuteCommand}
 
   TargetGroup:
@@ -104,20 +109,20 @@ inputs:
       minLength: 1
       maxLength: 63
   Image:
-      name: Image
-      description: The image to use for the container
-      type: string
-      validation:
-          minLength: 1
-          maxLength: 63
+    name: Image
+    description: The image to use for the container
+    type: string
+    validation:
+      minLength: 1
+      maxLength: 63
   Port:
-      name: Port
-      description: The port to expose on the container
-      type: number
-      default: 80
-      validation:
-          minimum: 1
-          maximum: 65535
+    name: Port
+    description: The port to expose on the container
+    type: number
+    default: 80
+    validation:
+      minimum: 1
+      maximum: 65535
   Network:
     name: Network
     description: The network to deploy the container to
