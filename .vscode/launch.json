@@ -92,8 +92,8 @@
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "-n=1",
                 "--debug=vscode",
-                // "${file}"
-                "infra.py"
+                "${file}"
+                // "infra.py"
             ],
             "env": {
                 "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out",

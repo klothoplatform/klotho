@@ -17,6 +17,3 @@ app = klotho.Application(
 )
 
 container = aws.Container("my-container", dockerfile="Dockerfile")
-
-api = aws.Api("my-api")
-api.route_to("GET", "/hello", container)

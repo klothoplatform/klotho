@@ -4,11 +4,11 @@ to: klotho.aws.Container
 resources:
   APITargetGroup:
     type: aws:target_group
-    name: ${from.inputs:Name}-${to.inputs:Name}-tg
+    name: ${to.inputs:Name}-apitg
     properties:
       Port: ${to.inputs:Port}
       Protocol: TCP
-      Vpc: ${to.inputs:Network.Resources.Vpc}
+      Vpc: ${to.resources:Network.Resources.Vpc}
 
   Service:
     properties:
