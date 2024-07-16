@@ -90,7 +90,7 @@
                 "-v=3",
                 "-o=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/k2.prof",
-                "--dry-run",
+                "-n=1",
                 "--debug=vscode",
                 // "${file}"
                 "infra.py"

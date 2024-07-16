@@ -15,6 +15,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/afero"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,7 +42,7 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 	}, nil
 }
 
-func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun bool, maxConcurrency int) error {
+func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun model.DryRun, maxConcurrency int) error {
 	uo.ConstructEvaluator.DryRun = dryRun
 	defer uo.FinalizeState(ctx)
 
@@ -100,7 +101,7 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 	return nil
 }
 
-func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun bool) (err error) {
+func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun model.DryRun) (err error) {
 	sm := uo.StateManager
 	log := logging.GetLogger(ctx).Sugar()
 	outDir := filepath.Join(uo.OutputDirectory, c.URN.ResourceID)
@@ -117,7 +118,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		msg := "Success"
 		if err != nil || r != nil {
 			msg = "Failed"
-		} else if dryRun {
+		} else if dryRun > 0 {
 			msg += " (dry run)"
 		}
 		if skipped && err == nil {
@@ -137,7 +138,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 			return nil
 		}
 
-		if dryRun {
+		if dryRun > 0 {
 			log.Infof("Dry run: Skipping pulumi down for deleted construct %s", c.URN.ResourceID)
 			return nil
 		}
@@ -178,9 +179,31 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		return fmt.Errorf("error evaluating construct: %w", err)
 	}
 
-	if dryRun {
+	switch dryRun {
+	case model.DryRunPreview:
 		_, err = stack.RunPreview(ctx, uo.FS, stackRef)
 		return err
+
+	case model.DryRunCompile:
+		err = stack.InstallDependencies(ctx, stackRef.IacDirectory)
+		if err != nil {
+			return err
+		}
+
+		cmd := logging.Command(ctx,
+			logging.CommandLogger{
+				RootLogger:  log.Desugar().Named("pulumi.tsc"),
+				StdoutLevel: zap.DebugLevel,
+				StderrLevel: zap.DebugLevel,
+			},
+			"tsc", "index.ts",
+		)
+		cmd.Dir = stackRef.IacDirectory
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("error running tsc: %w", err)
+		}
+		return nil
 	}
 
 	// Run pulumi up command for the construct

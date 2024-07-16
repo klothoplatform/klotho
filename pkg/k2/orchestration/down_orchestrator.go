@@ -19,7 +19,7 @@ type (
 
 	DownRequest struct {
 		StackReferences []stack.Reference
-		DryRun          bool
+		DryRun          model.DryRun
 	}
 )
 
@@ -31,7 +31,7 @@ func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchest
 }
 
 func (do *DownOrchestrator) RunDownCommand(ctx context.Context, request DownRequest, maxConcurrency int) error {
-	if request.DryRun {
+	if request.DryRun > 0 {
 		// TODO Stack.Destroy hard-codes the flag to "--skip-preview"
 		// and doesn't have any options for "--preview-only"
 		// which was added in https://github.com/pulumi/pulumi/pull/15336
