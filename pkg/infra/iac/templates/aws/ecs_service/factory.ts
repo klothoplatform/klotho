@@ -94,11 +94,14 @@ function create(args: Args): aws.ecs.Service {
 
 function properties(object: aws.ecs.Service, args: Args) {
     return {
+        // We should replace Arn with Id in the future
         Arn: object.id,
         Name: object.name,
     }
 }
 
 function importResource(args: Args): aws.ecs.Service {
+    // Imported ID must be in the form cluster-name/service-name.
+    // The Id field is the service's ARN, which includes cluster-name/service-name as a suffix.
     return aws.ecs.Service.get(args.Name, args.Arn.split('/').slice(-2).join('/'))
 }
