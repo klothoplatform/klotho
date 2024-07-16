@@ -70,13 +70,17 @@ func (p Properties) Equals(other any) (equal bool) {
 		v := path.Get()
 		otherV := otherPath.Get()
 
-		if v == otherV {
-			equal = true
-		} else if v == nil || otherV == nil {
+		if v == nil || otherV == nil {
 			equal = v == otherV
 		} else if vEq, ok := v.(interface{ Equals(any) bool }); ok {
 			equal = vEq.Equals(otherV)
 		} else {
+			vVal := reflect.ValueOf(v)
+			otherVVal := reflect.ValueOf(otherV)
+			if vVal.Comparable() && otherVVal.Comparable() && v == otherV {
+				return nil
+			}
+
 			equal = reflect.DeepEqual(v, otherV)
 		}
 		if !equal {
