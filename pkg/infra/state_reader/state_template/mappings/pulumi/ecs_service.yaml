@@ -1,0 +1,7 @@
+qualified_type_name: aws:ecs_service
+iac_qualified_type: aws:ecs/service:Service
+
+property_mappings:
+  id: Arn
+  name: Name
+

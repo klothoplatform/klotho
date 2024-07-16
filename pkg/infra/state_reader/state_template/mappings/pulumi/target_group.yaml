@@ -1,0 +1,6 @@
+qualified_type_name: aws:target_group
+iac_qualified_type: aws:lb/targetGroup:TargetGroup
+
+property_mappings:
+  arn: Arn
+  id: Id

@@ -30,7 +30,7 @@ properties:
   Id:
     type: string
     configuration_disabled: true
-    deployTime: true
+    deploy_time: true
   aws:tags:
     type: model
 

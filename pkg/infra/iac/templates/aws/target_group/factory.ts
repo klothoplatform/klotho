@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
+import { ModelCaseWrapper, TemplateWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -12,6 +12,7 @@ interface Args {
     HealthCheck: TemplateWrapper<awsInputs.lb.TargetGroupHealthCheck>
     LambdaMultiValueHeadersEnabled?: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
+    Id: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -55,4 +56,8 @@ function properties(object: aws.lb.TargetGroup, args: Args) {
     return {
         Arn: object.arn,
     }
+}
+
+function importResource(args: Args): aws.lb.TargetGroup {
+    return aws.lb.TargetGroup.get(args.Name, args.Id)
 }
