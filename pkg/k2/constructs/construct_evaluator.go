@@ -29,7 +29,7 @@ import (
 )
 
 type ConstructEvaluator struct {
-	DryRun bool
+	DryRun model.DryRun
 
 	stateManager      *model.StateManager
 	stackStateManager *stack.StateManager
@@ -563,7 +563,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 // If the input's status is not "resolved", it returns an error.
 func (ce *ConstructEvaluator) resolveInput(k string, v model.Input, t InputTemplate) (any, error) {
 	if v.Status != "" && v.Status != model.InputStatusResolved {
-		if !ce.DryRun {
+		if ce.DryRun == model.DryRunNone {
 			return nil, fmt.Errorf("input '%s' is not resolved", k)
 		}
 	}

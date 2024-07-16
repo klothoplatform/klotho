@@ -15,7 +15,7 @@ import (
 
 var commonCfg struct {
 	clicommon.CommonConfig
-	dryRun bool
+	dryRun clicommon.LevelledFlag
 }
 
 func cli() {
@@ -41,7 +41,8 @@ func cli() {
 	}
 
 	flags := rootCmd.PersistentFlags()
-	flags.BoolVarP(&commonCfg.dryRun, "dry-run", "n", false, "Dry run")
+	dryRunFlag := flags.VarPF(&commonCfg.dryRun, "dry-run", "n", "Dry run (once for pulumi preview, twice for tsc)")
+	dryRunFlag.NoOptDefVal = "true" // Allow -n to be used without a value
 
 	var initCommand = &cobra.Command{
 		Use:   "init",

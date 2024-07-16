@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
-	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/term"
@@ -19,40 +18,12 @@ import (
 type (
 	CommonConfig struct {
 		jsonLog   bool
-		verbose   verbosityFlag
+		verbose   LevelledFlag
 		logsDir   string
 		profileTo string
 		color     string
 	}
-
-	verbosityFlag int
 )
-
-func (f *verbosityFlag) Set(s string) error {
-	v, err := strconv.ParseBool(s)
-	if err != nil {
-		l, intErr := strconv.ParseInt(s, 10, 64)
-		if intErr != nil {
-			return err
-		}
-		*f = verbosityFlag(l)
-		return nil
-	}
-	if v {
-		*f++
-	} else if *f > 0 {
-		*f--
-	}
-	return nil
-}
-
-func (f *verbosityFlag) Type() string {
-	return "verbosity"
-}
-
-func (f *verbosityFlag) String() string {
-	return strconv.FormatInt(int64(*f), 10)
-}
 
 func setupProfiling(commonCfg *CommonConfig) func() {
 	if commonCfg.profileTo != "" {
