@@ -1,11 +1,11 @@
-package language_host
+package command
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-func setProcAttr(cmd *exec.Cmd) {
+func SetProcAttr(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}

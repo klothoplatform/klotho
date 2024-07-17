@@ -7,14 +7,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func initCmd() string {
-	return "Initialization view"
-}
-
-func planCmd() string {
-	return "Plan view"
-}
-
 func irCmd(filePath string) string {
 	ir, err := model.ReadIRFile(filePath)
 	if err != nil {

@@ -58,7 +58,7 @@ var getValidEdgeTargetsCfg struct {
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
-	em.cleanup = clicommon.SetupRoot(root, &commonCfg)
+	em.cleanup = clicommon.SetupCoreCommand(root, &commonCfg)
 
 	engineGroup := &cobra.Group{
 		ID:    "engine",

@@ -1,14 +1,12 @@
 package tui
 
 import (
-	_ "embed"
 	"strings"
 	"sync"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mitchellh/go-wordwrap"
 )
 
@@ -34,15 +32,6 @@ type (
 		progress progress.Model
 		spinner  spinner.Model
 	}
-)
-
-const logoColor = "#816FA6"
-
-var (
-	//go:embed logo.txt
-	logo string
-
-	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(logoColor))
 )
 
 func NewModel(verbosity Verbosity) *model {
@@ -150,7 +139,7 @@ func (m *model) View() string {
 
 func (m *model) viewCompact() string {
 	sb := new(strings.Builder)
-	sb.WriteString(logoStyle.Render(logo))
+	sb.WriteString(RenderLogo())
 	sb.WriteString("\n")
 
 	for _, c := range m.constructOrder {
@@ -186,7 +175,7 @@ func (m *model) viewCompact() string {
 
 func (m *model) viewVerbose() string {
 	sb := new(strings.Builder)
-	sb.WriteString(logoStyle.Render(logo))
+	sb.WriteString(RenderLogo())
 	sb.WriteString("\n")
 
 	for _, c := range m.constructOrder {

@@ -2,6 +2,7 @@ package clicommon
 
 import (
 	"fmt"
+	"github.com/spf13/pflag"
 	"os"
 	"path/filepath"
 	"runtime/pprof"
@@ -47,7 +48,7 @@ func setupProfiling(commonCfg *CommonConfig) func() {
 	return func() {}
 }
 
-func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
+func SetupCoreCommand(root *cobra.Command, commonCfg *CommonConfig) func() {
 
 	flags := root.PersistentFlags()
 
@@ -120,4 +121,9 @@ func SetupRoot(root *cobra.Command, commonCfg *CommonConfig) func() {
 		profileClose()
 		_ = zap.L().Sync()
 	}
+}
+
+func IsFlagRequired(flag *pflag.Flag) bool {
+	required, found := flag.Annotations[cobra.BashCompOneRequiredFlag]
+	return found && required[0] == "true"
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/command"
 	"io"
 	"os"
 	"os/exec"
@@ -95,7 +96,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 		HasAddr: make(chan struct{}),
 	}
 	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
-	setProcAttr(cmd)
+	command.SetProcAttr(cmd)
 
 	cleanup.OnKill(func(signal syscall.Signal) error {
 		cleanup.SignalProcessGroup(cmd.Process.Pid, syscall.SIGTERM)

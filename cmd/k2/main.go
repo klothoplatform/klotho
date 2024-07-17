@@ -28,41 +28,33 @@ func cli() {
 	}()
 
 	var rootCmd = &cobra.Command{
-		Use: "app",
+		Use:          "app",
+		SilenceUsage: true,
 	}
-	clean := clicommon.SetupRoot(rootCmd, &commonCfg.CommonConfig)
-	defer clean()
 
-	pre := rootCmd.PersistentPreRun
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		cmd.SetContext(cleanup.InitializeHandler(cmd.Context()))
 		cmd.SilenceErrors = true
-		pre(cmd, args)
 	}
 
 	flags := rootCmd.PersistentFlags()
 	dryRunFlag := flags.VarPF(&commonCfg.dryRun, "dry-run", "n", "Dry run (once for pulumi preview, twice for tsc)")
 	dryRunFlag.NoOptDefVal = "true" // Allow -n to be used without a value
 
-	var initCommand = &cobra.Command{
-		Use:   "init",
-		Short: "Run the init command",
-		Run: func(cmd *cobra.Command, args []string) {
-			initCmd()
-		},
-	}
+	var cleanupFuncs []func()
+	initCommand := newInitCommand()
 
-	deployCommand := newUpCmd()
+	upCommand := newUpCmd()
+	cleanupFuncs = append(cleanupFuncs, clicommon.SetupCoreCommand(upCommand, &commonCfg.CommonConfig))
 
-	var downCommand = newDownCmd()
+	downCommand := newDownCmd()
+	cleanupFuncs = append(cleanupFuncs, clicommon.SetupCoreCommand(downCommand, &commonCfg.CommonConfig))
 
-	var planCommand = &cobra.Command{
-		Use:   "plan",
-		Short: "Run the plan command",
-		Run: func(cmd *cobra.Command, args []string) {
-			planCmd()
-		},
-	}
+	defer func() {
+		for _, f := range cleanupFuncs {
+			f()
+		}
+	}()
 
 	var irCommand = &cobra.Command{
 		Use:   "ir [file path]",
@@ -79,14 +71,12 @@ func cli() {
 	}
 
 	rootCmd.AddCommand(initCommand)
-	rootCmd.AddCommand(deployCommand)
+	rootCmd.AddCommand(upCommand)
 	rootCmd.AddCommand(downCommand)
-	rootCmd.AddCommand(planCommand)
 	rootCmd.AddCommand(irCommand)
 
 	if err := rootCmd.Execute(); err != nil {
 		logging.GetLogger(rootCmd.Context()).Error("Failed to execute command", zap.Error(err))
-		clean()
 		os.Exit(1)
 	}
 }

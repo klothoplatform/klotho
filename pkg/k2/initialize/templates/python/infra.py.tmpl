@@ -1,0 +1,9 @@
+{{- /*gotype: github.com/klothoplatform/klotho/pkg/k2/initialize.ApplicationRequest*/ -}}
+import klotho
+
+app = klotho.Application(
+    name="{{ .AppName }}",
+    project="{{ .ProjectName }}",
+    {{if .Environment}}environment="{{ .Environment }}",{{end}}
+    {{if .DefaultRegion}}default_region="{{ .DefaultRegion }}",{{end}}
+)
