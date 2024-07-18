@@ -11,11 +11,6 @@
     "**/CVS": true,
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
-    // "pkg/infra/iac2": true,
-    // "pkg/provider": true,
-    // "pkg/construct": true,
-    // "pkg/engine": true,
-    // "pkg/knowledge_base": true,
     "**/node_modules": true
   },
   "go.testTimeout": "5m",

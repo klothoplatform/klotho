@@ -1,0 +1,355 @@
+resources:
+  aws:security_group:default-network-vpc:my-container-lb-security_group:
+    EgressRules:
+      - CidrBlocks:
+          - 0.0.0.0/0
+        Description: Allows all outbound IPv4 traffic
+        FromPort: 0
+        Protocol: '-1'
+        ToPort: 0
+    IngressRules:
+      - CidrBlocks:
+          - 0.0.0.0/0
+        Description: Allow ingress traffic from within the same security group
+        FromPort: 0
+        Protocol: '-1'
+        ToPort: 0
+      - Description: Allow ingress traffic from within the same security group
+        FromPort: 0
+        Protocol: '-1'
+        Self: true
+        ToPort: 0
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-lb-security_group
+    Vpc: aws:vpc:default-network-vpc
+  aws:load_balancer:my-container-lb:
+    Scheme: internet-facing
+    SecurityGroups:
+      - aws:security_group:default-network-vpc:my-container-lb-security_group
+    Subnets:
+      - aws:subnet:default-network-vpc:default-network-public-subnet-1
+      - aws:subnet:default-network-vpc:default-network-public-subnet-2
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-lb
+    Type: network
+  aws:load_balancer_listener:my-container-lb:my-container-listener:
+    DefaultActions:
+      - TargetGroup: aws:target_group:my-container-tg
+        Type: forward
+    LoadBalancer: aws:load_balancer:my-container-lb
+    Port: 80
+    Protocol: TCP
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-listener
+  aws:subnet:default-network-vpc:default-network-public-subnet-1:
+    CidrBlock: 10.0.0.0/18
+    Id: FAKE (dryrun)
+    MapPublicIpOnLaunch: false
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: default-network-public-subnet-1
+    Type: public
+    Vpc: aws:vpc:default-network-vpc
+    imported: true
+  aws:subnet:default-network-vpc:default-network-public-subnet-2:
+    CidrBlock: 10.0.64.0/18
+    Id: FAKE (dryrun)
+    MapPublicIpOnLaunch: false
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: default-network-public-subnet-2
+    Type: public
+    Vpc: aws:vpc:default-network-vpc
+    imported: true
+  aws:target_group:my-container-tg:
+    HealthCheck:
+      Enabled: true
+      HealthyThreshold: 5
+      Interval: 30
+      Protocol: TCP
+      Timeout: 5
+      UnhealthyThreshold: 2
+    Port: 80
+    Protocol: TCP
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-tg
+    TargetType: ip
+    Vpc: aws:vpc:default-network-vpc
+  aws:security_group:default-network-vpc:my-container-service-security_group:
+    EgressRules:
+      - CidrBlocks:
+          - 0.0.0.0/0
+        Description: Allows all outbound IPv4 traffic
+        FromPort: 0
+        Protocol: '-1'
+        ToPort: 0
+    IngressRules:
+      - CidrBlocks:
+          - 10.0.0.0/18
+        Description: Allow ingress traffic from ip addresses within the subnet default-network-public-subnet-1
+        FromPort: 0
+        Protocol: '-1'
+        ToPort: 0
+      - CidrBlocks:
+          - 10.0.64.0/18
+        Description: Allow ingress traffic from ip addresses within the subnet default-network-public-subnet-2
+        FromPort: 0
+        Protocol: '-1'
+        ToPort: 0
+      - Description: Allow ingress traffic from within the same security group
+        FromPort: 0
+        Protocol: '-1'
+        Self: true
+        ToPort: 0
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-service-security_group
+    Vpc: aws:vpc:default-network-vpc
+  aws:ecs_service:my-container-service:
+    AssignPublicIp: false
+    Cluster: aws:ecs_cluster:ecs_cluster-0
+    DesiredCount: 1
+    EnableExecuteCommand: false
+    ForceNewDeployment: true
+    LaunchType: FARGATE
+    LoadBalancers:
+      - ContainerName: my-container-task
+        ContainerPort: 80
+        TargetGroup: aws:target_group:my-container-tg
+    SecurityGroups:
+      - aws:security_group:default-network-vpc:my-container-service-security_group
+    Subnets:
+      - aws:subnet:default-network-vpc:default-network-private-subnet-1
+      - aws:subnet:default-network-vpc:default-network-private-subnet-2
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-service
+    TaskDefinition: aws:ecs_task_definition:my-container-task
+  aws:cloudwatch_alarm:my-container-service-CPUUtilization:
+    ActionsEnabled: true
+    AlarmDescription: This metric checks for CPUUtilization in the ECS service
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    Dimensions:
+      ClusterName: aws:ecs_cluster:ecs_cluster-0#Id
+      ServiceName: aws:ecs_service:my-container-service#Name
+    EvaluationPeriods: 2
+    MetricName: CPUUtilization
+    Namespace: AWS/ECS
+    Period: 60
+    Statistic: Average
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-service-CPUUtilization
+    Threshold: 90
+  aws:cloudwatch_alarm:my-container-service-MemoryUtilization:
+    ActionsEnabled: true
+    AlarmDescription: This metric checks for MemoryUtilization in the ECS service
+    ComparisonOperator: GreaterThanOrEqualToThreshold
+    Dimensions:
+      ClusterName: aws:ecs_cluster:ecs_cluster-0#Id
+      ServiceName: aws:ecs_service:my-container-service#Name
+    EvaluationPeriods: 2
+    MetricName: MemoryUtilization
+    Namespace: AWS/ECS
+    Period: 60
+    Statistic: Average
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-service-MemoryUtilization
+    Threshold: 90
+  aws:cloudwatch_alarm:my-container-service-RunningTaskCount:
+    ActionsEnabled: true
+    AlarmDescription: This metric checks for any stopped tasks in the ECS service
+    ComparisonOperator: LessThanThreshold
+    Dimensions:
+      ClusterName: aws:ecs_cluster:ecs_cluster-0#Id
+      ServiceName: aws:ecs_service:my-container-service#Name
+    EvaluationPeriods: 1
+    MetricName: RunningTaskCount
+    Namespace: ECS/ContainerInsights
+    Period: 60
+    Statistic: Average
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-service-RunningTaskCount
+    Threshold: 1
+  aws:ecs_cluster:ecs_cluster-0:
+    ClusterSettings:
+      - Name: containerInsights
+        Value: enabled
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: ecs_cluster-0
+  aws:ecs_task_definition:my-container-task:
+    ContainerDefinitions:
+      - Cpu: 256
+        Essential: true
+        Image: aws:ecr_image:my-container-image#ImageName
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: aws:log_group:my-container-task-log-group#LogGroupName
+            awslogs-region: aws:region:region-0#Name
+            awslogs-stream-prefix: my-container-task-my-container-task
+        Memory: 512
+        Name: my-container-task
+        PortMappings:
+          - ContainerPort: 80
+            HostPort: 80
+            Protocol: TCP
+    Cpu: '256'
+    ExecutionRole: aws:iam_role:my-container-task-execution-role
+    Memory: '512'
+    NetworkMode: awsvpc
+    RequiresCompatibilities:
+      - FARGATE
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-task
+    TaskRole: aws:iam_role:my-container-task-execution-role
+  aws:subnet:default-network-vpc:default-network-private-subnet-1:
+    CidrBlock: 10.0.128.0/18
+    Id: FAKE (dryrun)
+    MapPublicIpOnLaunch: false
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: default-network-private-subnet-1
+    Type: private
+    Vpc: aws:vpc:default-network-vpc
+    imported: true
+  aws:subnet:default-network-vpc:default-network-private-subnet-2:
+    CidrBlock: 10.0.192.0/18
+    Id: FAKE (dryrun)
+    MapPublicIpOnLaunch: false
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: default-network-private-subnet-2
+    Type: private
+    Vpc: aws:vpc:default-network-vpc
+    imported: true
+  aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
+    DashboardBody:
+      Widgets:
+        - Height: 6
+          Properties:
+            Annotations:
+              Alarms:
+                - aws:cloudwatch_alarm:my-container-service-CPUUtilization#Arn
+            Region: aws:region:region-0#Name
+          Type: metric
+          Width: 6
+        - Height: 6
+          Properties:
+            Alarms:
+              - aws:cloudwatch_alarm:my-container-service-CPUUtilization#Arn
+          Type: alarm
+          Width: 6
+        - Height: 6
+          Properties:
+            Annotations:
+              Alarms:
+                - aws:cloudwatch_alarm:my-container-service-MemoryUtilization#Arn
+            Region: aws:region:region-0#Name
+          Type: metric
+          Width: 6
+        - Height: 6
+          Properties:
+            Alarms:
+              - aws:cloudwatch_alarm:my-container-service-MemoryUtilization#Arn
+          Type: alarm
+          Width: 6
+        - Height: 6
+          Properties:
+            Annotations:
+              Alarms:
+                - aws:cloudwatch_alarm:my-container-service-RunningTaskCount#Arn
+            Region: aws:region:region-0#Name
+          Type: metric
+          Width: 6
+        - Height: 6
+          Properties:
+            Alarms:
+              - aws:cloudwatch_alarm:my-container-service-RunningTaskCount#Arn
+          Type: alarm
+          Width: 6
+  aws:region:region-0:
+  aws:ecr_image:my-container-image:
+    Context: /home/gordon/w/k2/pkg/k2/language_host/python/samples
+    Dockerfile: /home/gordon/w/k2/pkg/k2/language_host/python/samples/Dockerfile
+    Platform: linux/amd64
+    Repo: aws:ecr_repo:my-container-image-ecr_repo
+  aws:iam_role:my-container-task-execution-role:
+    AssumeRolePolicyDoc:
+      Statement:
+        - Action:
+            - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+              - ecs-tasks.amazonaws.com
+      Version: '2012-10-17'
+    ManagedPolicies:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-task-execution-role
+  aws:log_group:my-container-task-log-group:
+    LogGroupName: /aws/ecs/my-container-task
+    RetentionInDays: 5
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-task-log-group
+  aws:vpc:default-network-vpc:
+    CidrBlock: 10.0.0.0/16
+    EnableDnsHostnames: true
+    EnableDnsSupport: true
+    Id: FAKE (dryrun)
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: default-network-vpc
+    imported: true
+  aws:ecr_repo:my-container-image-ecr_repo:
+    ForceDelete: true
+    Tags:
+      GLOBAL_KLOTHO_TAG: k2
+      RESOURCE_NAME: my-container-image-ecr_repo
+edges:
+  aws:security_group:default-network-vpc:my-container-lb-security_group -> aws:load_balancer:my-container-lb:
+  aws:security_group:default-network-vpc:my-container-lb-security_group -> aws:vpc:default-network-vpc:
+  aws:load_balancer:my-container-lb -> aws:load_balancer_listener:my-container-lb:my-container-listener:
+  aws:load_balancer:my-container-lb -> aws:subnet:default-network-vpc:default-network-public-subnet-1:
+  aws:load_balancer:my-container-lb -> aws:subnet:default-network-vpc:default-network-public-subnet-2:
+  aws:load_balancer_listener:my-container-lb:my-container-listener -> aws:target_group:my-container-tg:
+  aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:security_group:default-network-vpc:my-container-service-security_group:
+  aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
+  aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:security_group:default-network-vpc:my-container-service-security_group:
+  aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
+  aws:target_group:my-container-tg -> aws:ecs_service:my-container-service:
+  aws:security_group:default-network-vpc:my-container-service-security_group -> aws:ecs_service:my-container-service:
+  aws:security_group:default-network-vpc:my-container-service-security_group -> aws:vpc:default-network-vpc:
+  aws:ecs_service:my-container-service -> aws:cloudwatch_alarm:my-container-service-CPUUtilization:
+  aws:ecs_service:my-container-service -> aws:cloudwatch_alarm:my-container-service-MemoryUtilization:
+  aws:ecs_service:my-container-service -> aws:cloudwatch_alarm:my-container-service-RunningTaskCount:
+  aws:ecs_service:my-container-service -> aws:ecs_cluster:ecs_cluster-0:
+  aws:ecs_service:my-container-service -> aws:ecs_task_definition:my-container-task:
+  aws:ecs_service:my-container-service -> aws:subnet:default-network-vpc:default-network-private-subnet-1:
+  aws:ecs_service:my-container-service -> aws:subnet:default-network-vpc:default-network-private-subnet-2:
+  aws:cloudwatch_alarm:my-container-service-CPUUtilization -> aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
+  aws:cloudwatch_alarm:my-container-service-CPUUtilization -> aws:region:region-0:
+  aws:cloudwatch_alarm:my-container-service-MemoryUtilization -> aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
+  aws:cloudwatch_alarm:my-container-service-MemoryUtilization -> aws:region:region-0:
+  aws:cloudwatch_alarm:my-container-service-RunningTaskCount -> aws:cloudwatch_dashboard:cloudwatch_dashboard-0:
+  aws:cloudwatch_alarm:my-container-service-RunningTaskCount -> aws:region:region-0:
+  aws:ecs_task_definition:my-container-task -> aws:ecr_image:my-container-image:
+  aws:ecs_task_definition:my-container-task -> aws:iam_role:my-container-task-execution-role:
+  aws:ecs_task_definition:my-container-task -> aws:log_group:my-container-task-log-group:
+  aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:vpc:default-network-vpc:
+  aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:vpc:default-network-vpc:
+  aws:ecr_image:my-container-image -> aws:ecr_repo:my-container-image-ecr_repo:
+outputs:
+  LoadBalancerUrl:
+    ref: aws:load_balancer:my-container-lb#NlbUri

@@ -1,26 +1,20 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/klothoplatform/klotho/pkg/k2/language_host"
-
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var upConfig struct {
@@ -65,76 +59,31 @@ func up(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(ctx)
 	}
 
-	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
-		Enabled: upConfig.debugMode != "",
-		Port:    upConfig.debugPort,
-		Mode:    upConfig.debugMode,
+	log := logging.GetLogger(ctx).Sugar()
+
+	var langHost language_host.LanguageHost
+	err = langHost.Start(ctx, language_host.DebugConfig{
+		Port: upConfig.debugPort,
+		Mode: upConfig.debugMode,
 	}, filepath.Dir(inputPath))
 	if err != nil {
 		return err
 	}
-
 	defer func() {
-		if err := langHost.Process.Kill(); err != nil {
-			zap.L().Warn("failed to kill Python client", zap.Error(err))
+		if err := langHost.Close(); err != nil {
+			log.Warnf("Error closing language host", zap.Error(err))
 		}
 	}()
 
-	log := logging.GetLogger(cmd.Context()).Sugar()
-
-	log.Debug("Waiting for Python server to start")
-	if upConfig.debugMode != "" {
-		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
-		<-addr.HasAddr
-	} else {
-		select {
-		case <-addr.HasAddr:
-		case <-time.After(30 * time.Second):
-			return errors.New("timeout waiting for Python server to start")
-		}
-	}
-	conn, err := grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ir, err := langHost.GetIR(ctx, &pb.IRRequest{Filename: inputPath})
 	if err != nil {
-		return fmt.Errorf("failed to connect to Python server: %w", err)
-	}
-
-	defer func(conn *grpc.ClientConn) {
-		err = conn.Close()
-		if err != nil {
-			zap.L().Error("failed to close connection", zap.Error(err))
-		}
-	}(conn)
-
-	client := pb.NewKlothoServiceClient(conn)
-
-	// make sure the ctx used later doesn't have the timeout (which is only for the IR request)
-	irCtx := ctx
-	if upConfig.debugMode == "" {
-		var cancel context.CancelFunc
-		irCtx, cancel = context.WithTimeout(irCtx, time.Second*10)
-		defer cancel()
-	}
-
-	req := &pb.IRRequest{Filename: inputPath}
-	res, err := client.SendIR(irCtx, req)
-	if err != nil {
-		return fmt.Errorf("error sending IR request: %w", err)
-	}
-
-	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
-	if err != nil {
-		return fmt.Errorf("error parsing IR file: %w", err)
+		return fmt.Errorf("error getting IR: %w", err)
 	}
 
 	// Take the IR -- generate and save a state file and stored in the
 	// output directory, the path should include the environment name and
 	// the project URN
-	appUrn, err := model.ParseURN(ir.AppURN)
-	if err != nil {
-		return fmt.Errorf("error parsing app URN: %w", err)
-	}
-
-	appUrnPath, err := model.UrnPath(*appUrn)
+	appUrnPath, err := model.UrnPath(ir.AppURN)
 	if err != nil {
 		return fmt.Errorf("error getting URN path: %w", err)
 	}
@@ -160,7 +109,7 @@ func up(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	o, err := orchestration.NewUpOrchestrator(sm, client, appDir)
+	o, err := orchestration.NewUpOrchestrator(sm, langHost.NewClient(), appDir)
 	if err != nil {
 		return fmt.Errorf("error creating up orchestrator: %w", err)
 	}

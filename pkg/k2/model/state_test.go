@@ -101,10 +101,10 @@ func TestLoadState(t *testing.T) {
 	if err := sm.LoadState(); err != nil {
 		t.Errorf("Failed to load state: %v", err)
 	}
-	if sm.state.ProjectURN != "urn:project:example" {
+	if sm.state.ProjectURN.String() != "urn:project:example" {
 		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", sm.state.ProjectURN)
 	}
-	if sm.state.AppURN != "urn:app:example" {
+	if sm.state.AppURN.String() != "urn:app:example" {
 		t.Errorf("Expected AppURN to be urn:app:example, got %s", sm.state.AppURN)
 	}
 	if sm.state.Environment != "dev" {
@@ -153,8 +153,8 @@ func TestSaveState(t *testing.T) {
 	stateFile := "state.yaml"
 
 	sm := NewStateManager(mockFS, stateFile)
-	sm.state.ProjectURN = "urn:project:example"
-	sm.state.AppURN = "urn:app:example"
+	sm.state.ProjectURN = URN{Project: "example"}
+	sm.state.AppURN = URN{Application: "example"}
 	sm.state.Environment = "dev"
 	sm.state.DefaultRegion = "us-west-2"
 	constructURN, _ := ParseURN("urn:construct:example")
@@ -185,10 +185,10 @@ func TestSaveState(t *testing.T) {
 		t.Errorf("Failed to unmarshal state: %v", err)
 	}
 
-	if state.ProjectURN != "urn:project:example" {
+	if state.ProjectURN.String() != "urn:::example" {
 		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", state.ProjectURN)
 	}
-	if state.AppURN != "urn:app:example" {
+	if state.AppURN.String() != "urn::::example" {
 		t.Errorf("Expected AppURN to be urn:app:example, got %s", state.AppURN)
 	}
 	if state.Environment != "dev" {
@@ -229,8 +229,8 @@ func TestInitState(t *testing.T) {
 	}
 
 	ir := &ApplicationEnvironment{
-		ProjectURN:    "urn:project:example",
-		AppURN:        "urn:app:example",
+		ProjectURN:    URN{Project: "example"},
+		AppURN:        URN{Application: "example"},
 		Environment:   "dev",
 		DefaultRegion: "us-west-2",
 		Constructs: map[string]Construct{
@@ -251,10 +251,10 @@ func TestInitState(t *testing.T) {
 	sm := NewStateManager(mockFS, stateFile)
 	sm.InitState(ir)
 
-	if sm.state.ProjectURN != "urn:project:example" {
+	if sm.state.ProjectURN.String() != "urn:project:example" {
 		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", sm.state.ProjectURN)
 	}
-	if sm.state.AppURN != "urn:app:example" {
+	if sm.state.AppURN.String() != "urn:app:example" {
 		t.Errorf("Expected AppURN to be urn:app:example, got %s", sm.state.AppURN)
 	}
 	if sm.state.Environment != "dev" {
@@ -505,16 +505,16 @@ func TestGetState(t *testing.T) {
 	stateFile := "state.yaml"
 
 	sm := NewStateManager(mockFS, stateFile)
-	sm.state.ProjectURN = "urn:project:example"
-	sm.state.AppURN = "urn:app:example"
+	sm.state.ProjectURN = URN{Project: "example"}
+	sm.state.AppURN = URN{Application: "example"}
 	sm.state.Environment = "dev"
 	sm.state.DefaultRegion = "us-west-2"
 
 	state := sm.GetState()
-	if state.ProjectURN != "urn:project:example" {
+	if state.ProjectURN.String() != "urn:project:example" {
 		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", state.ProjectURN)
 	}
-	if state.AppURN != "urn:app:example" {
+	if state.AppURN.String() != "urn:app:example" {
 		t.Errorf("Expected AppURN to be urn:app:example, got %s", state.AppURN)
 	}
 	if state.Environment != "dev" {

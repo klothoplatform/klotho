@@ -3,10 +3,7 @@ package model
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // URN represents a Unique Resource Name in the Klotho ecosystem
@@ -38,60 +35,11 @@ const (
 
 // ParseURN parses a URN string into a URN struct
 func ParseURN(urnString string) (*URN, error) {
-	re := regexp.MustCompile(`[^:]*`)
-	matches := re.FindAllString(urnString, -1)
-
-	if len(matches) < 2 {
-		return nil, fmt.Errorf("invalid URN format: not enough parts")
+	var urn URN
+	if err := urn.UnmarshalText([]byte(urnString)); err != nil {
+		return nil, err
 	}
-
-	if matches[0] == "urn" {
-		matches = matches[1:]
-	}
-
-	// check again as the above line can truncate to < 2
-	if len(matches) < 2 {
-		return nil, fmt.Errorf("invalid URN format: missing account ID or project")
-	}
-
-	urn := &URN{
-		AccountID: matches[0],
-		Project:   matches[1],
-	}
-
-	if len(matches) > 2 && matches[2] != "" {
-		urn.Environment = matches[2]
-	}
-	if len(matches) > 3 && matches[3] != "" {
-		urn.Application = matches[3]
-	}
-	if len(matches) > 4 && matches[4] != "" {
-		typeParts := strings.Split(matches[4], "/")
-		if len(typeParts) != 2 {
-			return nil, fmt.Errorf("invalid URN type format: %s", matches[4])
-		}
-		urn.Type = typeParts[0]
-		urn.Subtype = typeParts[1]
-	}
-
-	if len(matches) > 5 && matches[5] != "" {
-		resourceParts := strings.Split(matches[5], "/")
-		if len(resourceParts) == 2 {
-			urn.ParentResourceID = resourceParts[0]
-			urn.ResourceID = resourceParts[1]
-		} else {
-			urn.ResourceID = matches[5]
-		}
-	}
-	if len(matches) > 6 && matches[6] != "" {
-		urn.Output = matches[6]
-	}
-
-	if len(matches) > 7 {
-		return nil, fmt.Errorf("invalid URN format: too many parts")
-	}
-
-	return urn, nil
+	return &urn, nil
 }
 
 // String returns the URN as a string
@@ -128,22 +76,54 @@ func (u URN) String() string {
 	return strings.TrimRight(urn, ":")
 }
 
-func (u *URN) MarshalYAML() (interface{}, error) {
-	return u.String(), nil
+func (u URN) MarshalText() ([]byte, error) {
+	return []byte(u.String()), nil
 }
 
-func (u *URN) UnmarshalYAML(value *yaml.Node) error {
-	var urnString string
-	if err := value.Decode(&urnString); err != nil {
-		return fmt.Errorf("error decoding YAML value: %w", err)
+func (u *URN) UnmarshalText(text []byte) error {
+	parts := strings.Split(string(text), ":")
+
+	if parts[0] == "urn" {
+		parts = parts[1:]
 	}
 
-	parsedUrn, err := ParseURN(urnString)
-	if err != nil {
-		return fmt.Errorf("error parsing URN: %w", err)
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid URN format: missing account ID and/or project")
+	} else if len(parts) > 7 {
+		return fmt.Errorf("invalid URN format: too many parts")
 	}
 
-	*u = *parsedUrn
+	u.AccountID = parts[0]
+	u.Project = parts[1]
+
+	if len(parts) > 2 {
+		u.Environment = parts[2]
+	}
+	if len(parts) > 3 {
+		u.Application = parts[3]
+	}
+	if len(parts) > 4 && parts[4] != "" {
+		typeParts := strings.Split(parts[4], "/")
+		if len(typeParts) != 2 {
+			return fmt.Errorf("invalid URN type format: %s", parts[4])
+		}
+		u.Type = typeParts[0]
+		u.Subtype = typeParts[1]
+	}
+
+	if len(parts) > 5 && parts[5] != "" {
+		resourceParts := strings.Split(parts[5], "/")
+		if len(resourceParts) == 2 {
+			u.ParentResourceID = resourceParts[0]
+			u.ResourceID = resourceParts[1]
+		} else {
+			u.ResourceID = parts[5]
+		}
+	}
+	if len(parts) > 6 && parts[6] != "" {
+		u.Output = parts[6]
+	}
+
 	return nil
 }
 

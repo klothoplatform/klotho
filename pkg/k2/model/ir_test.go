@@ -8,12 +8,14 @@ import (
 func createTestApplicationEnvironment() *ApplicationEnvironment {
 	urnContainer, _ := ParseURN("urn:accountid:project:dev::construct/klotho.aws.Container:my-container")
 	urnS3, _ := ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket")
+	appUrn, _ := ParseURN("urn:k2:app:myapp")
+	projectUrn, _ := ParseURN("urn:k2:project:myproject")
 
 	return &ApplicationEnvironment{
 		SchemaVersion: 1,
 		Version:       1,
-		ProjectURN:    "urn:k2:project:myproject",
-		AppURN:        "urn:k2:app:myapp",
+		ProjectURN:    *projectUrn,
+		AppURN:        *appUrn,
 		Environment:   "dev",
 		Constructs: map[string]Construct{
 			"my-container": {

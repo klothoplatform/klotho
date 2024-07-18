@@ -45,9 +45,12 @@ func (f *ServerAddress) Write(b []byte) (int, error) {
 }
 
 type DebugConfig struct {
-	Enabled bool
-	Port    int
-	Mode    string
+	Port int
+	Mode string
+}
+
+func (cfg DebugConfig) Enabled() bool {
+	return cfg.Mode != ""
 }
 
 func copyToTempDir(name, content string) (string, error) {
@@ -72,7 +75,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath 
 	}
 
 	args := []string{"run", "python", hostPath}
-	if debugConfig.Enabled {
+	if debugConfig.Enabled() {
 		if debugConfig.Port > 0 {
 			args = append(args, "--debug-port", fmt.Sprintf("%d", debugConfig.Port))
 		}

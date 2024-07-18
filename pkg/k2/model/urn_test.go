@@ -4,376 +4,96 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"github.com/stretchr/testify/require"
 )
 
-func TestParseURN(t *testing.T) {
-	testCases := []struct {
-		name      string
-		urnString string
-		expected  *URN
-		wantErr   bool
-	}{
-		{
-			name:      "Project URN",
-			urnString: "urn:123456790:my-project",
-			expected: &URN{
-				AccountID: "123456790",
-				Project:   "my-project",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Project Environment URN",
-			urnString: "urn:123456790:my-project:dev",
-			expected: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Project Application URN",
-			urnString: "urn:123456790:my-project::my-app",
-			expected: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Application: "my-app",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Project Environment Application URN",
-			urnString: "urn:123456790:my-project:dev:my-app",
-			expected: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-				Application: "my-app",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Construct Instance URN",
-			urnString: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket",
-			expected: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Construct Output URN",
-			urnString: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket:bucketName",
-			expected: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-				Output:      "bucketName",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Invalid URN with missing parts",
-			urnString: "urn:123456790",
-			expected:  nil,
-			wantErr:   true,
-		},
-		{
-			name:      "Invalid URN with invalid type format",
-			urnString: "urn:123456790:my-project:dev:my-app:invalidtypeformat",
-			expected:  nil,
-			wantErr:   true,
-		},
-		{
-			name:      "URN with special characters",
-			urnString: "urn:account@id:proj$ect:dev::construct/klotho.aws.S3:my-bucket",
-			expected: &URN{
-				AccountID:   "account@id",
-				Project:     "proj$ect",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "URN with ParentResourceID",
-			urnString: "urn:accountid:project:dev::construct/klotho.aws.S3:parent/resource",
-			expected: &URN{
-				AccountID:        "accountid",
-				Project:          "project",
-				Environment:      "dev",
-				Type:             "construct",
-				Subtype:          "klotho.aws.S3",
-				ParentResourceID: "parent",
-				ResourceID:       "resource",
-			},
-			wantErr: false,
-		},
-		{
-			name:      "Invalid URN with too many parts",
-			urnString: "urn:123456790:my-project:dev:my-app:construct/klotho.aws.S3:my-bucket:bucketName:extra-part",
-			expected:  nil,
-			wantErr:   true,
-		},
-		{
-			name:      "Empty URN",
-			urnString: "",
-			expected:  nil,
-			wantErr:   true,
-		},
-	}
+func TestMarshalUrnRoundtrip(t *testing.T) {
+	noExplicitType := ""
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := ParseURN(tc.urnString)
-
-			if tc.wantErr {
-				if err == nil {
-					t.Errorf("Expected error but got nil for URN: %s", tc.urnString)
-					t.Logf("Resulting value: %+v", result)
-				} else {
-					t.Logf("Correctly got error: %v for URN: %s", err, tc.urnString)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Expected no error but got: %v for URN: %s", err, tc.urnString)
-				} else {
-					t.Logf("Parsed URN correctly: %+v", result)
-				}
-
-				if !assert.Equal(t, tc.expected, result) {
-					t.Logf("Mismatch between expected and actual URN.\nExpected: %+v\nActual: %+v", tc.expected, result)
-				}
-			}
-		})
-	}
-
-}
-
-func TestString(t *testing.T) {
-	testCases := []struct {
-		name     string
-		urn      *URN
-		expected string
-	}{
-		{
-			name: "Project URN",
-			urn: &URN{
-				AccountID: "123456790",
-				Project:   "my-project",
-			},
-			expected: "urn:123456790:my-project",
-		},
-		{
-			name: "Project Environment URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-			},
-			expected: "urn:123456790:my-project:dev",
-		},
-		{
-			name: "Project Application URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Application: "my-app",
-			},
-			expected: "urn:123456790:my-project::my-app",
-		},
-		{
-			name: "Project Environment Application URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-				Application: "my-app",
-			},
-			expected: "urn:123456790:my-project:dev:my-app",
-		},
-		{
-			name: "Construct Instance URN",
-			urn: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-			},
-			expected: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket",
-		},
-		{
-			name: "Construct Output URN",
-			urn: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-				Output:      "bucketName",
-			},
-			expected: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket:bucketName",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := tc.urn.String()
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestMarshalYAML(t *testing.T) {
-	testCases := []struct {
-		name     string
-		urn      *URN
-		expected string
-	}{
-		{
-			name: "Project URN",
-			urn: &URN{
-				AccountID: "123456790",
-				Project:   "my-project",
-			},
-			expected: "urn:123456790:my-project",
-		},
-		{
-			name: "Project Environment URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-			},
-			expected: "urn:123456790:my-project:dev",
-		},
-		{
-			name: "Project Application URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Application: "my-app",
-			},
-			expected: "urn:123456790:my-project::my-app",
-		},
-		{
-			name: "Project Environment Application URN",
-			urn: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-				Application: "my-app",
-			},
-			expected: "urn:123456790:my-project:dev:my-app",
-		},
-		{
-			name: "Construct Instance URN",
-			urn: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-			},
-			expected: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket",
-		},
-		{
-			name: "Construct Output URN",
-			urn: &URN{
-				AccountID:   "accountid",
-				Project:     "project",
-				Environment: "dev",
-				Type:        "construct",
-				Subtype:     "klotho.aws.S3",
-				ResourceID:  "my-bucket",
-				Output:      "bucketName",
-			},
-			expected: "urn:accountid:project:dev::construct/klotho.aws.S3:my-bucket:bucketName",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := tc.urn.MarshalYAML()
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
-func TestUnmarshalYAML(t *testing.T) {
-	testCases := []struct {
+	cases := []struct {
 		name       string
-		yamlString string
-		expected   *URN
-		wantErr    bool
+		urn        string
+		resultType string // "error" or UrnType
 	}{
 		{
-			name:       "Valid Project URN",
-			yamlString: "urn:123456790:my-project",
-			expected: &URN{
-				AccountID: "123456790",
-				Project:   "my-project",
-			},
-			wantErr: false,
+			name:       "Project URN",
+			urn:        "urn:123456790:my-project",
+			resultType: string(ProjectUrnType),
 		},
 		{
-			name:       "Valid Project Environment URN",
-			yamlString: "urn:123456790:my-project:dev",
-			expected: &URN{
-				AccountID:   "123456790",
-				Project:     "my-project",
-				Environment: "dev",
-			},
-			wantErr: false,
+			name:       "Project Environment URN",
+			urn:        "urn:123456790:my-project:dev",
+			resultType: string(EnvironmentUrnType),
+		},
+		{
+			name:       "Project Application URN",
+			urn:        "urn:123456790:my-project::my-app",
+			resultType: noExplicitType,
+		},
+		{
+			name:       "Project Environment Application URN",
+			urn:        "urn:123456790:my-project:dev:my-app",
+			resultType: string(ApplicationEnvironmentUrnType),
+		},
+		{
+			name:       "Construct Instance URN",
+			urn:        "urn:accountid:project:dev:app:construct/klotho.aws.S3:my-bucket",
+			resultType: string(ResourceUrnType),
+		},
+		{
+			name:       "Construct Output URN",
+			urn:        "urn:accountid:project:dev:app:construct/klotho.aws.S3:my-bucket/s3_bucket:bucketName",
+			resultType: string(OutputUrnType),
 		},
 		{
 			name:       "Invalid URN with missing parts",
-			yamlString: "urn:123456790",
-			expected:   nil,
-			wantErr:    true,
+			urn:        "urn:123456790",
+			resultType: "error",
 		},
 		{
 			name:       "Invalid URN with invalid type format",
-			yamlString: "urn:123456790:my-project:dev:my-app:invalidtypeformat",
-			expected:   nil,
-			wantErr:    true,
+			urn:        "urn:123456790:my-project:dev:my-app:invalidtypeformat",
+			resultType: "error",
 		},
 		{
-			name:       "Non-string YAML value",
-			yamlString: "123456",
-			expected:   nil,
-			wantErr:    true,
+			name:       "URN with special characters",
+			urn:        "urn:account@id:proj$ect:dev::construct/klotho.aws.S3:my-bucket",
+			resultType: string(ResourceUrnType),
+		},
+		{
+			name:       "URN with ParentResourceID",
+			urn:        "urn:accountid:project:dev::construct/klotho.aws.S3:parent/resource",
+			resultType: string(ResourceUrnType),
+		},
+		{
+			name:       "Invalid URN with too many parts",
+			urn:        "urn:123456790:my-project:dev:my-app:construct/klotho.aws.S3:my-bucket:bucketName:extra-part",
+			resultType: "error",
+		},
+		{
+			name:       "Empty URN",
+			urn:        "",
+			resultType: "error",
 		},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var urn URN
-			err := yaml.Unmarshal([]byte(tc.yamlString), &urn)
-
-			if tc.wantErr {
-				assert.Error(t, err, "Expected error for YAML: %s", tc.yamlString)
-			} else {
-				assert.NoError(t, err, "Expected no error for YAML: %s", tc.yamlString)
-				assert.Equal(t, tc.expected, &urn, "Expected URN: %+v, got: %+v", tc.expected, &urn)
+			err := urn.UnmarshalText([]byte(tc.urn))
+			if tc.resultType == "error" {
+				assert.Error(t, err)
+				return
 			}
+			require.NoError(t, err)
+
+			str, err := urn.MarshalText()
+			assert.Nil(t, err)
+
+			assert.Equal(t, tc.urn, string(str))
+			assert.Equal(t, tc.resultType, string(urn.UrnType()))
 		})
+
 	}
 }
 
