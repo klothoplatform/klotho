@@ -1,0 +1,148 @@
+id: klotho.aws.FastAPI
+version: 1.0.0
+description: A construct for creating a FastAPI service
+resources:
+  LoadBalancer:
+    type: aws:load_balancer
+    name: ${inputs:Name}-lb
+    properties:
+      Type: network
+      Scheme: internet-facing
+      Subnets:
+        - ${inputs:Network.Resources.PublicSubnet1}
+        - ${inputs:Network.Resources.PublicSubnet2}
+  Listener:
+    type: aws:load_balancer_listener
+    namespace: ${resources:LoadBalancer.Name}
+    name: ${inputs:Name}-listener
+    properties:
+      LoadBalancer: ${resources:LoadBalancer}
+      Port: 80
+      Protocol: TCP
+  TaskDefinition:
+    type: aws:ecs_task_definition
+    name: ${inputs:Name}-task
+    properties:
+      Cpu: ${inputs:Cpu}
+      Memory: ${inputs:Memory}
+      ContainerDefinitions[0].PortMappings:
+        - ContainerPort: ${inputs:Port}
+          HostPort: ${inputs:Port}
+          Protocol: TCP
+      ContainerDefinitions[0].Cpu: ${inputs:Cpu}
+      ContainerDefinitions[0].Memory: ${inputs:Memory}
+      RequiresCompatibilities:
+        - FARGATE
+  Service:
+    type: aws:ecs_service
+    name: ${inputs:Name}-service
+    properties:
+      LaunchType: FARGATE
+      TaskDefinition: ${resources:TaskDefinition}
+      LoadBalancers[0].ContainerPort: ${inputs:Port}
+      EnableExecuteCommand: ${inputs:EnableExecuteCommand}
+
+  TargetGroup:
+    type: aws:target_group
+    name: ${inputs:Name}-tg
+    properties:
+      Port: ${inputs:Port}
+      Protocol: TCP
+      Vpc: ${inputs:Network.Resources.Vpc}
+
+edges:
+  - from: Listener
+    to: TargetGroup
+
+  - from: LoadBalancer
+    to: Service
+
+  - from: TargetGroup
+    to: Service
+
+inputs:
+  SourceHash:
+    name: Source Hash
+    description: The hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
+    type: string
+    hidden: true
+  Cpu:
+    name: CPU
+    description: The amount of CPU to allocate to the container
+    type: number
+    default: 256
+    validation:
+      minimum: 1
+      maximum: 4096
+  EnableExecuteCommand:
+    name: Enable Execute Command
+    description: Whether to enable the execute command functionality for the container
+    type: boolean
+    default: false
+  Memory:
+    name: Memory
+    description: The amount of memory to allocate to the container
+    type: number
+    default: 512
+    validation:
+      minimum: 1
+      maximum: 4096
+  Context:
+    name: Context
+    description: The context to use to build the container
+    type: path
+    default: .
+    validation:
+      minLength: 1
+      maxLength: 63
+  Dockerfile:
+    name: Dockerfile
+    description: The Dockerfile to use to build the container
+    type: path
+    default: Dockerfile
+    validation:
+      minLength: 1
+      maxLength: 63
+  Image:
+    name: Image
+    description: The image to use for the container
+    type: string
+    validation:
+      minLength: 1
+      maxLength: 63
+  Port:
+    name: Port
+    description: The port to expose on the container
+    type: number
+    default: 80
+    validation:
+      minimum: 1
+      maximum: 65535
+  Network:
+    name: Network
+    description: The network to deploy the container to
+    type: Construct<klotho.aws.Network>
+
+input_rules:
+  - if: '{{ and (inputs "Dockerfile") (not (inputs "Image")) }}'
+    then:
+      resources:
+        EcrImage:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
+          properties:
+            Dockerfile: ${inputs:Dockerfile}
+            Context: ${inputs:Context}
+        TaskDefinition:
+          properties:
+            ContainerDefinitions[0].Image: ${resources:EcrImage#ImageName}
+    else:
+      resources:
+        TaskDefinition:
+          properties:
+            ContainerDefinitions[0].Image: ${inputs:Image}
+
+outputs:
+  LoadBalancerUrl:
+    value: ${resources:LoadBalancer#NlbUri}
+    description: The URL of the load balancer
