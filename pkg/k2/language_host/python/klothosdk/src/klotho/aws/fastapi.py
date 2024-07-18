@@ -1,7 +1,6 @@
 from typing import Optional, overload, Union, TYPE_CHECKING
 
 from klotho.aws.network import Network
-from klotho.aws.bucket import Bucket
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding, add_binding
 from klotho.output import Input, Output
 from klotho.runtime_util import get_default_construct
@@ -15,7 +14,7 @@ BindingType = Union[
 ]
 
 
-class ContainerArgs:
+class FastAPIArgs:
     def __init__(self,
                  bindings: Optional[list[BindingType]] = None,
                  context: Optional[Input[str]] = None,
@@ -122,10 +121,10 @@ class ContainerArgs:
         set(self, "enable_execute_command", value)
 
 
-class Container(Construct):
+class FastAPI(Construct):
 
     @overload
-    def __init__(self, name: str, args: ContainerArgs, opts: Optional[ConstructOptions] = None):
+    def __init__(self, name: str, args: FastAPIArgs, opts: Optional[ConstructOptions] = None):
         ...
 
     @overload
@@ -146,7 +145,7 @@ class Container(Construct):
         ...
 
     def __init__(self, name: str, *args, **kwargs):
-        construct_args, opts = get_construct_args_opts(ContainerArgs, *args, **kwargs)
+        construct_args, opts = get_construct_args_opts(FastAPIArgs, *args, **kwargs)
         if construct_args is not None:
             self._internal_init(name, opts=opts, **construct_args.__dict__)
         else:
@@ -172,7 +171,7 @@ class Container(Construct):
 
         super().__init__(
             name,
-            construct_type="klotho.aws.Container",
+            construct_type="klotho.aws.FastAPI",
             properties={
                 "Image": image,
                 "SourceHash": source_hash,
