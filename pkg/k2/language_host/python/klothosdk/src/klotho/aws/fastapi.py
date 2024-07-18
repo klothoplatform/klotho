@@ -1,6 +1,7 @@
 from typing import Optional, overload, Union, TYPE_CHECKING
 
 from klotho.aws.network import Network
+from klotho.aws.bucket import Bucket
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct, Binding, add_binding
 from klotho.output import Input, Output
 from klotho.runtime_util import get_default_construct

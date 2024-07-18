@@ -1,6 +1,6 @@
 id: klotho.aws.FastAPI
 version: 1.0.0
-description: A construct for creating a FastAPI service that is deployed to an ECS Fargate cluster
+description: A construct for creating a FastAPI service
 resources:
   LoadBalancer:
     type: aws:load_balancer
