@@ -9,5 +9,5 @@ class Api(Construct):
             name, construct_type="klotho.aws.Api", properties={}, opts=opts
         )
 
-    def route_to(self, method: str, path: str, dest: Construct):
-        add_binding(self, Binding(dest, {"Method": method, "Path": path}))
+    def route_to(self, path: str, dest: Construct):
+        add_binding(self, Binding(dest, {"Path": path}))
