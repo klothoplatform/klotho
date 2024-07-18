@@ -5,7 +5,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
+	"github.com/klothoplatform/klotho/pkg/templateutils"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -54,7 +54,7 @@ func (ctx DynamicValueContext) KB() TemplateKB {
 }
 
 func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
-	return template.FuncMap{
+	return templateutils.WithCommonFuncs(template.FuncMap{
 		"hasUpstream":        ctx.HasUpstream,
 		"upstream":           ctx.Upstream,
 		"layeredUpstream":    ctx.LayeredUpstream,
@@ -73,41 +73,10 @@ func (ctx DynamicValueContext) TemplateFunctions() template.FuncMap {
 
 		"toJson": ctx.toJson,
 
-		"split":    strings.Split,
-		"join":     strings.Join,
-		"basename": filepath.Base,
-
-		"firstId":              firstId,
-		"filterIds":            filterIds,
-		"filterMatch":          filterMatch,
-		"mapString":            mapString,
-		"zipToMap":             zipToMap,
-		"keysToMapWithDefault": keysToMapWithDefault,
-		"replace":              replaceRegex,
-		"hasSuffix": func(s, suffix string) bool {
-			return strings.HasSuffix(s, suffix)
-		},
-		"toLower":      strings.ToLower,
+		"firstId":      firstId,
+		"filterIds":    filterIds,
 		"sanitizeName": sanitizeName,
-
-		"add":  add,
-		"sub":  sub,
-		"last": last,
-		"makeSlice": func() []any {
-			return []any{}
-		},
-		"appendSlice": func(slice []any, value any) []any {
-			return append(slice, value)
-		},
-		"sliceContains": func(slice []any, value any) bool {
-			for _, v := range slice {
-				if v == value {
-					return true
-				}
-			}
-			return false
-		},
-	}
+	})
 }
 
 func (ctx DynamicValueContext) Parse(tmpl string) (*template.Template, error) {
@@ -611,22 +580,6 @@ func (ctx DynamicValueContext) PathAncestorExists(path construct.PropertyPath, d
 	return len(path) > depth
 }
 
-// filterMatch returns a json array by filtering the values array with the regex pattern
-func filterMatch(pattern string, values []string) ([]string, error) {
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	matches := make([]string, 0, len(values))
-	for _, v := range values {
-		if ok := re.MatchString(v); ok {
-			matches = append(matches, v)
-		}
-	}
-	return matches, nil
-}
-
 func filterIds(selector any, ids []construct.ResourceId) ([]construct.ResourceId, error) {
 	selId, err := TemplateArgToRID(selector)
 	if err != nil {
@@ -655,90 +608,6 @@ func firstId(selector any, ids []construct.ResourceId) (construct.ResourceId, er
 		}
 	}
 	return construct.ResourceId{}, fmt.Errorf("no ids match selector")
-}
-
-// mapstring takes in a regex pattern and replacement as well as a json array of strings
-// roughly `unmarshal value | sed s/pattern/replace/g | marshal`
-func mapString(pattern, replace string, values []string) ([]string, error) {
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	nv := make([]string, len(values))
-	for i, v := range values {
-		nv[i] = re.ReplaceAllString(v, replace)
-	}
-	return nv, nil
-}
-
-// zipToMap returns a json map by zipping the keys and values arrays
-// Example: zipToMap(['a', 'b'], [1, 2]) => {"a": 1, "b": 2}
-func zipToMap(keys []string, valuesArg any) (map[string]any, error) {
-	// Have to use reflection here because technically, []string is not assignable to []any
-	// thanks Go.
-	valuesRefl := reflect.ValueOf(valuesArg)
-	if valuesRefl.Kind() != reflect.Slice && valuesRefl.Kind() != reflect.Array {
-		return nil, fmt.Errorf("values is not a slice or array")
-	}
-	if len(keys) != valuesRefl.Len() {
-		return nil, fmt.Errorf("key length (%d) != value length (%d)", len(keys), valuesRefl.Len())
-	}
-
-	m := make(map[string]any)
-	for i, k := range keys {
-		m[k] = valuesRefl.Index(i).Interface()
-	}
-	return m, nil
-}
-
-// keysToMapWithDefault returns a json map by mapping the keys array to the static defaultValue
-// Example keysToMapWithDefault(0, ['a', 'b']) => {"a": 0, "b": 0}
-func keysToMapWithDefault(defaultValue any, keys []string) (map[string]any, error) {
-	m := make(map[string]any)
-	for _, k := range keys {
-		m[k] = defaultValue
-	}
-	return m, nil
-}
-
-func add(args ...int) int {
-	total := 0
-	for _, a := range args {
-		total += a
-	}
-	return total
-}
-
-func sub(args ...int) int {
-	if len(args) == 0 {
-		return 0
-	}
-	total := args[0]
-	for _, a := range args[1:] {
-		total -= a
-	}
-	return total
-}
-
-func last(list any) (any, error) {
-	v := reflect.ValueOf(list)
-	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-		return nil, fmt.Errorf("list is not a slice or array, is %s", v.Kind())
-	}
-	if v.Len() == 0 {
-		return nil, fmt.Errorf("list is empty")
-	}
-	return v.Index(v.Len() - 1).Interface(), nil
-}
-
-func replaceRegex(pattern, replace, value string) (string, error) {
-	re, err := regexp.Compile(pattern)
-	if err != nil {
-		return "", err
-	}
-	s := re.ReplaceAllString(value, replace)
-	return s, nil
 }
 
 // invalidNameCharacters matches characters that are not allowed in resource names. Basically,
