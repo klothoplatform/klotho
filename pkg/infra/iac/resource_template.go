@@ -151,7 +151,13 @@ func getReturn(node *sitter.Node) *sitter.Node {
 	for i := 0; i < int(node.NamedChildCount()); i++ {
 		child := node.NamedChild(i)
 		if child.Type() == "return_statement" {
-			return child
+			if child.ChildCount() == 0 {
+				return nil
+			}
+			// Unwrap to the actual value so that for example:
+			//    return 1
+			// will have the result's Content() be `1` and not `return 1`
+			return child.NamedChild(0)
 		}
 	}
 	return nil
