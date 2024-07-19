@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/stretchr/testify/assert"
@@ -58,73 +60,93 @@ func TestInterpolateValue(t *testing.T) {
 	tests := []struct {
 		name     string
 		rawValue any
-		ctx      InterpolationContext
+		data     DynamicValueData
 		expected any
 		hasError bool
 	}{
 		{
 			name:     "Simple string interpolation",
 			rawValue: "${inputs:stringInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Hello",
 		},
 		{
 			name:     "Integer interpolation",
 			rawValue: "${inputs:intInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: 42,
 		},
 		{
 			name:     "Map value interpolation",
 			rawValue: "${inputs:mapInput.key1}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "value1",
 		},
 		{
 			name:     "Slice value interpolation",
 			rawValue: "${inputs:sliceInput[1]}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "b",
 		},
 		{
 			name:     "Resource property interpolation",
 			rawValue: "${resources:testResource.prop1}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "value1",
 		},
 		{
 			name:     "Struct field interpolation",
 			rawValue: "${inputs:structInput.Field1}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Hello",
 		},
 		{
 			name:     "Struct interpolation",
 			rawValue: "${inputs:structInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: simpleStruct,
 		},
 		{
 			name:     "Mixed string interpolation",
 			rawValue: "Prefix ${inputs:stringInput} Suffix",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Prefix Hello Suffix",
 		},
 		{
 			name:     "IaC reference interpolation",
 			rawValue: "${resources:testResource#prop1}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
-			expected: ResourceRef{
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
+			expected: template.ResourceRef{
 				ResourceKey:  "testResource",
 				Property:     "prop1",
-				Type:         ResourceRefTypeIaC,
+				Type:         template.ResourceRefTypeIaC,
 				ConstructURN: model.URN{ResourceID: "test-construct"},
 			},
 		},
 		{
 			name:     "Invalid interpolation prefix",
 			rawValue: "${invalid:key}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			hasError: true,
 		},
 		{
@@ -136,7 +158,9 @@ func TestInterpolateValue(t *testing.T) {
 				Field1: "${inputs:stringInput}",
 				Field2: 42,
 			},
-			ctx: NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: struct {
 				Field1 string
 				Field2 int
@@ -152,7 +176,9 @@ func TestInterpolateValue(t *testing.T) {
 				"key2":                  42,
 				"${inputs:stringInput}": "value3",
 			},
-			ctx: NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: map[string]any{
 				"key1":  "Hello",
 				"key2":  42,
@@ -162,94 +188,140 @@ func TestInterpolateValue(t *testing.T) {
 		{
 			name:     "Slice interpolation",
 			rawValue: []any{"${inputs:stringInput}", 42},
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: []any{"Hello", 42},
 		},
 		{
 			name:     "ResourceRef interpolation",
-			rawValue: ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: ResourceRefTypeInterpolated},
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			rawValue: template.ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: template.ResourceRefTypeInterpolated},
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "testResource",
 		},
 		{
 			name:     "ResourceRef template type",
-			rawValue: ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: ResourceRefTypeTemplate},
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
-			expected: ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: ResourceRefTypeTemplate, ConstructURN: model.URN{ResourceID: "test-construct"}},
+			rawValue: template.ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: template.ResourceRefTypeTemplate},
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
+			expected: template.ResourceRef{ResourceKey: "testResource", Property: "prop1", Type: template.ResourceRefTypeTemplate, ConstructURN: model.URN{ResourceID: "test-construct"}},
 		},
 		{
 			name:     "Nested map interpolation",
 			rawValue: map[string]any{"outer": map[string]any{"inner": "${inputs:stringInput}"}},
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: map[string]any{"outer": map[string]any{"inner": "Hello"}},
 		},
 		{
 			name:     "Nested slice interpolation",
 			rawValue: []any{"${inputs:stringInput}", []any{"nested", "${inputs:intInput}"}},
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: []any{"Hello", []any{"nested", 42}},
 		},
 		{
 			name:     "Non-existent input",
 			rawValue: "${inputs:nonExistentInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: nil,
 		},
 		{
 			name:     "Non-existent resource",
 			rawValue: "${resources:nonExistentResource.prop}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			hasError: false,
 		},
 		{
 			name:     "Non-existent resource property",
 			rawValue: "${resources:testResource.nonExistentProp}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: nil,
 		},
 		{
 			name:     "Invalid array index",
 			rawValue: "${inputs:sliceInput[invalid]}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: nil,
 		},
 		{
 			name:     "Out of bounds array index",
 			rawValue: "${inputs:sliceInput[10]}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: nil,
 		},
 		{
 			name:     "Multiple interpolations in a string",
 			rawValue: "Start ${inputs:stringInput} middle ${inputs:intInput} end",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Start Hello middle 42 end",
 		},
 		{
 			name:     "Mixed string interpolation with slice interpolation",
 			rawValue: "${inputs:stringInput} ${inputs:sliceInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Hello [a b c]",
 		},
 		{
 			name:     "Mixed string interpolation with map interpolation",
 			rawValue: "${inputs:stringInput} ${inputs:mapInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			// the dynamic key has not been interpolated (that would occur in a separate step)
 			expected: "Hello map[${inputs:stringInput}:value3 key1:value1 key2:2]",
 		},
 		{
 			name:     "Mixed string interpolation with struct interpolation",
 			rawValue: "${inputs:stringInput} ${inputs:stringerStructInput}",
-			ctx:      NewInterpolationContext(mockConstruct, ResourceInterpolationContext),
+			data: DynamicValueData{
+				currentOwner: mockConstruct,
+			},
 			expected: "Hello Hello",
+		},
+		{
+			name:     "Go template interpolation",
+			rawValue: "Hello {{ .Inputs.stringInput }}",
+			data:     DynamicValueData{currentOwner: mockConstruct},
+			expected: "Hello Hello",
+		},
+		{
+			name:     "Go template evaluated before interpolation string",
+			rawValue: `Hello ${inputs:{{"stringInput"}}}`,
+			data:     DynamicValueData{currentOwner: mockConstruct},
+			expected: "Hello Hello",
+		},
+		{
+			name:     "Interleaved Go template and interpolation",
+			rawValue: "Hello {{ .Inputs.stringInput }} ${inputs:stringInput}",
+			data:     DynamicValueData{currentOwner: mockConstruct},
+			expected: "Hello Hello Hello",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ce := &ConstructEvaluator{}
-			result, err := ce.interpolateValue(mockConstruct, tt.rawValue, tt.ctx)
+			result, err := ce.interpolateValue(&tt.data, tt.rawValue)
 
 			if tt.hasError {
 				assert.Error(t, err)
@@ -259,44 +331,6 @@ func TestInterpolateValue(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Additional helper function to test the templateFunctions
-func TestTemplateFunctions(t *testing.T) {
-	ce := &ConstructEvaluator{}
-	ps := &PropertySource{
-		source: reflect.ValueOf(map[string]any{
-			"inputs": map[string]any{
-				"stringInput": "Hello",
-				"intInput":    42,
-			},
-		}),
-	}
-
-	funcs := ce.templateFunctions(ps)
-	inputsFunc := funcs["inputs"].(func(string) any)
-
-	assert.Equal(t, "Hello", inputsFunc("stringInput"))
-	assert.Equal(t, 42, inputsFunc("intInput"))
-	assert.Nil(t, inputsFunc("nonExistentInput"))
-}
-
-// Test for GetPropertyFunc
-func TestGetPropertyFunc(t *testing.T) {
-	ps := &PropertySource{
-		source: reflect.ValueOf(map[string]any{
-			"inputs": map[string]any{
-				"stringInput": "Hello",
-				"intInput":    42,
-			},
-		}),
-	}
-
-	getProperty := GetPropertyFunc(ps)
-
-	assert.Equal(t, "Hello", getProperty("stringInput"))
-	assert.Equal(t, 42, getProperty("intInput"))
-	assert.Nil(t, getProperty("nonExistentInput"))
 }
 
 func TestGetValueFromSource(t *testing.T) {
@@ -445,7 +479,11 @@ func TestGetValueFromSource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := getValueFromSource(tt.source, tt.key, tt.flat)
+			ce, err := NewConstructEvaluator(nil, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			result, err := ce.getValueFromSource(tt.source, tt.key, tt.flat)
 
 			if tt.err != "" {
 				assert.Error(t, err)
@@ -453,6 +491,56 @@ func TestGetValueFromSource(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.True(t, reflect.DeepEqual(result, tt.expected), "Expected %v, but got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestNewConstruct(t *testing.T) {
+	tests := []struct {
+		name         string
+		urn          string
+		inputs       map[string]any
+		expectedErr  bool
+		expectedName string
+	}{
+		{
+			name:         "Valid inputs",
+			urn:          "urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket",
+			inputs:       map[string]any{"someKey": "someValue"},
+			expectedErr:  false,
+			expectedName: "my-bucket",
+		},
+		{
+			name:        "Reserved Name key",
+			urn:         "urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket",
+			inputs:      map[string]any{"Name": "invalid"},
+			expectedErr: true,
+		},
+		{
+			name:        "Invalid URN type",
+			urn:         "urn:accountid:project:dev::resource/klotho.aws.Bucket:invalidType",
+			inputs:      map[string]any{"someKey": "someValue"},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constructURN, err := model.ParseURN(tt.urn)
+			assert.NoError(t, err)
+
+			ce, err := NewConstructEvaluator(nil, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			c, err := ce.newConstruct(*constructURN, tt.inputs)
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedName, c.Inputs["Name"])
 			}
 		})
 	}

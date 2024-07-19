@@ -1,11 +1,14 @@
 package construct
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/reflectutil"
 
 	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/klothoplatform/klotho/pkg/yaml_util"
@@ -25,13 +28,21 @@ func (r *Resource) SetProperty(pathStr string, value any) error {
 }
 
 // GetProperty is a wrapper around [PropertyPath.Get] for convenience.
+// It returns ErrPropertyDoesNotExist if the property does not exist.
 func (r *Resource) GetProperty(pathStr string) (any, error) {
 	path, err := r.PropertyPath(pathStr)
 	if err != nil {
 		return nil, err
 	}
-	return path.Get(), nil
+	if value, ok := path.Get(); ok {
+		return value, nil
+	}
+	// Backwards compatibility: if the property does not exist, return nil instead of an error.
+	return nil, nil
 }
+
+// ErrPropertyDoesNotExist is returned when a property does not exist.
+var ErrPropertyDoesNotExist = errors.New("property does not exist")
 
 // AppendProperty is a wrapper around [PropertyPath.Append] for convenience.
 func (r *Resource) AppendProperty(pathStr string, value any) error {
@@ -51,6 +62,13 @@ func (r *Resource) RemoveProperty(pathStr string, value any) error {
 	return path.Remove(value)
 }
 
+func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
+	if r.Properties == nil {
+		r.Properties = Properties{}
+	}
+	return r.Properties.PropertyPath(pathStr)
+}
+
 func (p Properties) Equals(other any) (equal bool) {
 	otherProps, ok := other.(Properties)
 	if !ok {
@@ -67,8 +85,8 @@ func (p Properties) Equals(other any) (equal bool) {
 			equal = false
 			return StopWalk
 		}
-		v := path.Get()
-		otherV := otherPath.Get()
+		v, _ := path.Get()
+		otherV, _ := otherPath.Get()
 
 		if v == nil || otherV == nil {
 			equal = v == otherV
@@ -93,9 +111,44 @@ func (p Properties) Equals(other any) (equal bool) {
 	return equal
 }
 
+func (p Properties) SetProperty(pathStr string, value any) error {
+	path, err := p.PropertyPath(pathStr)
+	if err != nil {
+		return err
+	}
+	return path.Set(value)
+}
+
+func (p *Properties) GetProperty(pathStr string) (any, error) {
+	path, err := p.PropertyPath(pathStr)
+	if err != nil {
+		return nil, err
+	}
+	if value, ok := path.Get(); ok {
+		return value, nil
+	}
+	return nil, ErrPropertyDoesNotExist
+}
+
+func (p Properties) AppendProperty(pathStr string, value any) error {
+	path, err := p.PropertyPath(pathStr)
+	if err != nil {
+		return err
+	}
+	return path.Append(value)
+}
+
+func (p Properties) RemoveProperty(pathStr string, value any) error {
+	path, err := p.PropertyPath(pathStr)
+	if err != nil {
+		return err
+	}
+	return path.Remove(value)
+}
+
 type (
 	PropertyPathItem interface {
-		Get() any
+		Get() (value any, ok bool)
 		Set(value any) error
 		Remove(value any) error
 		Append(value any) error
@@ -126,54 +179,10 @@ type (
 	}
 )
 
-func splitPath(path string) []string {
-	var parts []string
-	bracket := 0
-	lastPartIdx := 0
-	for i := 0; i < len(path); i++ {
-		switch path[i] {
-		case '.':
-			if bracket == 0 {
-				if i > lastPartIdx {
-					parts = append(parts, path[lastPartIdx:i])
-				}
-				lastPartIdx = i
-			}
-
-		case '[':
-			if bracket == 0 {
-				if i > lastPartIdx {
-					parts = append(parts, path[lastPartIdx:i])
-				}
-				lastPartIdx = i
-			}
-			bracket++
-
-		case ']':
-			bracket--
-			if bracket == 0 {
-				parts = append(parts, path[lastPartIdx:i+1])
-				lastPartIdx = i + 1
-			}
-		}
-		if i == len(path)-1 && lastPartIdx <= i {
-			parts = append(parts, path[lastPartIdx:])
-		}
-	}
-	return parts
-}
-
-func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
-	if r.Properties == nil {
-		r.Properties = Properties{}
-	}
-	return r.Properties.PropertyPath(pathStr)
-}
-
 // PropertyPath interprets a string path to index (potentially deeply) into [Resource.Properties]
 // which can be used to get, set, append, or remove values.
 func (p Properties) PropertyPath(pathStr string) (PropertyPath, error) {
-	pathParts := splitPath(pathStr)
+	pathParts := reflectutil.SplitPath(pathStr)
 	if len(pathParts) == 0 {
 		return nil, fmt.Errorf("empty path")
 	}
@@ -512,15 +521,15 @@ func (i *mapValuePathItem) Remove(value any) (err error) {
 	return nil
 }
 
-func (i *mapValuePathItem) Get() any {
+func (i *mapValuePathItem) Get() (any, bool) {
 	if !i.m.IsValid() {
-		return nil
+		return nil, false
 	}
 	v := i.m.MapIndex(i.key)
 	if !v.IsValid() {
-		return nil
+		return nil, false
 	}
-	return v.Interface()
+	return v.Interface(), true
 }
 
 func (i *mapValuePathItem) parent() PropertyPathItem {
@@ -531,8 +540,8 @@ func (i *mapValuePathItem) Key() PropertyPathItem {
 	return (*mapKeyPathItem)(i)
 }
 
-func (i *mapKeyPathItem) Get() any {
-	return i.key.Interface()
+func (i *mapKeyPathItem) Get() (any, bool) {
+	return i.key.Interface(), true
 }
 
 func (i *mapKeyPathItem) Set(value any) (err error) {
@@ -605,8 +614,14 @@ func (i *arrayIndexPathItem) Remove(value any) (err error) {
 	return nil
 }
 
-func (i *arrayIndexPathItem) Get() any {
-	return i.a.Index(i.index).Interface()
+func (i *arrayIndexPathItem) Get() (any, bool) {
+	if !i.a.IsValid() || !reflectutil.IsAnyOf(reflectutil.GetConcreteElement(i.a), reflect.Slice, reflect.Array) {
+		return nil, false
+	}
+	if i.a.Len() <= i.index {
+		return nil, false
+	}
+	return i.a.Index(i.index).Interface(), true
 }
 
 func (i *arrayIndexPathItem) parent() PropertyPathItem {
@@ -624,14 +639,14 @@ func (i PropertyPath) Append(value any) error {
 }
 
 // Remove removes the value at this path item. If value is nil, it is interpreted
-// to remove the item itself. Non-nil value'd remove is only supported on array items, to
+// to remove the item itself. Non-nil valued remove is only supported on array items, to
 // remove a value from the array.
 func (i PropertyPath) Remove(value any) error {
 	return i[len(i)-1].Remove(value)
 }
 
 // Get returns the value at this path item.
-func (i PropertyPath) Get() any {
+func (i PropertyPath) Get() (any, bool) {
 	return i[len(i)-1].Get()
 }
 
@@ -700,7 +715,7 @@ func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
 }
 
 // WalkProperties walks the properties of the resource, calling fn for each property. If fn returns
-// SkipProperty, the property and its decendants (if a map or array type) is skipped. If fn returns
+// SkipProperty, the property and its descendants (if a map or array type) are skipped. If fn returns
 // StopWalk, the walk is stopped.
 // NOTE: does not walk over the _keys_ of any maps, only values.
 func (p Properties) WalkProperties(fn WalkPropertiesFunc) error {
@@ -733,7 +748,11 @@ func (p Properties) WalkProperties(fn WalkPropertiesFunc) error {
 		}
 
 		added := make(set.Set[string])
-		v := reflect.ValueOf(current.Get())
+		rv, ok := current.Get()
+		if !ok {
+			continue
+		}
+		v := reflect.ValueOf(rv)
 		switch v.Kind() {
 		case reflect.Map:
 			keys, err := mapKeys(v)

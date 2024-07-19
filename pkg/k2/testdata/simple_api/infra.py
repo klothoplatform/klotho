@@ -1,5 +1,6 @@
 import klotho
 import klotho.aws as aws
+from klotho.aws.api import RouteArgs
 
 app = klotho.Application(
     "my-app",
@@ -15,4 +16,4 @@ container = aws.Container(
 )
 
 api = aws.Api("my-api")
-api.route_to("/", container)
+api.route([RouteArgs(path="/")], destination=container)

@@ -1,0 +1,113 @@
+id: klotho.aws.Postgres
+version: 1.0.0
+description: A construct for creating an AWS RDS Postgres database
+resources:
+  SecurityGroup:
+    type: aws:security_group
+    name: ${inputs:Name}-sg
+  RDSInstance:
+    type: aws:rds_instance
+    name: ${inputs:Name}
+    properties:
+      DatabaseName: ${inputs:DatabaseName}
+      Engine: postgres
+      InstanceClass: ${inputs:InstanceClass}
+      AllocatedStorage: ${inputs:AllocatedStorage}
+      EngineVersion: ${inputs:EngineVersion}
+      Username: ${inputs:Username}
+      Password: ${inputs:Password}
+      Port: ${inputs:Port}
+      SecurityGroups:
+        - ${resources:SecurityGroup}
+
+inputs:
+  InstanceClass:
+    name: Instance Class
+    description: The instance class for the database instance
+    type: string
+    default: db.t3.micro
+    min_length: 1
+    max_length: 63
+
+  AllocatedStorage:
+    name: Allocated Storage
+    description: The amount of storage to allocate to the database instance (in GB)
+    type: int
+    default: 20
+    min_value: 5
+    max_value: 6144
+
+  EngineVersion:
+    name: Engine Version
+    description: The version of the Postgres engine to use
+    type: string
+    default: '14.11'
+    min_length: 1
+    max_length: 63
+
+  Username:
+    name: Master Username
+    description: The master username for the database instance
+    type: string
+    default: admin
+    min_length: 1
+    max_length: 63
+
+  Password:
+    name: Master User Password
+    description: The master user password for the database instance
+    type: string
+    min_length: 8
+    max_length: 128
+
+  DatabaseName:
+    name: Database Name
+    description: The name of the database
+    type: string
+    default: main
+    min_length: 1
+    max_length: 63
+
+  Port:
+    name: Port
+    description: The port to expose on the database instance
+    type: int
+    default: 5432
+    min_value: 1
+    max_value: 65535
+
+  Network:
+    name: Network
+    description: The network to deploy the database to
+    type: Construct(klotho.aws.Network)
+
+outputs:
+  DatabaseName:
+    name: Database Name
+    description: The name of the database
+    value: ${resources:RDSInstance.DatabaseName}
+
+  Port:
+    name: Port
+    description: The port of the Postgres database
+    value: ${resources:RDSInstance.Port}
+
+  Endpoint:
+    name: Endpoint
+    description: The endpoint of the Postgres database
+    value: ${resources:RDSInstance#Endpoint}
+
+  Username:
+    name: Username
+    description: The master username for the Postgres database
+    value: ${resources:RDSInstance.Username}
+
+  Password:
+    name: Password
+    description: The master user password for the Postgres database
+    value: ${resources:RDSInstance.Password}
+
+  ConnectionString:
+    name: Connection String
+    description: The connection string for the Postgres database
+    value: ${resources:RDSInstance#ConnectionString}

@@ -132,7 +132,7 @@ func (ctx OperationalRuleContext) CleanProperty(step knowledgebase.OperationalSt
 	if err != nil {
 		return err
 	}
-	prop := path.Get()
+	prop, _ := path.Get()
 	if prop == nil {
 		return nil
 	}

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import klotho
 import klotho.aws as aws
+from klotho.aws.api import RouteArgs
 
 klotho.Application(
     "my-app",
@@ -22,4 +23,4 @@ zip_func = aws.Function(
 )
 
 api = aws.Api("my-api")
-api.route_to("/", docker_func)
+api.route([RouteArgs(path="/")], destination=docker_func)

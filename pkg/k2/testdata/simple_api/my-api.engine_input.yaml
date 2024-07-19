@@ -1,7 +1,10 @@
 constraints:
     - scope: application
       operator: must_exist
-      node: aws:api_integration:my-api:my-container
+      node: aws:api_integration:my-api:--any-integration
+    - scope: application
+      operator: must_exist
+      node: aws:api_method:my-api-api:--any-method
     - scope: application
       operator: must_exist
       node: aws:api_stage:my-api-api:my-api-stage
@@ -10,9 +13,19 @@ constraints:
       node: aws:rest_api:my-api-api
     - scope: resource
       operator: equals
-      target: aws:api_integration:my-api:my-container
+      target: aws:api_integration:my-api:--any-integration
+      property: Method
+      value: aws:api_method:my-api-api:--any-method
+    - scope: resource
+      operator: equals
+      target: aws:api_integration:my-api:--any-integration
       property: Route
       value: /
+    - scope: resource
+      operator: equals
+      target: aws:api_method:my-api-api:--any-method
+      property: HttpMethod
+      value: ANY
     - scope: resource
       operator: equals
       target: aws:api_stage:my-api-api:my-api-stage
@@ -26,14 +39,14 @@ constraints:
     - scope: edge
       operator: must_exist
       target:
-        source: aws:api_integration:my-api:my-container
+        source: aws:api_integration:my-api:--any-integration
         target: aws:load_balancer:api-my-container-lb
       data: {}
     - scope: edge
       operator: must_exist
       target:
         source: aws:rest_api:my-api-api
-        target: aws:api_integration:my-api:my-container
+        target: aws:api_integration:my-api:--any-integration
       data: {}
     - scope: output
       operator: must_exist

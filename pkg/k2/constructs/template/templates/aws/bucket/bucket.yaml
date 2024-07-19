@@ -1,0 +1,43 @@
+id: klotho.aws.Bucket
+version: 1.0.0
+description: A construct for creating an S3 bucket
+resources:
+  Bucket:
+    type: aws:s3_bucket
+    name: ${inputs:Name}
+    properties:
+      ForceDestroy: ${inputs:ForceDestroy}
+      SSEAlgorithm: ${inputs:SSEAlgorithm}
+inputs:
+  ForceDestroy:
+    name: ForceDestroy
+    description: Whether to forcibly delete the S3 bucket and all objects it contains during destruction
+    type: bool
+    default_value: true
+  IndexDocument:
+    name: IndexDocument
+    description: The webpage that Amazon S3 returns when it receives a request to the root domain name of the bucket or when an index document is specified
+    type: string
+  SSEAlgorithm:
+    name: SSEAlgorithm
+    description: The server-side encryption algorithm to use to encrypt data stored in the S3 bucket
+    type: string
+    default_value: aws:kms
+outputs:
+  Bucket:
+    description: The name of the S3 bucket
+    value: ${resources:Bucket#Bucket}
+  BucketArn:
+    description: The Amazon Resource Name (ARN) of the S3 bucket
+    value: ${resources:Bucket#Arn}
+  BucketRegionalDomainName:
+    description: The regional domain name of the S3 bucket
+    value: ${resources:Bucket#BucketRegionalDomainName}
+
+input_rules:
+  - if: '{{ .Inputs.IndexDocument }}'
+    then:
+      resources:
+        Bucket:
+          properties:
+            IndexDocument: ${inputs:IndexDocument}

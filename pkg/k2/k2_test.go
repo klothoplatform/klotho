@@ -230,14 +230,17 @@ func (tc testCase) assertConstructFileEquals(t *testing.T, construct, file strin
 }
 
 func assertYamlEquals(t *testing.T, file string, expectedF, actualF io.Reader) bool {
+	var expectedB, actualB []byte
+	expectedF.Read(expectedB)
+	actualF.Read(actualB)
 	var expect, actual map[string]interface{}
-	err := yaml.NewDecoder(expectedF).Decode(&expect)
+	err := yaml.Unmarshal(expectedB, &expect)
 	if err != nil {
 		t.Errorf("failed to read expected yaml %s: %v", file, err)
 		return false
 	}
 
-	err = yaml.NewDecoder(actualF).Decode(&actual)
+	err = yaml.Unmarshal(actualB, &actual)
 	if err != nil {
 		t.Errorf("failed to read actual yaml %s: %v", file, err)
 		return false
@@ -249,8 +252,11 @@ func assertYamlEquals(t *testing.T, file string, expectedF, actualF io.Reader) b
 	}
 	changes, err := differ.Diff(expect, actual)
 	if err != nil {
-		t.Errorf("failed to diff %s: %v", file, err)
-		return false
+		changes, err = differ.Diff(string(expectedB), string(actualB))
+		if err != nil {
+			t.Errorf("failed to diff %s: %v", file, err)
+			return false
+		}
 	}
 	for _, c := range changes {
 		path := strings.Join(c.Path, ".")

@@ -1,12 +1,10 @@
 package constructs
 
 import (
-	"reflect"
-	"text/template"
-
 	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template/property"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 )
 
 type (
@@ -14,57 +12,33 @@ type (
 		GetResource(resourceId string) (resource *Resource, ok bool)
 		SetResource(resourceId string, resource *Resource)
 		GetResources() map[string]*Resource
-		GetTemplateResourcesIterator() Iterator[string, ResourceTemplate]
-		InterpolationSource
+		GetTemplateResourcesIterator() template.Iterator[string, template.ResourceTemplate]
+		template.InterpolationSource
 	}
 
 	EdgeOwner interface {
-		GetTemplateEdges() []EdgeTemplate
+		GetTemplateEdges() []template.EdgeTemplate
 		GetEdges() []*Edge
 		SetEdges(edges []*Edge)
-		InterpolationSource
+		template.InterpolationSource
 	}
 
 	InfraOwner interface {
 		GetURN() model.URN
-		GetInputRules() []InputRuleTemplate
+		GetInputRules() []template.InputRuleTemplate
 		ResourceOwner
 		EdgeOwner
-		GetTemplateOutputs() map[string]OutputTemplate
+		GetTemplateOutputs() map[string]template.OutputTemplate
 		DeclareOutput(key string, declaration OutputDeclaration)
-		GetTemplateInputs() map[string]InputTemplate
-		GetInput(name string) (value any, ok bool)
+		ForEachInput(f func(input property.Property) error) error
+		GetInputValue(name string) (value any, err error)
 		GetInitialGraph() construct.Graph
-	}
-
-	InterpolationSource interface {
-		GetPropertySource() *PropertySource
-	}
-
-	PropertySource struct {
-		source reflect.Value
-	}
-
-	TemplateFuncSupplier interface {
-		GetTemplateFuncs() template.FuncMap
+		GetConstruct() *Construct
 	}
 )
 
-func NewPropertySource(source any) *PropertySource {
-	return &PropertySource{
-		source: reflect.ValueOf(source),
-	}
-}
-
-func (p *PropertySource) GetProperty(key string) (value any, ok bool) {
-	v, err := reflectutil.GetField(p.source, key)
-	if err != nil || !v.IsValid() {
-		return nil, false
-	}
-	return v.Interface(), true
-}
-
-func (ce *ConstructEvaluator) serializeRef(owner InfraOwner, ref ResourceRef) (any, error) {
+// marshalRef marshals a resource reference into a [construct.ResourceId] or [construct.PropertyRef]
+func (ce *ConstructEvaluator) marshalRef(owner InfraOwner, ref template.ResourceRef) (any, error) {
 	var resourceId construct.ResourceId
 	r, ok := owner.GetResource(ref.ResourceKey)
 	if ok {
@@ -84,15 +58,4 @@ func (ce *ConstructEvaluator) serializeRef(owner InfraOwner, ref ResourceRef) (a
 	}
 
 	return resourceId, nil
-}
-
-func GetTypedProperty[T any](source *PropertySource, key string) (T, bool) {
-	var typedField T
-	v, ok := source.GetProperty(key)
-
-	if !ok {
-		return typedField, false
-	}
-
-	return reflectutil.GetTypedValue[T](v)
 }

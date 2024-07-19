@@ -1,0 +1,28 @@
+from: klotho.aws.FastAPI
+to: klotho.aws.Bucket
+
+inputs:
+  ReadOnly:
+    name: Read Only
+    description: Whether the connection should be read only
+    type: bool
+    default: false
+resources:
+  TaskDefinition:
+    properties:
+      ContainerDefinitions[0].Environment:
+        - ${from.resources:TaskDefinition.ContainerDefinitions[0].Environment...}
+        - Name: ${to.inputs:Name}_BUCKET_ENDPOINT
+          Value: ${to.outputs:BucketRegionalDomainName}
+input_rules:
+  - if: '{{ .Inputs.ReadOnly }}'
+    then:
+      edges:
+        - from: ${from.resources:Service}
+          to: ${to.resources:Bucket}
+          data:
+            connection_type: readonly
+    else:
+      edges:
+        - from: ${from.resources:Service}
+          to: ${to.resources:Bucket}

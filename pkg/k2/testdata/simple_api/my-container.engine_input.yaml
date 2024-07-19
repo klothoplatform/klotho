@@ -42,7 +42,7 @@ constraints:
       target: aws:ecs_service:my-container-service
       property: LoadBalancers[0]
       value:
-        ContainerName: null
+        ContainerName: my-container
         ContainerPort: 80
         TargetGroup: aws:target_group:my-container-tg
     - scope: resource

@@ -20,8 +20,10 @@ var UtilityFunctions = template.FuncMap{
 	"zipToMap":             ZipToMap,
 	"keysToMapWithDefault": KeysToMapWithDefault,
 	"replace":              ReplaceAllRegex,
-	"hasSuffix":            HasSuffix,
+	"replaceAll":           ReplaceAll,
+	"hasSuffix":            strings.HasSuffix,
 	"toLower":              strings.ToLower,
+	"toUpper":              strings.ToUpper,
 	"add":                  Add,
 	"sub":                  Sub,
 	"last":                 Last,
@@ -29,6 +31,11 @@ var UtilityFunctions = template.FuncMap{
 	"appendSlice":          AppendSlice,
 	"sliceContains":        SliceContains,
 	"matches":              Matches,
+	"trimLeft":             strings.TrimLeft,
+	"trimRight":            strings.TrimRight,
+	"trimSpace":            strings.TrimSpace,
+	"trimPrefix":           strings.TrimPrefix,
+	"trimSuffix":           strings.TrimSuffix,
 }
 
 func WithCommonFuncs(funcMap template.FuncMap) template.FuncMap {
@@ -192,14 +199,14 @@ func ReplaceAllRegex(pattern, replace, value string) (string, error) {
 	return s, nil
 }
 
-// MakeSlice creates and returns a new slice of any type.
-func MakeSlice() []any {
-	return []any{}
+// MakeSlice creates and returns a new slice of any type with the given values.
+func MakeSlice(args ...any) []any {
+	return args
 }
 
-// AppendSlice appends a value to a slice and returns the updated slice.
-func AppendSlice(slice []any, value any) []any {
-	return append(slice, value)
+// AppendSlice appends any number of values to a slice and returns the new slice.
+func AppendSlice(slice []any, value ...any) []any {
+	return append(slice, value...)
 }
 
 // SliceContains checks if a slice contains a specific value.
@@ -210,9 +217,4 @@ func SliceContains(slice []any, value any) bool {
 		}
 	}
 	return false
-}
-
-// HasSuffix checks if a string has a specific suffix.
-func HasSuffix(s, suffix string) bool {
-	return strings.HasSuffix(s, suffix)
 }

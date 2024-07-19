@@ -40,11 +40,10 @@ resources:
     aws:lambda_function:docker-func-function:
         EnvironmentVariables: {}
         FunctionName: preview(id=aws:lambda_function:docker-func-function)
-        Handler: ""
         LogConfig:
             Format: Text
         MemorySize: 128
-        Runtime: nodejs14.x
+        Runtime: nodejs20.x
         Tags:
             GLOBAL_KLOTHO_TAG: k2
             RESOURCE_NAME: docker-func-function

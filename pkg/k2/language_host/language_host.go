@@ -79,7 +79,6 @@ func copyToTempDir(name, content string) (string, error) {
 		return "", fmt.Errorf("failed to write to temp file: %w", err)
 	}
 	return f.Name(), nil
-
 }
 
 func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath string) (*exec.Cmd, *ServerState, error) {

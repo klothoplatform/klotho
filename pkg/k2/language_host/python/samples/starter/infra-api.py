@@ -3,6 +3,7 @@ from pathlib import Path
 
 import klotho
 import klotho.aws as aws
+from klotho.aws.api import RouteArgs
 
 app = klotho.Application(
     "api",
@@ -18,4 +19,11 @@ container = aws.Container(
 )
 
 api = aws.Api("my-api")
-api.route_to("/", container)
+my_api = aws.Api("my-api")
+my_api.route(
+    [
+        RouteArgs(path="/", method="GET", proxy=True),
+    ],
+    container,
+)
+

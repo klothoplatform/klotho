@@ -18,6 +18,6 @@ constructs:
         value: nginx:latest
         status: resolved
       port:
-        type: number
+        type: int
         value: 80
         status: resolved

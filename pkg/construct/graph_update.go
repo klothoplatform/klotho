@@ -33,7 +33,7 @@ func ReplaceResource(g Graph, oldId ResourceId, newRes *Resource) error {
 	}
 
 	updateId := func(path PropertyPathItem) error {
-		itemVal := path.Get()
+		itemVal, _ := path.Get()
 
 		if itemId, ok := itemVal.(ResourceId); ok && itemId == oldId {
 			return path.Set(newRes.ID)
@@ -112,7 +112,7 @@ func RemoveResource(g Graph, id ResourceId) error {
 	}
 
 	removeId := func(path PropertyPathItem) (bool, error) {
-		itemVal := path.Get()
+		itemVal, _ := path.Get()
 		itemId, ok := itemVal.(ResourceId)
 		if ok && itemId == id {
 			return true, path.Remove(nil)

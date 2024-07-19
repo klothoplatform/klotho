@@ -1,58 +1,18 @@
 package constructs
 
 import (
-	"path/filepath"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template"
+	properties2 "github.com/klothoplatform/klotho/pkg/k2/constructs/template/properties"
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template/property"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestNewConstruct(t *testing.T) {
-	tests := []struct {
-		name         string
-		urn          string
-		inputs       map[string]any
-		expectedErr  bool
-		expectedName string
-	}{
-		{
-			name:         "Valid inputs",
-			urn:          "urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket",
-			inputs:       map[string]any{"someKey": "someValue"},
-			expectedErr:  false,
-			expectedName: "my-bucket",
-		},
-		{
-			name:        "Reserved Name key",
-			urn:         "urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket",
-			inputs:      map[string]any{"Name": "invalid"},
-			expectedErr: true,
-		},
-		{
-			name:        "Invalid URN type",
-			urn:         "urn:accountid:project:dev::resource/klotho.aws.Bucket:invalidType",
-			inputs:      map[string]any{"someKey": "someValue"},
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			constructURN, err := model.ParseURN(tt.urn)
-			assert.NoError(t, err)
-
-			c, err := NewConstruct(*constructURN, tt.inputs)
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedName, c.Inputs["Name"])
-			}
-		})
-	}
-}
 
 func TestGetInput(t *testing.T) {
 	c := &Construct{
@@ -63,29 +23,30 @@ func TestGetInput(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		key        string
-		expected   any
-		shouldFind bool
+		name     string
+		key      string
+		expected any
+		wantErr  bool
 	}{
 		{
-			name:       "Existing key",
-			key:        "key1",
-			expected:   "value1",
-			shouldFind: true,
+			name:     "Existing key",
+			key:      "key1",
+			expected: "value1",
 		},
 		{
-			name:       "Non-existing key",
-			key:        "nonexistent",
-			expected:   nil,
-			shouldFind: false,
+			name:     "Non-existing key",
+			key:      "nonexistent",
+			expected: nil,
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			value, found := c.GetInput(tt.key)
-			assert.Equal(t, tt.shouldFind, found)
+			value, err := c.GetInputValue(tt.key)
+			if tt.wantErr {
+				require.Error(t, err)
+			}
 			assert.Equal(t, tt.expected, value)
 		})
 	}
@@ -125,17 +86,25 @@ func TestOrderedBindings(t *testing.T) {
 }
 
 func TestGetTemplateResourcesIterator(t *testing.T) {
-	mockResources := map[string]ResourceTemplate{
-		"res1": {Type: "type1", Name: "name1", Namespace: "namespace1", Properties: map[string]any{"prop1": "value1"}},
-		"res2": {Type: "type2", Name: "name2", Namespace: "namespace2", Properties: map[string]any{"prop2": "value2"}},
-	}
-	mockTemplate := ConstructTemplate{
-		Resources:     mockResources,
-		resourceOrder: []string{"res1", "res2"},
-	}
+	mockTemplate, err := parseConstructTemplate(`
+resources:
+  res1:
+    type: type1
+    name: name1
+    namespace: namespace1
+    properties:
+      prop1: value1
+  res2:  
+    type: type2
+    name: name2
+    namespace: namespace2
+    properties:
+      prop2: value2
+`)
+	require.NoError(t, err)
 
 	c := &Construct{
-		ConstructTemplate: mockTemplate,
+		ConstructTemplate: *mockTemplate,
 	}
 
 	iter := c.GetTemplateResourcesIterator()
@@ -153,78 +122,23 @@ func TestGetTemplateResourcesIterator(t *testing.T) {
 	}
 }
 
-func TestPopulateDefaultInputValues(t *testing.T) {
-	tests := []struct {
-		name      string
-		inputs    map[string]any
-		templates map[string]InputTemplate
-		expected  map[string]any
-	}{
-		{
-			name:   "Populate default path value",
-			inputs: map[string]any{},
-			templates: map[string]InputTemplate{
-				"pathInput": {
-					Default: "default/path",
-					Type:    "path",
-				},
-			},
-			expected: map[string]any{
-				"pathInput": getAbsolutePath(t, "default/path"),
-			},
-		},
-		{
-			name:   "Populate non-path default value",
-			inputs: map[string]any{},
-			templates: map[string]InputTemplate{
-				"simpleInput": {
-					Default: "default-value",
-				},
-			},
-			expected: map[string]any{
-				"simpleInput": "default-value",
-			},
-		},
-		{
-			name: "Existing value should not be overwritten",
-			inputs: map[string]any{
-				"simpleInput": "existing-value",
-			},
-			templates: map[string]InputTemplate{
-				"simpleInput": {
-					Default: "default-value",
-				},
-			},
-			expected: map[string]any{
-				"simpleInput": "existing-value",
-			},
-		},
+func parseConstructTemplate(yamlStr string) (*template.ConstructTemplate, error) {
+	mockTemplate := &template.ConstructTemplate{}
+	err := yaml.Unmarshal([]byte(yamlStr), mockTemplate)
+	if err != nil {
+		return nil, err
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			populateDefaultInputValues(tt.inputs, tt.templates)
-			for key, expectedValue := range tt.expected {
-				assert.Equal(t, expectedValue, tt.inputs[key])
-			}
-		})
-	}
-}
-
-func getAbsolutePath(t *testing.T, path string) string {
-	absPath, err := filepath.Abs(path)
-	assert.NoError(t, err)
-	return absPath
+	return mockTemplate, nil
 }
 
 func TestConstructMethods(t *testing.T) {
 	// Common setup
-	edgeTemplates := []EdgeTemplate{{}, {}}
-	inputRules := []InputRuleTemplate{{}, {}}
-	outputTemplates := map[string]OutputTemplate{"output1": {}, "output2": {}}
-	inputTemplates := map[string]InputTemplate{"input1": {}, "input2": {}}
+	edgeTemplates := []template.EdgeTemplate{{}, {}}
+	inputRules := []template.InputRuleTemplate{{}, {}}
+	outputTemplates := map[string]template.OutputTemplate{"output1": {}, "output2": {}}
+	inputTemplates := template.NewProperties(map[string]property.Property{"input1": &properties2.StringProperty{}, "input2": &properties2.StringProperty{}})
 	initialGraph := construct.NewGraph()
-	resourceTemplates := map[string]ResourceTemplate{"resource1": {}, "resource2": {}}
+	resourceTemplates := map[string]template.ResourceTemplate{"resource1": {}, "resource2": {}}
 	resources := map[string]*Resource{"resource1": {}, "resource2": {}}
 	inputs := map[string]any{"input1": "value1"}
 	meta := map[string]any{"meta1": "value1"}
@@ -238,28 +152,27 @@ func TestConstructMethods(t *testing.T) {
 	assert.NoError(t, err)
 
 	edges = append(edges, &Edge{
-		From: ResourceRef{
+		From: template.ResourceRef{
 			ConstructURN: *fromURN,
 			ResourceKey:  "from-resource",
 			Property:     "from-property",
-			Type:         ResourceRefTypeIaC,
+			Type:         template.ResourceRefTypeIaC,
 		},
-		To: ResourceRef{
+		To: template.ResourceRef{
 			ConstructURN: *toURN,
 			ResourceKey:  "to-resource",
 			Property:     "to-property",
-			Type:         ResourceRefTypeIaC,
+			Type:         template.ResourceRefTypeIaC,
 		},
 		Data: construct.EdgeData{},
 	})
 
-	mockTemplate := ConstructTemplate{
-		Edges:         edgeTemplates,
-		InputRules:    inputRules,
-		Outputs:       outputTemplates,
-		Inputs:        inputTemplates,
-		Resources:     resourceTemplates,
-		resourceOrder: []string{"resource1", "resource2"},
+	mockTemplate := template.ConstructTemplate{
+		Edges:      edgeTemplates,
+		InputRules: inputRules,
+		Outputs:    outputTemplates,
+		Inputs:     inputTemplates,
+		Resources:  resourceTemplates,
 	}
 
 	urn, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket")
@@ -319,11 +232,6 @@ func TestConstructMethods(t *testing.T) {
 		assert.Equal(t, initialGraph, graph)
 	})
 
-	t.Run("GetTemplateInputs", func(t *testing.T) {
-		inputs := c.GetTemplateInputs()
-		assert.Len(t, inputs, len(inputTemplates))
-	})
-
 	t.Run("GetURN", func(t *testing.T) {
 		retrievedURN := c.GetURN()
 		assert.Equal(t, *urn, retrievedURN)
@@ -343,11 +251,11 @@ func TestConstructMethods(t *testing.T) {
 		refURN, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:resource")
 		assert.NoError(t, err)
 
-		ref := ResourceRef{
+		ref := template.ResourceRef{
 			ConstructURN: *refURN,
 			ResourceKey:  "resource-key",
 			Property:     "property",
-			Type:         ResourceRefTypeIaC,
+			Type:         template.ResourceRefTypeIaC,
 		}
 		expected := "resource-key#property"
 		assert.Equal(t, expected, ref.String())

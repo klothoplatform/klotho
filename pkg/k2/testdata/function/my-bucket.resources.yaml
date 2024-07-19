@@ -1,7 +1,6 @@
 resources:
     aws:s3_bucket:my-bucket:
         ForceDestroy: true
-        IndexDocument: ""
         SSEAlgorithm: aws:kms
         Tags:
             GLOBAL_KLOTHO_TAG: k2

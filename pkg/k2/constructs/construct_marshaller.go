@@ -5,10 +5,12 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template"
+	"github.com/klothoplatform/klotho/pkg/reflectutil"
+
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
-	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 )
 
 type (
@@ -37,7 +39,7 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 	for _, e := range c.Edges {
 		edgeConstraints, err := m.marshalEdge(c, e)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshal edge: %w", err)
+			return nil, fmt.Errorf("could not marshall edge: %w", err)
 		}
 		cs = append(cs, edgeConstraints...)
 	}
@@ -45,7 +47,7 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 	for _, o := range c.OutputDeclarations {
 		outputConstraints, err := m.marshalOutput(o)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshal output: %w", err)
+			return nil, fmt.Errorf("could not marshall output: %w", err)
 		}
 		cs = append(cs, outputConstraints...)
 	}
@@ -65,7 +67,7 @@ func (m *ConstructMarshaller) marshalResource(o InfraOwner, r *Resource) (constr
 
 		v, err := m.marshalRefs(o, v)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshall resource properties: %w", err)
+			return nil, fmt.Errorf("could not marshal resource properties: %w", err)
 		}
 		cs = append(cs, &constraints.ResourceConstraint{
 			Operator: "equals",
@@ -82,7 +84,7 @@ func (m *ConstructMarshaller) marshalResource(o InfraOwner, r *Resource) (constr
 func (m *ConstructMarshaller) marshalEdge(o InfraOwner, e *Edge) (constraints.ConstraintList, error) {
 
 	var from construct.ResourceId
-	ref, err := m.ConstructEvaluator.serializeRef(o, e.From)
+	ref, err := m.ConstructEvaluator.marshalRef(o, e.From)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize from resource id: %w", err)
 	}
@@ -96,7 +98,7 @@ func (m *ConstructMarshaller) marshalEdge(o InfraOwner, e *Edge) (constraints.Co
 	}
 
 	var to construct.ResourceId
-	ref, err = m.ConstructEvaluator.serializeRef(o, e.To)
+	ref, err = m.ConstructEvaluator.marshalRef(o, e.To)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize to resource id: %w", err)
 	}
@@ -110,7 +112,7 @@ func (m *ConstructMarshaller) marshalEdge(o InfraOwner, e *Edge) (constraints.Co
 	}
 	v, err := m.marshalRefs(o, e.Data)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshall resource properties: %w", err)
+		return nil, fmt.Errorf("could not marshal resource properties: %w", err)
 	}
 
 	return constraints.ConstraintList{&constraints.EdgeConstraint{
@@ -142,14 +144,18 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 }
 
 func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error) {
+	if rawVal == nil {
+		return rawVal, nil
+	}
+
 	switch val := rawVal.(type) {
-	case *ResourceRef:
+	case *template.ResourceRef:
 		if val == nil {
-			return val, nil
+			return rawVal, nil
 		}
-		return m.ConstructEvaluator.serializeRef(o, *val)
-	case ResourceRef:
-		return m.ConstructEvaluator.serializeRef(o, val)
+		return m.ConstructEvaluator.marshalRef(o, *val)
+	case template.ResourceRef:
+		return m.ConstructEvaluator.marshalRef(o, val)
 	case construct.ResourceId, construct.PropertyRef:
 		return rawVal, nil
 	}
@@ -173,7 +179,7 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 			fieldValue := reflectutil.GetConcreteElement(field)
 
 			if field.CanInterface() {
-				if _, ok := fieldValue.Interface().(ResourceRef); ok {
+				if _, ok := fieldValue.Interface().(template.ResourceRef); ok {
 					// If we encounter a ResourceRef in a struct, we skip it
 					// Since the result is not also a ResourceRef
 					continue
