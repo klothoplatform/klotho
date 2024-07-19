@@ -1,6 +1,7 @@
 package constructs
 
 import (
+	"github.com/klothoplatform/klotho/pkg/async"
 	"reflect"
 	"testing"
 
@@ -19,7 +20,7 @@ func (s stringerStructInput) String() string {
 
 func TestInterpolateValue(t *testing.T) {
 	ce := &ConstructEvaluator{
-		constructs: make(map[model.URN]*Construct),
+		constructs: &async.ConcurrentMap[model.URN, *Construct]{},
 	}
 
 	simpleStruct := struct {

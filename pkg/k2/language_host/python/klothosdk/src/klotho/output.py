@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     Optional,
+    overload,
 )
 from uuid import uuid4
 
@@ -16,11 +17,11 @@ if TYPE_CHECKING:
     pass
 
 T = TypeVar("T")
+K = TypeVar("K")
 T_co = TypeVar("T_co", covariant=True)
 
 Input = Union[T, "Output[T]"]
-Inputs = Mapping[str, Input[Any]]
-InputType = Union[T, Mapping[str, Any]]
+MappingInput = Union[Mapping[str, Input[T]], Input[Mapping[str, T]]]
 
 
 class Output(Generic[T_co]):
@@ -81,27 +82,60 @@ class Output(Generic[T_co]):
         runtime.outputs[self.id] = self._value
 
     @staticmethod
+    @overload
     def all(
-        outputs: list["Output[T_co]"], callback: Callable[..., T_co] = None
+        outputs: list["Output[T_co]"], callback: Callable[..., T_co] | None = None
+    ) -> "Output[T_co]": ...
+
+    @staticmethod
+    @overload
+    def all(
+        outputs: Mapping[K, "Output[T_co]"],
+        callback: Callable[[Mapping[K, T_co]], T_co] | None = None,
+    ) -> "Output[T_co]": ...
+
+    @staticmethod
+    def all(
+        outputs: list["Output[T_co]"] | Mapping[Any, "Output[T_co]"],
+        callback: (
+            Callable[..., T_co] | Callable[[Mapping[Any, T_co]], T_co] | None
+        ) = None,
     ) -> "Output[T_co]":
         """
-        Creates a new Output that represents the output of applying a callback function to the list of given outputs.
-        :param outputs:
-        :param callback:
+        Creates a new Output that represents the output of applying a callback function to the given outputs.
+        Accepts either a list of Output objects or a Mapping of keys to Output objects.
+        :param outputs: List of Output objects or Mapping of keys to Output objects
+        :param callback: Callback function to apply to the outputs
         :return: The new Output
         """
+        if isinstance(outputs, Mapping):
 
-        def run(*values: T) -> T:
-            return callback(*values)
+            output_list = []
+            output_keys = []
+            for key, output in outputs.items():
+                output_list.append(output)
+                output_keys.append(key)
+
+            def run(*values: T_co) -> T_co:
+                resolved_outputs = {
+                    key: value for key, value in zip(output_keys, values)
+                }
+                return callback(resolved_outputs)  # type: ignore
+
+        else:
+
+            def run(*values: T_co) -> T_co:
+                return callback(*values)  # type: ignore
+
+            output_list = outputs
+            output_keys = None
 
         return Output(
-            {
-                *[output.id for output in outputs],
-                *[dep for output in outputs for dep in output.depends_on],
+            depends_on={
+                *[output.id for output in output_list],
+                *[dep for output in output_list for dep in output.depends_on],
             },
-            None,
-            None,
-            run,
+            callback=run,
         )
 
     @classmethod
@@ -119,3 +153,29 @@ class Output(Generic[T_co]):
             return "".join(values)
 
         return cls.all(inputs, run)
+
+    @staticmethod
+    def from_mapping(input: Input[Mapping]) -> "Output[Mapping]":
+        if isinstance(input, Output):
+            return input
+        if isinstance(input, Mapping):
+            deps = set()
+            unresolved_mappings = {}
+            resolved_mappings = {}
+            for key, value in input.items():
+                if isinstance(value, Output):
+                    deps.update(value.depends_on)
+                    unresolved_mappings[key] = value
+                else:
+                    resolved_mappings[key] = value
+
+            def callback(resolved_outputs: Mapping) -> Mapping:
+                result = {**resolved_mappings, **resolved_outputs}
+                return result
+
+            return Output.all(
+                unresolved_mappings,
+                callback=callback,
+            )
+        else:
+            raise ValueError("Input must be an Output or a Mapping")

@@ -43,13 +43,14 @@ type (
 	}
 
 	InputTemplate struct {
-		Name        string             `yaml:"name"`
-		Type        string             `yaml:"type"`
-		Description string             `yaml:"description"`
-		Default     any                `yaml:"default"`
-		Secret      bool               `yaml:"secret"`
-		PulumiKey   string             `yaml:"pulumi_key"`
-		Validation  ValidationTemplate `yaml:"validation"`
+		Name          string             `yaml:"name"`
+		Type          string             `yaml:"type"`
+		Description   string             `yaml:"description"`
+		Default       any                `yaml:"default"`
+		Secret        bool               `yaml:"secret"`
+		PulumiKey     string             `yaml:"pulumi_key"`
+		Validation    ValidationTemplate `yaml:"validation"`
+		Configuration map[string]any     `yaml:"configuration"`
 	}
 
 	OutputTemplate struct {

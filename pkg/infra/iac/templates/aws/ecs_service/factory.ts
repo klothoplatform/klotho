@@ -81,9 +81,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL {{- if .ServiceRegistries }}
             serviceRegistries: args.ServiceRegistries,
             //TMPL {{- end }}
-            //TMP {{- if .ServiceConnectConfiguration }}
+            //TMPL {{- if .ServiceConnectConfiguration }}
             serviceConnectConfiguration: args.ServiceConnectConfiguration,
-            //TMP {{- end }}
+            //TMPL {{- end }}
             //TMPL {{- if .Tags }}
             tags: args.Tags,
             //TMPL {{- end }}

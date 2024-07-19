@@ -4,7 +4,7 @@ from klotho import Output
 from klotho.construct import Construct
 
 
-def set(self, key: str, value: Any) -> None:
+def set_field(self, key: str, value: Any) -> None:
     """
     Set a value in the instance's dictionary.
 
@@ -14,7 +14,7 @@ def set(self, key: str, value: Any) -> None:
     self.__dict__[key] = value
 
 
-def get(self, key: str) -> Optional[Any]:
+def get_field(self, key: str) -> Optional[Any]:
     """
     Get a value from the instance's dictionary.
 
@@ -24,7 +24,7 @@ def get(self, key: str) -> Optional[Any]:
     return self.__dict__.get(key)
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def get_output[T](self: Construct, path: str, output_type: Type[T] = any) -> Output[T]:
@@ -41,5 +41,5 @@ def get_output[T](self: Construct, path: str, output_type: Type[T] = any) -> Out
 
     return Output[output_type](
         id=output_urn,
-        depends_on=[output_urn],
+        depends_on={output_urn},
     )

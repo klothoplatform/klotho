@@ -4,43 +4,45 @@ from klotho.aws.network import Network
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
 from klotho.output import Input
 from klotho.runtime_util import get_default_construct
-from klotho.type_util import set, get
+from klotho.type_util import set_field, get_field
 
 
 class PostgresArgs:
     """Arguments for configuring a Postgres database."""
 
-    def __init__(self,
-                 instance_class: Optional[Input[str]] = None,
-                 allocated_storage: Optional[Input[int]] = None,
-                 engine_version: Optional[Input[str]] = None,
-                 username: Optional[Input[str]] = None,
-                 password: Optional[Input[str]] = None,
-                 database_name: Optional[Input[str]] = None,
-                 port: Optional[Input[int]] = None,
-                 network: Optional[Network] = None):
+    def __init__(
+        self,
+        instance_class: Optional[Input[str]] = None,
+        allocated_storage: Optional[Input[int]] = None,
+        engine_version: Optional[Input[str]] = None,
+        username: Optional[Input[str]] = None,
+        password: Optional[Input[str]] = None,
+        database_name: Optional[Input[str]] = None,
+        port: Optional[Input[int]] = None,
+        network: Optional[Network] = None,
+    ):
         if instance_class is not None:
-            set(self, "instance_class", instance_class)
+            set_field(self, "instance_class", instance_class)
         if allocated_storage is not None:
-            set(self, "allocated_storage", allocated_storage)
+            set_field(self, "allocated_storage", allocated_storage)
         if engine_version is not None:
-            set(self, "engine_version", engine_version)
+            set_field(self, "engine_version", engine_version)
         if username is not None:
-            set(self, "username", username)
+            set_field(self, "username", username)
         if password is not None:
-            set(self, "password", password)
+            set_field(self, "password", password)
         if database_name is not None:
-            set(self, "database_name", database_name)
+            set_field(self, "database_name", database_name)
         if port is not None:
-            set(self, "port", port)
+            set_field(self, "port", port)
         if network is not None:
-            set(self, "network", network)
+            set_field(self, "network", network)
 
     def _get_property(self, name: str):
-        return get(self, name)
+        return get_field(self, name)
 
     def _set_property(self, name: str, value):
-        set(self, name, value)
+        set_field(self, name, value)
 
     @property
     def instance_class(self) -> Optional[Input[str]]:
@@ -111,21 +113,24 @@ class Postgres(Construct):
     """Represents a Postgres database construct in AWS."""
 
     @overload
-    def __init__(self, name: str, args: PostgresArgs, opts: Optional[ConstructOptions] = None):
-        ...
+    def __init__(
+        self, name: str, args: PostgresArgs, opts: Optional[ConstructOptions] = None
+    ): ...
 
     @overload
-    def __init__(self, name: str, 
-                 instance_class: Optional[Input[str]] = None,
-                 allocated_storage: Optional[Input[int]] = None,
-                 engine_version: Optional[Input[str]] = None,
-                 username: Optional[Input[str]] = None,
-                 password: Optional[Input[str]] = None,
-                 database_name: Optional[Input[str]] = None,
-                 port: Optional[Input[int]] = None,
-                 network: Optional[Network] = None,
-                 opts: Optional[ConstructOptions] = None):
-        ...
+    def __init__(
+        self,
+        name: str,
+        instance_class: Optional[Input[str]] = None,
+        allocated_storage: Optional[Input[int]] = None,
+        engine_version: Optional[Input[str]] = None,
+        username: Optional[Input[str]] = None,
+        password: Optional[Input[str]] = None,
+        database_name: Optional[Input[str]] = None,
+        port: Optional[Input[int]] = None,
+        network: Optional[Network] = None,
+        opts: Optional[ConstructOptions] = None,
+    ): ...
 
     def __init__(self, name: str, *args, **kwargs):
         construct_args, opts = get_construct_args_opts(PostgresArgs, *args, **kwargs)
@@ -134,16 +139,19 @@ class Postgres(Construct):
         else:
             self._internal_init(name, *args, **kwargs)
 
-    def _internal_init(self, name: str, 
-                       instance_class: Optional[Input[str]] = None,
-                       allocated_storage: Optional[Input[int]] = None,
-                       opts: Optional[ConstructOptions] = None,
-                       engine_version: Optional[Input[str]] = None,
-                       username: Optional[Input[str]] = None,
-                       password: Optional[Input[str]] = None,
-                       database_name: Optional[Input[str]] = None,
-                       port: Optional[Input[int]] = None,
-                       network: Optional[Network] = None):
+    def _internal_init(
+        self,
+        name: str,
+        instance_class: Optional[Input[str]] = None,
+        allocated_storage: Optional[Input[int]] = None,
+        opts: Optional[ConstructOptions] = None,
+        engine_version: Optional[Input[str]] = None,
+        username: Optional[Input[str]] = None,
+        password: Optional[Input[str]] = None,
+        database_name: Optional[Input[str]] = None,
+        port: Optional[Input[int]] = None,
+        network: Optional[Network] = None,
+    ):
         """Internal initializer for Postgres."""
         if network is None:
             network = get_default_construct("aws", Network)
@@ -164,7 +172,7 @@ class Postgres(Construct):
                 "Password": password,
                 "DatabaseName": database_name,
                 "Port": port,
-                "Network": network
+                "Network": network,
             },
             opts=opts,
         )
@@ -172,9 +180,9 @@ class Postgres(Construct):
     @property
     def endpoint(self) -> str:
         """The endpoint of the Postgres database."""
-        return get(self, "Endpoint")
+        return get_field(self, "Endpoint")
 
     @property
     def port(self) -> int:
         """The port of the Postgres database."""
-        return get(self, "Port")
+        return get_field(self, "Port")

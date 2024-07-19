@@ -5,13 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
+	"github.com/klothoplatform/klotho/pkg/async"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 
 	"go.uber.org/zap"
@@ -35,8 +33,7 @@ type ConstructEvaluator struct {
 	stackStateManager *stack.StateManager
 	stateConverter    stateconverter.StateConverter
 
-	mu         sync.Mutex
-	constructs map[model.URN]*Construct
+	constructs *async.ConcurrentMap[model.URN, *Construct]
 }
 
 func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*ConstructEvaluator, error) {
@@ -46,7 +43,7 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}
 
 	return &ConstructEvaluator{
-		constructs:        make(map[model.URN]*Construct),
+		constructs:        &async.ConcurrentMap[model.URN, *Construct]{},
 		stateManager:      sm,
 		stackStateManager: ssm,
 		stateConverter:    stateConverter,
@@ -111,6 +108,9 @@ func (ce *ConstructEvaluator) interpolateValue(c InterpolationSource, rawValue a
 	}
 
 	v := reflectutil.GetConcreteElement(reflect.ValueOf(rawValue))
+	if !v.IsValid() {
+		return rawValue, nil
+	}
 	rawValue = v.Interface()
 
 	switch v.Kind() {
@@ -522,7 +522,11 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 		if !ok {
 			zap.S().Warnf("input %s not found in construct template", k)
 		}
-		v, err := ce.resolveInput(k, v, inputTemplate)
+		ir := InputResolver{
+			DryRun:     ce.DryRun,
+			Constructs: ce.constructs,
+		}
+		v, err := ir.ResolveInput(k, v, inputTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -533,9 +537,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 	if err != nil {
 		return nil, fmt.Errorf("could not create construct: %w", err)
 	}
-	ce.mu.Lock()
-	ce.constructs[constructUrn] = c
-	ce.mu.Unlock()
+	ce.constructs.Set(constructUrn, c)
 
 	if err = ce.initBindings(c, state); err != nil {
 		return nil, fmt.Errorf("could not initialize bindings: %w", err)
@@ -562,69 +564,6 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 	}
 
 	return c, nil
-}
-
-// resolveInput converts a model.Input to a construct.Input and adds it to the inputs map.
-// If the value of the input is a URN, it resolves the URN to a construct.
-// If the input's status is not "resolved", it returns an error.
-func (ce *ConstructEvaluator) resolveInput(k string, v model.Input, t InputTemplate) (any, error) {
-	if v.Status != "" && v.Status != model.InputStatusResolved {
-		if ce.DryRun == model.DryRunNone {
-			return nil, fmt.Errorf("input '%s' is not resolved", k)
-		}
-	}
-	switch {
-	case strings.HasPrefix(t.Type, "Construct<"):
-		cType := strings.TrimSuffix(strings.TrimPrefix(t.Type, "Construct<"), ">")
-
-		iURN, ok := v.Value.(model.URN)
-		if !ok {
-			urn, err := model.ParseURN(v.DependsOn)
-			if err != nil {
-				return nil, fmt.Errorf("input '%s' invalid DependsOn construct URN: %w", k, err)
-			}
-			iURN = *urn
-		}
-
-		if iURN.IsResource() && iURN.Type == "construct" && iURN.Subtype == cType {
-			ce.mu.Lock()
-			ic, ok := ce.constructs[iURN]
-			ce.mu.Unlock()
-
-			if !ok {
-				return nil, fmt.Errorf("input '%s' could not find construct %s", k, iURN)
-			}
-			return ic, nil
-		} else {
-			return nil, fmt.Errorf("input '%s' invalid construct URN: %+v", k, v)
-		}
-	case t.Type == "path":
-		var err error
-		pStr, ok := v.Value.(string)
-		if !ok {
-			return "", fmt.Errorf("input '%s' invalid path type: expected string, got %T", k, v.Value)
-		}
-		path, err := handlePathInput(pStr)
-		if err != nil {
-			return nil, fmt.Errorf("input '%s' could not handle path input: %w", k, err)
-		}
-		return path, nil
-	default:
-		return v.Value, nil
-	}
-}
-
-func handlePathInput(value string) (string, error) {
-	if filepath.IsAbs(value) {
-		return value, nil
-	}
-
-	// handle relative paths
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("could not get working directory")
-	}
-	return filepath.Join(wd, value), nil
 }
 
 func (ce *ConstructEvaluator) getBindingDeclarations(constructURN model.URN, state model.State) ([]BindingDeclaration, error) {
@@ -683,7 +622,11 @@ func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) erro
 			if !ok {
 				continue
 			}
-			resolvedValue, err := ce.resolveInput(key, mVal, inputTemplate)
+			ir := InputResolver{
+				DryRun:     ce.DryRun,
+				Constructs: ce.constructs,
+			}
+			resolvedValue, err := ir.ResolveInput(key, mVal, inputTemplate)
 			if err != nil {
 				return fmt.Errorf("could not resolve input: %w", err)
 			}
@@ -740,7 +683,11 @@ func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, stat
 			if !ok {
 				zap.S().Warnf("input %s not found in binding template", k)
 			}
-			v, err := ce.resolveInput(k, v, inputTemplate)
+			ir := InputResolver{
+				DryRun:     ce.DryRun,
+				Constructs: ce.constructs,
+			}
+			v, err := ir.ResolveInput(k, v, inputTemplate)
 			if err != nil {
 				return err
 			}
@@ -895,16 +842,16 @@ func (ce *ConstructEvaluator) templateFunctions(ps *PropertySource) template.Fun
 }
 
 func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemplate, interpolationCtx InterpolationContext) error {
-	tmpl, err := template.New("input_rule").Funcs(ce.templateFunctions(o.GetPropertySource())).Parse(rule.If)
+	tmpl, err := template.New("input_rule").Option("missingkey=zero").Funcs(ce.templateFunctions(o.GetPropertySource())).Parse(rule.If)
 	if err != nil {
-		return fmt.Errorf("template parsing failed: %w", err)
+		return fmt.Errorf("template parsing failed for input rule: %s: %w", rule.If, err)
 	}
 	var rawResult bytes.Buffer
 	if err := tmpl.Execute(&rawResult, nil); err != nil {
 		return fmt.Errorf("template execution failed: %w", err)
 	}
 
-	boolResult, err := strconv.ParseBool(rawResult.String())
+	boolResult := rawResult.String() != "" && strings.ToLower(rawResult.String()) != "false"
 	if err != nil {
 		return fmt.Errorf("result parsing failed: %w", err)
 	}
@@ -1268,20 +1215,16 @@ func (ce *ConstructEvaluator) importBindingToResources(b *Binding, ctx context.C
 }
 
 func (ce *ConstructEvaluator) RegisterOutputValues(urn model.URN, outputs map[string]any) {
-	ce.mu.Lock()
-	defer ce.mu.Unlock()
-	if c, ok := ce.constructs[urn]; ok {
+	if c, ok := ce.constructs.Get(urn); ok {
 		c.Outputs = outputs
 	}
 }
 
 func (ce *ConstructEvaluator) AddSolution(urn model.URN, sol solution.Solution) {
-	ce.mu.Lock()
-	defer ce.mu.Unlock()
-
 	// panic is fine here if urn isn't in map
 	// will only happen in programmer error cases
-	ce.constructs[urn].Solution = sol
+	c, _ := ce.constructs.Get(urn)
+	c.Solution = sol
 }
 
 func loadStateConverter() (stateconverter.StateConverter, error) {

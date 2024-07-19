@@ -25,9 +25,9 @@ inputs:
     type: string
     default: aws:kms
 outputs:
-  BucketName:
+  Bucket:
     description: The name of the S3 bucket
-    value: ${resources:Bucket#BucketName}
+    value: ${resources:Bucket#Bucket}
   BucketArn:
     description: The Amazon Resource Name (ARN) of the S3 bucket
     value: ${resources:Bucket#Arn}

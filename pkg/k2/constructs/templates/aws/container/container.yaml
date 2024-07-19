@@ -10,12 +10,13 @@ resources:
       Memory: ${inputs:Memory}
       ContainerDefinitions:
         - Name: ${inputs:Name}
+          Cpu: ${inputs:Cpu}
+          Memory: ${inputs:Memory}
+          Environment: ${inputs:EnvironmentVariables}
           PortMappings:
             - ContainerPort: ${inputs:Port}
               HostPort: ${inputs:Port}
               Protocol: TCP
-          Cpu: ${inputs:Cpu}
-          Memory: ${inputs:Memory}
       RequiresCompatibilities:
         - FARGATE
   Service:
@@ -27,29 +28,11 @@ resources:
       EnableExecuteCommand: ${inputs:EnableExecuteCommand}
 
 inputs:
-  SourceHash:
-    name: Source Hash
-    description: The hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
-    type: string
-    hidden: true
   Cpu:
     name: CPU
     description: The amount of CPU to allocate to the container
     type: number
     default: 256
-    validation:
-      minimum: 1
-      maximum: 4096
-  EnableExecuteCommand:
-    name: Enable Execute Command
-    description: Whether to enable the execute command functionality for the container
-    type: boolean
-    default: false
-  Memory:
-    name: Memory
-    description: The amount of memory to allocate to the container
-    type: number
-    default: 512
     validation:
       minimum: 1
       maximum: 4096
@@ -69,6 +52,12 @@ inputs:
     validation:
       minLength: 1
       maxLength: 63
+  EnvironmentVariables:
+    name: EnvironmentVariables
+    description: The environment variables to set in the container
+    type: KeyValueList
+    configuration:
+      keyField: Name
   Image:
     name: Image
     description: The image to use for the container
@@ -76,6 +65,23 @@ inputs:
     validation:
       minLength: 1
       maxLength: 63
+      EnableExecuteCommand:
+        name: Enable Execute Command
+        description: Whether to enable the execute command functionality for the container
+        type: boolean
+        default: false
+  Memory:
+    name: Memory
+    description: The amount of memory to allocate to the container
+    type: number
+    default: 512
+    validation:
+      minimum: 1
+      maximum: 4096
+  Network:
+    name: Network
+    description: The network to deploy the container to
+    type: Construct(klotho.aws.Network)
   Port:
     name: Port
     description: The port to expose on the container
@@ -84,10 +90,6 @@ inputs:
     validation:
       minimum: 1
       maximum: 65535
-  Network:
-    name: Network
-    description: The network to deploy the container to
-    type: Construct<klotho.aws.Network>
 
 input_rules:
   - if: '{{ and (inputs "Dockerfile") (not (inputs "Image")) }}'

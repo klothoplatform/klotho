@@ -147,9 +147,9 @@ func (ce *ConstructEvaluator) newBinding(owner, from, to model.URN) (*Binding, e
 		return nil, err
 	}
 
-	oc := ce.constructs[owner]
-	fc := ce.constructs[from]
-	tc := ce.constructs[to]
+	oc, _ := ce.constructs.Get(owner)
+	fc, _ := ce.constructs.Get(from)
+	tc, _ := ce.constructs.Get(to)
 
 	bt, err := loadBindingTemplate(ownerTemplateId, fromTemplateId, toTemplateId)
 	if err != nil {

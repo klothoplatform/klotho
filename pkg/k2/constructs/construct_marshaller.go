@@ -19,9 +19,8 @@ type (
 
 // Marshal marshals a Construct into a list of constraints
 func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.ConstraintList, error) {
-	//TODO: consider look into capturing multiple errors instead of returning the first one
 	var cs constraints.ConstraintList
-	c, ok := m.ConstructEvaluator.constructs[constructURN]
+	c, ok := m.ConstructEvaluator.constructs.Get(constructURN)
 	if !ok {
 		return nil, fmt.Errorf("could not find construct %s", constructURN)
 	}
