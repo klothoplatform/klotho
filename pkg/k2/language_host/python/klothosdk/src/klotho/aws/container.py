@@ -14,8 +14,12 @@ from klotho.type_util import set_field, get_field, get_output
 
 if TYPE_CHECKING:
     from klotho.aws.bucket import Bucket
+    from klotho.aws.postgres import Postgres
 
-BindingType = Union[Binding["Bucket"], "Bucket"]
+BindingType = Union[
+    Binding["Bucket"], "Bucket",
+    Binding["Postgres"], "Postgres",
+]
 
 
 class ContainerArgs:
