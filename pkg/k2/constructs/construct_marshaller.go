@@ -141,11 +141,15 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 
 // marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method
 func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error) {
-	if ref, ok := rawVal.(ResourceRef); ok {
-		return m.ConstructEvaluator.serializeRef(o, ref)
-	}
 
 	ref := reflectutil.GetConcreteElement(reflect.ValueOf(rawVal))
+
+	switch val := rawVal.(type) {
+	case ResourceRef:
+		return m.ConstructEvaluator.serializeRef(o, val)
+	case construct.ResourceId, construct.PropertyRef:
+		return val, nil
+	}
 
 	var err error
 	switch ref.Kind() {
@@ -170,23 +174,25 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
 			field := reflectutil.GetConcreteElement(ref.MapIndex(key))
-			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(o, field.Interface())
+			switch field.Kind() {
+			case reflect.Map, reflect.Struct, reflect.Interface, reflect.Slice | reflect.Array, reflect.Ptr:
+				mField, err := m.marshalRefs(o, field.Interface())
 				if err != nil {
 					return nil, err
 				}
-			}
-			if field.IsValid() {
-				if newField, ok := field.Interface().(ResourceRef); ok {
-					var serializedRef any
-					serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
-					if err != nil {
-						return nil, err
+				ref.SetMapIndex(key, reflect.ValueOf(mField))
+			default:
+				if field.IsValid() {
+					if newField, ok := field.Interface().(ResourceRef); ok {
+						var serializedRef any
+						serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
+						if err != nil {
+							return nil, err
+						}
+						ref.SetMapIndex(key, reflect.ValueOf(serializedRef))
 					}
-					ref.SetMapIndex(key, reflect.ValueOf(serializedRef))
 				}
 			}
-
 		}
 	case reflect.Slice | reflect.Array:
 		for i := 0; i < ref.Len(); i++ {

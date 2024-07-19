@@ -1,7 +1,6 @@
 package constructs
 
 import (
-	"fmt"
 	"reflect"
 	"text/template"
 
@@ -78,10 +77,13 @@ func (ce *ConstructEvaluator) serializeRef(owner InfraOwner, ref ResourceRef) (a
 	}
 
 	if ref.Property != "" {
-		return fmt.Sprintf("%s#%s", resourceId.String(), ref.Property), nil
+		return construct.PropertyRef{
+			Resource: resourceId,
+			Property: ref.Property,
+		}, nil
 	}
 
-	return resourceId.String(), nil
+	return resourceId, nil
 }
 
 func GetTypedProperty[T any](source *PropertySource, key string) (T, bool) {
