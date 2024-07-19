@@ -230,6 +230,7 @@ properties:
     description: The Amazon Resource Name (ARN) that identifies the service
     deploy_time: true
     configuration_disabled: true
+    required: true
   Name:
     type: string
     description: The name of the service

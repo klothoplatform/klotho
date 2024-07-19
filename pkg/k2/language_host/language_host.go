@@ -64,7 +64,7 @@ func copyToTempDir(name, content string) (string, error) {
 
 }
 
-func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd, *ServerAddress, error) {
+func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath string) (*exec.Cmd, *ServerAddress, error) {
 	log := logging.GetLogger(ctx).Sugar()
 	hostPath, err := copyToTempDir("python_language_host", pythonLanguageHost)
 	if err != nil {
@@ -90,6 +90,10 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig) (*exec.Cmd,
 		},
 		"pipenv", args...,
 	)
+	if cmd.Env == nil {
+		cmd.Env = os.Environ()
+	}
+	cmd.Env = append(cmd.Env, "PYTHONPATH="+pythonPath)
 
 	lf := &ServerAddress{
 		Log:     log,

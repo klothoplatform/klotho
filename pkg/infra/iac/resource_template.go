@@ -59,9 +59,6 @@ var (
 	//go:embed find_imports.scm
 	findImportsQuery string
 
-	//go:embed find_return.scm
-	findReturn string
-
 	//go:embed find_props_func.scm
 	findPropsFuncQuery string
 
@@ -146,6 +143,26 @@ func parseArgs(node *sitter.Node, name string) (map[string]Arg, error) {
 	return args, nil
 }
 
+// getReturn returns the top-level return _statement node in a function `node`.
+// Returns nil if no return statement is found.
+// Use this instead of a query so that it doesn't pick any nested return functions instead
+// (found in anonymous functions) or otherwise.
+func getReturn(node *sitter.Node) *sitter.Node {
+	for i := 0; i < int(node.NamedChildCount()); i++ {
+		child := node.NamedChild(i)
+		if child.Type() == "return_statement" {
+			if child.ChildCount() == 0 {
+				return nil
+			}
+			// Unwrap to the actual value so that for example:
+			//    return 1
+			// will have the result's Content() be `1` and not `return 1`
+			return child.NamedChild(0)
+		}
+	}
+	return nil
+}
+
 func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, string, error) {
 	createFunc := doQuery(node, findCreateFuncQuery)
 	create, found := createFunc()
@@ -157,11 +174,11 @@ func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, s
 	if outputType == "void" {
 		expressionBody = bodyContents(create["body"])
 	} else {
-		body, found := doQuery(create["body"], findReturn)()
-		if !found {
+		body := getReturn(create["body"])
+		if body == nil {
 			return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, create["body"].Content())
 		}
-		expressionBody = body["return_body"].Content()
+		expressionBody = body.Content()
 	}
 	expressionBody = parameterizeArgs(expressionBody, "")
 	expressionBody = templateComments.ReplaceAllString(expressionBody, "")
@@ -261,11 +278,11 @@ func importFuncNodeToTemplate(node *sitter.Node, name string) (*template.Templat
 	}
 	outputType := imp["return_type"].Content()
 	var expressionBody string
-	body, found := doQuery(imp["body"], findReturn)()
-	if !found {
+	body := getReturn(imp["body"])
+	if body == nil {
 		return nil, "", fmt.Errorf("no 'return' found in %s body:```\n%s\n```", name, imp["body"].Content())
 	}
-	expressionBody = body["return_body"].Content()
+	expressionBody = body.Content()
 
 	expressionBody = parameterizeArgs(expressionBody, "")
 	expressionBody = templateComments.ReplaceAllString(expressionBody, "")

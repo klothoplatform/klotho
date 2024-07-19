@@ -16,8 +16,4 @@ app = klotho.Application(
     ),  # Default to 'us-east-1' or the environment variable value
 )
 
-# Create a Container resource
-container = aws.Container('my-container', dockerfile="Dockerfile")
-
-# Create a Bucket resource
-bucket = aws.Bucket("my-bucket", force_destroy=True)
+container = aws.Container("my-container", dockerfile="Dockerfile")

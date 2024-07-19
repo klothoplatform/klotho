@@ -92,8 +92,8 @@
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "-n=1",
                 "--debug=vscode",
-                // "${file}"
-                "infra.py"
+                "${file}"
+                // "infra.py"
             ],
             "env": {
                 "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out",
@@ -102,7 +102,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: Attach",
+            "name": "Python Debugger: Listen",
             "type": "debugpy",
             "request": "attach",
             "listen": {
@@ -110,13 +110,53 @@
                 "port": 5678,
             },
         },
+        {
+            "name": "k2: deploy",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cmd/k2",
+            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
+            "args": [
+                "up",
+                "-v=3",
+                "-o=${workspaceFolder}/out",
+                "--profiling=${workspaceFolder}/out/k2.prof",
+                "${file}"
+            ],
+            "env": {
+                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out",
+                "AWS_REGION": "${env:AWS_REGION}",
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "k2: destroy",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cmd/k2",
+            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
+            "args": [
+                "down",
+                "-v=3",
+                "-o=${workspaceFolder}/out",
+                "--profiling=${workspaceFolder}/out/k2.prof",
+                "${file}"
+            ],
+            "env": {
+                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out",
+                "AWS_REGION": "${env:AWS_REGION}",
+            },
+            "console": "integratedTerminal"
+        },
     ],
     "compounds": [
         {
             "name": "Debug: k2 + infra.py",
             "configurations": [
                 "Debug: k2",
-                "Python Debugger: Attach"
+                "Python Debugger: Listen"
             ],
             "stopAll": true,
         }

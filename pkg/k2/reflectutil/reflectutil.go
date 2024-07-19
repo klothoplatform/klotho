@@ -77,6 +77,9 @@ func GetField(v reflect.Value, fieldExpr string) (reflect.Value, error) {
 		} else {
 			switch v.Kind() {
 			case reflect.Map:
+				if v.Type().Key().Kind() != reflect.String {
+					return reflect.Value{}, fmt.Errorf("unsupported map key type: %s: key type must be 'String'", v.Type().Key())
+				}
 				v = v.MapIndex(reflect.ValueOf(field))
 				if !v.IsValid() {
 					return reflect.Value{}, fmt.Errorf("invalid map key: %s", field)
@@ -132,4 +135,54 @@ func GetTypedValue[T any](v any) (T, bool) {
 	}
 
 	return typedValue, ok
+}
+
+func TracePath(v reflect.Value, fieldExpr string) ([]reflect.Value, error) {
+	if !v.IsValid() {
+		return nil, fmt.Errorf("value is invalid")
+	}
+
+	trace := []reflect.Value{v}
+
+	if fieldExpr == "" {
+		return trace, nil
+	}
+
+	fields := strings.Split(fieldExpr, ".")
+
+	for _, field := range fields {
+		last := trace[len(trace)-1]
+		next, err := GetField(last, field)
+		if err != nil {
+			return nil, err
+		}
+		trace = append(trace, next)
+	}
+
+	return trace, nil
+}
+
+// FirstOfType returns the first value in the slice that matches the specified type.
+// If no matching value is found, it returns the zero value of the type and false.
+func FirstOfType[T any](values []reflect.Value) (T, bool) {
+	var zero T
+	for _, v := range values {
+		if v.CanInterface() {
+			if val, ok := v.Interface().(T); ok {
+				return val, true
+			}
+		}
+	}
+	return zero, false
+}
+
+func LastOfType[T any](values []reflect.Value) (T, bool) {
+	// Create a new slice with reversed order
+	reversed := make([]reflect.Value, len(values))
+	for i, v := range values {
+		reversed[len(values)-1-i] = v
+	}
+
+	// Use FirstOfType on the reversed slice
+	return FirstOfType[T](reversed)
 }

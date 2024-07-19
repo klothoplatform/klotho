@@ -21,6 +21,10 @@ type MemoryStore[K comparable, T comparable] struct {
 	inEdges  map[K]map[K]graph.Edge[K] // target -> source
 }
 
+type equaller interface {
+	Equals(any) bool
+}
+
 func NewMemoryStore[K comparable, T comparable]() graph.Store[K, T] {
 	return &MemoryStore[K, T]{
 		vertices:         make(map[K]T),
@@ -54,9 +58,17 @@ func (s *MemoryStore[K, T]) AddVertex(k K, t T, p graph.VertexProperties) error 
 	}
 
 	if existing, ok := s.vertices[k]; ok {
-		if existing == t && vertexPropsEqual(s.vertexProperties[k], p) {
+		// Fastest check, use ==
+		if t == existing && vertexPropsEqual(s.vertexProperties[k], p) {
 			return nil
 		}
+
+		// Slower, check if it implements the equaller interface
+		var t any = t // this is needed to satisfy the compiler, since Go can't type assert on a generic type
+		if tEq, ok := t.(equaller); ok && tEq.Equals(existing) && vertexPropsEqual(s.vertexProperties[k], p) {
+			return nil
+		}
+
 		return &graph.VertexAlreadyExistsError[K, T]{
 			Key:           k,
 			ExistingValue: existing,
@@ -161,9 +173,9 @@ func edgesEqual[K comparable](a, b graph.Edge[K]) bool {
 	if a.Properties.Data == nil || b.Properties.Data == nil {
 		// Can only safely check `==` if one is nil because a map cannot `==` anything else
 		return a.Properties.Data == b.Properties.Data
-	} else if aEq, ok := a.Properties.Data.(interface{ Equals(any) bool }); ok {
+	} else if aEq, ok := a.Properties.Data.(equaller); ok {
 		return aEq.Equals(b.Properties.Data)
-	} else if bEq, ok := b.Properties.Data.(interface{ Equals(any) bool }); ok {
+	} else if bEq, ok := b.Properties.Data.(equaller); ok {
 		return bEq.Equals(a.Properties.Data)
 	} else {
 		// Do the reflection last, since that is slow. We need to use reflection unlike for attributes

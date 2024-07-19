@@ -94,6 +94,12 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Id:
+    type: string
+    description: The provider-assigned unique identifier for the target group, available after deployment
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 classification:
   is:

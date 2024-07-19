@@ -54,7 +54,7 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 	return cs, nil
 }
 
-func (m *ConstructMarshaller) marshalResource(c *Construct, r *Resource) (constraints.ConstraintList, error) {
+func (m *ConstructMarshaller) marshalResource(o InfraOwner, r *Resource) (constraints.ConstraintList, error) {
 	var cs constraints.ConstraintList
 	cs = append(cs, &constraints.ApplicationConstraint{
 		Operator: "must_exist",
@@ -62,7 +62,7 @@ func (m *ConstructMarshaller) marshalResource(c *Construct, r *Resource) (constr
 	})
 	for k, v := range r.Properties {
 
-		v, err := m.marshalRefs(v)
+		v, err := m.marshalRefs(o, v)
 		if err != nil {
 			return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 		}
@@ -78,28 +78,36 @@ func (m *ConstructMarshaller) marshalResource(c *Construct, r *Resource) (constr
 }
 
 // marshalEdge marshals an Edge into a list of constraints
-func (m *ConstructMarshaller) marshalEdge(c *Construct, e *Edge) (constraints.ConstraintList, error) {
+func (m *ConstructMarshaller) marshalEdge(o InfraOwner, e *Edge) (constraints.ConstraintList, error) {
 
 	var from construct.ResourceId
-	ref, err := m.ConstructEvaluator.serializeRef(e.From)
+	ref, err := m.ConstructEvaluator.serializeRef(o, e.From)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize from resource id: %w", err)
 	}
-	err = from.Parse(ref.(string))
+	if idRef, ok := ref.(construct.ResourceId); ok {
+		from = idRef
+	} else {
+		err = from.Parse(ref.(string))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not parse from resource id: %w", err)
 	}
 
 	var to construct.ResourceId
-	ref, err = m.ConstructEvaluator.serializeRef(e.To)
+	ref, err = m.ConstructEvaluator.serializeRef(o, e.To)
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize to resource id: %w", err)
 	}
-	err = to.Parse(ref.(string))
+	if idRef, ok := ref.(construct.ResourceId); ok {
+		to = idRef
+	} else {
+		err = to.Parse(ref.(string))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not parse to resource id: %w", err)
 	}
-	v, err := m.marshalRefs(e.Data)
+	v, err := m.marshalRefs(o, e.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshall resource properties: %w", err)
 	}
@@ -133,9 +141,9 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 }
 
 // marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method
-func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
+func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error) {
 	if ref, ok := rawVal.(ResourceRef); ok {
-		return m.ConstructEvaluator.serializeRef(ref)
+		return m.ConstructEvaluator.serializeRef(o, ref)
 	}
 
 	ref := reflectutil.GetConcreteElement(reflect.ValueOf(rawVal))
@@ -146,14 +154,14 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		for i := 0; i < ref.NumField(); i++ {
 			field := reflectutil.GetConcreteElement(ref.Field(i))
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(field.Interface())
+				_, err = m.marshalRefs(o, field.Interface())
 				if err != nil {
 					return nil, err
 				}
 			}
 			if newField, ok := field.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
+				serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
 				if err != nil {
 					return nil, err
 				}
@@ -164,7 +172,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		for _, key := range ref.MapKeys() {
 			field := reflectutil.GetConcreteElement(ref.MapIndex(key))
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(field.Interface())
+				_, err = m.marshalRefs(o, field.Interface())
 				if err != nil {
 					return nil, err
 				}
@@ -172,7 +180,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
 					var serializedRef any
-					serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
+					serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
 					if err != nil {
 						return nil, err
 					}
@@ -185,13 +193,13 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		for i := 0; i < ref.Len(); i++ {
 			field := reflectutil.GetConcreteElement(ref.Index(i))
 			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(field.Interface())
+				_, err = m.marshalRefs(o, field.Interface())
 				if err != nil {
 					return nil, err
 				}
 			}
 			if field.Kind() == reflect.Map {
-				_, err = m.marshalRefs(field.Interface())
+				_, err = m.marshalRefs(o, field.Interface())
 				if err != nil {
 					return nil, err
 				}
@@ -199,7 +207,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 			if field.IsValid() {
 				if newField, ok := field.Interface().(ResourceRef); ok {
 					var serializedRef any
-					serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
+					serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
 					if err != nil {
 						return nil, err
 					}
@@ -209,7 +217,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		}
 	case reflect.Interface | reflect.Pointer:
 		if ref.Elem().Kind() == reflect.Struct {
-			_, err = m.marshalRefs(ref.Elem().Interface())
+			_, err = m.marshalRefs(o, ref.Elem().Interface())
 			if err != nil {
 				return nil, err
 			}
@@ -218,7 +226,7 @@ func (m *ConstructMarshaller) marshalRefs(rawVal any) (any, error) {
 		if ref.IsValid() {
 			if newField, ok := ref.Interface().(ResourceRef); ok {
 				var serializedRef any
-				serializedRef, err = m.ConstructEvaluator.serializeRef(newField)
+				serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
 				if err != nil {
 					return nil, err
 				}

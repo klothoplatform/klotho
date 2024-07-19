@@ -99,7 +99,6 @@ func (b *Binding) String() string {
 }
 
 func (b *Binding) GetPropertySource() *PropertySource {
-
 	ps := map[string]any{
 		"inputs":    b.Inputs,
 		"resources": b.Resources,

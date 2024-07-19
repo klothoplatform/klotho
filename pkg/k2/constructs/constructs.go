@@ -65,12 +65,7 @@ func (p *PropertySource) GetProperty(key string) (value any, ok bool) {
 	return v.Interface(), true
 }
 
-func (ce *ConstructEvaluator) serializeRef(ref ResourceRef) (any, error) {
-	owner := ce.constructs[ref.ConstructURN]
-	if owner == nil {
-		return nil, fmt.Errorf("construct with key %s not found", ref.ConstructURN.String())
-	}
-
+func (ce *ConstructEvaluator) serializeRef(owner InfraOwner, ref ResourceRef) (any, error) {
 	var resourceId construct.ResourceId
 	r, ok := owner.GetResource(ref.ResourceKey)
 	if ok {
@@ -79,10 +74,6 @@ func (ce *ConstructEvaluator) serializeRef(ref ResourceRef) (any, error) {
 		err := resourceId.Parse(ref.ResourceKey)
 		if err != nil {
 			return nil, err
-		}
-		initGraph := owner.GetInitialGraph()
-		if _, err = initGraph.Vertex(resourceId); err != nil {
-			return nil, fmt.Errorf("could not resolve ref %s: %w", ref, err)
 		}
 	}
 

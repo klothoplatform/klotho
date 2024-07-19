@@ -119,7 +119,7 @@ func BuildPathSelectionGraph(
 			} else if i == len(path)-1 {
 				id = dep.Target
 			}
-			resource := &construct.Resource{ID: id}
+			resource := &construct.Resource{ID: id, Properties: make(construct.Properties)}
 			err = tempGraph.AddVertex(resource)
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, err

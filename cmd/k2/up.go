@@ -69,7 +69,7 @@ func up(cmd *cobra.Command, args []string) error {
 		Enabled: upConfig.debugMode != "",
 		Port:    upConfig.debugPort,
 		Mode:    upConfig.debugMode,
-	})
+	}, filepath.Dir(inputPath))
 	if err != nil {
 		return err
 	}

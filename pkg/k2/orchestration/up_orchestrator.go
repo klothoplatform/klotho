@@ -196,7 +196,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 				StdoutLevel: zap.DebugLevel,
 				StderrLevel: zap.DebugLevel,
 			},
-			"tsc", "index.ts",
+			"tsc", "--noEmit", "index.ts",
 		)
 		cmd.Dir = stackRef.IacDirectory
 		err := cmd.Run()

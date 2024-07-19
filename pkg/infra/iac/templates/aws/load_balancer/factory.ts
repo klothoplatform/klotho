@@ -10,6 +10,7 @@ interface Args {
     Subnets: aws.ec2.Subnet[]
     Tags: ModelCaseWrapper<Record<string, string>>
     Type: string
+    Id: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -46,4 +47,8 @@ function infraExports(
     return {
         DomainName: object.dnsName,
     }
+}
+
+function importResource(args: Args): aws.lb.LoadBalancer {
+    return aws.lb.LoadBalancer.get(args.Name, args.Id)
 }

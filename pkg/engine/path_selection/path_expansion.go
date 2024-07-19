@@ -204,10 +204,16 @@ func renameAndReplaceInTempGraph(
 			}
 		}
 	}
+	if errs != nil {
+		return nil, errs
+	}
 
 	// We need to replace the phantom nodes in the temp graph in case we reuse the temp graph for sub expansions
 	for i, res := range result {
-		errs = errors.Join(errs, construct.ReplaceResource(input.TempGraph, path[i], res))
+		err := construct.ReplaceResource(input.TempGraph, path[i], res)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error replacing path[%d] %s: %w", i, path[i], err))
+		}
 	}
 	return result, errs
 }

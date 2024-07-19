@@ -1,0 +1,23 @@
+from: klotho.aws.API
+to: klotho.aws.Container
+
+inputs:
+  Path:
+    name: Path
+    description: The path to use
+    type: string
+    default: /*
+
+resources:
+  Integration:
+    type: aws:api_integration
+    namespace: ${from.inputs:Name}
+    name: ${to.inputs:Name}
+    properties:
+      Route: ${inputs:Path}
+
+edges:
+  - from: ${from.resources:RestAPI}
+    to: ${resources:Integration}
+  - from: ${resources:Integration}
+    to: ${to.resources:APILoadBalancer}

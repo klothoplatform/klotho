@@ -258,7 +258,7 @@ func (c *Construct) OrderedBindings() []*Binding {
 
 	sorted := append([]*Binding{}, c.Bindings...)
 
-	sort.Slice(sorted, func(i, j int) bool {
+	sort.SliceStable(sorted, func(i, j int) bool {
 		if c.Bindings[i].Priority == c.Bindings[j].Priority {
 			return i < j
 		}

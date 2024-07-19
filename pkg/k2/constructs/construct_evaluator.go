@@ -58,7 +58,7 @@ func (ce *ConstructEvaluator) Evaluate(constructUrn model.URN, state model.State
 	if err != nil {
 		return engine.SolveRequest{}, fmt.Errorf("error evaluating construct %s: %w", constructUrn, err)
 	}
-	err = ce.evaluateBindings(ci, ctx)
+	err = ce.evaluateBindings(ci, state, ctx)
 	if err != nil {
 		return engine.SolveRequest{}, fmt.Errorf("error evaluating bindings: %w", err)
 	}
@@ -240,10 +240,38 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 		p, ok = ps.GetProperty(prefix)
 		if !ok {
 			return nil, fmt.Errorf("could not get %s", prefix)
-
 		}
 	} else {
 		return nil, fmt.Errorf("invalid prefix: %s", prefix)
+	}
+
+	prefixParts := strings.Split(prefix, ".")
+
+	// associate any ResourceRefs with the URN of the property source they're being interpolated from
+	// if the prefix is "from" or "to", the URN of the property source is the "urn" field of that level in the property source
+	var refUrn model.URN
+
+	if strings.HasSuffix(prefix, "resources") {
+		urnKey := "urn"
+		if prefixParts[0] == "from" || prefixParts[0] == "to" {
+			urnKey = fmt.Sprintf("%s.urn", prefixParts[0])
+		}
+		psURN, ok := GetTypedProperty[model.URN](ps, urnKey)
+		if !ok {
+			psURN = ctx.Construct.URN
+		}
+		refUrn = psURN
+	} else {
+		propTrace, err := reflectutil.TracePath(reflect.ValueOf(p), key)
+		if err == nil {
+			refConstruct, ok := reflectutil.LastOfType[*Construct](propTrace)
+			if ok {
+				refUrn = refConstruct.URN
+			}
+		}
+		if refUrn.Equals(model.URN{}) {
+			refUrn = ctx.Construct.URN
+		}
 	}
 
 	// return an IaC reference if the key matches the IaC reference pattern
@@ -252,11 +280,9 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 			ResourceKey:  iacRefPattern.FindStringSubmatch(key)[1],
 			Property:     iacRefPattern.FindStringSubmatch(key)[2],
 			Type:         ResourceRefTypeIaC,
-			ConstructURN: ctx.Construct.URN,
+			ConstructURN: refUrn,
 		}, nil
 	}
-
-	prefixParts := strings.Split(prefix, ".")
 
 	// special cases for resources allowing for accessing the name of a resource directly instead of using .Id.Name
 	if prefix == "resources" || prefixParts[len(prefixParts)-1] == "resources" {
@@ -268,17 +294,6 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 			}
 
 		}
-	}
-
-	// associate any ResourceRefs with the URN of the property source they're being interpolated from
-	// if the prefix is "from" or "to", the URN of the property source is the "urn" field of that level in the property source
-	urnKey := "urn"
-	if prefixParts[0] == "from" || prefixParts[0] == "to" {
-		urnKey = fmt.Sprintf("%s.urn", prefixParts[0])
-	}
-	psURN, ok := GetTypedProperty[model.URN](ps, urnKey)
-	if !ok {
-		psURN = ctx.Construct.URN
 	}
 
 	// Retrieve the value from the designated property source
@@ -296,25 +311,16 @@ func (ce *ConstructEvaluator) interpolateExpression(ps *PropertySource, match st
 
 	// If the value is a Resource, return a ResourceRef
 	if r, ok := value.(*Resource); ok {
-		if prefix == "inputs" {
-			return ResourceRef{
-				ResourceKey:  r.Id.String(),
-				Property:     refProperty,
-				Type:         ResourceRefTypeIaC,
-				ConstructURN: psURN,
-			}, nil
-		}
-
 		return ResourceRef{
-			ResourceKey:  key,
+			ResourceKey:  r.Id.String(),
 			Property:     refProperty,
-			Type:         ResourceRefTypeTemplate,
-			ConstructURN: psURN,
+			Type:         ResourceRefTypeIaC,
+			ConstructURN: refUrn,
 		}, nil
 	}
 
 	if r, ok := value.(ResourceRef); ok {
-		r.ConstructURN = psURN
+		r.ConstructURN = refUrn
 		return r, nil
 	}
 
@@ -691,36 +697,69 @@ func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) erro
 	return nil
 }
 
-func (ce *ConstructEvaluator) evaluateBindings(c *Construct, ctx context.Context) error {
+func (ce *ConstructEvaluator) evaluateBindings(c *Construct, state model.State, ctx context.Context) error {
 	for _, binding := range c.OrderedBindings() {
-		if err := ce.evaluateBinding(c, binding, ctx); err != nil {
+		if err := ce.evaluateBinding(c, binding, state, ctx); err != nil {
 			return fmt.Errorf("could not evaluate binding: %w", err)
 		}
-	}
-	if err := ce.applyBindings(c); err != nil {
-		return fmt.Errorf("could not apply bindings: %w", err)
 	}
 
 	return nil
 }
 
-func (ce *ConstructEvaluator) evaluateBinding(c *Construct, b *Binding, ctx context.Context) error {
+func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, state model.State, ctx context.Context) error {
+	if owner == nil || b == nil {
+		return errors.New("construct or binding is nil")
+	}
+
 	if b.BindingTemplate.From.Name == "" || b.BindingTemplate.To.Name == "" {
 		return nil // assume that this binding does not modify the current construct
 	}
 	var err error
+
+	if b.From != nil {
+		var bState *model.Binding
+		cState, ok := state.Constructs[b.From.URN.ResourceID]
+		if ok {
+			for _, cb := range cState.Bindings {
+				if cb.URN.Equals(b.To.URN) {
+					bState = &cb
+					break
+				}
+			}
+			ok = bState != nil
+		}
+
+		if !ok {
+			return fmt.Errorf("could not get state state for binding: (%s) %s -> %s", owner.URN.String(), b.From.URN.String(), b.To.URN.String())
+		}
+
+		inputs := make(map[string]any)
+		for k, v := range bState.Inputs {
+			inputTemplate, ok := b.BindingTemplate.Inputs[k]
+			if !ok {
+				zap.S().Warnf("input %s not found in binding template", k)
+			}
+			v, err := ce.resolveInput(k, v, inputTemplate)
+			if err != nil {
+				return err
+			}
+			inputs[k] = v
+		}
+	}
+
 	if err = ce.importResources(b, ctx); err != nil {
 		return fmt.Errorf("could not import resources: %w", err)
 	}
 
-	if b.From != nil && c.URN.Equals(b.From.GetURN()) {
+	if b.From != nil && owner.URN.Equals(b.From.GetURN()) {
 		// only import "to" resources if the binding is from the current construct
 		if err = ce.importBindingToResources(b, ctx); err != nil {
 			return fmt.Errorf("could not import binding resources: %w", err)
 		}
 	}
 
-	interpolationCtx := NewInterpolationContext(c, BindingInterpolationContext)
+	interpolationCtx := NewInterpolationContext(owner, BindingInterpolationContext)
 
 	if err = ce.evaluateResources(b, interpolationCtx); err != nil {
 		return fmt.Errorf("could not evaluate resources: %w", err)
@@ -737,6 +776,11 @@ func (ce *ConstructEvaluator) evaluateBinding(c *Construct, b *Binding, ctx cont
 	if err = ce.evaluateOutputs(b, interpolationCtx); err != nil {
 		return fmt.Errorf("could not evaluate outputs: %w", err)
 	}
+
+	if err := ce.applyBinding(b.Owner, b); err != nil {
+		return fmt.Errorf("could not apply bindings: %w", err)
+	}
+
 	return nil
 }
 
@@ -751,45 +795,43 @@ func (ce *ConstructEvaluator) evaluateEdges(c InfraOwner, interpolationCtx Inter
 	return nil
 }
 
-// applyBindings applies the bindings to the construct by merging the resources, edges, and output declarations
+// applyBinding applies the bindings to the construct by merging the resources, edges, and output declarations
 // of the construct's bindings with the construct's resources, edges, and output declarations
-func (ce *ConstructEvaluator) applyBindings(c *Construct) error {
-	for _, binding := range c.Bindings {
-		// Merge resources
-		for key, bRes := range binding.Resources {
-			if res, exists := c.Resources[key]; exists {
-				res.Properties = mergeProperties(res.Properties, bRes.Properties)
-			} else {
-				c.Resources[key] = bRes
-			}
+func (ce *ConstructEvaluator) applyBinding(c *Construct, binding *Binding) error {
+	// Merge resources
+	for key, bRes := range binding.Resources {
+		if res, exists := c.Resources[key]; exists {
+			res.Properties = mergeProperties(res.Properties, bRes.Properties)
+		} else {
+			c.Resources[key] = bRes
 		}
+	}
 
-		// Merge edges
-		for _, edge := range binding.Edges {
-			if !edgeExists(c.Edges, edge) {
-				c.Edges = append(c.Edges, edge)
-			}
+	// Merge edges
+	for _, edge := range binding.Edges {
+		if !edgeExists(c.Edges, edge) {
+			c.Edges = append(c.Edges, edge)
 		}
+	}
 
-		// Merge output declarations
-		for key, output := range binding.OutputDeclarations {
-			if _, exists := c.OutputDeclarations[key]; !exists {
-				c.OutputDeclarations[key] = output
-			} else {
-				// If output already exists, log a warning or handle the conflict as needed
-				logging.GetLogger(context.Background()).Sugar().Warnf("Output %s already exists in construct, skipping binding output", key)
-			}
+	// Merge output declarations
+	for key, output := range binding.OutputDeclarations {
+		if _, exists := c.OutputDeclarations[key]; !exists {
+			c.OutputDeclarations[key] = output
+		} else {
+			// If output already exists, log a warning or handle the conflict as needed
+			logging.GetLogger(context.Background()).Sugar().Warnf("Output %s already exists in construct, skipping binding output", key)
 		}
+	}
 
-		err := c.InitialGraph.AddVerticesFrom(binding.InitialGraph)
-		if err != nil {
-			return fmt.Errorf("could not add vertices from binding %s graph: %w", binding, err)
-		}
+	err := c.InitialGraph.AddVerticesFrom(binding.InitialGraph)
+	if err != nil {
+		return fmt.Errorf("could not add vertices from binding %s graph: %w", binding, err)
+	}
 
-		err = c.InitialGraph.AddEdgesFrom(binding.InitialGraph)
-		if err != nil {
-			return fmt.Errorf("could not add edges from binding %s graph: %w", binding, err)
-		}
+	err = c.InitialGraph.AddEdgesFrom(binding.InitialGraph)
+	if err != nil {
+		return fmt.Errorf("could not add edges from binding %s graph: %w", binding, err)
 	}
 
 	return nil
@@ -974,9 +1016,15 @@ func (ce *ConstructEvaluator) resolveEdge(c InfraOwner, edge EdgeTemplate, inter
 	if err != nil {
 		return nil, err
 	}
+	if from == nil {
+		return nil, fmt.Errorf("from is nil")
+	}
 	to, err := ce.interpolateValue(c, edge.To, interpolationCtx)
 	if err != nil {
 		return nil, err
+	}
+	if to == nil {
+		return nil, fmt.Errorf("to is nil")
 	}
 	data, err := ce.interpolateValue(c, edge.Data, interpolationCtx)
 	if err != nil {
@@ -1009,13 +1057,17 @@ func (ce *ConstructEvaluator) evaluateOutputs(o InfraOwner, interpolationCtx Int
 		if !ok {
 			value = outputTemplate.Value
 		} else {
-			serializedRef, err := ce.serializeRef(r)
+			serializedRef, err := ce.serializeRef(o, r)
 			if err != nil {
 				return fmt.Errorf("failed to serialize ref for output %s: %w", key, err)
 			}
 
-			refString, ok := serializedRef.(string)
-			if !ok {
+			var refString string
+			if sr, ok := serializedRef.(string); ok {
+				refString = sr
+			} else if sr, ok := serializedRef.(fmt.Stringer); ok {
+				refString = sr.String()
+			} else {
 				return fmt.Errorf("invalid ref string for output %s", key)
 			}
 
@@ -1057,60 +1109,67 @@ func (ce *ConstructEvaluator) importFrom(ctx context.Context, o InfraOwner, ic *
 	}
 	resources := make(map[construct.ResourceId]*construct.Resource)
 	for _, rId := range resourceIds {
-		var res *construct.Resource
+		var liveStateRes *construct.Resource
 		if hasState {
 			if state, ok := stackState.Resources[rId]; ok {
-				res, err = ce.stateConverter.ConvertResource(stateconverter.Resource{
+				liveStateRes, err = ce.stateConverter.ConvertResource(stateconverter.Resource{
 					Urn:     string(state.URN),
 					Type:    string(state.Type),
 					Outputs: state.Outputs,
 				})
-				// use the known resource id instead of the id that the state converter extrapolates from the resource urn, which may not be 100% accurate
-				res.ID = rId
-				res.Imported = true
 				if err != nil {
 					return fmt.Errorf("could not convert state for %s.%s: %w", ic.URN, rId, err)
 				}
 				log.Debugf("Imported %s from state", rId)
 			}
 		}
-		if res == nil {
-			res, err = sol.DataflowGraph().Vertex(rId)
-			if err != nil {
-				return fmt.Errorf("could not get resource %s.%s from solution: %w", ic.URN, rId, err)
-			}
-
-			tmpl, err := sol.KnowledgeBase().GetResourceTemplate(rId)
-			if err != nil {
-				return fmt.Errorf("could not get resource template %s.%s: %w", ic.URN, rId, err)
-			}
-
-			props := make(construct.Properties)
-			for k, v := range res.Properties {
-				props[k] = v
-			}
-			hasImportId := false
-			// set a fake import id, otherwise index.ts will have things like
-			//   Type.get("name", <no value>)
-			for k, prop := range tmpl.Properties {
-				if prop.Details().Required && prop.Details().DeployTime {
-					props[k] = "FAKE (dryrun)"
-					hasImportId = true
-					break
-				}
-			}
-			if !hasImportId {
-				continue
-			}
-
-			res = &construct.Resource{
-				ID:         res.ID,
-				Properties: props,
-				Imported:   true,
-			}
-
-			log.Debugf("Imported %s from solution", rId)
+		originalRes, err := sol.DataflowGraph().Vertex(rId)
+		if err != nil {
+			return fmt.Errorf("could not get resource %s.%s from solution: %w", ic.URN, rId, err)
 		}
+
+		tmpl, err := sol.KnowledgeBase().GetResourceTemplate(rId)
+		if err != nil {
+			return fmt.Errorf("could not get resource template %s.%s: %w", ic.URN, rId, err)
+		}
+
+		props := make(construct.Properties)
+		for k, v := range originalRes.Properties {
+			props[k] = v
+		}
+		hasImportId := false
+		// set a fake import id, otherwise index.ts will have things like
+		//   Type.get("name", <no value>)
+		for k, prop := range tmpl.Properties {
+			if prop.Details().Required && prop.Details().DeployTime {
+				if liveStateRes == nil {
+					if ce.DryRun > 0 {
+						props[k] = fmt.Sprintf("preview(id=%s)", rId)
+						hasImportId = true
+						continue
+					} else {
+						return fmt.Errorf("could not get live state resource %s (%s)", ic.URN, rId)
+					}
+				}
+				liveIdProp, err := liveStateRes.GetProperty(k)
+				if err != nil {
+					return fmt.Errorf("could not get property %s for %s: %w", k, rId, err)
+				}
+				props[k] = liveIdProp
+				hasImportId = true
+			}
+		}
+		if !hasImportId {
+			continue
+		}
+
+		res := &construct.Resource{
+			ID:         originalRes.ID,
+			Properties: props,
+			Imported:   true,
+		}
+
+		log.Debugf("Imported %s from solution", rId)
 
 		if err := initGraph.AddVertex(res); err != nil {
 			return fmt.Errorf("could not create imported resource %s from %s: %w", rId, ic.URN, err)
