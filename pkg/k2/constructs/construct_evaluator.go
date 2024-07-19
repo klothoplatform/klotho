@@ -1037,7 +1037,7 @@ func (ce *ConstructEvaluator) evaluateOutputs(o InfraOwner, interpolationCtx Int
 	return nil
 }
 
-var constructTypePattern = regexp.MustCompile(`^Construct<([\w.-]+)>$`)
+var constructTypePattern = regexp.MustCompile(`^Construct\(([\w.-]+)\)$`)
 
 func (ce *ConstructEvaluator) importFrom(ctx context.Context, o InfraOwner, ic *Construct) error {
 	log := logging.GetLogger(ctx).Sugar()
@@ -1182,12 +1182,12 @@ func filterImportProperties(resources map[construct.ResourceId]*construct.Resour
 
 func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context) error {
 	for iName, i := range o.GetTemplateInputs() {
-		// parse construct type from input type in the form of Construct<type>
+		// parse construct type from input type in the form of Construct(type)
 		// get the construct from the evaluator if it exists and is the correct type or return an error
 		// then go through the resources of the construct and add them to the imported resources of the current construct
 		// if the resource is not found, return an error
 		if i.Type == "Construct" {
-			return errors.New("input of type Construct must have a type specified in the form of Construct<type>")
+			return errors.New("input of type Construct must have a type specified in the form of Construct(type)")
 		}
 		if !constructTypePattern.MatchString(i.Type) {
 			continue // skip the input if it is not a construct
