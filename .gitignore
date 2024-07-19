@@ -27,6 +27,10 @@ keyvalue.js.tmpl
 #OS X things
 *.DS_Store*
 
+# Jetbrains
+.idea/
+*.iml
+
 node_modules/
 /*.yaml
 /_samples/

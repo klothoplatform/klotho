@@ -23,11 +23,6 @@ constraints:
     - scope: resource
       operator: equals
       target: aws:lambda_function:docker-func-function
-      property: Handler
-      value: null
-    - scope: resource
-      operator: equals
-      target: aws:lambda_function:docker-func-function
       property: Image
       value: aws:ecr_image:docker-func-image#ImageName
     - scope: resource
@@ -40,11 +35,6 @@ constraints:
       target: aws:lambda_function:docker-func-function
       property: PackageType
       value: Image
-    - scope: resource
-      operator: equals
-      target: aws:lambda_function:docker-func-function
-      property: Runtime
-      value: nodejs14.x
     - scope: resource
       operator: equals
       target: aws:lambda_function:docker-func-function

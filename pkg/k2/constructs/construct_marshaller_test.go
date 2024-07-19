@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/k2/constructs/template"
+	"github.com/stretchr/testify/require"
+
 	"github.com/klothoplatform/klotho/pkg/async"
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -15,15 +18,15 @@ import (
 
 func TestConstructMarshaller(t *testing.T) {
 	mockEvaluator := &ConstructEvaluator{
-		Constructs: async.ConcurrentMap[model.URN, *Construct]{},
+		Constructs: &async.ConcurrentMap[model.URN, *Construct]{},
 	}
 	constructURN, _ := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket")
 	mockConstruct := &Construct{
 		URN: *constructURN,
 		Edges: []*Edge{
 			{
-				From: ResourceRef{ResourceKey: "aws:s3:test:bucket"},
-				To:   ResourceRef{ResourceKey: "aws:ec2:test:instance"},
+				From: template.ResourceRef{ResourceKey: "aws:s3:test:bucket"},
+				To:   template.ResourceRef{ResourceKey: "aws:ec2:test:instance"},
 				Data: construct.EdgeData{},
 			},
 		},
@@ -159,13 +162,13 @@ func TestConstructMarshaller(t *testing.T) {
 				},
 				Edges: []*Edge{
 					{
-						From: ResourceRef{ResourceKey: "aws:s3:test:bucket"},
-						To:   ResourceRef{ResourceKey: "aws:ec2:test:instance"},
+						From: template.ResourceRef{ResourceKey: "aws:s3:test:bucket"},
+						To:   template.ResourceRef{ResourceKey: "aws:ec2:test:instance"},
 						Data: construct.EdgeData{},
 					},
 					{
-						From: ResourceRef{ResourceKey: "aws:ec2:test:instance"},
-						To:   ResourceRef{ResourceKey: "aws:lambda:test:function"},
+						From: template.ResourceRef{ResourceKey: "aws:ec2:test:instance"},
+						To:   template.ResourceRef{ResourceKey: "aws:lambda:test:function"},
 						Data: construct.EdgeData{},
 					},
 				},
@@ -214,9 +217,9 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o: testConstruct,
 				rawVal: map[string]any{
 					"key1": "value1",
-					"key2": ResourceRef{
+					"key2": template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
@@ -236,9 +239,9 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 			args: args{
 				o: testConstruct,
 				rawVal: []any{
-					ResourceRef{
+					template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
@@ -258,28 +261,27 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o: testConstruct,
 				rawVal: &struct {
 					Field1 string
-					Field2 ResourceRef
+					Field2 template.ResourceRef
 				}{
 					Field1: "value1",
-					Field2: ResourceRef{
+					Field2: template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
 			},
 			want: &struct {
 				Field1 string
-				Field2 ResourceRef
+				Field2 template.ResourceRef
 			}{
 				Field1: "value1",
-				Field2: ResourceRef{
+				Field2: template.ResourceRef{
 					ResourceKey:  "aws:s3_bucket:mybucket",
-					Type:         ResourceRefTypeTemplate,
+					Type:         template.ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal nested struct with settable ResourceRef",
@@ -288,16 +290,16 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				rawVal: &struct {
 					Field1 string
 					Nested struct {
-						Field2 ResourceRef
+						Field2 template.ResourceRef
 					}
 				}{
 					Field1: "value1",
 					Nested: struct {
-						Field2 ResourceRef
+						Field2 template.ResourceRef
 					}{
-						Field2: ResourceRef{
+						Field2: template.ResourceRef{
 							ResourceKey:  "aws:s3_bucket:mybucket",
-							Type:         ResourceRefTypeTemplate,
+							Type:         template.ResourceRefTypeTemplate,
 							ConstructURN: *constructURN,
 						},
 					},
@@ -306,29 +308,28 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 			want: &struct {
 				Field1 string
 				Nested struct {
-					Field2 ResourceRef
+					Field2 template.ResourceRef
 				}
 			}{
 				Field1: "value1",
 				Nested: struct {
-					Field2 ResourceRef
+					Field2 template.ResourceRef
 				}{
-					Field2: ResourceRef{
+					Field2: template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal interface with ResourceRef",
 			args: args{
 				o: testConstruct,
-				rawVal: interface{}(ResourceRef{
+				rawVal: interface{}(template.ResourceRef{
 					ResourceKey:  "aws:s3_bucket:mybucket",
-					Type:         ResourceRefTypeTemplate,
+					Type:         template.ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				}),
 			},
@@ -337,7 +338,6 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Type:     "s3_bucket",
 				Name:     "mybucket",
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal unsupported type",
@@ -345,35 +345,31 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o:      testConstruct,
 				rawVal: func() {}, // Using a function type to trigger the default case
 			},
-			want:    func() {}, // Expecting the same unsupported type to be returned
-			wantErr: false,
+			want: func() {}, // Expecting the same unsupported type to be returned
 		},
 		{
 			name: "marshal nil pointer",
 			args: args{
 				o:      testConstruct,
-				rawVal: (*ResourceRef)(nil),
+				rawVal: (*template.ResourceRef)(nil),
 			},
-			want:    (*ResourceRef)(nil),
-			wantErr: false,
+			want: (*template.ResourceRef)(nil),
 		},
 		{
 			name: "marshal nil map",
 			args: args{
 				o:      testConstruct,
-				rawVal: (map[string]ResourceRef)(nil),
+				rawVal: (map[string]template.ResourceRef)(nil),
 			},
-			want:    (map[string]ResourceRef)(nil),
-			wantErr: false,
+			want: (map[string]template.ResourceRef)(nil),
 		},
 		{
 			name: "marshal nil slice",
 			args: args{
 				o:      testConstruct,
-				rawVal: ([]ResourceRef)(nil),
+				rawVal: ([]template.ResourceRef)(nil),
 			},
-			want:    ([]ResourceRef)(nil),
-			wantErr: false,
+			want: ([]template.ResourceRef)(nil),
 		},
 		{
 			name: "marshal invalid value",
@@ -381,8 +377,7 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o:      testConstruct,
 				rawVal: nil,
 			},
-			want:    nil,
-			wantErr: false,
+			want: nil,
 		},
 		{
 			name: "marshal zero value",
@@ -390,8 +385,7 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o:      testConstruct,
 				rawVal: struct{}{},
 			},
-			want:    struct{}{},
-			wantErr: false,
+			want: struct{}{},
 		},
 		{
 			name: "marshal pointer to struct with unsettable ResourceRef",
@@ -399,37 +393,36 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				o: testConstruct,
 				rawVal: &struct {
 					Field1 string
-					field2 ResourceRef
+					field2 template.ResourceRef
 				}{
 					Field1: "value1",
-					field2: ResourceRef{
+					field2: template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
 			},
 			want: &struct {
 				Field1 string
-				field2 ResourceRef
+				field2 template.ResourceRef
 			}{
 				Field1: "value1",
-				field2: ResourceRef{
+				field2: template.ResourceRef{
 					ResourceKey:  "aws:s3_bucket:mybucket",
-					Type:         ResourceRefTypeTemplate,
+					Type:         template.ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal pointer to interface with ResourceRef",
 			args: args{
 				o: testConstruct,
 				rawVal: func() interface{} {
-					val := ResourceRef{
+					val := template.ResourceRef{
 						ResourceKey:  "aws:s3_bucket:mybucket",
-						Type:         ResourceRefTypeTemplate,
+						Type:         template.ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					}
 					return &val
@@ -440,15 +433,14 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Type:     "s3_bucket",
 				Name:     "mybucket",
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal pointer to ResourceRef",
 			args: args{
 				o: testConstruct,
-				rawVal: &ResourceRef{
+				rawVal: &template.ResourceRef{
 					ResourceKey:  "aws:s3_bucket:mybucket",
-					Type:         ResourceRefTypeTemplate,
+					Type:         template.ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				},
 			},
@@ -457,7 +449,6 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Type:     "s3_bucket",
 				Name:     "mybucket",
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal struct with unsettable int field",
@@ -478,7 +469,6 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Field1: "value1",
 				field2: 100,
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal struct with settable int field",
@@ -499,7 +489,6 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Field1: "value1",
 				Field2: 100,
 			},
-			wantErr: false,
 		},
 		{
 			name: "marshal struct with pointer to int field",
@@ -520,7 +509,6 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				Field1: "value1",
 				Field2: func() *int { v := 200; return &v }(),
 			},
-			wantErr: false,
 		},
 	}
 
@@ -535,9 +523,10 @@ func TestConstructMarshaller_marshalRefs(t *testing.T) {
 				ConstructEvaluator: evaluator,
 			}
 			got, err := marshaller.marshalRefs(tt.args.o, tt.args.rawVal)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ConstructMarshaller.marshalRefs() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 			if tt.name == "marshal unsupported type" {
 				// Since we can't compare function types directly, we use reflection to check the type

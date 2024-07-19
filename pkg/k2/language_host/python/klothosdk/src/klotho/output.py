@@ -155,7 +155,7 @@ class Output(Generic[T_co]):
         return cls.all(inputs, run)
 
     @staticmethod
-    def from_mapping(input: Input[Mapping]) -> "Output[Mapping]":
+    def from_mapping(input: Input[Mapping]) -> "Input[Mapping]":
         if isinstance(input, Output):
             return input
         if isinstance(input, Mapping):
@@ -168,6 +168,9 @@ class Output(Generic[T_co]):
                     unresolved_mappings[key] = value
                 else:
                     resolved_mappings[key] = value
+
+            if not unresolved_mappings:
+                return input
 
             def callback(resolved_outputs: Mapping) -> Mapping:
                 result = {**resolved_mappings, **resolved_outputs}

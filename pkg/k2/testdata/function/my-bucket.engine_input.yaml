@@ -10,11 +10,6 @@ constraints:
     - scope: resource
       operator: equals
       target: aws:s3_bucket:my-bucket
-      property: IndexDocument
-      value: null
-    - scope: resource
-      operator: equals
-      target: aws:s3_bucket:my-bucket
       property: SSEAlgorithm
       value: aws:kms
     - scope: output

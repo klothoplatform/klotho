@@ -16,10 +16,10 @@ constructs:
         value: Dockerfile
         status: resolved
       Cpu:
-        type: number
+        type: int
         value: 256
       Memory:
-        type: number
+        type: int
         value: 512
       source_hash:
         type: string

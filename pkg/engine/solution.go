@@ -141,7 +141,7 @@ func (s *engineSolution) LoadGraph(graph construct.Graph) error {
 	// ensure any deployment dependencies due to properties are in place
 	return construct.WalkGraph(s.RawView(), func(id construct.ResourceId, resource *construct.Resource, nerr error) error {
 		return errors.Join(nerr, resource.WalkProperties(func(path construct.PropertyPath, werr error) error {
-			prop := path.Get()
+			prop, _ := path.Get()
 			err := solution.AddDeploymentDependenciesFromVal(s, resource, prop)
 			return errors.Join(werr, err)
 		}))

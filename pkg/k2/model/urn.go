@@ -255,3 +255,7 @@ func (u *URN) Compare(other URN) int {
 	}
 	return 0
 }
+
+func (u *URN) IsZero() bool {
+	return u == nil || *u == URN{}
+}

@@ -2,12 +2,11 @@ resources:
     aws:lambda_function:docker-func-function:
         EnvironmentVariables: {}
         ExecutionRole: aws:iam_role:docker-func-function-ExecutionRole
-        Handler: ""
         Image: aws:ecr_image:docker-func-image#ImageName
         LogConfig:
             Format: Text
         MemorySize: 128
-        Runtime: nodejs14.x
+        Runtime: nodejs20.x
         Tags:
             GLOBAL_KLOTHO_TAG: k2
             RESOURCE_NAME: docker-func-function

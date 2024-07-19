@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/reflectutil"
+
 	"github.com/klothoplatform/klotho/pkg/set"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +62,7 @@ func Test_splitPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			got := splitPath(tt.path)
+			got := reflectutil.SplitPath(tt.path)
 			assert.Equal(tt.want, got)
 		})
 	}
@@ -149,7 +151,9 @@ func TestResource_PropertyPath(t *testing.T) {
 			if !assert.NoError(err) {
 				return
 			}
-			assert.Equal(tt.want, path.Get())
+			v, ok := path.Get()
+			assert.True(ok)
+			assert.Equal(tt.want, v)
 
 			// Test the last item's itemToPath instead of the path's Parts
 			// because this will test both functions (itemToPath and Parts)
@@ -185,49 +189,68 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 	}
 
 	foo := path("A.foo")
-	assert.Equal("bar", foo.Get())
+	v, ok := foo.Get()
+	assert.True(ok)
+	assert.Equal("bar", v)
 	if assert.NoError(foo.Set("baz")) {
-		assert.Equal("baz", foo.Get())
+		v, ok := foo.Get()
+		assert.True(ok)
+		assert.Equal("baz", v)
 	}
 	assert.Error(foo.Append("value"))
 
 	if assert.NoError(foo.Remove(nil)) {
 		assert.Nil(foo.Get())
-		m := path("A").Get().(map[string]any)
+		v, ok := path("A").Get()
+		assert.True(ok)
+		m := v.(map[string]any)
 		assert.NotContains(m, "foo")
 	}
 
 	arr := path("A.array")
 	if assert.NoError(arr.Append("cat")) {
-		assert.Equal([]any{"fox", "bat", "dog", "cat"}, arr.Get())
+		v, ok := arr.Get()
+		assert.True(ok)
+		assert.Equal([]any{"fox", "bat", "dog", "cat"}, v)
 	}
 	if assert.NoError(arr.Remove("bat")) {
-		assert.Equal([]any{"fox", "dog", "cat"}, arr.Get())
+		v, ok := arr.Get()
+		assert.True(ok)
+		assert.Equal([]any{"fox", "dog", "cat"}, v)
 	}
 
 	fox := path("A.array[0]")
-	assert.Equal("fox", fox.Get())
+	v, _ = fox.Get()
+	assert.Equal("fox", v)
 	if assert.NoError(fox.Set("wolf")) {
-		assert.Equal("wolf", fox.Get())
-		assert.Equal([]any{"wolf", "dog", "cat"}, arr.Get())
+		v, _ = fox.Get()
+		assert.Equal("wolf", v)
+		v, _ = arr.Get()
+		assert.Equal([]any{"wolf", "dog", "cat"}, v)
 	}
 	if assert.NoError(fox.Remove(nil)) {
-		assert.Equal([]any{"dog", "cat"}, arr.Get())
-		assert.Equal("dog", fox.Get()) // [0] now points to "dog"
+		v, _ = arr.Get()
+		assert.Equal([]any{"dog", "cat"}, v)
+		v, _ = fox.Get()
+		assert.Equal("dog", v) // [0] now points to "dog"
 	}
 
 	two := path("B[0][1]")
-	assert.Equal(2, two.Get())
+	v, _ = two.Get()
+	assert.Equal(2, v)
 	if assert.NoError(two.Remove(nil)) {
-		assert.Equal([]any{1, 3}, path("B[0]").Get())
+		v, _ = path("B[0]").Get()
+		assert.Equal([]any{1, 3}, v)
 	}
 
 	c := path("C")
 	if assert.NoError(c.Append(map[string]string{"hello": "world"})) {
+		v, ok := c.Get()
+		assert.True(ok)
 		assert.Equal(map[string]any{
 			"x":     "y",
 			"hello": "world",
-		}, c.Get())
+		}, v)
 	}
 
 	d := path("D")
@@ -239,18 +262,24 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 	e := path("E")
 	if assert.NoError(e.Set([]string{"one", "two"})) {
 		assert.NoError(e.Append([]string{"three", "four"}))
-		assert.Equal([]string{"one", "two", "three", "four"}, e.Get())
+		v, ok := e.Get()
+		assert.True(ok)
+		assert.Equal([]string{"one", "two", "three", "four"}, v)
 	}
 
 	tmp := path("temp")
 	if assert.NoError(tmp.Append("test")) {
-		assert.Equal([]string{"test"}, tmp.Get())
+		v, ok := tmp.Get()
+		assert.True(ok)
+		assert.Equal([]string{"test"}, v)
 		assert.NoError(tmp.Remove(nil))
 	}
 	assert.Nil(tmp.Get())
 
 	if assert.NoError(tmp.Append(map[string]string{"hello": "world"})) {
-		assert.Equal(map[string]string{"hello": "world"}, tmp.Get())
+		v, ok := tmp.Get()
+		assert.True(ok)
+		assert.Equal(map[string]string{"hello": "world"}, v)
 		assert.NoError(tmp.Remove(nil))
 	}
 
@@ -258,7 +287,9 @@ func TestResource_PropertyPath_ops(t *testing.T) {
 	assert.Nil(nested.Get())
 	assert.Nil(path("deeply").Get())
 	if assert.NoError(nested.Set("test")) {
-		assert.Equal(map[string]interface{}(map[string]interface{}{"nested": map[string]interface{}{"value": "test"}}), path("deeply").Get())
+		v, ok := path("deeply").Get()
+		assert.True(ok)
+		assert.Equal(map[string]interface{}{"nested": map[string]interface{}{"value": "test"}}, v)
 	}
 }
 

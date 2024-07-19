@@ -382,7 +382,7 @@ resourceLoop:
 				errs = errors.Join(errs, err)
 				continue
 			}
-			preXform := path.Get()
+			preXform, _ := path.Get()
 			if preXform == nil {
 				continue
 			}

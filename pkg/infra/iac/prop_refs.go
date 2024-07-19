@@ -66,7 +66,7 @@ func (tc *TemplatesCompiler) PropertyRefValue(ref construct.PropertyRef) (any, e
 		return nil, err
 	}
 	if path != nil {
-		val := path.Get()
+		val, _ := path.Get()
 		if val == nil {
 			return nil, fmt.Errorf("property ref %s is nil", ref)
 		}

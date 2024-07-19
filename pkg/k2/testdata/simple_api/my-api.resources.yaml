@@ -46,8 +46,8 @@ resources:
     aws:api_deployment:my-api-api:api_deployment-0:
         RestApi: aws:rest_api:my-api-api
         Triggers:
-            my-container: my-container
-            my-container-api_method: my-container-api_method
+            --any-integration: --any-integration
+            --any-method: --any-method
     aws:rest_api:my-api-api:
         BinaryMediaTypes:
             - application/octet-stream
@@ -55,26 +55,26 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: k2
             RESOURCE_NAME: my-api-api
-    aws:api_method:my-api-api:my-container-api_method:
+    aws:api_method:my-api-api:--any-method:
         Authorization: NONE
         HttpMethod: ANY
         RequestParameters: {}
         RestApi: aws:rest_api:my-api-api
-    aws:api_integration:my-api-api:my-container:
+    aws:api_integration:my-api-api:--any-integration:
         ConnectionType: VPC_LINK
         IntegrationHttpMethod: ANY
-        Method: aws:api_method:my-api-api:my-container-api_method
+        Method: aws:api_method:my-api-api:--any-method
         RequestParameters: {}
         RestApi: aws:rest_api:my-api-api
         Route: /
         Target: aws:load_balancer:api-my-container-lb
         Type: HTTP_PROXY
-        Uri: aws:api_integration:my-api-api:my-container#LbUri
-        VpcLink: aws:vpc_link:my-container-api-my-container-lb
-    aws:vpc_link:my-container-api-my-container-lb:
+        Uri: aws:api_integration:my-api-api:--any-integration#LbUri
+        VpcLink: aws:vpc_link:--any-integration-api-my-container-lb
+    aws:vpc_link:--any-integration-api-my-container-lb:
         Tags:
             GLOBAL_KLOTHO_TAG: k2
-            RESOURCE_NAME: my-container-api-my-container-lb
+            RESOURCE_NAME: --any-integration-api-my-container-lb
         Target: aws:load_balancer:api-my-container-lb
     aws:load_balancer:api-my-container-lb:
         Id: preview(id=aws:load_balancer:api-my-container-lb)
@@ -185,14 +185,14 @@ edges:
     aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
     aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
     aws:target_group:my-container-tg -> aws:ecs_service:my-container-service:
-    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_integration:my-api-api:my-container:
-    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_method:my-api-api:my-container-api_method:
+    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_integration:my-api-api:--any-integration:
+    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_method:my-api-api:--any-method:
     aws:api_deployment:my-api-api:api_deployment-0 -> aws:rest_api:my-api-api:
-    aws:rest_api:my-api-api -> aws:api_integration:my-api-api:my-container:
-    aws:rest_api:my-api-api -> aws:api_method:my-api-api:my-container-api_method:
-    aws:api_method:my-api-api:my-container-api_method -> aws:api_integration:my-api-api:my-container:
-    aws:api_integration:my-api-api:my-container -> aws:vpc_link:my-container-api-my-container-lb:
-    aws:vpc_link:my-container-api-my-container-lb -> aws:load_balancer:api-my-container-lb:
+    aws:rest_api:my-api-api -> aws:api_integration:my-api-api:--any-integration:
+    aws:rest_api:my-api-api -> aws:api_method:my-api-api:--any-method:
+    aws:api_method:my-api-api:--any-method -> aws:api_integration:my-api-api:--any-integration:
+    aws:api_integration:my-api-api:--any-integration -> aws:vpc_link:--any-integration-api-my-container-lb:
+    aws:vpc_link:--any-integration-api-my-container-lb -> aws:load_balancer:api-my-container-lb:
     aws:load_balancer:api-my-container-lb -> aws:subnet:default-network-vpc:default-network-private-subnet-1:
     aws:load_balancer:api-my-container-lb -> aws:subnet:default-network-vpc:default-network-private-subnet-2:
     aws:ecs_service:my-container-service -> aws:ecs_cluster:ecs_cluster-0:

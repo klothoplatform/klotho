@@ -223,6 +223,10 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	case model.DryRunPreview:
 		_, err = stack.RunPreview(ctx, uo.FS, stackRef)
 		uo.placeholderOutputs(ctx, *c.URN)
+		if err != nil {
+			return fmt.Errorf("error running pulumi preview command: %w", err)
+		}
+		err = sm.RegisterOutputValues(ctx, stackRef.ConstructURN, map[string]any{})
 		return err
 
 	case model.DryRunCompile:
@@ -245,12 +249,11 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		if err != nil {
 			return fmt.Errorf("error running tsc: %w", err)
 		}
-		return nil
-
+		return sm.RegisterOutputValues(ctx, stackRef.ConstructURN, map[string]any{})
 	case model.DryRunFileOnly:
 		// file already written, nothing left to do
 		uo.placeholderOutputs(ctx, *c.URN)
-		return nil
+		return sm.RegisterOutputValues(ctx, stackRef.ConstructURN, map[string]any{})
 	}
 
 	// Run pulumi up command for the construct

@@ -25,7 +25,7 @@ resources:
             RESOURCE_NAME: my-dynamodb
 edges:
 outputs:
-    TableName:
-        ref: aws:dynamodb_table:my-dynamodb#Name
     TableArn:
         ref: aws:dynamodb_table:my-dynamodb#Arn
+    TableName:
+        ref: aws:dynamodb_table:my-dynamodb#Name

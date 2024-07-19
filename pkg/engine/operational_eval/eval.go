@@ -268,7 +268,10 @@ func (eval *Evaluator) cleanupPropertiesSubVertices(ref construct.PropertyRef, r
 			if err == nil {
 				// if the paths parent still exists then we know we will end up evaluating the vertex and should not remove it
 				parentIndex := len(path) - 2
-				if parentIndex < 0 || path[parentIndex].Get() != nil {
+				if parentIndex < 0 {
+					continue
+				}
+				if parent, ok := path[parentIndex].Get(); ok && parent != nil {
 					continue
 				}
 			}

@@ -195,3 +195,9 @@ def add_binding(source: Construct, binding: BindingType):
             except ValueError:
                 # Ignore non-URN dependencies.
                 pass
+
+def get_binding(source: Construct, to: URN) -> Optional[Binding]:
+    for binding in source.bindings:
+        if binding.to == to:
+            return binding
+    return None

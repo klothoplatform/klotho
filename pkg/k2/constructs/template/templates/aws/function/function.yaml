@@ -1,0 +1,162 @@
+id: klotho.aws.Function
+version: 1.0.0
+description: A construct for creating an AWS Lambda function with support for local code, S3, and Docker images
+
+resources:
+  LambdaFunction:
+    type: aws:lambda_function
+    name: ${inputs:Name}-function
+    properties:
+      Timeout: ${inputs:Timeout}
+      MemorySize: ${inputs:MemorySize}
+      EnvironmentVariables: ${inputs:EnvironmentVariables}
+
+inputs:
+  Handler:
+    name: Handler
+    description: The function entrypoint in your code (not applicable for container images)
+    type: string
+    min_length: 1
+    max_length: 128
+  Runtime:
+    name: Runtime
+    description: The runtime environment for the Lambda function (not applicable for container images)
+    type: string
+    default_value: nodejs14.x
+    allowed_values:
+      - nodejs20.x
+      - nodejs18.x
+      - nodejs16.x
+      - python3.12
+      - python3.11
+      - python3.10
+      - python3.9
+      - python3.8
+      - java21
+      - java17
+      - java11
+      - java8.al2
+      - dotnet8
+      - dotnet6
+      - ruby3.3
+      - ruby3.2
+      - provided.al2023
+      - provided.al2
+  Timeout:
+    name: Timeout
+    description: The amount of time that Lambda allows a function to run before stopping it
+    type: int
+    default_value: 3
+    minimum: 1
+    maximum: 900
+  MemorySize:
+    name: Memory Size
+    description: The amount of memory available to the function at runtime
+    type: int
+    default_value: 128
+    minimum: 128
+    maximum: 10240
+  EnvironmentVariables:
+    name: Environment Variables
+    description: Environment variables that are accessible from function code during execution
+    type: map
+    default_value: {}
+  Code:
+    name: Code
+    description: The source code of your Lambda function (local path)
+    type: path
+  S3Bucket:
+    name: S3 Bucket
+    description: The S3 bucket containing your Lambda function code
+    type: string
+  S3Key:
+    name: S3 Key
+    description: The S3 key of your Lambda function code
+    type: string
+  S3ObjectVersion:
+    name: S3 Object Version
+    description: The version of your Lambda function code in S3
+    type: string
+  ImageUri:
+    name: Image URI
+    description: The URI of a container image in the Amazon ECR registry
+    type: string
+  Dockerfile:
+    name: Dockerfile
+    description: The path to the Dockerfile used to build the container image
+    type: path
+  DockerContext:
+    name: Docker Context
+    description: The path to the build context used to build the container image
+    type: path
+
+input_rules:
+  - if: '{{ .Inputs.Code }}'
+    then:
+      resources:
+        LambdaFunction:
+          properties:
+            Code: ${inputs:Code}
+            Handler: ${inputs:Handler}
+            Runtime: ${inputs:Runtime}
+            PackageType: Zip
+    rules:
+      - if: '{{ and .Inputs.S3Bucket .Inputs.S3Key }}'
+        then:
+          resources:
+            LambdaFunction:
+              properties:
+                S3Bucket: ${inputs:S3Bucket}
+                S3Key: ${inputs:S3Key}
+        rules:
+          - if: '{{ .Inputs.S3ObjectVersion }}'
+            then:
+              resources:
+                LambdaFunction:
+                  properties:
+                    S3ObjectVersion: ${inputs:S3ObjectVersion}
+    else:
+      rules:
+        - if: '{{ .Inputs.ImageUri }}'
+          then:
+            resources:
+              LambdaFunction:
+                properties:
+                  ImageUri: ${inputs:ImageUri}
+        - if: '{{ .Inputs.Dockerfile }}'
+          then:
+            resources:
+              Image:
+                type: aws:ecr_image
+                name: ${inputs:Name}-image
+                properties:
+                  Dockerfile: ${inputs:Dockerfile}
+              LambdaFunction:
+                properties:
+                  Image: aws:ecr_image:${inputs:Name}-image#ImageName
+        - if: '{{ .Inputs.DockerContext }}'
+          then:
+            resources:
+              Image:
+                type: aws:ecr_image
+                name: ${inputs:Name}-image
+                properties:
+                  Context: ${inputs:DockerContext}
+              LambdaFunction:
+                properties:
+                  Image: aws:ecr_image:${inputs:Name}-image#ImageName
+        - if: '{{ or .Inputs.ImageUri .Inputs.Dockerfile }}'
+          then:
+            resources:
+              LambdaFunction:
+                properties:
+                  PackageType: Image
+
+
+outputs:
+  FunctionArn:
+    value: ${resources:LambdaFunction#Arn}
+    description: The ARN of the Lambda function
+  FunctionName:
+    value: ${resources:LambdaFunction#FunctionName}
+    description: The name of the Lambda function

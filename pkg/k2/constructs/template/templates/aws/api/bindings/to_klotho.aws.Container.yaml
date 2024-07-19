@@ -1,0 +1,72 @@
+from: klotho.aws.API
+to: klotho.aws.Container
+
+inputs:
+  Routes:
+    name: Routes
+    description: The routes to use
+    type: list(map)
+    required: true
+    min_length: 1
+    properties:
+      Path:
+        name: Path
+        description: The path to use
+        type: string
+        default: /*
+      Proxy:
+        name: Proxy
+        description: Add a proxy route for child resources
+        type: bool
+        default: false
+      Method:
+        name: Method
+        description: The method to use
+        type: string
+        default: ANY
+
+input_rules:
+  - for_each: '{{ .Select "inputs.Routes" }}'
+    prefix: '{{ toLower (replace `[^\w]` "-"  .Selected.Value.Path) }}'
+    do:
+      rules:
+        - if: '{{ .Selected.Value.Proxy }}'
+          then:
+            resources:
+              ProxyMethod:
+                type: aws:api_method
+                namespace: ${from.resources:RestAPI.Name}
+                name: '{{ .Prefix }}-proxy-method'
+                properties:
+                  HttpMethod: '{{ toUpper .Selected.Value.Method }}'
+              ProxyIntegration:
+                type: aws:api_integration
+                namespace: ${from.inputs:Name}
+                name: '{{ .Prefix }}-proxy-integration'
+                properties:
+                  Route: '{{ trimSuffix .Selected.Value.Path "/" }}/{proxy+}'
+                  Method: '${resources:[{{.Prefix}}.ProxyMethod]}'
+            edges:
+                - from: ${from.resources:RestAPI}
+                  to: '{{ .Prefix }}.ProxyIntegration'
+                - from: '{{ .Prefix }}.ProxyIntegration'
+                  to: ${to.resources:APILoadBalancer}
+      resources:
+        Method:
+          type: aws:api_method
+          namespace: ${from.resources:RestAPI.Name}
+          name: '{{ .Prefix }}-{{ toLower (replace `[^\w]` "-" .Selected.Value.Method) }}-method'
+          properties:
+            HttpMethod: '{{ toUpper .Selected.Value.Method }}'
+        Integration:
+          type: aws:api_integration
+          namespace: ${from.inputs:Name}
+          name: '{{ .Prefix }}-{{ toLower (replace `[^\w]` "-" .Selected.Value.Method) }}-integration'
+          properties:
+            Route: '{{ .Selected.Value.Path }}'
+            Method: '${resources:[{{.Prefix}}.Method]}'
+      edges:
+        - from: ${from.resources:RestAPI}
+          to: '{{ .Prefix }}.Integration'
+        - from: '{{ .Prefix }}.Integration'
+          to: ${to.resources:APILoadBalancer}

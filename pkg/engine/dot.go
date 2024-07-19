@@ -32,7 +32,7 @@ func dotAttributes(kb knowledgebase.TemplateKB, r *construct.Resource, props gra
 func dotEdgeAttributes(kb knowledgebase.TemplateKB, g construct.Graph, e construct.ResourceEdge) map[string]string {
 	a := make(map[string]string)
 	_ = e.Source.WalkProperties(func(path construct.PropertyPath, nerr error) error {
-		v := path.Get()
+		v, _ := path.Get()
 		if v == e.Target.ID {
 			a["label"] = path.String()
 			return construct.StopWalk
