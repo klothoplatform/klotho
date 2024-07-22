@@ -30,5 +30,3 @@ fastapi = aws.FastAPI('my-fastapi',
 postgres = aws.Postgres("my-postgres", username="admintest", password="password123!", database_name="mydb",)
 fastapi.bind(postgres)
 
-#bucket = aws.Bucket("bucket1", index_document="index.html", sse_algorithm="AES256", force_destroy=True)
-#bucket2 = aws.Bucket("bucket2", index_document="index.html", sse_algorithm="AES256", force_destroy=True)
