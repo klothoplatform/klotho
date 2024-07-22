@@ -1,20 +1,31 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
+	"github.com/klothoplatform/klotho/pkg/k2/language_host"
+	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/orchestration"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var downConfig struct {
 	outputPath string
+	debugMode  string
+	debugPort  int
 }
 
 func newDownCmd() *cobra.Command {
@@ -25,8 +36,84 @@ func newDownCmd() *cobra.Command {
 	}
 	flags := downCommand.Flags()
 	flags.StringVarP(&downConfig.outputPath, "output", "o", "", "Output directory")
+	flags.StringVarP(&upConfig.debugMode, "debug", "d", "", "Debug mode")
+	flags.IntVarP(&upConfig.debugPort, "debug-port", "p", 5678, "Language Host Debug port")
 	return downCommand
 
+}
+
+func getProjectPath(ctx context.Context, inputPath string) (string, error) {
+	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
+		Enabled: upConfig.debugMode != "",
+		Port:    upConfig.debugPort,
+		Mode:    upConfig.debugMode,
+	}, filepath.Dir(inputPath))
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		if err := langHost.Process.Kill(); err != nil {
+			zap.L().Warn("failed to kill Python client", zap.Error(err))
+		}
+	}()
+
+	log := logging.GetLogger(ctx).Sugar()
+
+	log.Debug("Waiting for Python server to start")
+	if upConfig.debugMode != "" {
+		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
+		<-addr.HasAddr
+	} else {
+		select {
+		case <-addr.HasAddr:
+		case <-time.After(30 * time.Second):
+			return "", errors.New("timeout waiting for Python server to start")
+		}
+	}
+	conn, err := grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to Python server: %w", err)
+	}
+
+	defer func(conn *grpc.ClientConn) {
+		err = conn.Close()
+		if err != nil {
+			zap.L().Error("failed to close connection", zap.Error(err))
+		}
+	}(conn)
+
+	client := pb.NewKlothoServiceClient(conn)
+
+	// make sure the ctx used later doesn't have the timeout (which is only for the IR request)
+	irCtx := ctx
+	if upConfig.debugMode == "" {
+		var cancel context.CancelFunc
+		irCtx, cancel = context.WithTimeout(irCtx, time.Second*10)
+		defer cancel()
+	}
+
+	req := &pb.IRRequest{Filename: inputPath}
+	res, err := client.SendIR(irCtx, req)
+	if err != nil {
+		return "", fmt.Errorf("error sending IR request: %w", err)
+	}
+
+	ir, err := model.ParseIRFile([]byte(res.GetYamlPayload()))
+	if err != nil {
+		return "", fmt.Errorf("error parsing IR file: %w", err)
+	}
+
+	appUrn, err := model.ParseURN(ir.AppURN)
+	if err != nil {
+		return "", fmt.Errorf("error parsing app URN: %w", err)
+	}
+
+	appUrnPath, err := model.UrnPath(*appUrn)
+	if err != nil {
+		return "", fmt.Errorf("error getting URN path: %w", err)
+	}
+	return appUrnPath, nil
 }
 
 func down(cmd *cobra.Command, args []string) error {
@@ -38,9 +125,24 @@ func down(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project := args[1]
-	app := args[2]
-	env := args[3]
+
+	var projectPath string
+	switch len(args) {
+	case 1:
+		projectPath, err = getProjectPath(cmd.Context(), absolutePath)
+		if err != nil {
+			return fmt.Errorf("error getting project path: %w", err)
+		}
+
+	case 4:
+		project := args[1]
+		app := args[2]
+		env := args[3]
+		projectPath = filepath.Join(project, app, env)
+
+	default:
+		return fmt.Errorf("invalid number of arguments (%d) expected 4", len(args))
+	}
 
 	if downConfig.outputPath == "" {
 		downConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
@@ -52,8 +154,7 @@ func down(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
 	}
 
-	projectPath := filepath.Join(downConfig.outputPath, project, app, env)
-	stateFile := filepath.Join(projectPath, "state.yaml")
+	stateFile := filepath.Join(downConfig.outputPath, projectPath, "state.yaml")
 	sm := model.NewStateManager(afero.NewOsFs(), stateFile)
 
 	if !sm.CheckStateFileExists() {
@@ -67,7 +168,7 @@ func down(cmd *cobra.Command, args []string) error {
 
 	var stackReferences []stack.Reference
 	for name, construct := range sm.GetAllConstructs() {
-		constructPath := filepath.Join(projectPath, name)
+		constructPath := filepath.Join(downConfig.outputPath, projectPath, name)
 		stackReference := stack.Reference{
 			ConstructURN: *construct.URN,
 			Name:         name,

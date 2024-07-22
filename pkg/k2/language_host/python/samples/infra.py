@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import klotho
 import klotho.aws as aws
@@ -16,4 +17,10 @@ app = klotho.Application(
     ),  # Default to 'us-east-1' or the environment variable value
 )
 
-container = aws.Container("my-container", dockerfile="Dockerfile")
+dir = Path(__file__).parent.absolute()
+
+container = aws.Container(
+    "my-container",
+    dockerfile=str(dir / "Dockerfile"),
+    context=str(dir),
+)
