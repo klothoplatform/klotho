@@ -6,10 +6,8 @@ resources:
     properties:
       IngressRules:
         - CidrBlocks:
-          - ${to.inputs:Network.Resources.PrivateSubnet1#CidrBlock}
-          - ${to.inputs:Network.Resources.PrivateSubnet2#CidrBlock}
-          - ${to.inputs:Network.Resources.PublicSubnet1#CidrBlock}
-          - ${to.inputs:Network.Resources.PublicSubnet2#CidrBlock}
+            - ${to.inputs:Network.Resources.PrivateSubnet1#CidrBlock}
+            - ${to.inputs:Network.Resources.PrivateSubnet2#CidrBlock}
           FromPort: 0
           Protocol: '-1'
           ToPort: 0
