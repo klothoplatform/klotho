@@ -65,11 +65,11 @@ inputs:
     validation:
       minLength: 1
       maxLength: 63
-      EnableExecuteCommand:
-        name: Enable Execute Command
-        description: Whether to enable the execute command functionality for the container
-        type: boolean
-        default: false
+  EnableExecuteCommand:
+    name: Enable Execute Command
+    description: Whether to enable the execute command functionality for the container
+    type: boolean
+    default: false
   Memory:
     name: Memory
     description: The amount of memory to allocate to the container

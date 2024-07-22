@@ -11,16 +11,16 @@ class PostgresArgs:
     """Arguments for configuring a Postgres database."""
 
     def __init__(
-        self,
-        instance_class: Optional[Input[str]] = None,
-        allocated_storage: Optional[Input[int]] = None,
-        engine_version: Optional[Input[str]] = None,
-        username: Optional[Input[str]] = None,
-        password: Optional[Input[str]] = None,
-        database_name: Optional[Input[str]] = None,
-        port: Optional[Input[int]] = None,
-        network: Optional[Network] = None,
-    ):
+                 self,
+                 database_name: Input[str],
+                 instance_class: Optional[Input[str]] = None,
+                 allocated_storage: Optional[Input[int]] = None,
+                 engine_version: Optional[Input[str]] = None,
+                 username: Optional[Input[str]] = None,
+                 password: Optional[Input[str]] = None,
+                 port: Optional[Input[int]] = None,
+                 network: Optional[Network] = None
+                ):
         if instance_class is not None:
             set_field(self, "instance_class", instance_class)
         if allocated_storage is not None:

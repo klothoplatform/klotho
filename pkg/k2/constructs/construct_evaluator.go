@@ -5,16 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/async"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
 
-	"go.uber.org/zap"
-
 	"github.com/dominikbraun/graph"
+	"github.com/klothoplatform/klotho/pkg/async"
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine"
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
@@ -24,6 +22,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/reflectutil"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"go.uber.org/zap"
 )
 
 type ConstructEvaluator struct {
@@ -701,7 +700,7 @@ func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, stat
 
 	if b.From != nil && owner.URN.Equals(b.From.GetURN()) {
 		// only import "to" resources if the binding is from the current construct
-		if err = ce.importBindingToResources(b, ctx); err != nil {
+		if err = ce.importBindingToResources(ctx, b); err != nil {
 			return fmt.Errorf("could not import binding resources: %w", err)
 		}
 	}
@@ -745,6 +744,8 @@ func (ce *ConstructEvaluator) evaluateEdges(c InfraOwner, interpolationCtx Inter
 // applyBinding applies the bindings to the construct by merging the resources, edges, and output declarations
 // of the construct's bindings with the construct's resources, edges, and output declarations
 func (ce *ConstructEvaluator) applyBinding(c *Construct, binding *Binding) error {
+	log := logging.GetLogger(context.Background()).Sugar()
+
 	// Merge resources
 	for key, bRes := range binding.Resources {
 		if res, exists := c.Resources[key]; exists {
@@ -767,18 +768,48 @@ func (ce *ConstructEvaluator) applyBinding(c *Construct, binding *Binding) error
 			c.OutputDeclarations[key] = output
 		} else {
 			// If output already exists, log a warning or handle the conflict as needed
-			logging.GetLogger(context.Background()).Sugar().Warnf("Output %s already exists in construct, skipping binding output", key)
+			log.Warnf("Output %s already exists in construct, skipping binding output", key)
 		}
 	}
 
-	err := c.InitialGraph.AddVerticesFrom(binding.InitialGraph)
+	// upsert the vertices
+	ids, err := construct.TopologicalSort(binding.InitialGraph)
 	if err != nil {
-		return fmt.Errorf("could not add vertices from binding %s graph: %w", binding, err)
+		return fmt.Errorf("could not topologically sort binding %s graph: %w", binding, err)
 	}
 
-	err = c.InitialGraph.AddEdgesFrom(binding.InitialGraph)
+	resources, err := construct.ResolveIds(binding.InitialGraph, ids)
 	if err != nil {
-		return fmt.Errorf("could not add edges from binding %s graph: %w", binding, err)
+		return fmt.Errorf("could not resolve ids from binding %s graph: %w", binding, err)
+	}
+
+	for _, vertex := range resources {
+		if err := c.InitialGraph.AddVertex(vertex); err != nil {
+			if errors.Is(err, graph.ErrVertexAlreadyExists) {
+				log.Debugf("Vertex already exists, skipping: %v", vertex)
+				continue
+			}
+			return fmt.Errorf("could not add vertex %v from binding %s graph: %w", vertex, binding, err)
+		}
+	}
+
+	// upsert the edges
+	edges, err := binding.InitialGraph.Edges()
+	if err != nil {
+		return fmt.Errorf("could not get edges from binding %s graph: %w", binding, err)
+	}
+
+	for _, edge := range edges {
+		// Attempt to add the edge to the initial graph
+		err = c.InitialGraph.AddEdge(edge.Source, edge.Target)
+		if err != nil {
+			if errors.Is(err, graph.ErrEdgeAlreadyExists) {
+				// Skip this edge if it already exists
+				log.Debugf("Edge already exists, skipping: %v -> %v\n", edge.Source, edge.Target)
+				continue
+			}
+			return fmt.Errorf("could not add edge %v -> %v from binding %s graph: %w", edge.Source, edge.Target, binding, err)
+		}
 	}
 
 	return nil
@@ -851,11 +882,7 @@ func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemp
 		return fmt.Errorf("template execution failed: %w", err)
 	}
 
-	boolResult := rawResult.String() != "" && strings.ToLower(rawResult.String()) != "false"
-	if err != nil {
-		return fmt.Errorf("result parsing failed: %w", err)
-	}
-	executeThen := boolResult
+	executeThen := rawResult.String() != "" && strings.ToLower(rawResult.String()) != "false"
 
 	var body ConditionalExpressionTemplate
 	if executeThen {
@@ -1210,7 +1237,7 @@ func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context)
 	return nil
 }
 
-func (ce *ConstructEvaluator) importBindingToResources(b *Binding, ctx context.Context) error {
+func (ce *ConstructEvaluator) importBindingToResources(ctx context.Context, b *Binding) error {
 	return ce.importFrom(ctx, b, b.To)
 }
 

@@ -2,18 +2,23 @@ id: klotho.aws.Postgres
 version: 1.0.0
 description: A construct for creating an AWS RDS Postgres database
 resources:
-  DatabaseInstance:
+  SecurityGroup:
+    type: aws:security_group
+    name: ${inputs:Name}-sg
+  RDSInstance:
     type: aws:rds_instance
-    name: ${inputs:Name}-db
+    name: ${inputs:Name}
     properties:
+      DatabaseName: ${inputs:DatabaseName}
       Engine: postgres
       InstanceClass: ${inputs:InstanceClass}
       AllocatedStorage: ${inputs:AllocatedStorage}
       EngineVersion: ${inputs:EngineVersion}
       Username: ${inputs:Username}
       Password: ${inputs:Password}
-      DBName: ${inputs:DatabaseName}
       Port: ${inputs:Port}
+      SecurityGroups:
+        - ${resources:SecurityGroup}
 
 inputs:
   InstanceClass:
@@ -81,15 +86,35 @@ inputs:
   Network:
     name: Network
     description: The network to deploy the database to
-    type: Construct<klotho.aws.Network>
+    type: Construct(klotho.aws.Network)
 
 outputs:
-  Endpoint:
-    name: Endpoint
-    description: The endpoint of the Postgres database
-    value: ${resources:DatabaseInstance#Endpoint}
+  DatabaseName:
+    name: Database Name
+    description: The name of the database
+    value: ${resources:RDSInstance.DatabaseName}
 
   Port:
     name: Port
     description: The port of the Postgres database
-    value: ${resources:DatabaseInstance#Port}
+    value: ${resources:RDSInstance.Port}
+
+  Endpoint:
+    name: Endpoint
+    description: The endpoint of the Postgres database
+    value: ${resources:RDSInstance#Endpoint}
+
+  Username:
+    name: Username
+    description: The master username for the Postgres database
+    value: ${resources:RDSInstance.Username}
+
+  Password:
+    name: Password
+    description: The master user password for the Postgres database
+    value: ${resources:RDSInstance.Password}
+
+  ConnectionString:
+    name: Connection String
+    description: The connection string for the Postgres database
+    value: ${resources:RDSInstance#ConnectionString}

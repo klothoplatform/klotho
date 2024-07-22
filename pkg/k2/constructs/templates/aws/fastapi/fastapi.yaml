@@ -25,12 +25,15 @@ resources:
     properties:
       Cpu: ${inputs:Cpu}
       Memory: ${inputs:Memory}
-      ContainerDefinitions[0].PortMappings:
-        - ContainerPort: ${inputs:Port}
-          HostPort: ${inputs:Port}
-          Protocol: TCP
-      ContainerDefinitions[0].Cpu: ${inputs:Cpu}
-      ContainerDefinitions[0].Memory: ${inputs:Memory}
+      ContainerDefinitions:
+        - Name: ${inputs:Name}
+          Cpu: ${inputs:Cpu}
+          Memory: ${inputs:Memory}
+          Environment: ${inputs:EnvironmentVariables}
+          PortMappings:
+            - ContainerPort: ${inputs:Port}
+              HostPort: ${inputs:Port}
+              Protocol: TCP
       RequiresCompatibilities:
         - FARGATE
   Service:
@@ -41,7 +44,6 @@ resources:
       TaskDefinition: ${resources:TaskDefinition}
       LoadBalancers[0].ContainerPort: ${inputs:Port}
       EnableExecuteCommand: ${inputs:EnableExecuteCommand}
-
   TargetGroup:
     type: aws:target_group
     name: ${inputs:Name}-tg
@@ -49,41 +51,20 @@ resources:
       Port: ${inputs:Port}
       Protocol: TCP
       Vpc: ${inputs:Network.Resources.Vpc}
-
 edges:
   - from: Listener
     to: TargetGroup
-
   - from: LoadBalancer
     to: Service
-
   - from: TargetGroup
     to: Service
 
 inputs:
-  SourceHash:
-    name: Source Hash
-    description: The hash of the source code computed by the language SDK to determine if the function has changed and needs to be redeployed
-    type: string
-    hidden: true
   Cpu:
     name: CPU
     description: The amount of CPU to allocate to the container
     type: number
     default: 256
-    validation:
-      minimum: 1
-      maximum: 4096
-  EnableExecuteCommand:
-    name: Enable Execute Command
-    description: Whether to enable the execute command functionality for the container
-    type: boolean
-    default: false
-  Memory:
-    name: Memory
-    description: The amount of memory to allocate to the container
-    type: number
-    default: 512
     validation:
       minimum: 1
       maximum: 4096
@@ -103,6 +84,12 @@ inputs:
     validation:
       minLength: 1
       maxLength: 63
+  EnvironmentVariables:
+    name: EnvironmentVariables
+    description: The environment variables to set in the container
+    type: KeyValueList
+    configuration:
+      keyField: Name
   Image:
     name: Image
     description: The image to use for the container
@@ -110,6 +97,23 @@ inputs:
     validation:
       minLength: 1
       maxLength: 63
+  EnableExecuteCommand:
+    name: Enable Execute Command
+    description: Whether to enable the execute command functionality for the container
+    type: boolean
+    default: false
+  Memory:
+    name: Memory
+    description: The amount of memory to allocate to the container
+    type: number
+    default: 512
+    validation:
+      minimum: 1
+      maximum: 4096
+  Network:
+    name: Network
+    description: The network to deploy the container to
+    type: Construct(klotho.aws.Network)
   Port:
     name: Port
     description: The port to expose on the container
@@ -118,10 +122,26 @@ inputs:
     validation:
       minimum: 1
       maximum: 65535
-  Network:
-    name: Network
-    description: The network to deploy the container to
-    type: Construct<klotho.aws.Network>
+  HealthCheckPath:
+    name: Health Check Path
+    description: The path to use for the health check
+    type: string
+    default: /
+  HealthCheckMatcher:
+    name: Health Check Matcher
+    description: The matcher to use for the health check
+    type: string
+    default: 200
+  HealthCheckHealthyThreshold:
+    name: Health Check Healthy Threshold
+    description: The number of consecutive successful health checks required before considering the target healthy
+    type: number
+    default: 3
+  HealthCheckUnhealthyThreshold:
+    name: Health Check Unhealthy Threshold
+    description: The number of consecutive failed health checks required before considering the target unhealthy
+    type: number
+    default: 3
 
 input_rules:
   - if: '{{ and (inputs "Dockerfile") (not (inputs "Image")) }}'
@@ -141,6 +161,41 @@ input_rules:
         TaskDefinition:
           properties:
             ContainerDefinitions[0].Image: ${inputs:Image}
+
+  - if: '{{or (inputs "HealthCheckPath")  (inputs "HealthCheckMatcher")}}'
+    then:
+      resources:
+        TargetGroup:
+          properties:
+            HealthCheck.Protocol: HTTP
+
+  - if: '{{ (inputs "HealthCheckPath")}}'
+    then:
+      resources:
+        TargetGroup:
+          properties:
+            HealthCheck.Path: ${inputs:HealthCheckPath}
+
+  - if: '{{ (inputs "HealthCheckMatcher")}}'
+    then:
+      resources:
+        TargetGroup:
+          properties:
+            HealthCheck.Matcher: ${inputs:HealthCheckMatcher}
+
+  - if: '{{ (inputs "HealthCheckHealthyThreshold")}}'
+    then:
+      resources:
+        TargetGroup:
+          properties:
+            HealthCheck.HealthyThreshold: ${inputs:HealthCheckHealthyThreshold}
+
+  - if: '{{ (inputs "HealthCheckUnhealthyThreshold")}}'
+    then:
+      resources:
+        TargetGroup:
+          properties:
+            HealthCheck.UnhealthyThreshold: ${inputs:HealthCheckUnhealthyThreshold}
 
 outputs:
   LoadBalancerUrl:

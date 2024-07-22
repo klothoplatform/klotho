@@ -44,8 +44,10 @@ func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServi
 
 func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun model.DryRun, maxConcurrency int) error {
 	uo.ConstructEvaluator.DryRun = dryRun
-	defer uo.FinalizeState(ctx)
-
+	if dryRun == model.DryRunNone {
+		// We don't finalize for dryrun as this updates/creates the state file
+		defer uo.FinalizeState(ctx)
+	}
 	actions, err := uo.resolveInitialState(ir)
 	if err != nil {
 		return fmt.Errorf("error resolving initial state: %w", err)

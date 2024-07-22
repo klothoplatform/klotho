@@ -1,4 +1,4 @@
-from: klotho.aws.Container
+from: klotho.aws.FastAPI
 to: klotho.aws.Postgres
 
 edges:
