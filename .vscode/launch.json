@@ -121,7 +121,7 @@
                 "up",
                 "-v=3",
                 "-o=${workspaceFolder}/out",
-                "--profiling=${workspaceFolder}/out/k2.prof",
+                "--profiling=${workspaceFolder}/out/deploy.prof",
                 "${file}"
             ],
             "env": {
@@ -141,7 +141,7 @@
                 "down",
                 "-v=3",
                 "-o=${workspaceFolder}/out",
-                "--profiling=${workspaceFolder}/out/k2.prof",
+                "--profiling=${workspaceFolder}/out/destroy.prof",
                 "${file}"
             ],
             "env": {

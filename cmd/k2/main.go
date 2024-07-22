@@ -18,7 +18,7 @@ var commonCfg struct {
 	dryRun clicommon.LevelledFlag
 }
 
-func cli() {
+func cli() int {
 	// Set up signal and panic handling to ensure cleanup is executed
 	defer func() {
 		if r := recover(); r != nil {
@@ -42,6 +42,12 @@ func cli() {
 	dryRunFlag.NoOptDefVal = "true" // Allow -n to be used without a value
 
 	var cleanupFuncs []func()
+	defer func() {
+		for _, f := range cleanupFuncs {
+			f()
+		}
+	}()
+
 	initCommand := newInitCommand()
 
 	upCommand := newUpCmd()
@@ -49,12 +55,6 @@ func cli() {
 
 	downCommand := newDownCmd()
 	cleanupFuncs = append(cleanupFuncs, clicommon.SetupCoreCommand(downCommand, &commonCfg.CommonConfig))
-
-	defer func() {
-		for _, f := range cleanupFuncs {
-			f()
-		}
-	}()
 
 	var irCommand = &cobra.Command{
 		Use:   "ir [file path]",
@@ -77,10 +77,11 @@ func cli() {
 
 	if err := rootCmd.Execute(); err != nil {
 		logging.GetLogger(rootCmd.Context()).Error("Failed to execute command", zap.Error(err))
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func main() {
-	cli()
+	os.Exit(cli())
 }
