@@ -54,7 +54,7 @@ func TestK2(t *testing.T) {
 	for _, p := range tests {
 		dir := filepath.Dir(p)
 		name := filepath.Base(dir)
-		tc := testCase{inputPath: p, sem: sem, log: log.With(zap.String("test", name))}
+		tc := testCase{inputPath: p, sem: sem, log: log.Named("test." + name)}
 		t.Run(name, tc.Test)
 	}
 }
