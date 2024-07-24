@@ -2,8 +2,10 @@ package k2
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,6 +27,13 @@ import (
 )
 
 func TestK2(t *testing.T) {
+	if _, err := exec.LookPath("pipenv"); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			t.Skip("pipenv not found")
+		}
+		t.Fatalf("Failed to find pipenv: %v", err)
+	}
+
 	tests, err := filepath.Glob(filepath.Join("testdata", "*", "infra.py"))
 	if err != nil {
 		t.Fatal(err)
@@ -37,11 +46,10 @@ func TestK2(t *testing.T) {
 		Verbose:  true,
 		Encoding: "pretty_console",
 		DefaultLevels: map[string]zapcore.Level{
-			"engine":   zapcore.WarnLevel,
-			"progress": zapcore.WarnLevel,
-			"dataflow": zapcore.WarnLevel,
+			"": zapcore.WarnLevel,
 		},
 	}.NewLogger()
+	defer zap.ReplaceGlobals(log)()
 
 	for _, p := range tests {
 		dir := filepath.Dir(p)

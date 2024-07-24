@@ -55,5 +55,10 @@ func (el *EntryLeveller) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapco
 			return ce.AddCore(e, el)
 		}
 	}
+	if level, ok := el.levels.Load(""); ok {
+		if e.Level < level.(zapcore.Level) {
+			return nil
+		}
+	}
 	return el.Core.Check(e, ce)
 }
