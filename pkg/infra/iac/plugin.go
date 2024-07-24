@@ -27,7 +27,7 @@ type (
 
 	Plugin struct {
 		Config *PulumiConfig
-		KB     *knowledgebase.KnowledgeBase
+		KB     knowledgebase.TemplateKB
 	}
 )
 
@@ -99,10 +99,10 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 	}
 
 	buf.WriteString("\n")
-	renderStackOutputs(tc, buf, ctx.Outputs(), tc.vars)
+	renderStackOutputs(tc, buf, ctx.Outputs())
 
 	buf.WriteString("\n")
-	renderUrnMap(buf, tc.vars)
+	tc.renderUrnMap(buf, resources)
 
 	indexTs := &kio.RawFile{
 		FPath:   `index.ts`,
@@ -145,7 +145,7 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 	return files, nil
 }
 
-func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[string]construct.Output, vars variables) {
+func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[string]construct.Output) {
 	buf.WriteString("export const $outputs = {\n")
 	for name, output := range outputs {
 
@@ -168,10 +168,14 @@ func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[st
 	buf.WriteString("}\n")
 }
 
-func renderUrnMap(buf *bytes.Buffer, vars variables) {
+func (tc *TemplatesCompiler) renderUrnMap(buf *bytes.Buffer, resources []construct.ResourceId) {
 	buf.WriteString("export const $urns = {\n")
-	for id, obj := range vars {
-		// if a klotho resource variable maps to an object other than a pulumi resource, its urn will be undefined.
+	for _, id := range resources {
+		obj, ok := tc.vars[id]
+		if !ok {
+			continue
+		}
+		// in TS/JS, if the object doesn't have property `urn`, it will be `undefined` and will not throw any errors
 		buf.WriteString(fmt.Sprintf("\t\"%s\": (%s as any).urn,\n", id, obj))
 	}
 	buf.WriteString("}\n")

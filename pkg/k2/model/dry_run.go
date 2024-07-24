@@ -11,4 +11,7 @@ const (
 
 	// DryRunCompile is a dry run that only runs `tsc` on the resulting IaC
 	DryRunCompile
+
+	// DryRunFileOnly is a dry run that only writes the files to disk
+	DryRunFileOnly
 )

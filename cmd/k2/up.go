@@ -8,6 +8,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	"github.com/klothoplatform/klotho/pkg/logging"
 	"go.uber.org/zap"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
@@ -96,7 +97,9 @@ func up(cmd *cobra.Command, args []string) error {
 
 	stateFile := filepath.Join(appDir, "state.yaml")
 
-	sm := model.NewStateManager(afero.NewOsFs(), stateFile)
+	osfs := afero.NewOsFs()
+
+	sm := model.NewStateManager(osfs, stateFile)
 
 	if !sm.CheckStateFileExists() {
 		sm.InitState(ir)
@@ -109,12 +112,12 @@ func up(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	o, err := orchestration.NewUpOrchestrator(sm, langHost.NewClient(), appDir)
+	o, err := orchestration.NewUpOrchestrator(sm, langHost.NewClient(), osfs, appDir)
 	if err != nil {
 		return fmt.Errorf("error creating up orchestrator: %w", err)
 	}
 
-	err = o.RunUpCommand(ctx, ir, model.DryRun(commonCfg.dryRun), 5)
+	err = o.RunUpCommand(ctx, ir, model.DryRun(commonCfg.dryRun), semaphore.NewWeighted(5))
 	if err != nil {
 		return fmt.Errorf("error running up command: %w", err)
 	}

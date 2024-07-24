@@ -3,7 +3,6 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -12,20 +11,23 @@ import (
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/klothoplatform/klotho/pkg/k2/stack"
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"github.com/spf13/afero"
 )
 
 // Orchestrator is the base orchestrator for the K2 platform
 type Orchestrator struct {
 	StateManager    *model.StateManager
+	FS              afero.Fs
 	OutputDirectory string
 
 	mu             sync.Mutex // guards the following fields
 	infraGenerator *InfraGenerator
 }
 
-func NewOrchestrator(sm *model.StateManager, outputPath string) *Orchestrator {
+func NewOrchestrator(sm *model.StateManager, fs afero.Fs, outputPath string) *Orchestrator {
 	return &Orchestrator{
 		StateManager:    sm,
+		FS:              fs,
 		OutputDirectory: outputPath,
 	}
 }
@@ -35,7 +37,7 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 	defer o.mu.Unlock()
 	if o.infraGenerator == nil {
 		var err error
-		o.infraGenerator, err = NewInfraGenerator()
+		o.infraGenerator, err = NewInfraGenerator(o.FS)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +48,7 @@ func (o *Orchestrator) InfraGenerator() (*InfraGenerator, error) {
 func (uo *UpOrchestrator) EvaluateConstruct(ctx context.Context, state model.State, constructUrn model.URN) (stack.Reference, error) {
 	constructOutDir := filepath.Join(uo.OutputDirectory, constructUrn.ResourceID)
 
-	err := os.MkdirAll(constructOutDir, 0755)
+	err := uo.FS.MkdirAll(constructOutDir, 0755)
 	if err != nil {
 		return stack.Reference{}, fmt.Errorf("error creating construct output directory: %w", err)
 	}

@@ -3,9 +3,9 @@ import klotho.aws as aws
 
 app = klotho.Application(
     "my-app",
-    project="test/container",
+    project="test_container",
     environment="default",
     default_region="us-west-2",
 )
 
-container = aws.Container("my-container", dockerfile="Dockerfile")
+container = aws.Container("my-container", dockerfile="/Dockerfile", context="/")

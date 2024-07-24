@@ -1,0 +1,59 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:subnet:default-network-vpc:default-network-private-subnet-1
+    - scope: application
+      operator: must_exist
+      node: aws:subnet:default-network-vpc:default-network-private-subnet-2
+    - scope: application
+      operator: must_exist
+      node: aws:subnet:default-network-vpc:default-network-public-subnet-1
+    - scope: application
+      operator: must_exist
+      node: aws:subnet:default-network-vpc:default-network-public-subnet-2
+    - scope: application
+      operator: must_exist
+      node: aws:vpc:default-network-vpc
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-private-subnet-1
+      property: Type
+      value: private
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-private-subnet-1
+      property: Vpc
+      value: aws:vpc:default-network-vpc
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-private-subnet-2
+      property: Type
+      value: private
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-private-subnet-2
+      property: Vpc
+      value: aws:vpc:default-network-vpc
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-public-subnet-1
+      property: Type
+      value: public
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-public-subnet-1
+      property: Vpc
+      value: aws:vpc:default-network-vpc
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-public-subnet-2
+      property: Type
+      value: public
+    - scope: resource
+      operator: equals
+      target: aws:subnet:default-network-vpc:default-network-public-subnet-2
+      property: Vpc
+      value: aws:vpc:default-network-vpc
+resources:
+edges:
+outputs: {}

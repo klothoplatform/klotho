@@ -2,11 +2,12 @@ package constructs
 
 import (
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/async"
-	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/klothoplatform/klotho/pkg/async"
+	"github.com/klothoplatform/klotho/pkg/k2/model"
 )
 
 type InputResolver struct {

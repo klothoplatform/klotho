@@ -3,6 +3,7 @@ package constructs
 import (
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -49,6 +50,8 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 		}
 		cs = append(cs, outputConstraints...)
 	}
+
+	sort.SliceStable(cs, cs.NaturalSort)
 
 	return cs, nil
 }

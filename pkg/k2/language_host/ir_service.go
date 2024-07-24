@@ -21,13 +21,13 @@ type LanguageHost struct {
 	conn     *grpc.ClientConn
 }
 
-func (irs *LanguageHost) Start(ctx context.Context, debug DebugConfig) (err error) {
+func (irs *LanguageHost) Start(ctx context.Context, debug DebugConfig, pythonPath string) (err error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	irs.debugCfg = debug
 
 	var addr *ServerAddress
-	irs.langHost, addr, err = StartPythonClient(ctx, debug)
+	irs.langHost, addr, err = StartPythonClient(ctx, debug, pythonPath)
 	if err != nil {
 		return
 	}

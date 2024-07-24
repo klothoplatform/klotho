@@ -44,9 +44,8 @@ func newDownCmd() *cobra.Command {
 
 func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
-		Enabled: upConfig.debugMode != "",
-		Port:    upConfig.debugPort,
-		Mode:    upConfig.debugMode,
+		Port: upConfig.debugPort,
+		Mode: upConfig.debugMode,
 	}, filepath.Dir(inputPath))
 	if err != nil {
 		return "", err
@@ -104,12 +103,7 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 		return "", fmt.Errorf("error parsing IR file: %w", err)
 	}
 
-	appUrn, err := model.ParseURN(ir.AppURN)
-	if err != nil {
-		return "", fmt.Errorf("error parsing app URN: %w", err)
-	}
-
-	appUrnPath, err := model.UrnPath(*appUrn)
+	appUrnPath, err := model.UrnPath(ir.AppURN)
 	if err != nil {
 		return "", fmt.Errorf("error getting URN path: %w", err)
 	}
@@ -155,7 +149,9 @@ func down(cmd *cobra.Command, args []string) error {
 	}
 
 	stateFile := filepath.Join(downConfig.outputPath, projectPath, "state.yaml")
-	sm := model.NewStateManager(afero.NewOsFs(), stateFile)
+
+	osfs := afero.NewOsFs()
+	sm := model.NewStateManager(osfs, stateFile)
 
 	if !sm.CheckStateFileExists() {
 		return fmt.Errorf("state file does not exist: %s", stateFile)
@@ -177,7 +173,7 @@ func down(cmd *cobra.Command, args []string) error {
 		stackReferences = append(stackReferences, stackReference)
 	}
 
-	o := orchestration.NewDownOrchestrator(sm, downConfig.outputPath)
+	o := orchestration.NewDownOrchestrator(sm, osfs, downConfig.outputPath)
 	err = o.RunDownCommand(
 		cmd.Context(),
 		orchestration.DownRequest{StackReferences: stackReferences, DryRun: model.DryRun(commonCfg.dryRun)},
