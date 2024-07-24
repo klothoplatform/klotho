@@ -76,7 +76,6 @@ func (c *Construct) GetInput(name string) (value any, ok bool) {
 
 func (c *Construct) GetTemplateResourcesIterator() Iterator[string, ResourceTemplate] {
 	return c.ConstructTemplate.ResourcesIterator()
-
 }
 
 func (c *Construct) GetTemplateEdges() []EdgeTemplate {
