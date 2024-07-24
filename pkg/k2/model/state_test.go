@@ -185,8 +185,8 @@ func TestSaveState(t *testing.T) {
 		t.Errorf("Failed to unmarshal state: %v", err)
 	}
 
-	if state.ProjectURN.String() != "urn:::example" {
-		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", state.ProjectURN)
+	if state.ProjectURN.String() != "urn::example" {
+		t.Errorf("Expected ProjectURN to be urn::example, got %s", state.ProjectURN)
 	}
 	if state.AppURN.String() != "urn::::example" {
 		t.Errorf("Expected AppURN to be urn:app:example, got %s", state.AppURN)
@@ -251,11 +251,11 @@ func TestInitState(t *testing.T) {
 	sm := NewStateManager(mockFS, stateFile)
 	sm.InitState(ir)
 
-	if sm.state.ProjectURN.String() != "urn:project:example" {
-		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", sm.state.ProjectURN)
+	if sm.state.ProjectURN.String() != "urn::example" {
+		t.Errorf("Expected ProjectURN to be urn::example, got %s", sm.state.ProjectURN)
 	}
-	if sm.state.AppURN.String() != "urn:app:example" {
-		t.Errorf("Expected AppURN to be urn:app:example, got %s", sm.state.AppURN)
+	if sm.state.AppURN.String() != "urn::::example" {
+		t.Errorf("Expected AppURN to be urn::::example, got %s", sm.state.AppURN)
 	}
 	if sm.state.Environment != "dev" {
 		t.Errorf("Expected Environment to be dev, got %s", sm.state.Environment)
@@ -511,11 +511,11 @@ func TestGetState(t *testing.T) {
 	sm.state.DefaultRegion = "us-west-2"
 
 	state := sm.GetState()
-	if state.ProjectURN.String() != "urn:project:example" {
-		t.Errorf("Expected ProjectURN to be urn:project:example, got %s", state.ProjectURN)
+	if state.ProjectURN.String() != "urn::example" {
+		t.Errorf("Expected ProjectURN to be urn::example, got %s", state.ProjectURN)
 	}
-	if state.AppURN.String() != "urn:app:example" {
-		t.Errorf("Expected AppURN to be urn:app:example, got %s", state.AppURN)
+	if state.AppURN.String() != "urn::::example" {
+		t.Errorf("Expected AppURN to be urn::::example, got %s", state.AppURN)
 	}
 	if state.Environment != "dev" {
 		t.Errorf("Expected Environment to be dev, got %s", state.Environment)
