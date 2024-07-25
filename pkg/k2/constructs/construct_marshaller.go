@@ -137,21 +137,20 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 	cs = append(cs, c)
 	return cs, nil
 }
+
 func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error) {
-	// Handle ResourceRef types directly
-	if ref, ok := rawVal.(ResourceRef); ok {
-		switch ref.Type {
-		case ResourceRefTypeInterpolated:
-			return m.marshalRefs(o, ref.ResourceKey)
-		case ResourceRefTypeTemplate:
-			ref.ConstructURN = o.GetURN()
-			return ref, nil
-		default:
-			return rawVal, nil
+	switch val := rawVal.(type) {
+	case *ResourceRef:
+		if val == nil {
+			return val, nil
 		}
+		return m.ConstructEvaluator.serializeRef(o, *val)
+	case ResourceRef:
+		return m.ConstructEvaluator.serializeRef(o, val)
+	case construct.ResourceId, construct.PropertyRef:
+		return rawVal, nil
 	}
 
-	// Get the concrete value
 	ref := reflect.ValueOf(rawVal)
 	if ref.Kind() == reflect.Ptr {
 		if ref.IsNil() {
@@ -160,7 +159,7 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 		ref = ref.Elem()
 	}
 
-	if !ref.IsValid() {
+	if !ref.IsValid() || ref.IsZero() {
 		return rawVal, nil
 	}
 
@@ -168,18 +167,28 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
 			field := ref.Field(i)
-			if !field.CanSet() {
+
+			fieldValue := reflectutil.GetConcreteElement(field)
+			if !fieldValue.IsValid() || fieldValue.IsZero() {
 				continue
 			}
-			fieldValue := reflectutil.GetConcreteElement(field)
-			_, err := m.marshalRefs(o, fieldValue.Interface())
-			if err != nil {
-				return nil, err
+			if _, ok := fieldValue.Interface().(ResourceRef); ok {
+				return nil, fmt.Errorf("cannot marshal ResourceRef in struct field: %s", ref.Type().Field(i).Name)
+			} else {
+				if !field.CanSet() {
+					continue
+				}
+				if _, err := m.marshalRefs(o, fieldValue.Interface()); err != nil {
+					return nil, err
+				}
 			}
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
 			field := reflectutil.GetConcreteElement(ref.MapIndex(key))
+			if !field.IsValid() || field.IsZero() {
+				continue
+			}
 			serializedField, err := m.marshalRefs(o, field.Interface())
 			if err != nil {
 				return nil, err
@@ -189,6 +198,9 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 	case reflect.Slice, reflect.Array:
 		for i := 0; i < ref.Len(); i++ {
 			field := reflectutil.GetConcreteElement(ref.Index(i))
+			if !field.IsValid() || field.IsZero() {
+				continue
+			}
 			serializedField, err := m.marshalRefs(o, field.Interface())
 			if err != nil {
 				return nil, err

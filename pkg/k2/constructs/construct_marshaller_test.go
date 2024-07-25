@@ -492,11 +492,6 @@ func TestConstructMarshaller_MissingProperties(t *testing.T) {
 }
 
 func TestConstructMarshaller_marshalRefs_ConcreteTypes(t *testing.T) {
-	type args struct {
-		o      InfraOwner
-		rawVal any
-	}
-
 	constructURN, _ := model.ParseURN("urn:example:construct::my-construct")
 	testConstruct := &Construct{
 		URN: *constructURN,
@@ -504,106 +499,67 @@ func TestConstructMarshaller_marshalRefs_ConcreteTypes(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		args    args
+		args    any
 		want    any
 		wantErr bool
 	}{
 		{
 			name: "marshal map with ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: map[string]any{
-					"key1": "value1",
-					"key2": ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
-						Type:         ResourceRefTypeTemplate,
-						ConstructURN: *constructURN,
-					},
+			args: map[string]any{
+				"key1": "value1",
+				"key2": ResourceRef{
+					ResourceKey:  "aws:s3_bucket:mybucket",
+					Type:         ResourceRefTypeTemplate,
+					ConstructURN: *constructURN,
 				},
 			},
 			want: map[string]any{
 				"key1": "value1",
-				"key2": ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
-					Type:         ResourceRefTypeTemplate,
-					ConstructURN: *constructURN,
+				"key2": construct.ResourceId{
+					Provider: "aws",
+					Type:     "s3_bucket",
+					Name:     "mybucket",
 				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "marshal slice with ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: []any{
-					ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
-						Type:         ResourceRefTypeTemplate,
-						ConstructURN: *constructURN,
-					},
+			args: []any{
+				ResourceRef{
+					ResourceKey:  "aws:s3_bucket:mybucket",
+					Type:         ResourceRefTypeTemplate,
+					ConstructURN: *constructURN,
 				},
 			},
 			want: []any{
-				ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
-					Type:         ResourceRefTypeTemplate,
-					ConstructURN: *constructURN,
+				construct.ResourceId{
+					Provider: "aws",
+					Type:     "s3_bucket",
+					Name:     "mybucket",
 				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "marshal struct with settable ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: struct {
-					Field1 string
-					Field2 ResourceRef
-				}{
-					Field1: "value1",
-					Field2: ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
-						Type:         ResourceRefTypeTemplate,
-						ConstructURN: *constructURN,
-					},
-				},
-			},
-			want: struct {
+			args: &struct {
 				Field1 string
 				Field2 ResourceRef
 			}{
 				Field1: "value1",
 				Field2: ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
+					ResourceKey:  "aws:s3_bucket:mybucket",
 					Type:         ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				},
 			},
-			wantErr: false,
+			want:    nil, // Expecting an error, so want is nil
+			wantErr: true,
 		},
 		{
 			name: "marshal nested struct with settable ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: struct {
-					Field1 string
-					Nested struct {
-						Field2 ResourceRef
-					}
-				}{
-					Field1: "value1",
-					Nested: struct {
-						Field2 ResourceRef
-					}{
-						Field2: ResourceRef{
-							ResourceKey:  "aws:s3:::bucket",
-							Type:         ResourceRefTypeTemplate,
-							ConstructURN: *constructURN,
-						},
-					},
-				},
-			},
-			want: struct {
+			args: &struct {
 				Field1 string
 				Nested struct {
 					Field2 ResourceRef
@@ -614,13 +570,14 @@ func TestConstructMarshaller_marshalRefs_ConcreteTypes(t *testing.T) {
 					Field2 ResourceRef
 				}{
 					Field2: ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
+						ResourceKey:  "aws:s3_bucket:mybucket",
 						Type:         ResourceRefTypeTemplate,
 						ConstructURN: *constructURN,
 					},
 				},
 			},
-			wantErr: false,
+			want:    nil, // Expecting an error, so want is nil
+			wantErr: true,
 		},
 	}
 
@@ -636,119 +593,7 @@ func TestConstructMarshaller_marshalRefs_ConcreteTypes(t *testing.T) {
 			marshaller := &ConstructMarshaller{
 				ConstructEvaluator: evaluator,
 			}
-			got, err := marshaller.marshalRefs(tt.args.o, tt.args.rawVal)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ConstructMarshaller.marshalRefs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ConstructMarshaller.marshalRefs() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestConstructMarshaller_marshalRefs_Pointers(t *testing.T) {
-	type args struct {
-		o      InfraOwner
-		rawVal any
-	}
-
-	constructURN, _ := model.ParseURN("urn:example:construct::my-construct")
-	testConstruct := &Construct{
-		URN: *constructURN,
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    any
-		wantErr bool
-	}{
-		{
-			name: "marshal pointer to struct with ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: &struct {
-					Field1 string
-					Field2 ResourceRef
-				}{
-					Field1: "value1",
-					Field2: ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
-						Type:         ResourceRefTypeTemplate,
-						ConstructURN: *constructURN,
-					},
-				},
-			},
-			want: &struct {
-				Field1 string
-				Field2 ResourceRef
-			}{
-				Field1: "value1",
-				Field2: ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
-					Type:         ResourceRefTypeTemplate,
-					ConstructURN: *constructURN,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "marshal pointer to interface with ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: func() interface{} {
-					val := ResourceRef{
-						ResourceKey:  "aws:s3:::bucket",
-						Type:         ResourceRefTypeTemplate,
-						ConstructURN: *constructURN,
-					}
-					return &val
-				}(),
-			},
-			want: func() interface{} {
-				val := ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
-					Type:         ResourceRefTypeTemplate,
-					ConstructURN: *constructURN,
-				}
-				return &val
-			}(),
-			wantErr: false,
-		},
-		{
-			name: "marshal pointer to ResourceRef",
-			args: args{
-				o: testConstruct,
-				rawVal: &ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
-					Type:         ResourceRefTypeTemplate,
-					ConstructURN: *constructURN,
-				},
-			},
-			want: &ResourceRef{
-				ResourceKey:  "aws:s3:::bucket",
-				Type:         ResourceRefTypeTemplate,
-				ConstructURN: *constructURN,
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fsys := afero.NewMemMapFs()
-			stateManager := model.NewStateManager(fsys, "state.yaml")
-			stackStateManager := stack.NewStateManager()
-			evaluator, err := NewConstructEvaluator(stateManager, stackStateManager)
-			if err != nil {
-				t.Fatalf("Failed to create ConstructEvaluator: %v", err)
-			}
-			marshaller := &ConstructMarshaller{
-				ConstructEvaluator: evaluator,
-			}
-			got, err := marshaller.marshalRefs(tt.args.o, tt.args.rawVal)
+			got, err := marshaller.marshalRefs(testConstruct, tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ConstructMarshaller.marshalRefs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -782,15 +627,15 @@ func TestConstructMarshaller_marshalRefs_Interfaces(t *testing.T) {
 			args: args{
 				o: testConstruct,
 				rawVal: interface{}(ResourceRef{
-					ResourceKey:  "aws:s3:::bucket",
+					ResourceKey:  "aws:s3_bucket:mybucket",
 					Type:         ResourceRefTypeTemplate,
 					ConstructURN: *constructURN,
 				}),
 			},
-			want: ResourceRef{
-				ResourceKey:  "aws:s3:::bucket",
-				Type:         ResourceRefTypeTemplate,
-				ConstructURN: *constructURN,
+			want: construct.ResourceId{
+				Provider: "aws",
+				Type:     "s3_bucket",
+				Name:     "mybucket",
 			},
 			wantErr: false,
 		},
@@ -943,62 +788,6 @@ func TestConstructMarshaller_marshalRefs_Nil(t *testing.T) {
 	}
 }
 
-func TestConstructMarshaller_marshalRefs_Interpolated(t *testing.T) {
-	type args struct {
-		o      InfraOwner
-		rawVal any
-	}
-
-	constructURN, _ := model.ParseURN("urn:example:construct::my-construct")
-	testConstruct := &Construct{
-		URN: *constructURN,
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		want    any
-		wantErr bool
-	}{
-		{
-			name: "marshal ResourceRefTypeInterpolated",
-			args: args{
-				o: testConstruct,
-				rawVal: ResourceRef{
-					ResourceKey:  "interpolatedKey",
-					Type:         ResourceRefTypeInterpolated,
-					ConstructURN: *constructURN,
-				},
-			},
-			want:    "interpolatedKey",
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fsys := afero.NewMemMapFs()
-			stateManager := model.NewStateManager(fsys, "state.yaml")
-			stackStateManager := stack.NewStateManager()
-			evaluator, err := NewConstructEvaluator(stateManager, stackStateManager)
-			if err != nil {
-				t.Fatalf("Failed to create ConstructEvaluator: %v", err)
-			}
-			marshaller := &ConstructMarshaller{
-				ConstructEvaluator: evaluator,
-			}
-			got, err := marshaller.marshalRefs(tt.args.o, tt.args.rawVal)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ConstructMarshaller.marshalRefs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ConstructMarshaller.marshalRefs() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestConstructMarshaller_marshalRefs_Invalid(t *testing.T) {
 	type args struct {
 		o      InfraOwner
@@ -1055,6 +844,105 @@ func TestConstructMarshaller_marshalRefs_Invalid(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ConstructMarshaller.marshalRefs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConstructMarshaller_marshalRefs_Pointers(t *testing.T) {
+	type args struct {
+		o      InfraOwner
+		rawVal any
+	}
+
+	constructURN, _ := model.ParseURN("urn:example:construct::my-construct")
+	testConstruct := &Construct{
+		URN: *constructURN,
+	}
+
+	tests := []struct {
+		name    string
+		args    args
+		want    any
+		wantErr bool
+	}{
+		{
+			name: "marshal pointer to struct with ResourceRef",
+			args: args{
+				o: testConstruct,
+				rawVal: &struct {
+					Field1 string
+					Field2 ResourceRef
+				}{
+					Field1: "value1",
+					Field2: ResourceRef{
+						ResourceKey:  "aws:s3_bucket:mybucket",
+						Type:         ResourceRefTypeTemplate,
+						ConstructURN: *constructURN,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "marshal pointer to interface with ResourceRef",
+			args: args{
+				o: testConstruct,
+				rawVal: func() interface{} {
+					val := ResourceRef{
+						ResourceKey:  "aws:s3_bucket:mybucket",
+						Type:         ResourceRefTypeTemplate,
+						ConstructURN: *constructURN,
+					}
+					return &val
+				}(),
+			},
+			want: construct.ResourceId{
+				Provider: "aws",
+				Type:     "s3_bucket",
+				Name:     "mybucket",
+			},
+			wantErr: false,
+		},
+		{
+			name: "marshal pointer to ResourceRef",
+			args: args{
+				o: testConstruct,
+				rawVal: &ResourceRef{
+					ResourceKey:  "aws:s3_bucket:mybucket",
+					Type:         ResourceRefTypeTemplate,
+					ConstructURN: *constructURN,
+				},
+			},
+			want: construct.ResourceId{
+				Provider: "aws",
+				Type:     "s3_bucket",
+				Name:     "mybucket",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fsys := afero.NewMemMapFs()
+			stateManager := model.NewStateManager(fsys, "state.yaml")
+			stackStateManager := stack.NewStateManager()
+			evaluator, err := NewConstructEvaluator(stateManager, stackStateManager)
+			if err != nil {
+				t.Fatalf("Failed to create ConstructEvaluator: %v", err)
+			}
+			marshaller := &ConstructMarshaller{
+				ConstructEvaluator: evaluator,
+			}
+			got, err := marshaller.marshalRefs(tt.args.o, tt.args.rawVal)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ConstructMarshaller.marshalRefs() error = %#v, wantErr %#v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ConstructMarshaller.marshalRefs() = %#v, want %#v", got, tt.want)
 			}
 		})
 	}
