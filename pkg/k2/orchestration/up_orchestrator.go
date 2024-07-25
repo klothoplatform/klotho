@@ -247,6 +247,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 
 	case model.DryRunFileOnly:
 		// file already written, nothing left to do
+		uo.placeholderOutputs(ctx, *c.URN)
 		return nil
 	}
 
