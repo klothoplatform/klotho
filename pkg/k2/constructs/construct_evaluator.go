@@ -32,7 +32,7 @@ type ConstructEvaluator struct {
 	stackStateManager *stack.StateManager
 	stateConverter    stateconverter.StateConverter
 
-	Constructs *async.ConcurrentMap[model.URN, *Construct]
+	Constructs async.ConcurrentMap[model.URN, *Construct]
 }
 
 func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*ConstructEvaluator, error) {
@@ -42,7 +42,6 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}
 
 	return &ConstructEvaluator{
-		Constructs:        &async.ConcurrentMap[model.URN, *Construct]{},
 		stateManager:      sm,
 		stackStateManager: ssm,
 		stateConverter:    stateConverter,
@@ -521,11 +520,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 		if !ok {
 			zap.S().Warnf("input %s not found in construct template", k)
 		}
-		ir := InputResolver{
-			DryRun:     ce.DryRun,
-			Constructs: ce.Constructs,
-		}
-		v, err := ir.ResolveInput(k, v, inputTemplate)
+		v, err := ce.ResolveInput(k, v, inputTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -621,11 +616,7 @@ func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) erro
 			if !ok {
 				continue
 			}
-			ir := InputResolver{
-				DryRun:     ce.DryRun,
-				Constructs: ce.Constructs,
-			}
-			resolvedValue, err := ir.ResolveInput(key, mVal, inputTemplate)
+			resolvedValue, err := ce.ResolveInput(key, mVal, inputTemplate)
 			if err != nil {
 				return fmt.Errorf("could not resolve input: %w", err)
 			}
@@ -682,11 +673,7 @@ func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, stat
 			if !ok {
 				zap.S().Warnf("input %s not found in binding template", k)
 			}
-			ir := InputResolver{
-				DryRun:     ce.DryRun,
-				Constructs: ce.Constructs,
-			}
-			v, err := ir.ResolveInput(k, v, inputTemplate)
+			v, err := ce.ResolveInput(k, v, inputTemplate)
 			if err != nil {
 				return err
 			}

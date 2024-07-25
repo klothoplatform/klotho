@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/async"
-
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 	"github.com/stretchr/testify/assert"
@@ -20,10 +18,6 @@ func (s stringerStructInput) String() string {
 }
 
 func TestInterpolateValue(t *testing.T) {
-	ce := &ConstructEvaluator{
-		Constructs: &async.ConcurrentMap[model.URN, *Construct]{},
-	}
-
 	simpleStruct := struct {
 		Field1 string
 	}{
@@ -254,6 +248,7 @@ func TestInterpolateValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ce := &ConstructEvaluator{}
 			result, err := ce.interpolateValue(mockConstruct, tt.rawValue, tt.ctx)
 
 			if tt.hasError {
