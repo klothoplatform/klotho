@@ -19,39 +19,42 @@ func ApplyConstraints(sol solution.Solution) error {
 	cs := sol.Constraints()
 	current, total := 0, len(cs.Application)+len(cs.Edges)+len(cs.Resources)
 
-	var errs error
+	var errs []error
 	for _, constraint := range cs.Application {
 		err := applyApplicationConstraint(sol, constraint)
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
 		current++
 		prog.Update("Loading constraints", current, total)
 	}
-	if errs != nil {
-		return errs
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	for _, constraint := range cs.Edges {
 		err := applyEdgeConstraint(sol, constraint)
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
 		current++
 		prog.Update("Loading constraints", current, total)
 	}
-	if errs != nil {
-		return errs
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	resourceConstraints := cs.Resources
 	for i := range resourceConstraints {
 		err := applySanitization(sol, &resourceConstraints[i])
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
 		}
 		current++
 		prog.Update("Loading constraints", current, total)
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil

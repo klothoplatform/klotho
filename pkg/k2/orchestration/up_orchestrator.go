@@ -108,6 +108,37 @@ func (uo *UpOrchestrator) RunUpCommand(
 	return nil
 }
 
+// placeholderOutputs sends placeholder values to TUI for cases where they cannot be taken from the state when
+// running in dry run modes.
+func (uo *UpOrchestrator) placeholderOutputs(ctx context.Context, cURN model.URN) {
+	c, ok := uo.ConstructEvaluator.Constructs.Get(cURN)
+	if !ok {
+		return
+	}
+	prog := tui.GetProgram(ctx)
+	if prog == nil {
+		return
+	}
+	outputs := c.Outputs
+	if len(outputs) == 0 && c.Solution != nil {
+		outputs = make(map[string]any)
+		for name, o := range c.Solution.Outputs() {
+			if !o.Ref.IsZero() {
+				outputs[name] = fmt.Sprintf("<%s>", o.Ref)
+				continue
+			}
+			outputs[name] = o.Value
+		}
+	}
+	for key, value := range outputs {
+		prog.Send(tui.OutputMessage{
+			Construct: cURN.ResourceID,
+			Name:      key,
+			Value:     value,
+		})
+	}
+}
+
 func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructState, action model.ConstructAction, dryRun model.DryRun) (err error) {
 	sm := uo.StateManager
 	log := logging.GetLogger(ctx).Sugar()
@@ -189,6 +220,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	switch dryRun {
 	case model.DryRunPreview:
 		_, err = stack.RunPreview(ctx, uo.FS, stackRef)
+		uo.placeholderOutputs(ctx, *c.URN)
 		return err
 
 	case model.DryRunCompile:
@@ -207,6 +239,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		)
 		cmd.Dir = stackRef.IacDirectory
 		err := cmd.Run()
+		uo.placeholderOutputs(ctx, *c.URN)
 		if err != nil {
 			return fmt.Errorf("error running tsc: %w", err)
 		}
@@ -227,7 +260,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 	}
 	uo.StackStateManager.ConstructStackState[stackRef.ConstructURN] = *stackState
 
-	err = sm.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
+	err = sm.RegisterOutputValues(ctx, stackRef.ConstructURN, stackState.Outputs)
 	if err != nil {
 		return fmt.Errorf("error registering output values: %w", err)
 	}
@@ -244,7 +277,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		return fmt.Errorf("error resolving output values: %w", err)
 	}
 	uo.ConstructEvaluator.RegisterOutputValues(stackRef.ConstructURN, stackState.Outputs)
-	return sm.RegisterOutputValues(stackRef.ConstructURN, resolvedOutputs)
+	return sm.RegisterOutputValues(ctx, stackRef.ConstructURN, resolvedOutputs)
 }
 
 func (uo *UpOrchestrator) resolveOutputValues(stackReference stack.Reference, stackState stack.State) (map[string]any, error) {

@@ -1,11 +1,13 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/afero"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -194,9 +196,11 @@ func (sm *StateManager) TransitionConstructComplete(construct *ConstructState) e
 }
 
 // RegisterOutputValues registers the resolved output values of a construct in the state manager and resolves any inputs that depend on the provided outputs
-func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) error {
+func (sm *StateManager) RegisterOutputValues(ctx context.Context, urn URN, outputs map[string]any) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
+
+	prog := tui.GetProgram(ctx)
 
 	if sm.state.Constructs == nil {
 		return fmt.Errorf("%s not found in state", urn.String())
@@ -213,6 +217,13 @@ func (sm *StateManager) RegisterOutputValues(urn URN, outputs map[string]any) er
 
 	for key, value := range outputs {
 		construct.Outputs[key] = value
+		if prog != nil {
+			prog.Send(tui.OutputMessage{
+				Construct: urn.ResourceID,
+				Name:      key,
+				Value:     value,
+			})
+		}
 	}
 	sm.state.Constructs[urn.ResourceID] = construct
 

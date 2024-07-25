@@ -32,7 +32,7 @@ type ConstructEvaluator struct {
 	stackStateManager *stack.StateManager
 	stateConverter    stateconverter.StateConverter
 
-	constructs *async.ConcurrentMap[model.URN, *Construct]
+	Constructs *async.ConcurrentMap[model.URN, *Construct]
 }
 
 func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*ConstructEvaluator, error) {
@@ -42,7 +42,7 @@ func NewConstructEvaluator(sm *model.StateManager, ssm *stack.StateManager) (*Co
 	}
 
 	return &ConstructEvaluator{
-		constructs:        &async.ConcurrentMap[model.URN, *Construct]{},
+		Constructs:        &async.ConcurrentMap[model.URN, *Construct]{},
 		stateManager:      sm,
 		stackStateManager: ssm,
 		stateConverter:    stateConverter,
@@ -523,7 +523,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 		}
 		ir := InputResolver{
 			DryRun:     ce.DryRun,
-			Constructs: ce.constructs,
+			Constructs: ce.Constructs,
 		}
 		v, err := ir.ResolveInput(k, v, inputTemplate)
 		if err != nil {
@@ -536,7 +536,7 @@ func (ce *ConstructEvaluator) evaluateConstruct(constructUrn model.URN, state mo
 	if err != nil {
 		return nil, fmt.Errorf("could not create construct: %w", err)
 	}
-	ce.constructs.Set(constructUrn, c)
+	ce.Constructs.Set(constructUrn, c)
 
 	if err = ce.initBindings(c, state); err != nil {
 		return nil, fmt.Errorf("could not initialize bindings: %w", err)
@@ -623,7 +623,7 @@ func (ce *ConstructEvaluator) initBindings(c *Construct, state model.State) erro
 			}
 			ir := InputResolver{
 				DryRun:     ce.DryRun,
-				Constructs: ce.constructs,
+				Constructs: ce.Constructs,
 			}
 			resolvedValue, err := ir.ResolveInput(key, mVal, inputTemplate)
 			if err != nil {
@@ -684,7 +684,7 @@ func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, stat
 			}
 			ir := InputResolver{
 				DryRun:     ce.DryRun,
-				Constructs: ce.constructs,
+				Constructs: ce.Constructs,
 			}
 			v, err := ir.ResolveInput(k, v, inputTemplate)
 			if err != nil {
@@ -1242,7 +1242,7 @@ func (ce *ConstructEvaluator) importBindingToResources(ctx context.Context, b *B
 }
 
 func (ce *ConstructEvaluator) RegisterOutputValues(urn model.URN, outputs map[string]any) {
-	if c, ok := ce.constructs.Get(urn); ok {
+	if c, ok := ce.Constructs.Get(urn); ok {
 		c.Outputs = outputs
 	}
 }
@@ -1250,7 +1250,7 @@ func (ce *ConstructEvaluator) RegisterOutputValues(urn model.URN, outputs map[st
 func (ce *ConstructEvaluator) AddSolution(urn model.URN, sol solution.Solution) {
 	// panic is fine here if urn isn't in map
 	// will only happen in programmer error cases
-	c, _ := ce.constructs.Get(urn)
+	c, _ := ce.Constructs.Get(urn)
 	c.Solution = sol
 }
 

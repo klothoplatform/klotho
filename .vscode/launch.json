@@ -87,7 +87,7 @@
             "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
             "args": [
                 "up",
-                "-v=3",
+                "-v=2",
                 "-o=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "-n=1",

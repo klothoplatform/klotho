@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/klothoplatform/klotho/pkg/logging"
-	"github.com/klothoplatform/klotho/pkg/multierr"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
@@ -155,7 +154,7 @@ func (s *engineSolution) GlobalTag() string {
 
 func (s *engineSolution) captureOutputs() error {
 	outputConstraints := s.Constraints().Outputs
-	var err multierr.Error
+	var errs []error
 	for _, outputConstraint := range outputConstraints {
 		if outputConstraint.Ref.Resource.IsZero() {
 			s.outputs[outputConstraint.Name] = construct.Output{
@@ -164,15 +163,15 @@ func (s *engineSolution) captureOutputs() error {
 			continue
 		}
 
-		if _, err2 := s.Dataflow.Vertex(outputConstraint.Ref.Resource); err2 != nil {
-			err.Append(err2)
+		if _, err := s.Dataflow.Vertex(outputConstraint.Ref.Resource); err != nil {
+			errs = append(errs, fmt.Errorf("output %s error in reference: %w", outputConstraint.Name, err))
 			continue
 		}
 		s.outputs[outputConstraint.Name] = construct.Output{
 			Ref: outputConstraint.Ref,
 		}
 	}
-	return err.ErrOrNil()
+	return errors.Join(errs...)
 }
 
 func (s *engineSolution) Outputs() map[string]construct.Output {
