@@ -28,24 +28,23 @@ func (m *ConstructMarshaller) Marshal(constructURN model.URN) (constraints.Const
 	for _, r := range c.Resources {
 		resourceConstraints, err := m.marshalResource(c, r)
 		if err != nil {
-			err = fmt.Errorf("could not marshall resource: %w", err)
-			return nil, err
+			return nil, fmt.Errorf("could not marshal resource: %w", err)
 		}
 		cs = append(cs, resourceConstraints...)
 	}
+
 	for _, e := range c.Edges {
 		edgeConstraints, err := m.marshalEdge(c, e)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshall edge: %w", err)
+			return nil, fmt.Errorf("could not marshal edge: %w", err)
 		}
-
 		cs = append(cs, edgeConstraints...)
 	}
 
 	for _, o := range c.OutputDeclarations {
 		outputConstraints, err := m.marshalOutput(o)
 		if err != nil {
-			return nil, fmt.Errorf("could not marshall output: %w", err)
+			return nil, fmt.Errorf("could not marshal output: %w", err)
 		}
 		cs = append(cs, outputConstraints...)
 	}
@@ -138,110 +137,65 @@ func (m *ConstructMarshaller) marshalOutput(o OutputDeclaration) (constraints.Co
 	cs = append(cs, c)
 	return cs, nil
 }
-
-// marshalRefs replaces all ResourceRef instances in an input (rawVal) with the serialized values using the context's serializeRef method
 func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error) {
-
-	ref := reflectutil.GetConcreteElement(reflect.ValueOf(rawVal))
-
-	switch val := rawVal.(type) {
-	case ResourceRef:
-		return m.ConstructEvaluator.serializeRef(o, val)
-	case construct.ResourceId, construct.PropertyRef:
-		return val, nil
+	// Handle ResourceRef types directly
+	if ref, ok := rawVal.(ResourceRef); ok {
+		switch ref.Type {
+		case ResourceRefTypeInterpolated:
+			return m.marshalRefs(o, ref.ResourceKey)
+		case ResourceRefTypeTemplate:
+			ref.ConstructURN = o.GetURN()
+			return ref, nil
+		default:
+			return rawVal, nil
+		}
 	}
 
-	var err error
+	// Get the concrete value
+	ref := reflect.ValueOf(rawVal)
+	if ref.Kind() == reflect.Ptr {
+		if ref.IsNil() {
+			return rawVal, nil
+		}
+		ref = ref.Elem()
+	}
+
+	if !ref.IsValid() {
+		return rawVal, nil
+	}
+
 	switch ref.Kind() {
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
-			field := reflectutil.GetConcreteElement(ref.Field(i))
-			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(o, field.Interface())
-				if err != nil {
-					return nil, err
-				}
+			field := ref.Field(i)
+			if !field.CanSet() {
+				continue
 			}
-			if newField, ok := field.Interface().(ResourceRef); ok {
-				var serializedRef any
-				serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
-				if err != nil {
-					return nil, err
-				}
-				ref.Field(i).Set(reflect.ValueOf(serializedRef))
+			fieldValue := reflectutil.GetConcreteElement(field)
+			_, err := m.marshalRefs(o, fieldValue.Interface())
+			if err != nil {
+				return nil, err
 			}
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
 			field := reflectutil.GetConcreteElement(ref.MapIndex(key))
-			switch field.Kind() {
-			case reflect.Map, reflect.Struct, reflect.Interface, reflect.Slice | reflect.Array, reflect.Ptr:
-				mField, err := m.marshalRefs(o, field.Interface())
-				if err != nil {
-					return nil, err
-				}
-				ref.SetMapIndex(key, reflect.ValueOf(mField))
-			default:
-				if field.IsValid() {
-					if newField, ok := field.Interface().(ResourceRef); ok {
-						var serializedRef any
-						serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
-						if err != nil {
-							return nil, err
-						}
-						ref.SetMapIndex(key, reflect.ValueOf(serializedRef))
-					}
-				}
-			}
-		}
-	case reflect.Slice | reflect.Array:
-		for i := 0; i < ref.Len(); i++ {
-			field := reflectutil.GetConcreteElement(ref.Index(i))
-			if field.Kind() == reflect.Struct {
-				_, err = m.marshalRefs(o, field.Interface())
-				if err != nil {
-					return nil, err
-				}
-			}
-			if field.Kind() == reflect.Map {
-				_, err = m.marshalRefs(o, field.Interface())
-				if err != nil {
-					return nil, err
-				}
-			}
-			if field.IsValid() {
-				if newField, ok := field.Interface().(ResourceRef); ok {
-					var serializedRef any
-					serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
-					if err != nil {
-						return nil, err
-					}
-					ref.Index(i).Set(reflect.ValueOf(serializedRef))
-				}
-			}
-		}
-	case reflect.Interface | reflect.Pointer:
-		if ref.Elem().Kind() == reflect.Struct {
-			_, err = m.marshalRefs(o, ref.Elem().Interface())
+			serializedField, err := m.marshalRefs(o, field.Interface())
 			if err != nil {
 				return nil, err
 			}
+			ref.SetMapIndex(key, reflect.ValueOf(serializedField))
 		}
-	default:
-		if ref.IsValid() {
-			if newField, ok := ref.Interface().(ResourceRef); ok {
-				var serializedRef any
-				serializedRef, err = m.ConstructEvaluator.serializeRef(o, newField)
-				if err != nil {
-					return nil, err
-				}
-				ref.Set(reflect.ValueOf(serializedRef))
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < ref.Len(); i++ {
+			field := reflectutil.GetConcreteElement(ref.Index(i))
+			serializedField, err := m.marshalRefs(o, field.Interface())
+			if err != nil {
+				return nil, err
 			}
+			ref.Index(i).Set(reflect.ValueOf(serializedField))
 		}
 	}
 
-	if ref.IsValid() {
-		return ref.Interface(), nil
-	}
-	return nil, nil
+	return rawVal, nil
 }
