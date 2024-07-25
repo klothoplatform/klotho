@@ -1,0 +1,125 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:ecr_image:my-container-image
+    - scope: application
+      operator: must_exist
+      node: aws:ecs_service:my-container-service
+    - scope: application
+      operator: must_exist
+      node: aws:ecs_task_definition:my-container-task
+    - scope: resource
+      operator: equals
+      target: aws:ecr_image:my-container-image
+      property: Context
+      value: /
+    - scope: resource
+      operator: equals
+      target: aws:ecr_image:my-container-image
+      property: Dockerfile
+      value: /Dockerfile
+    - scope: resource
+      operator: equals
+      target: aws:ecs_service:my-container-service
+      property: EnableExecuteCommand
+      value: false
+    - scope: resource
+      operator: equals
+      target: aws:ecs_service:my-container-service
+      property: LaunchType
+      value: FARGATE
+    - scope: resource
+      operator: equals
+      target: aws:ecs_service:my-container-service
+      property: TaskDefinition
+      value: aws:ecs_task_definition:my-container-task
+    - scope: resource
+      operator: equals
+      target: aws:ecs_task_definition:my-container-task
+      property: ContainerDefinitions
+      value:
+        - Cpu: 256
+          Environment: null
+          Memory: 512
+          Name: my-container
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: TCP
+    - scope: resource
+      operator: equals
+      target: aws:ecs_task_definition:my-container-task
+      property: ContainerDefinitions[0].Image
+      value: aws:ecr_image:my-container-image#ImageName
+    - scope: resource
+      operator: equals
+      target: aws:ecs_task_definition:my-container-task
+      property: Cpu
+      value: 256
+    - scope: resource
+      operator: equals
+      target: aws:ecs_task_definition:my-container-task
+      property: Memory
+      value: 512
+    - scope: resource
+      operator: equals
+      target: aws:ecs_task_definition:my-container-task
+      property: RequiresCompatibilities
+      value:
+        - FARGATE
+resources:
+    aws:subnet:default-network-vpc:default-network-private-subnet-1:
+        CidrBlock: 10.0.128.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-private-subnet-1)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:subnet:default-network-vpc:default-network-private-subnet-2:
+        CidrBlock: 10.0.192.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-private-subnet-2)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:subnet:default-network-vpc:default-network-public-subnet-1:
+        CidrBlock: 10.0.0.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-public-subnet-1)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-1
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:subnet:default-network-vpc:default-network-public-subnet-2:
+        CidrBlock: 10.0.64.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-public-subnet-2)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-2
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:vpc:default-network-vpc:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Id: preview(id=aws:vpc:default-network-vpc)
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-vpc
+        imported: true
+edges:
+    aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
+outputs: {}

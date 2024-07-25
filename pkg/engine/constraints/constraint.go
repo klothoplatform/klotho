@@ -203,6 +203,14 @@ func (list ConstraintList) ToConstraints() (Constraints, error) {
 	return constraints, nil
 }
 
+func (list ConstraintList) NaturalSort(i, j int) bool {
+	a, b := list[i], list[j]
+	if a, b := a.Scope(), b.Scope(); a != b {
+		return a < b
+	}
+	return a.String() < b.String()
+}
+
 func LoadConstraintsFromFile(path string) (Constraints, error) {
 	var input struct {
 		Constraints ConstraintList `yaml:"constraints"`

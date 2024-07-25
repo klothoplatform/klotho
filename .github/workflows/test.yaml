@@ -16,6 +16,10 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '1.22.3'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
       - uses: actions/checkout@v3
       - uses: actions/cache@v2
         with:
@@ -27,10 +31,15 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Test setup
+        run: |
+          pip install pipenv
+          pipenv --python 3.12
+          pipenv install --dev
 
+          touch pkg/auth/auth0_client_secret.key
       - name: Run test
         run: |
-          touch pkg/auth/auth0_client_secret.key
           go test -race -v -coverprofile=c.out ./...
 
       - name: Update coverage report

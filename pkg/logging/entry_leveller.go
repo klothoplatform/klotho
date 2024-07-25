@@ -34,26 +34,34 @@ func (el *EntryLeveller) With(f []zapcore.Field) zapcore.Core {
 	return next
 }
 
+func (el *EntryLeveller) checkModule(e zapcore.Entry, ce *zapcore.CheckedEntry, module string) (*zapcore.CheckedEntry, bool) {
+	if level, ok := el.levels.Load(module); ok {
+		el.levels.Store(e.LoggerName, level)
+		if e.Level < level.(zapcore.Level) {
+			return nil, true
+		}
+		return ce.AddCore(e, el), true
+	}
+	return nil, false
+}
+
 func (el *EntryLeveller) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if ce, ok := el.checkModule(e, ce, e.LoggerName); ok {
+		return ce
+	}
 	if e.LoggerName == "" {
 		return el.Core.Check(e, ce)
 	}
-	if level, ok := el.levels.Load(e.LoggerName); ok {
-		if e.Level < level.(zapcore.Level) {
-			return nil
-		}
-		return ce.AddCore(e, el)
-	}
+
 	nameParts := strings.Split(e.LoggerName, ".")
 	for i := len(nameParts); i > 0; i-- {
 		module := strings.Join(nameParts[:i], ".")
-		if level, ok := el.levels.Load(module); ok {
-			el.levels.Store(e.LoggerName, level)
-			if e.Level < level.(zapcore.Level) {
-				return nil
-			}
-			return ce.AddCore(e, el)
+		if ce, ok := el.checkModule(e, ce, module); ok {
+			return ce
 		}
+	}
+	if ce, ok := el.checkModule(e, ce, ""); ok {
+		return ce
 	}
 	return el.Core.Check(e, ce)
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
-	"go.uber.org/zap"
 )
 
 type (
@@ -37,7 +36,7 @@ func NewSolution(ctx context.Context, kb knowledgebase.TemplateKB, globalTag str
 	sol := &engineSolution{
 		KB: kb,
 		Dataflow: graph_addons.LoggingGraph[construct.ResourceId, *construct.Resource]{
-			Log:   logging.GetLogger(ctx).With(zap.String("graph", "dataflow")).Sugar(),
+			Log:   logging.GetLogger(ctx).Named("dataflow").Sugar(),
 			Graph: construct.NewGraph(),
 			Hash:  func(r *construct.Resource) construct.ResourceId { return r.ID },
 		},

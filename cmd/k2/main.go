@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"syscall"
 
@@ -60,13 +59,13 @@ func cli() int {
 		Use:   "ir [file path]",
 		Short: "Run the IR command",
 		//Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath := args[0]
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
-				fmt.Println("Invalid file path")
-				os.Exit(1)
+			if _, err := os.Stat(filePath); err != nil {
+				return err
 			}
 			irCmd(filePath)
+			return nil
 		},
 	}
 

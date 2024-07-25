@@ -16,6 +16,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/tui"
 	"github.com/spf13/afero"
 	"go.uber.org/zap"
+	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,25 +25,27 @@ type UpOrchestrator struct {
 	LanguageHostClient pb.KlothoServiceClient
 	StackStateManager  *stack.StateManager
 	ConstructEvaluator *constructs.ConstructEvaluator
-	FS                 afero.Fs
 }
 
-func NewUpOrchestrator(sm *model.StateManager, languageHostClient pb.KlothoServiceClient, outputPath string) (*UpOrchestrator, error) {
+func NewUpOrchestrator(
+	sm *model.StateManager, languageHostClient pb.KlothoServiceClient, fs afero.Fs, outputPath string,
+) (*UpOrchestrator, error) {
 	ssm := stack.NewStateManager()
 	ce, err := constructs.NewConstructEvaluator(sm, ssm)
 	if err != nil {
 		return nil, err
 	}
 	return &UpOrchestrator{
-		Orchestrator:       NewOrchestrator(sm, outputPath),
+		Orchestrator:       NewOrchestrator(sm, fs, outputPath),
 		LanguageHostClient: languageHostClient,
 		StackStateManager:  ssm,
 		ConstructEvaluator: ce,
-		FS:                 afero.NewOsFs(),
 	}, nil
 }
 
-func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.ApplicationEnvironment, dryRun model.DryRun, maxConcurrency int) error {
+func (uo *UpOrchestrator) RunUpCommand(
+	ctx context.Context, ir *model.ApplicationEnvironment, dryRun model.DryRun, sem *semaphore.Weighted,
+) error {
 	uo.ConstructEvaluator.DryRun = dryRun
 	if dryRun == model.DryRunNone {
 		// We don't finalize for dryrun as this updates/creates the state file
@@ -73,14 +76,16 @@ func (uo *UpOrchestrator) RunUpCommand(ctx context.Context, ir *model.Applicatio
 		}
 	}
 
-	sem := make(chan struct{}, maxConcurrency)
 	for _, group := range deployOrder {
 		errChan := make(chan error, len(group))
 
 		for _, cURN := range group {
-			sem <- struct{}{}
+			if err := sem.Acquire(ctx, 1); err != nil {
+				errChan <- fmt.Errorf("error acquiring semaphore: %w", err)
+				continue
+			}
 			go func(cURN model.URN) {
-				defer func() { <-sem }()
+				defer sem.Release(1)
 				c, exists := uo.StateManager.GetConstructState(cURN.ResourceID)
 				if !exists {
 					errChan <- fmt.Errorf("construct %s not found in state", cURN.ResourceID)
@@ -205,6 +210,10 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 		if err != nil {
 			return fmt.Errorf("error running tsc: %w", err)
 		}
+		return nil
+
+	case model.DryRunFileOnly:
+		// file already written, nothing left to do
 		return nil
 	}
 

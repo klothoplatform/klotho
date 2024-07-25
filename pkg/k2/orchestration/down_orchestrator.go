@@ -23,9 +23,9 @@ type (
 	}
 )
 
-func NewDownOrchestrator(sm *model.StateManager, outputPath string) *DownOrchestrator {
+func NewDownOrchestrator(sm *model.StateManager, fs afero.Fs, outputPath string) *DownOrchestrator {
 	return &DownOrchestrator{
-		Orchestrator: NewOrchestrator(sm, outputPath),
+		Orchestrator: NewOrchestrator(sm, fs, outputPath),
 		FS:           afero.NewOsFs(),
 	}
 }

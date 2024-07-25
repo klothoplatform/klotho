@@ -21,8 +21,8 @@ type StateManager struct {
 type State struct {
 	SchemaVersion int                       `yaml:"schemaVersion,omitempty"`
 	Version       int                       `yaml:"version,omitempty"`
-	ProjectURN    string                    `yaml:"project_urn,omitempty"`
-	AppURN        string                    `yaml:"app_urn,omitempty"`
+	ProjectURN    URN                       `yaml:"project_urn,omitempty"`
+	AppURN        URN                       `yaml:"app_urn,omitempty"`
 	Environment   string                    `yaml:"environment,omitempty"`
 	DefaultRegion string                    `yaml:"default_region,omitempty"`
 	Constructs    map[string]ConstructState `yaml:"constructs,omitempty"`
