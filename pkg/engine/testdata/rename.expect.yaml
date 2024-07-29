@@ -1,7 +1,7 @@
 resources:
     aws:lambda_function:lambda_test_app:
         EnvironmentVariables:
-            ORIGINAL_BUCKET_BUCKET_NAME: aws:s3_bucket:new-bucket#BucketName
+            ORIGINAL_BUCKET_BUCKET_NAME: aws:s3_bucket:new-bucket#Id
         ExecutionRole: aws:iam_role:lambda_test_app-ExecutionRole
         Image: aws:ecr_image:lambda_test_app-image
         LogGroup: aws:log_group:lambda_test_app-log-group

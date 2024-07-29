@@ -10,6 +10,7 @@ interface Args {
     protect: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
     Bucket: string
+    Id: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -17,6 +18,9 @@ function create(args: Args): aws.s3.Bucket {
     return new aws.s3.Bucket(
         args.Name,
         {
+            //TMPL {{- if .Bucket }}
+            bucket: args.Bucket,
+            //TMPL {{- end }}
             forceDestroy: args.ForceDestroy,
             //TMPL {{- if .SSEAlgorithm }}
             serverSideEncryptionConfiguration: {
@@ -46,8 +50,7 @@ function properties(object: aws.s3.Bucket, args: Args) {
         Arn: object.arn,
         BucketRegionalDomainName: object.bucketRegionalDomainName,
         Bucket: object.bucket,
-        // DS - Leaving BucketName in place for backward compatibility for fow
-        BucketName: object.bucket,
+        Id: object.id,
     }
 }
 
@@ -57,10 +60,10 @@ function infraExports(
     props: ReturnType<typeof properties>
 ) {
     return {
-        BucketName: object.bucket,
+        BucketName: object.id,
     }
 }
 
 function importResource(args: Args): aws.s3.Bucket {
-    return aws.s3.Bucket.get(args.Name, args.Bucket)
+    return aws.s3.Bucket.get(args.Name, args.Id)
 }

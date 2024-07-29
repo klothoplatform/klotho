@@ -16,9 +16,7 @@ sanitize_name:
 properties:
   Bucket:
     type: string
-    description: The name of the S3 bucket
-    deploy_time: true
-    configuration_disabled: true
+    description: The exact name of the S3 bucket to create (if not specified, a unique suffix will be appended to the resource name)
   ForceDestroy:
     type: bool
     default_value: true
@@ -38,11 +36,12 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-  BucketRegionalDomainName:
+  Id:
     type: string
     configuration_disabled: true
     deploy_time: true
-  BucketName:
+    required: true
+  BucketRegionalDomainName:
     type: string
     configuration_disabled: true
     deploy_time: true
@@ -61,7 +60,7 @@ consumption:
   emitted:
     - model: EnvironmentVariables
       value:
-        '{{ .Self.Name }}_BUCKET_NAME': '{{ fieldRef "BucketName" .Self }}'
+        '{{ .Self.Name }}_BUCKET_NAME': '{{ fieldRef "Id" .Self }}'
 
 classification:
   is:
