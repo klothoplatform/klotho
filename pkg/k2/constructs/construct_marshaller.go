@@ -167,21 +167,23 @@ func (m *ConstructMarshaller) marshalRefs(o InfraOwner, rawVal any) (any, error)
 	case reflect.Struct:
 		for i := 0; i < ref.NumField(); i++ {
 			field := ref.Field(i)
-
 			fieldValue := reflectutil.GetConcreteElement(field)
-			if !fieldValue.IsValid() || fieldValue.IsZero() {
-				continue
-			}
-			if _, ok := fieldValue.Interface().(ResourceRef); ok {
-				return nil, fmt.Errorf("cannot marshal ResourceRef in struct field: %s", ref.Type().Field(i).Name)
-			} else {
-				if !field.CanSet() {
+
+			if field.CanInterface() {
+				if _, ok := fieldValue.Interface().(ResourceRef); ok {
+					// If we encounter a ResourceRef in a struct, we skip it
+					// Since the result is not also a ResourceRef
 					continue
 				}
-				if _, err := m.marshalRefs(o, fieldValue.Interface()); err != nil {
-					return nil, err
-				}
 			}
+			if !field.CanSet() {
+				continue
+			}
+
+			if _, err := m.marshalRefs(o, fieldValue.Interface()); err != nil {
+				return nil, err
+			}
+
 		}
 	case reflect.Map:
 		for _, key := range ref.MapKeys() {
