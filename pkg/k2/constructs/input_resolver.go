@@ -6,21 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/klothoplatform/klotho/pkg/async"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
 )
-
-type InputResolver struct {
-	DryRun     model.DryRun
-	Constructs *async.ConcurrentMap[model.URN, *Construct]
-}
 
 // ResolveInput converts a model.Input to a construct.Input and adds it to the inputs map.
 // If the value of the input is a URN, it resolves the URN to a construct.
 // If the input's status is not "resolved", it returns an error.
-func (r *InputResolver) ResolveInput(k string, v model.Input, t InputTemplate) (any, error) {
+func (ce *ConstructEvaluator) ResolveInput(k string, v model.Input, t InputTemplate) (any, error) {
 	if v.Status != "" && v.Status != model.InputStatusResolved {
-		if r.DryRun == model.DryRunNone {
+		if ce.DryRun == model.DryRunNone {
 			return nil, fmt.Errorf("input '%s' is not resolved", k)
 		}
 	}
@@ -38,7 +32,7 @@ func (r *InputResolver) ResolveInput(k string, v model.Input, t InputTemplate) (
 		}
 
 		if iURN.IsResource() && iURN.Type == "construct" && iURN.Subtype == cType {
-			ic, ok := r.Constructs.Get(iURN)
+			ic, ok := ce.Constructs.Get(iURN)
 
 			if !ok {
 				return nil, fmt.Errorf("input '%s' could not find construct %s", k, iURN)

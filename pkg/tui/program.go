@@ -21,6 +21,12 @@ type (
 		Message   string
 	}
 
+	OutputMessage struct {
+		Construct string
+		Name      string
+		Value     any
+	}
+
 	TuiProgress struct {
 		Prog      *tea.Program
 		Construct string

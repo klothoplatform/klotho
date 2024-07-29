@@ -5,3 +5,16 @@ resources:
   RestAPI:
     type: aws:rest_api
     name: ${inputs:Name}-api
+
+  APIStage:
+    type: aws:api_stage
+    namespace: ${inputs:Name}-api
+    name: ${inputs:Name}-stage
+    properties:
+      StageName: api
+      RestApi: ${resources:RestAPI}
+
+outputs:
+  Endpoint:
+    description: The endpoint for the API
+    value: ${resources:APIStage#StageInvokeUrl}

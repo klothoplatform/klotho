@@ -14,18 +14,12 @@ type (
 	}
 )
 
-func (cf *ConcurrentMap[K, V]) init() {
-	cf.mu.RLock()
-	if cf.m != nil {
-		cf.mu.RUnlock()
-		return
-	}
-	cf.mu.RUnlock()
-	cf.mu.Lock()
+// initForWrite caller must hold a write lock. Read operations do not need to call this - they must all be compatible
+// with a nil map.
+func (cf *ConcurrentMap[K, V]) initForWrite() {
 	if cf.m == nil {
 		cf.m = make(map[K]V)
 	}
-	cf.mu.Unlock()
 }
 
 func (cf *ConcurrentMap[K, V]) Len() int {
@@ -35,16 +29,16 @@ func (cf *ConcurrentMap[K, V]) Len() int {
 }
 
 func (cf *ConcurrentMap[K, V]) Set(k K, v V) {
-	cf.init()
 	cf.mu.Lock()
 	defer cf.mu.Unlock()
+	cf.initForWrite()
 	cf.m[k] = v
 }
 
 func (cf *ConcurrentMap[K, V]) AddAll(entries map[K]V) {
-	cf.init()
 	cf.mu.Lock()
 	defer cf.mu.Unlock()
+	cf.initForWrite()
 	for key, value := range entries {
 		cf.m[key] = value
 	}
@@ -53,9 +47,9 @@ func (cf *ConcurrentMap[K, V]) AddAll(entries map[K]V) {
 // Compute sets the value of key 'k' to the result of the supplied computeFunc.
 // If the value of 'ok' is 'false', the entry for key 'k' will be removed from the ConcurrentMap.
 func (cf *ConcurrentMap[K, V]) Compute(k K, computeFunc func(k K, v V) (val V, ok bool)) {
-	cf.init()
 	cf.mu.Lock()
 	defer cf.mu.Unlock()
+	cf.initForWrite()
 	if val, ok := computeFunc(k, cf.m[k]); ok {
 		cf.m[k] = val
 	} else {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -607,7 +608,7 @@ func TestRegisterOutputValues(t *testing.T) {
 		"urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:my-container:Port":  80,
 	}
 
-	err := sm.RegisterOutputValues(*constructURN, outputs)
+	err := sm.RegisterOutputValues(context.Background(), *constructURN, outputs)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -647,13 +648,13 @@ func TestRegisterOutputValues(t *testing.T) {
 
 	// Test with invalid construct URN
 	invalidURN, _ := ParseURN("urn:accountid:my-project:dev:my-app:construct/klotho.aws.Container:invalid-container")
-	err = sm.RegisterOutputValues(*invalidURN, outputs)
+	err = sm.RegisterOutputValues(context.Background(), *invalidURN, outputs)
 	if err == nil {
 		t.Errorf("Expected error for non-existent construct, got nil")
 	}
 
 	// Case with no outputs
-	err = sm.RegisterOutputValues(*constructURN, nil)
+	err = sm.RegisterOutputValues(context.Background(), *constructURN, nil)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -670,7 +671,7 @@ func TestRegisterOutputValues(t *testing.T) {
 
 	// Case where sm.state.Constructs is nil
 	sm.state.Constructs = nil
-	err = sm.RegisterOutputValues(*constructURN, outputs)
+	err = sm.RegisterOutputValues(context.Background(), *constructURN, outputs)
 	if err == nil {
 		t.Errorf("Expected error for constructs not being initialized, got nil")
 	}
