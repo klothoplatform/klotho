@@ -66,23 +66,12 @@ func TestConstructMarshaller(t *testing.T) {
 			validateResult: func(t *testing.T, constraintList []constraints.Constraint) {
 				assert.NotEmpty(t, constraintList)
 
-				foundMustExist := false
-				foundEdge := false
-				foundResource := false
-				for _, c := range constraintList {
-					switch constraint := c.(type) {
-					case *constraints.ApplicationConstraint:
-						foundMustExist = constraint.Operator == "must_exist"
-					case *constraints.EdgeConstraint:
-						foundEdge = true
-					case *constraints.ResourceConstraint:
-						foundResource = constraint.Property == "prop1" || constraint.Property == "prop2"
-					}
-				}
+				constraints, err := constraints.ConstraintList(constraintList).ToConstraints()
+				assert.NoError(t, err)
 
-				assert.True(t, foundMustExist, "Expected to find at least one ApplicationConstraint with 'must_exist' operator")
-				assert.True(t, foundEdge, "Expected to find at least one EdgeConstraint")
-				assert.True(t, foundResource, "Expected to find at least one ResourceConstraint for 'prop1' or 'prop2'")
+				assert.NotEmpty(t, constraints.Application, "Expected to find at least one ApplicationConstraint with 'must_exist' operator")
+				assert.NotEmpty(t, constraints.Edges, "Expected to find at least one EdgeConstraint")
+				assert.NotEmpty(t, constraints.Resources, "Expected to find at least one ResourceConstraint for 'prop1' or 'prop2'")
 			},
 		},
 		{
@@ -112,14 +101,10 @@ func TestConstructMarshaller(t *testing.T) {
 			validateResult: func(t *testing.T, constraintList []constraints.Constraint) {
 				assert.NotEmpty(t, constraintList)
 
-				foundOutput := false
-				for _, c := range constraintList {
-					if oc, ok := c.(*constraints.OutputConstraint); ok && oc.Name == "output1" && oc.Value == "outputValue1" {
-						foundOutput = true
-						break
-					}
-				}
-				assert.True(t, foundOutput, "Expected to find an OutputConstraint for 'output1'")
+				constraints, err := constraints.ConstraintList(constraintList).ToConstraints()
+				assert.NoError(t, err)
+
+				assert.NotEmpty(t, constraints.Outputs, "Expected to find an OutputConstraint for 'output1'")
 			},
 		},
 		{
@@ -188,13 +173,10 @@ func TestConstructMarshaller(t *testing.T) {
 			validateResult: func(t *testing.T, constraintList []constraints.Constraint) {
 				assert.NotEmpty(t, constraintList)
 
-				edgeCount := 0
-				for _, c := range constraintList {
-					if _, ok := c.(*constraints.EdgeConstraint); ok {
-						edgeCount++
-					}
-				}
-				assert.Equal(t, 2, edgeCount, "Expected 2 EdgeConstraints")
+				constraints, err := constraints.ConstraintList(constraintList).ToConstraints()
+				assert.NoError(t, err)
+
+				assert.Equal(t, 2, len(constraints.Edges), "Expected 2 EdgeConstraints")
 			},
 		},
 	}

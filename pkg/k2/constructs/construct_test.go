@@ -6,6 +6,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConstruct(t *testing.T) {
@@ -40,24 +41,14 @@ func TestNewConstruct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			constructURN, err := model.ParseURN(tt.urn)
-			if err != nil {
-				t.Fatalf("Failed to parse URN: %v", err)
-			}
+			assert.NoError(t, err)
 
 			c, err := NewConstruct(*constructURN, tt.inputs)
 			if tt.expectedErr {
-				if err == nil {
-					t.Errorf("Expected error but got nil")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-
-			if c.Inputs["Name"] != tt.expectedName {
-				t.Errorf("Expected Name to be %v, got %v", tt.expectedName, c.Inputs["Name"])
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedName, c.Inputs["Name"])
 			}
 		})
 	}
@@ -94,12 +85,8 @@ func TestGetInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			value, found := c.GetInput(tt.key)
-			if found != tt.shouldFind {
-				t.Errorf("Expected found to be %v, got %v", tt.shouldFind, found)
-			}
-			if value != tt.expected {
-				t.Errorf("Expected value to be %v, got %v", tt.expected, value)
-			}
+			assert.Equal(t, tt.shouldFind, found)
+			assert.Equal(t, tt.expected, value)
 		})
 	}
 }
@@ -116,13 +103,8 @@ func TestDeclareOutput(t *testing.T) {
 
 	c.DeclareOutput("key1", outputDecl)
 
-	if len(c.OutputDeclarations) != 1 {
-		t.Errorf("Expected 1 output declaration, got %d", len(c.OutputDeclarations))
-	}
-
-	if c.OutputDeclarations["key1"] != outputDecl {
-		t.Errorf("Expected output declaration to be %v, got %v", outputDecl, c.OutputDeclarations["key1"])
-	}
+	assert.Len(t, c.OutputDeclarations, 1)
+	assert.Equal(t, outputDecl, c.OutputDeclarations["key1"])
 }
 
 func TestOrderedBindings(t *testing.T) {
@@ -136,22 +118,12 @@ func TestOrderedBindings(t *testing.T) {
 
 	ordered := c.OrderedBindings()
 
-	if len(ordered) != 3 {
-		t.Fatalf("Expected 3 bindings, got %d", len(ordered))
-	}
-
-	if ordered[0] != b2 {
-		t.Errorf("Expected first binding to be %v, got %v", b2, ordered[0])
-	}
-
-	if ordered[1] != b1 && ordered[1] != b3 {
-		t.Errorf("Expected second binding to be either %v or %v, got %v", b1, b3, ordered[1])
-	}
-
-	if ordered[2] != b1 && ordered[2] != b3 {
-		t.Errorf("Expected third binding to be either %v or %v, got %v", b1, b3, ordered[2])
-	}
+	assert.Len(t, ordered, 3)
+	assert.Equal(t, b2, ordered[0])
+	assert.Contains(t, []*Binding{b1, b3}, ordered[1])
+	assert.Contains(t, []*Binding{b1, b3}, ordered[2])
 }
+
 func TestGetTemplateResourcesIterator(t *testing.T) {
 	mockResources := map[string]ResourceTemplate{
 		"res1": {Type: "type1", Name: "name1", Namespace: "namespace1", Properties: map[string]any{"prop1": "value1"}},
@@ -172,12 +144,11 @@ func TestGetTemplateResourcesIterator(t *testing.T) {
 	i := 0
 
 	for key, value, ok := iter.Next(); ok; key, value, ok = iter.Next() {
-		if key != keys[i] {
-			t.Errorf("Expected key '%s', got '%s'", keys[i], key)
-		}
-		if value.Type == "" || value.Name == "" || value.Namespace == "" || value.Properties == nil {
-			t.Errorf("Expected non-empty fields in ResourceTemplate for key '%s'", key)
-		}
+		assert.Equal(t, keys[i], key)
+		assert.NotEmpty(t, value.Type)
+		assert.NotEmpty(t, value.Name)
+		assert.NotEmpty(t, value.Namespace)
+		assert.NotNil(t, value.Properties)
 		i++
 	}
 }
@@ -234,20 +205,15 @@ func TestPopulateDefaultInputValues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			populateDefaultInputValues(tt.inputs, tt.templates)
 			for key, expectedValue := range tt.expected {
-				if val, ok := tt.inputs[key]; !ok || val != expectedValue {
-					t.Errorf("Expected %v for key %s, got %v", expectedValue, key, val)
-				}
+				assert.Equal(t, expectedValue, tt.inputs[key])
 			}
 		})
 	}
 }
 
-// getAbsolutePath converts a relative path to an absolute path and fails the test if an error occurs
 func getAbsolutePath(t *testing.T, path string) string {
 	absPath, err := filepath.Abs(path)
-	if err != nil {
-		t.Fatalf("Failed to get absolute path for %s: %v", path, err)
-	}
+	assert.NoError(t, err)
 	return absPath
 }
 
@@ -266,13 +232,10 @@ func TestConstructMethods(t *testing.T) {
 
 	// Parse URNs for edges
 	fromURN, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:from-bucket")
-	if err != nil {
-		t.Fatalf("Failed to parse URN: %v", err)
-	}
+	assert.NoError(t, err)
+
 	toURN, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:to-bucket")
-	if err != nil {
-		t.Fatalf("Failed to parse URN: %v", err)
-	}
+	assert.NoError(t, err)
 
 	edges = append(edges, &Edge{
 		From: ResourceRef{
@@ -300,9 +263,7 @@ func TestConstructMethods(t *testing.T) {
 	}
 
 	urn, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket")
-	if err != nil {
-		t.Fatalf("Failed to parse URN: %v", err)
-	}
+	assert.NoError(t, err)
 
 	c := &Construct{
 		ConstructTemplate: mockTemplate,
@@ -316,99 +277,71 @@ func TestConstructMethods(t *testing.T) {
 
 	t.Run("GetTemplateEdges", func(t *testing.T) {
 		edges := c.GetTemplateEdges()
-		if len(edges) != len(edgeTemplates) {
-			t.Errorf("Expected %d edges, got %d", len(edgeTemplates), len(edges))
-		}
+		assert.Len(t, edges, len(edgeTemplates))
 	})
 
 	t.Run("GetEdges and SetEdges", func(t *testing.T) {
 		c.SetEdges(edges)
 		retrievedEdges := c.GetEdges()
-		if len(retrievedEdges) != len(edges) {
-			t.Errorf("Expected %d edges, got %d", len(edges), len(retrievedEdges))
-		}
+		assert.Len(t, retrievedEdges, len(edges))
 	})
 
 	t.Run("GetInputRules", func(t *testing.T) {
 		rules := c.GetInputRules()
-		if len(rules) != len(inputRules) {
-			t.Errorf("Expected %d input rules, got %d", len(inputRules), len(rules))
-		}
+		assert.Len(t, rules, len(inputRules))
 	})
 
 	t.Run("GetTemplateOutputs", func(t *testing.T) {
 		outputs := c.GetTemplateOutputs()
-		if len(outputs) != len(outputTemplates) {
-			t.Errorf("Expected %d outputs, got %d", len(outputTemplates), len(outputs))
-		}
+		assert.Len(t, outputs, len(outputTemplates))
 	})
 
 	t.Run("GetPropertySource", func(t *testing.T) {
 		ps := c.GetPropertySource()
-		if ps == nil {
-			t.Errorf("Expected PropertySource, got nil")
-		}
+		assert.NotNil(t, ps)
 	})
 
 	t.Run("GetResource and SetResource", func(t *testing.T) {
 		resource := &Resource{}
 		c.SetResource("resource1", resource)
 		retrievedResource, ok := c.GetResource("resource1")
-		if !ok {
-			t.Errorf("Expected resource to be found, got not found")
-		}
-		if retrievedResource != resource {
-			t.Errorf("Expected %v, got %v", resource, retrievedResource)
-		}
+		assert.True(t, ok)
+		assert.Equal(t, resource, retrievedResource)
 	})
 
 	t.Run("GetResources", func(t *testing.T) {
 		retrievedResources := c.GetResources()
-		if len(retrievedResources) != len(resources) {
-			t.Errorf("Expected %d resources, got %d", len(resources), len(retrievedResources))
-		}
+		assert.Len(t, retrievedResources, len(resources))
 	})
 
 	t.Run("GetInitialGraph", func(t *testing.T) {
 		graph := c.GetInitialGraph()
-		if graph != initialGraph {
-			t.Errorf("Expected initial graph %v, got %v", initialGraph, graph)
-		}
+		assert.Equal(t, initialGraph, graph)
 	})
 
 	t.Run("GetTemplateInputs", func(t *testing.T) {
 		inputs := c.GetTemplateInputs()
-		if len(inputs) != len(inputTemplates) {
-			t.Errorf("Expected %d inputs, got %d", len(inputTemplates), len(inputs))
-		}
+		assert.Len(t, inputs, len(inputTemplates))
 	})
 
 	t.Run("GetURN", func(t *testing.T) {
 		retrievedURN := c.GetURN()
-		if retrievedURN != *urn {
-			t.Errorf("Expected URN %v, got %v", *urn, retrievedURN)
-		}
+		assert.Equal(t, *urn, retrievedURN)
 	})
 
 	t.Run("Edge.PrettyPrint", func(t *testing.T) {
 		expected := "from-resource#from-property -> to-resource#to-property"
-		if edges[0].PrettyPrint() != expected {
-			t.Errorf("Expected PrettyPrint to be %s, got %s", expected, edges[0].PrettyPrint())
-		}
+		assert.Equal(t, expected, edges[0].PrettyPrint())
 	})
 
 	t.Run("Edge.String", func(t *testing.T) {
 		expected := "from-resource#from-property -> to-resource#to-property :: {}"
-		if edges[0].String() != expected {
-			t.Errorf("Expected String to be %s, got %s", expected, edges[0].String())
-		}
+		assert.Equal(t, expected, edges[0].String())
 	})
 
 	t.Run("ResourceRef.String", func(t *testing.T) {
 		refURN, err := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:resource")
-		if err != nil {
-			t.Fatalf("Failed to parse URN: %v", err)
-		}
+		assert.NoError(t, err)
 
 		ref := ResourceRef{
 			ConstructURN: *refURN,
@@ -417,8 +350,6 @@ func TestConstructMethods(t *testing.T) {
 			Type:         ResourceRefTypeIaC,
 		}
 		expected := "resource-key#property"
-		if ref.String() != expected {
-			t.Errorf("Expected String to be %s, got %s", expected, ref.String())
-		}
+		assert.Equal(t, expected, ref.String())
 	})
 }
