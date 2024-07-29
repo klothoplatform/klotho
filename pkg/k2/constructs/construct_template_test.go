@@ -5,6 +5,7 @@ import (
 
 	"github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,19 +33,14 @@ func TestUnmarshalConstructTemplateId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var ctId ConstructTemplateId
 			err := yaml.Unmarshal([]byte(tt.input), &ctId)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !compareConstructTemplateId(ctId, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, ctId)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, ctId)
 			}
 		})
 	}
-}
-
-func compareConstructTemplateId(a, b ConstructTemplateId) bool {
-	return a.Package == b.Package && a.Name == b.Name
 }
 
 func TestParseConstructTemplateId(t *testing.T) {
@@ -70,12 +66,11 @@ func TestParseConstructTemplateId(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctId, err := ParseConstructTemplateId(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseConstructTemplateId() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !compareConstructTemplateId(ctId, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, ctId)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, ctId)
 			}
 		})
 	}
@@ -84,9 +79,7 @@ func TestParseConstructTemplateId(t *testing.T) {
 func TestConstructTemplateId_String(t *testing.T) {
 	ctId := ConstructTemplateId{Package: "package", Name: "name"}
 	expected := "package.name"
-	if ctId.String() != expected {
-		t.Errorf("Expected %v, got %v", expected, ctId.String())
-	}
+	assert.Equal(t, expected, ctId.String())
 }
 
 func TestConstructTemplateId_FromURN(t *testing.T) {
@@ -118,16 +111,14 @@ func TestConstructTemplateId_FromURN(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var ctId ConstructTemplateId
 			urn, err := model.ParseURN(tt.input)
-			if err != nil {
-				t.Fatalf("Failed to parse URN: %v", err)
-			}
-			err = ctId.FromURN(*urn)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FromURN() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && ctId != tt.expected {
-				t.Errorf("Expected %v, got %v", tt.expected, ctId)
+			if assert.NoError(t, err) {
+				err = ctId.FromURN(*urn)
+				if tt.wantErr {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+					assert.Equal(t, tt.expected, ctId)
+				}
 			}
 		})
 	}
@@ -164,19 +155,14 @@ data: {}`,
 		t.Run(tt.name, func(t *testing.T) {
 			var et EdgeTemplate
 			err := yaml.Unmarshal([]byte(tt.input), &et)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && !compareEdgeTemplates(et, tt.expected) {
-				t.Errorf("Expected %v, got %v", tt.expected, et)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, et)
 			}
 		})
 	}
-}
-
-func compareEdgeTemplates(a, b EdgeTemplate) bool {
-	return a.From == b.From && a.To == b.To && a.Data == b.Data
 }
 
 func TestConstructTemplate_UnmarshalYAML(t *testing.T) {
@@ -273,21 +259,8 @@ input_rules:
 
 	var ct ConstructTemplate
 	err := yaml.Unmarshal([]byte(input), &ct)
-	if err != nil {
-		t.Fatalf("Failed to unmarshal YAML: %v", err)
-	}
-
-	if ct.Id != expected.Id ||
-		ct.Version != expected.Version ||
-		ct.Description != expected.Description ||
-		len(ct.Resources) != len(expected.Resources) ||
-		len(ct.Edges) != len(expected.Edges) ||
-		len(ct.Inputs) != len(expected.Inputs) ||
-		len(ct.Outputs) != len(expected.Outputs) ||
-		len(ct.InputRules) != len(expected.InputRules) ||
-		len(ct.resourceOrder) != len(expected.resourceOrder) {
-		t.Errorf("Expected %+v, got %+v", expected, ct)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, expected, ct)
 }
 
 func TestBindingTemplate_ResourcesIterator(t *testing.T) {
@@ -305,15 +278,15 @@ func TestBindingTemplate_ResourcesIterator(t *testing.T) {
 	i := 0
 
 	for key, value, ok := iter.Next(); ok; key, value, ok = iter.Next() {
-		if key != keys[i] {
-			t.Errorf("Expected key '%s', got '%s'", keys[i], key)
-		}
-		if value.Type == "" || value.Name == "" || value.Namespace == "" || value.Properties == nil {
-			t.Errorf("Expected non-empty fields in ResourceTemplate for key '%s'", key)
-		}
+		assert.Equal(t, keys[i], key)
+		assert.NotEmpty(t, value.Type)
+		assert.NotEmpty(t, value.Name)
+		assert.NotEmpty(t, value.Namespace)
+		assert.NotEmpty(t, value.Properties)
 		i++
 	}
 }
+
 func TestIterator_ForEach(t *testing.T) {
 	source := map[string]ResourceTemplate{
 		"res1": {Type: "type1", Name: "name1", Namespace: "namespace1", Properties: map[string]any{"prop1": "value1"}},
@@ -336,20 +309,14 @@ func TestIterator_ForEach(t *testing.T) {
 		return nil
 	})
 
-	if len(keys) != len(order) {
-		t.Errorf("Expected keys length %d, got %d", len(order), len(keys))
-	}
+	assert.Equal(t, len(order), len(keys))
 	for i, key := range keys {
-		if key != order[i] {
-			t.Errorf("Expected key '%s', got '%s'", order[i], key)
-		}
+		assert.Equal(t, order[i], key)
 	}
 
 	for i, value := range values {
 		expectedValue := source[order[i]]
-		if !compareResourceTemplates(value, expectedValue) {
-			t.Errorf("Expected %+v, got %+v", expectedValue, value)
-		}
+		assert.True(t, compareResourceTemplates(value, expectedValue))
 	}
 }
 
@@ -362,6 +329,89 @@ func compareResourceTemplates(a, b ResourceTemplate) bool {
 	}
 	for k, v := range a.Properties {
 		if bv, ok := b.Properties[k]; !ok || v != bv {
+			return false
+		}
+	}
+	return true
+}
+
+func TestBindingTemplate_UnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected BindingTemplate
+		wantErr  bool
+	}{
+		{
+			name: "Valid BindingTemplate",
+			input: `
+resources:
+  res1:
+    type: "type1"
+    name: "name1"
+    namespace: "namespace1"
+    properties:
+      prop1: "value1"
+  res2:
+    type: "type2"
+    name: "name2"
+    namespace: "namespace2"
+    properties:
+      prop2: "value2"
+edges:
+  - from: res1
+    to: res2
+    data: {}`,
+			expected: BindingTemplate{
+				Resources: map[string]ResourceTemplate{
+					"res1": {Type: "type1", Name: "name1", Namespace: "namespace1", Properties: map[string]any{"prop1": "value1"}},
+					"res2": {Type: "type2", Name: "name2", Namespace: "namespace2", Properties: map[string]any{"prop2": "value2"}},
+				},
+				Edges: []EdgeTemplate{
+					{
+						From: ResourceRef{ResourceKey: "res1", Type: ResourceRefTypeTemplate},
+						To:   ResourceRef{ResourceKey: "res2", Type: ResourceRefTypeTemplate},
+						Data: construct.EdgeData{},
+					},
+				},
+				resourceOrder: []string{"res1", "res2"},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Invalid BindingTemplate",
+			input:   `invalid`, // This should trigger a YAML unmarshaling error
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bt BindingTemplate
+			err := yaml.Unmarshal([]byte(tt.input), &bt)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && !compareBindingTemplates(bt, tt.expected) {
+				t.Errorf("Expected %v, got %v", tt.expected, bt)
+			}
+		})
+	}
+}
+
+func compareBindingTemplates(a, b BindingTemplate) bool {
+	if !compareResourceTemplates(a.Resources["res1"], b.Resources["res1"]) {
+		return false
+	}
+	if !compareResourceTemplates(a.Resources["res2"], b.Resources["res2"]) {
+		return false
+	}
+	if len(a.Edges) != len(b.Edges) {
+		return false
+	}
+	for i, edge := range a.Edges {
+		if edge.From != b.Edges[i].From || edge.To != b.Edges[i].To || edge.Data != b.Edges[i].Data {
 			return false
 		}
 	}
