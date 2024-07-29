@@ -279,7 +279,7 @@ func (m *model) viewVerbose() string {
 		cm := m.constructs[c]
 
 		var lines []boxLine
-		addLine := func(s string) { // convenince function because most lines are regular content
+		addLine := func(s string) { // convenience function because most lines are regular content
 			lines = append(lines, boxLine{Content: s})
 		}
 
