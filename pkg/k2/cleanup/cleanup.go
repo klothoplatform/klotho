@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"go.uber.org/zap"
@@ -13,12 +14,19 @@ import (
 type Callback func(signal syscall.Signal) error
 
 var callbacks []Callback
+var callbackMu sync.Mutex
 
 func OnKill(callback Callback) {
+	callbackMu.Lock()
+	defer callbackMu.Unlock()
+
 	callbacks = append(callbacks, callback)
 }
 
 func Execute(signal syscall.Signal) error {
+	callbackMu.Lock()
+	defer callbackMu.Unlock()
+
 	var errs []error
 
 	for _, cb := range callbacks {
