@@ -15,7 +15,7 @@ import (
 
 func TestConstructMarshaller(t *testing.T) {
 	mockEvaluator := &ConstructEvaluator{
-		constructs: &async.ConcurrentMap[model.URN, *Construct]{},
+		Constructs: async.ConcurrentMap[model.URN, *Construct]{},
 	}
 	constructURN, _ := model.ParseURN("urn:accountid:project:dev::construct/klotho.aws.Bucket:my-bucket")
 	mockConstruct := &Construct{
@@ -52,7 +52,7 @@ func TestConstructMarshaller(t *testing.T) {
 			},
 		},
 	}
-	mockEvaluator.constructs.Set(*constructURN, mockConstruct)
+	mockEvaluator.Constructs.Set(*constructURN, mockConstruct)
 	marshaller := ConstructMarshaller{ConstructEvaluator: mockEvaluator}
 
 	tests := []struct {
@@ -183,7 +183,7 @@ func TestConstructMarshaller(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockEvaluator.constructs.Set(*constructURN, tt.mockConstruct)
+			mockEvaluator.Constructs.Set(*constructURN, tt.mockConstruct)
 			constraintList, err := marshaller.Marshal(*constructURN)
 			assert.NoError(t, err, "Marshal() error = %v", err)
 			tt.validateResult(t, constraintList)
