@@ -1,11 +1,11 @@
 resources:
-    aws:api_stage:my-api-api:api_stage-0:
+    aws:api_stage:my-api-api:my-api-stage:
         Deployment: aws:api_deployment:my-api-api:api_deployment-0
         RestApi: aws:rest_api:my-api-api
-        StageName: stage
+        StageName: api
         Tags:
             GLOBAL_KLOTHO_TAG: k2
-            RESOURCE_NAME: api_stage-0
+            RESOURCE_NAME: my-api-stage
     aws:subnet:default-network-vpc:default-network-public-subnet-1:
         CidrBlock: 10.0.0.0/18
         Id: preview(id=aws:subnet:default-network-vpc:default-network-public-subnet-1)
@@ -180,8 +180,8 @@ resources:
             RESOURCE_NAME: default-network-vpc
         imported: true
 edges:
-    aws:api_stage:my-api-api:api_stage-0 -> aws:api_deployment:my-api-api:api_deployment-0:
-    aws:api_stage:my-api-api:api_stage-0 -> aws:rest_api:my-api-api:
+    aws:api_stage:my-api-api:my-api-stage -> aws:api_deployment:my-api-api:api_deployment-0:
+    aws:api_stage:my-api-api:my-api-stage -> aws:rest_api:my-api-api:
     aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
     aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
     aws:target_group:my-container-tg -> aws:ecs_service:my-container-service:
@@ -206,4 +206,6 @@ edges:
     aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:vpc:default-network-vpc:
     aws:security_group:default-network-vpc:my-container-service-security_group -> aws:ecs_service:my-container-service:
     aws:security_group:default-network-vpc:my-container-service-security_group -> aws:vpc:default-network-vpc:
-outputs: {}
+outputs:
+    Endpoint:
+        ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl

@@ -68,15 +68,16 @@ const api_deployment_0 = new aws.apigateway.Deployment(
             dependsOn: [my_api_api, my_container, my_container_api_method],
         }
     )
-const api_stage_0 = new aws.apigateway.Stage("api_stage-0", {
+const my_api_stage = new aws.apigateway.Stage("my-api-stage", {
         deployment: api_deployment_0.id,
         restApi: my_api_api.id,
-        stageName: "stage",
-        tags: {GLOBAL_KLOTHO_TAG: "k2", RESOURCE_NAME: "api_stage-0"},
+        stageName: "api",
+        tags: {GLOBAL_KLOTHO_TAG: "k2", RESOURCE_NAME: "my-api-stage"},
     })
-export const api_stage_0_Url = api_stage_0.invokeUrl
+export const my_api_stage_Url = my_api_stage.invokeUrl
 
 export const $outputs = {
+	Endpoint: my_api_stage.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
 }
 
 export const $urns = {
@@ -95,5 +96,5 @@ export const $urns = {
 	"aws:vpc_link:my-container-api-my-container-lb": (my_container_api_my_container_lb as any).urn,
 	"aws:api_integration:my-api-api:my-container": (my_container as any).urn,
 	"aws:api_deployment:my-api-api:api_deployment-0": (api_deployment_0 as any).urn,
-	"aws:api_stage:my-api-api:api_stage-0": (api_stage_0 as any).urn,
+	"aws:api_stage:my-api-api:my-api-stage": (my_api_stage as any).urn,
 }

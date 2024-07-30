@@ -17,11 +17,20 @@ fi
 echo "Running $name"
 
 # Run the engine
+set +e
 echo "Using $out_dir as output directory"
 go run ./cmd/k2 up \
   -n=3 \
   -o "$out_dir" \
   "$infrapy" > $out_dir/out.log 2> $out_dir/err.log
+
+code=$?
+set -e
+if [ $code -ne 0 ]; then
+  echo "Engine failed with exit code $code"
+  cat $out_dir/err.log
+  exit 1
+fi
 
 # note: 'go run' always returns exit code 1 if the program returns any non-zero
 # so using $? to capture it won't work. We'd need to build and run the binary

@@ -4,12 +4,25 @@ constraints:
       node: aws:api_integration:my-api:my-container
     - scope: application
       operator: must_exist
+      node: aws:api_stage:my-api-api:my-api-stage
+    - scope: application
+      operator: must_exist
       node: aws:rest_api:my-api-api
     - scope: resource
       operator: equals
       target: aws:api_integration:my-api:my-container
       property: Route
       value: /
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: RestApi
+      value: aws:rest_api:my-api-api
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: StageName
+      value: api
     - scope: edge
       operator: must_exist
       target:
@@ -22,6 +35,11 @@ constraints:
         source: aws:rest_api:my-api-api
         target: aws:api_integration:my-api:my-container
       data: {}
+    - scope: output
+      operator: must_exist
+      ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+      name: Endpoint
+      value: null
 resources:
     aws:load_balancer:api-my-container-lb:
         Id: preview(id=aws:load_balancer:api-my-container-lb)
