@@ -48,6 +48,6 @@ jobs:
           node-version: 20
           cache: npm
       - name: Install
-        run: npm install prettier
+        run: npm ci
       - name: Run
-        run: prettier -c pkg/**/*.ts
+        run: npx -c 'prettier -c pkg/**/*.ts'
