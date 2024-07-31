@@ -62,29 +62,37 @@ func stringTo(g Graph, w io.Writer) error {
 		return err
 	}
 
-	for _, id := range topo {
-		_, err := fmt.Fprintf(w, "%q\n", id)
+	var errs []error
+	write := func(format string, args ...any) {
+		_, err := fmt.Fprintf(w, format, args...)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
+	}
+
+	for _, id := range topo {
+		write("%q", id)
 
 		targets := make([]ResourceId, 0, len(adjacent[id]))
 		for t := range adjacent[id] {
 			targets = append(targets, t)
 		}
 		sort.Sort(SortedIds(targets))
+		if len(targets) > 1 {
+			write("\n")
+		} else if len(targets) == 1 {
+			write(" ")
+		}
 
 		for _, t := range targets {
 			e := adjacent[id][t]
-			weight := ""
-			if e.Properties.Weight > 1 {
-				weight = fmt.Sprintf(" (weight=%d)", e.Properties.Weight)
-			}
 			// Adjacent edges always have `id` as the source, so just write the target.
-			_, err := fmt.Fprintf(w, "-> %q%s\n", t, weight)
-			if err != nil {
-				return err
+			write("-> %q", t)
+
+			if e.Properties.Weight > 1 {
+				write(" (weight=%d)", e.Properties.Weight)
 			}
+			write("\n")
 		}
 	}
 	return nil

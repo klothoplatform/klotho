@@ -1,86 +1,142 @@
 package kbtesting
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/dominikbraun/graph"
-	construct "github.com/klothoplatform/klotho/pkg/construct"
-	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
-	"github.com/stretchr/testify/mock"
+	"github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
-type MockKB struct {
-	mock.Mock
+func StringToGraphElement(e string) (any, error) {
+	var errs []error
+	if !strings.Contains(e, "->") {
+		parts := strings.Split(e, ":")
+		if len(parts) != 2 {
+			errs = append(errs, fmt.Errorf("invalid resource ID %q", e))
+		} else {
+			return &knowledgebase.ResourceTemplate{
+				QualifiedTypeName: e,
+			}, nil
+		}
+	}
+
+	var path construct.Path
+	pathErr := path.Parse(e)
+	if len(path) > 1 {
+		ets := make([]*knowledgebase.EdgeTemplate, len(path)-1)
+		for i, id := range path {
+			if id.Provider == "" || id.Type == "" {
+				return nil, fmt.Errorf("missing provider or type in path element %d", i)
+			}
+			if i == 0 {
+				continue
+			}
+			ets[i-1] = &knowledgebase.EdgeTemplate{
+				Source: path[i-1],
+				Target: id,
+			}
+		}
+		return ets, nil
+	} else if pathErr == nil {
+		pathErr = fmt.Errorf("path must have at least two elements (got %d)", len(path))
+	}
+	errs = append(errs, pathErr)
+
+	return nil, errors.Join(errs...)
 }
 
-func (m *MockKB) ListResources() []*knowledgebase.ResourceTemplate {
-	args := m.Called()
-	return args.Get(0).([]*knowledgebase.ResourceTemplate)
+// AddElement is a utility function for adding an element to a graph. See [MakeGraph] for more information on supported
+// element types. Returns whether adding the element failed.
+func AddElement(t *testing.T, g knowledgebase.Graph, e any) (failed bool) {
+	must := func(err error) {
+		if err != nil {
+			t.Error(err)
+			failed = true
+		}
+	}
+	if estr, ok := e.(string); ok {
+		var err error
+		e, err = StringToGraphElement(estr)
+		if err != nil {
+			t.Errorf("invalid element %q (type %[1]T) Parse errors: %v", e, err)
+			return true
+		}
+	}
+
+	addIfMissing := func(res *knowledgebase.ResourceTemplate) {
+		err := g.AddVertex(res)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			t.Errorf("could add vertex %s: %v", res.QualifiedTypeName, err)
+			failed = true
+		}
+	}
+
+	addEdge := func(e *knowledgebase.EdgeTemplate) {
+		must(g.AddEdge(e.Source.QualifiedTypeName(), e.Target.QualifiedTypeName(), graph.EdgeData(e)))
+	}
+
+	switch e := e.(type) {
+	case knowledgebase.ResourceTemplate:
+		addIfMissing(&e)
+
+	case *knowledgebase.ResourceTemplate:
+		addIfMissing(e)
+
+	case knowledgebase.EdgeTemplate:
+		addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: e.Source.QualifiedTypeName()})
+		addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: e.Target.QualifiedTypeName()})
+		addEdge(&e)
+
+	case *knowledgebase.EdgeTemplate:
+		addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: e.Source.QualifiedTypeName()})
+		addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: e.Target.QualifiedTypeName()})
+		addEdge(e)
+
+	case []*knowledgebase.EdgeTemplate:
+		for _, edge := range e {
+			addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: edge.Source.QualifiedTypeName()})
+			addIfMissing(&knowledgebase.ResourceTemplate{QualifiedTypeName: edge.Target.QualifiedTypeName()})
+			addEdge(edge)
+		}
+	default:
+		t.Errorf("invalid element of type %T", e)
+		return true
+	}
+
+	return
 }
 
-func (m *MockKB) GetModel(model string) *knowledgebase.Model {
-	args := m.Called(model)
-	return args.Get(0).(*knowledgebase.Model)
-}
+// MakeGraph is a utility function for creating a graph from a list of elements which can be of types:
+// - ResourceId : adds an empty resource with the given ID
+// - Resource, *Resource : adds the given resource
+// - Edge : adds the given edge
+// - Path : adds all the edges in the path
+// - string : parses the string as either a ResourceId or an Edge and add it as above
+//
+// The input graph is so it can be either via NewGraph or NewAcyclicGraph.
+// Users are encouraged to wrap this function for the specific test function for ease of use, such as:
+//
+//	makeGraph := func(elements ...any) Graph {
+//		return MakeGraph(t, NewGraph(), elements...)
+//	}
+func MakeKB(t *testing.T, elements ...any) *knowledgebase.KnowledgeBase {
+	kb := knowledgebase.NewKB()
+	failed := false
+	for i, e := range elements {
+		elemFailed := AddElement(t, kb.Graph(), e)
+		if elemFailed {
+			t.Errorf("failed to add element[%d] (%v) to graph", i, e)
+			failed = true
+		}
+	}
+	if failed {
+		// Fail now because if the graph didn't parse correctly, then the rest of the test is likely to fail
+		t.FailNow()
+	}
 
-func (m *MockKB) Edges() ([]graph.Edge[*knowledgebase.ResourceTemplate], error) {
-	args := m.Called()
-	return args.Get(0).([]graph.Edge[*knowledgebase.ResourceTemplate]), args.Error(1)
-}
-
-func (m *MockKB) AddResourceTemplate(template *knowledgebase.ResourceTemplate) error {
-	args := m.Called(template)
-	return args.Error(0)
-}
-func (m *MockKB) AddEdgeTemplate(template *knowledgebase.EdgeTemplate) error {
-	args := m.Called(template)
-	return args.Error(0)
-}
-func (m *MockKB) GetResourceTemplate(id construct.ResourceId) (*knowledgebase.ResourceTemplate, error) {
-	args := m.Called(id)
-	return args.Get(0).(*knowledgebase.ResourceTemplate), args.Error(1)
-}
-func (m *MockKB) GetEdgeTemplate(from, to construct.ResourceId) *knowledgebase.EdgeTemplate {
-	args := m.Called(from, to)
-	return args.Get(0).(*knowledgebase.EdgeTemplate)
-}
-func (m *MockKB) HasDirectPath(from, to construct.ResourceId) bool {
-	args := m.Called(from, to)
-	return args.Bool(0)
-}
-func (m *MockKB) HasFunctionalPath(from, to construct.ResourceId) bool {
-	args := m.Called(from, to)
-	return args.Bool(0)
-}
-func (m *MockKB) AllPaths(from, to construct.ResourceId) ([][]*knowledgebase.ResourceTemplate, error) {
-	args := m.Called(from, to)
-	return args.Get(0).([][]*knowledgebase.ResourceTemplate), args.Error(1)
-}
-func (m *MockKB) GetAllowedNamespacedResourceIds(
-	ctx knowledgebase.DynamicValueContext,
-	resourceId construct.ResourceId,
-) ([]construct.ResourceId, error) {
-	args := m.Called(ctx, resourceId)
-	return args.Get(0).([]construct.ResourceId), args.Error(1)
-}
-func (m *MockKB) GetFunctionality(id construct.ResourceId) knowledgebase.Functionality {
-	args := m.Called(id)
-	return args.Get(0).(knowledgebase.Functionality)
-}
-func (m *MockKB) GetClassification(id construct.ResourceId) knowledgebase.Classification {
-	args := m.Called(id)
-	return args.Get(0).(knowledgebase.Classification)
-}
-func (m *MockKB) GetResourcesNamespaceResource(resource *construct.Resource) (construct.ResourceId, error) {
-	args := m.Called(resource)
-	return args.Get(0).(construct.ResourceId), args.Error(1)
-}
-func (m *MockKB) GetResourcePropertyType(resource construct.ResourceId, propertyName string) string {
-	args := m.Called(resource, propertyName)
-	return args.String(0)
-}
-
-func (m *MockKB) GetPathSatisfactionsFromEdge(
-	source, target construct.ResourceId,
-) ([]knowledgebase.EdgePathSatisfaction, error) {
-	args := m.Called(source, target)
-	return args.Get(0).([]knowledgebase.EdgePathSatisfaction), args.Error(1)
+	return kb
 }

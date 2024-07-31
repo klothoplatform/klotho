@@ -3,6 +3,7 @@ package path_selection
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
@@ -67,7 +68,7 @@ func GetPaths(
 						}
 
 					}
-					if !PathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
+					if !pathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
 						continue PATHS
 					}
 					if !pathValidityChecks(source, target, path) {
@@ -178,4 +179,64 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	return
+}
+
+func pathSatisfiesClassification(
+	kb knowledgebase.TemplateKB,
+	path []construct.ResourceId,
+	classification string,
+) bool {
+	if containsUnneccessaryHopsInPath(path, kb) {
+		return false
+	}
+	if classification == "" {
+		return true
+	}
+	metClassification := false
+	for i, res := range path {
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil || slices.Contains(resTemplate.PathSatisfaction.DenyClassifications, classification) {
+			return false
+		}
+		if slices.Contains(resTemplate.Classification.Is, classification) {
+			metClassification = true
+		}
+		if i > 0 {
+			et := kb.GetEdgeTemplate(path[i-1], res)
+			if slices.Contains(et.Classification, classification) {
+				metClassification = true
+			}
+		}
+	}
+	return metClassification
+}
+
+// containsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
+//
+// We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
+// is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
+// in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
+func containsUnneccessaryHopsInPath(p []construct.ResourceId, kb knowledgebase.TemplateKB) bool {
+	if len(p) == 2 {
+		return false
+	}
+	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
+	for i, res := range p {
+
+		// We know that we can skip over the initial source and dest since those are the original edges passed in
+		if i == 0 || i == len(p)-1 {
+			continue
+		}
+
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil {
+			return true
+		}
+		resFunctionality := resTemplate.GetFunctionality()
+		// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
+		if resFunctionality != knowledgebase.Unknown {
+			return true
+		}
+	}
+	return false
 }

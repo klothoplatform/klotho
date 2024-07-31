@@ -19,6 +19,10 @@ func ClassPaths(
 	if err != nil {
 		return err
 	}
+	startTmpl, err := kb.Vertex(start)
+	if err != nil {
+		return fmt.Errorf("failed to find start template: %w", err)
+	}
 	return classPaths(
 		kb,
 		adjacencyMap,
@@ -26,7 +30,7 @@ func ClassPaths(
 		classification,
 		cb,
 		[]string{start},
-		classification == "",
+		classification == "" || slices.Contains(startTmpl.Classification.Is, classification),
 	)
 }
 
