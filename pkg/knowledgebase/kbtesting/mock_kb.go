@@ -49,7 +49,7 @@ func StringToGraphElement(e string) (any, error) {
 	return nil, errors.Join(errs...)
 }
 
-// AddElement is a utility function for adding an element to a graph. See [MakeGraph] for more information on supported
+// AddElement is a utility function for adding an element to a graph. See [MakeKB] for more information on supported
 // element types. Returns whether adding the element failed.
 func AddElement(t *testing.T, g knowledgebase.Graph, e any) (failed bool) {
 	must := func(err error) {
@@ -110,19 +110,11 @@ func AddElement(t *testing.T, g knowledgebase.Graph, e any) (failed bool) {
 	return
 }
 
-// MakeGraph is a utility function for creating a graph from a list of elements which can be of types:
-// - ResourceId : adds an empty resource with the given ID
-// - Resource, *Resource : adds the given resource
-// - Edge : adds the given edge
-// - Path : adds all the edges in the path
-// - string : parses the string as either a ResourceId or an Edge and add it as above
-//
-// The input graph is so it can be either via NewGraph or NewAcyclicGraph.
-// Users are encouraged to wrap this function for the specific test function for ease of use, such as:
-//
-//	makeGraph := func(elements ...any) Graph {
-//		return MakeGraph(t, NewGraph(), elements...)
-//	}
+// MakeKB is a utility function for creating a KnowledgeBase from a list of elements which can be of types:
+// - ResourceTemplate, *ResourceTemplate : adds the given resource template
+// - EdgeTemplate, *EdgeTemplate : adds the given edge template
+// - []*EdgeTemplate : adds all the edges in the list
+// - string : parses the string as either a QualifiedTypeName or a path of QualifiedTypeNames and adds as empty templates
 func MakeKB(t *testing.T, elements ...any) *knowledgebase.KnowledgeBase {
 	kb := knowledgebase.NewKB()
 	failed := false
