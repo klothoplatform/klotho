@@ -39,6 +39,27 @@
             ]
         },
         {
+            "name": "KB",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "./cmd/kb",
+            "cwd": "${workspaceFolder}",
+            "args": [
+                "-v",
+                "-c",
+                "network",
+                "aws:subnet",
+                "aws:route_table",
+            ],
+            "env": {
+                "BROWSER": "none",
+                "INFRACOPILOT_URL": "http://localhost:3000",
+                "AUTH_DOMAIN": "klotho-dev.us.auth0.com",
+                "AUTH_CLIENT_ID": "A0sIE3wvh8LpG8mtJEjWPnBqZgBs5cNM"
+            }
+        },
+        {
             "name": "Klotho",
             "type": "go",
             "request": "launch",
@@ -60,25 +81,6 @@
             }
         },
         {
-            "name": "k2",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "./cmd/k2",
-            "cwd": "${workspaceFolder}",
-            "args": [
-                "up",
-                "-v",
-                "-o=${workspaceFolder}/out",
-                "--profiling=${workspaceFolder}/out/k2.prof",
-                "--dry-run",
-                "${file}"
-            ],
-            "env": {
-                "KLOTHO_DEBUG_DIR": "${workspaceFolder}/out"
-            }
-        },
-        {
             "name": "Debug: k2",
             "type": "go",
             "request": "launch",
@@ -88,7 +90,7 @@
             "args": [
                 "up",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "-n=1",
                 "--debug=vscode",
@@ -120,7 +122,7 @@
             "args": [
                 "up",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/deploy.prof",
                 "${file}"
             ],
@@ -140,7 +142,7 @@
             "args": [
                 "down",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/destroy.prof",
                 "${file}"
             ],

@@ -35,7 +35,7 @@ type (
 
 	// KnowledgeBase is a struct that represents the object which contains the knowledge of how to make resources operational
 	KnowledgeBase struct {
-		underlying graph.Graph[string, *ResourceTemplate]
+		underlying Graph
 		Models     map[string]*Model
 	}
 
@@ -51,6 +51,8 @@ type (
 		Value    any
 		Template *template.Template
 	}
+
+	Graph = graph.Graph[string, *ResourceTemplate]
 )
 
 const (
@@ -67,7 +69,7 @@ func NewKB() *KnowledgeBase {
 	}
 }
 
-func (kb *KnowledgeBase) Graph() graph.Graph[string, *ResourceTemplate] {
+func (kb *KnowledgeBase) Graph() Graph {
 	return kb.underlying
 }
 

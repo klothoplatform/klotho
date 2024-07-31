@@ -9,13 +9,17 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/dot"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
-func dotAttributes(kb knowledgebase.TemplateKB, r *construct.Resource) map[string]string {
+func dotAttributes(kb knowledgebase.TemplateKB, r *construct.Resource, props graph.VertexProperties) map[string]string {
 	a := make(map[string]string)
+	for k, v := range props.Attributes {
+		a[k] = v
+	}
 	a["label"] = r.ID.String()
 	a["shape"] = "box"
 	tmpl, _ := kb.GetResourceTemplate(r.ID)
@@ -54,20 +58,26 @@ func GraphToDOT(kb knowledgebase.TemplateKB, g construct.Graph, out io.Writer) e
 	if err != nil {
 		return err
 	}
-	nodes, err := construct.ResolveIds(g, ids)
-	if err != nil {
-		return err
-	}
-	var errs error
+	var errs []error
 	printf := func(s string, args ...any) {
 		_, err := fmt.Fprintf(out, s, args...)
-		errs = errors.Join(errs, err)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	printf(`digraph {
   rankdir = TB
 `)
-	for _, n := range nodes {
-		printf("  %q%s\n", n.ID, dot.AttributesToString(dotAttributes(kb, n)))
+	for _, id := range ids {
+		n, props, err := g.VertexWithProperties(id)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		printf("  %q%s\n", n.ID, dot.AttributesToString(dotAttributes(kb, n, props)))
+	}
+	if err := errors.Join(errs...); err != nil {
+		return err
 	}
 
 	topoIndex := func(id construct.ResourceId) int {
@@ -93,13 +103,13 @@ func GraphToDOT(kb knowledgebase.TemplateKB, g construct.Graph, out io.Writer) e
 	for _, e := range edges {
 		edge, err := g.Edge(e.Source, e.Target)
 		if err != nil {
-			errs = errors.Join(errs, err)
+			errs = append(errs, err)
 			continue
 		}
 		printf("  %q -> %q%s\n", e.Source, e.Target, dot.AttributesToString(dotEdgeAttributes(kb, g, edge)))
 	}
 	printf("}\n")
-	return errs
+	return errors.Join(errs...)
 }
 
 func GraphToSVG(kb knowledgebase.TemplateKB, g construct.Graph, prefix string) error {

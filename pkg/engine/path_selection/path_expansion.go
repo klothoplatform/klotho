@@ -436,7 +436,7 @@ func expandPath(
 	// 2. If the edge exists, and its template specifies it is unique, only add it if it's an existing edge
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
-		weight := calculateEdgeWeight(
+		weight := CalculateEdgeWeight(
 			construct.SimpleEdge{Source: input.SatisfactionEdge.Source.ID, Target: input.SatisfactionEdge.Target.ID},
 			source.id, target.id,
 			source.divideWeightBy, target.divideWeightBy,

@@ -11,6 +11,7 @@ import (
 )
 
 func AssertGraphEqual(t *testing.T, expect, actual construct.Graph, message string, args ...any) {
+	t.Helper()
 	assert := assert.New(t)
 	must := func(v any, err error) any {
 		if err != nil {
@@ -36,6 +37,7 @@ func AssertGraphEqual(t *testing.T, expect, actual construct.Graph, message stri
 }
 
 func AssertGraphContains(t *testing.T, expect, actual construct.Graph) {
+	t.Helper()
 	assert := assert.New(t)
 	must := func(v any, err error) any {
 		if err != nil {
