@@ -35,9 +35,9 @@ func newDownCmd() *cobra.Command {
 		RunE:  down,
 	}
 	flags := downCommand.Flags()
-	flags.StringVar(&upConfig.stateDir, "state-dir", "", "State directory")
-	flags.StringVar(&upConfig.debugMode, "debug", "", "Debug mode")
-	flags.IntVar(&upConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
+	flags.StringVar(&downConfig.stateDir, "state-directory", "", "State directory")
+	flags.StringVar(&downConfig.debugMode, "debug", "", "Debug mode")
+	flags.IntVar(&downConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
 	return downCommand
 
 }
@@ -143,7 +143,7 @@ func down(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		upConfig.stateDir = filepath.Join(homeDir, ".k2")
+		downConfig.stateDir = filepath.Join(homeDir, ".k2")
 	}
 
 	debugDir := debug.GetDebugDir(cmd.Context())

@@ -84,7 +84,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/k2",
-            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
+            "cwd": "${fileDirname}",
             "args": [
                 "up",
                 "-v=3",
@@ -116,7 +116,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/k2",
-            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
+            "cwd": "${fileDirname}",
             "args": [
                 "up",
                 "-v=3",
@@ -136,7 +136,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/k2",
-            "cwd": "${workspaceFolder}/pkg/k2/language_host/python/samples",
+            "cwd": "${fileDirname}",
             "args": [
                 "down",
                 "-v=3",

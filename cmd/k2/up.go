@@ -32,7 +32,7 @@ func newUpCmd() *cobra.Command {
 		RunE:  up,
 	}
 	flags := upCommand.Flags()
-	flags.StringVar(&upConfig.stateDir, "state-dir", "", "State directory")
+	flags.StringVar(&upConfig.stateDir, "state-directory", "", "State directory")
 	flags.StringVarP(&upConfig.region, "region", "r", "us-west-2", "AWS region")
 	flags.StringVar(&upConfig.debugMode, "debug", "", "Debug mode")
 	flags.IntVar(&upConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
