@@ -64,6 +64,14 @@ func up(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(ctx)
 	}
 
+	err = InstallDependencies(ctx, []CliDependencyConfig{
+		{Dependency: CliDependencyPulumi, Optional: false},
+	})
+
+	if err != nil {
+		return fmt.Errorf("error installing dependencies: %w", err)
+	}
+
 	log := logging.GetLogger(ctx).Sugar()
 
 	var langHost language_host.LanguageHost

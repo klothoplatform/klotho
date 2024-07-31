@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/klothoplatform/klotho/pkg/logging"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 
-	"github.com/klothoplatform/klotho/pkg/multierr"
 	pulumi "github.com/pulumi/pulumi/sdk/v3/go/auto"
 )
 
@@ -24,27 +26,43 @@ const (
 	CliDependencyPulumi CliDependency = "pulumi"
 )
 
+type installFunc func(ctx context.Context) error
+
 // InstallDependencies installs the dependencies specified in the configs
-func InstallDependencies(configs []CliDependencyConfig) error {
-	var err multierr.Error
+func InstallDependencies(ctx context.Context, configs []CliDependencyConfig) error {
+	var err error
+
+	var installers []installFunc
+
 	for _, config := range configs {
 		switch config.Dependency {
 		case CliDependencyDocker:
 			if isDockerInstalled() {
 				continue
 			}
-			err.Append(installDocker())
+			installers = append(installers, installDocker)
 		case CliDependencyPulumi:
 			if isPulumiInstalled() {
 				continue
 			}
-			err.Append(installPulumi())
+			installers = append(installers, installPulumi)
+		}
+	}
+
+	log := logging.GetLogger(ctx).Sugar()
+	if len(installers) > 0 {
+		log.Infof("Installing CLI dependencies...")
+	}
+
+	for _, installer := range installers {
+		if e := installer(ctx); e != nil {
+			err = errors.Join(err, e)
 		}
 	}
 	return err
 }
 
-func installDocker() error {
+func installDocker(ctx context.Context) error {
 	// Install docker
 	installUrl := ""
 	switch runtime.GOOS {
@@ -60,10 +78,15 @@ func installDocker() error {
 	return fmt.Errorf("install docker from %s", installUrl)
 }
 
-func installPulumi() error {
-	// Install pulumi
-	ctx := context.Background()
-	_, err := pulumi.InstallPulumiCommand(ctx, nil)
+func installPulumi(ctx context.Context) error {
+	pulumiHome, err := pulumiHome()
+	if err != nil {
+		return err
+	}
+
+	_, err = pulumi.InstallPulumiCommand(ctx, &pulumi.PulumiCommandOptions{
+		Root: pulumiHome,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to install pulumi: %w", err)
 	}
@@ -78,6 +101,20 @@ func isDockerInstalled() bool {
 }
 
 func isPulumiInstalled() bool {
-	_, err := pulumi.NewPulumiCommand(nil)
+	pulumiHome, err := pulumiHome()
+	if err != nil {
+		return false
+	}
+	_, err = pulumi.NewPulumiCommand(&pulumi.PulumiCommandOptions{
+		Root: pulumiHome,
+	})
 	return err == nil
+}
+
+func pulumiHome() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".k2", "pulumi"), nil
 }

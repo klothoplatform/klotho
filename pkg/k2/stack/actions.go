@@ -59,7 +59,15 @@ func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName 
 	envvars := auto.EnvVars(map[string]string{
 		"PULUMI_CONFIG_PASSPHRASE": "",
 	})
-	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, auto.PulumiHome(pulumiHomeDir), secretsProvider)
+
+	pulumiCmd, err := auto.NewPulumiCommand(&auto.PulumiCommandOptions{
+		Root: pulumiHomeDir,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stack, err := auto.UpsertStackLocalSource(ctx, stackName, stackDirectory, proj, envvars, auto.PulumiHome(pulumiHomeDir), secretsProvider, auto.Pulumi(pulumiCmd))
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create or select stack: %w", err)
 	}

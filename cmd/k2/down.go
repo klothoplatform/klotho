@@ -152,6 +152,16 @@ func down(cmd *cobra.Command, args []string) error {
 		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
 	}
 
+	ctx := cmd.Context()
+
+	err = InstallDependencies(ctx, []CliDependencyConfig{
+		{Dependency: CliDependencyPulumi, Optional: false},
+	})
+
+	if err != nil {
+		return fmt.Errorf("error installing dependencies: %w", err)
+	}
+
 	stateFile := filepath.Join(downConfig.stateDir, projectPath, "state.yaml")
 
 	osfs := afero.NewOsFs()
