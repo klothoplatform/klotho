@@ -90,7 +90,7 @@
             "args": [
                 "up",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/k2.prof",
                 "-n=1",
                 "--debug=vscode",
@@ -122,7 +122,7 @@
             "args": [
                 "up",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/deploy.prof",
                 "${file}"
             ],
@@ -142,7 +142,7 @@
             "args": [
                 "down",
                 "-v=3",
-                "-o=${workspaceFolder}/out",
+                "--state-directory=${workspaceFolder}/out",
                 "--profiling=${workspaceFolder}/out/destroy.prof",
                 "${file}"
             ],
