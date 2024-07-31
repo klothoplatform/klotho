@@ -44,8 +44,8 @@ func newDownCmd() *cobra.Command {
 
 func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
-		Port: upConfig.debugPort,
-		Mode: upConfig.debugMode,
+		Port: downConfig.debugPort,
+		Mode: downConfig.debugMode,
 	}, filepath.Dir(inputPath))
 	if err != nil {
 		return "", err
@@ -60,7 +60,7 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	log.Debug("Waiting for Python server to start")
-	if upConfig.debugMode != "" {
+	if downConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
 		<-addr.HasAddr
 	} else {
@@ -86,7 +86,7 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 
 	// make sure the ctx used later doesn't have the timeout (which is only for the IR request)
 	irCtx := ctx
-	if upConfig.debugMode == "" {
+	if downConfig.debugMode == "" {
 		var cancel context.CancelFunc
 		irCtx, cancel = context.WithTimeout(irCtx, time.Second*10)
 		defer cancel()
@@ -148,7 +148,7 @@ func down(cmd *cobra.Command, args []string) error {
 
 	debugDir := debug.GetDebugDir(cmd.Context())
 	if debugDir == "" {
-		debugDir = upConfig.stateDir
+		debugDir = downConfig.stateDir
 		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
 	}
 
