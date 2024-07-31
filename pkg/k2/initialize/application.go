@@ -99,14 +99,10 @@ func updatePipfile(ctx context.Context, outDir string) error {
 func runCommand(ctx context.Context, dir string, name string, args []string) error {
 	log := logging.GetLogger(ctx).Sugar()
 
-	cmd := logging.Command(
-		ctx,
-		logging.CommandLogger{
-			RootLogger: log.Desugar().Named(name),
-		},
-		name, args...,
-	)
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	command.SetProcAttr(cmd)
 

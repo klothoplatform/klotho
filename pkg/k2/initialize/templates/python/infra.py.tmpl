@@ -4,6 +4,6 @@ import klotho
 app = klotho.Application(
     name="{{ .AppName }}",
     project="{{ .ProjectName }}",
-    {{if .Environment}}environment="{{ .Environment }}",{{end}}
-    {{if .DefaultRegion}}default_region="{{ .DefaultRegion }}",{{end}}
+    {{- if .Environment}}environment="{{ .Environment }}",{{end}}
+    {{- if .DefaultRegion}}default_region="{{ .DefaultRegion }}",{{end}}
 )
