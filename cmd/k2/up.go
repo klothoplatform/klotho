@@ -19,10 +19,10 @@ import (
 )
 
 var upConfig struct {
-	outputPath string
-	region     string
-	debugMode  string
-	debugPort  int
+	stateDir  string
+	region    string
+	debugMode string
+	debugPort int
 }
 
 func newUpCmd() *cobra.Command {
@@ -32,10 +32,10 @@ func newUpCmd() *cobra.Command {
 		RunE:  up,
 	}
 	flags := upCommand.Flags()
-	flags.StringVarP(&upConfig.outputPath, "output", "o", "", "Output directory")
+	flags.StringVar(&upConfig.stateDir, "state-directory", "", "State directory")
 	flags.StringVarP(&upConfig.region, "region", "r", "us-west-2", "AWS region")
-	flags.StringVarP(&upConfig.debugMode, "debug", "d", "", "Debug mode")
-	flags.IntVarP(&upConfig.debugPort, "debug-port", "p", 5678, "Language Host Debug port")
+	flags.StringVar(&upConfig.debugMode, "debug", "", "Debug mode")
+	flags.IntVar(&upConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
 	return upCommand
 }
 
@@ -51,12 +51,16 @@ func up(cmd *cobra.Command, args []string) error {
 	inputPath := absolutePath
 	ctx := cmd.Context()
 
-	if upConfig.outputPath == "" {
-		upConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+	if upConfig.stateDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		upConfig.stateDir = filepath.Join(homeDir, ".k2")
 	}
 
 	if debugDir := debug.GetDebugDir(ctx); debugDir == "" {
-		ctx = debug.WithDebugDir(ctx, upConfig.outputPath)
+		ctx = debug.WithDebugDir(ctx, upConfig.stateDir)
 		cmd.SetContext(ctx)
 	}
 
@@ -88,7 +92,7 @@ func up(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("error getting URN path: %w", err)
 	}
-	appDir := filepath.Join(upConfig.outputPath, appUrnPath)
+	appDir := filepath.Join(upConfig.stateDir, appUrnPath)
 
 	// Create the app state directory
 	if err = os.MkdirAll(appDir, 0755); err != nil {

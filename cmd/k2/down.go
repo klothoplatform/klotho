@@ -23,9 +23,9 @@ import (
 )
 
 var downConfig struct {
-	outputPath string
-	debugMode  string
-	debugPort  int
+	stateDir  string
+	debugMode string
+	debugPort int
 }
 
 func newDownCmd() *cobra.Command {
@@ -35,17 +35,17 @@ func newDownCmd() *cobra.Command {
 		RunE:  down,
 	}
 	flags := downCommand.Flags()
-	flags.StringVarP(&downConfig.outputPath, "output", "o", "", "Output directory")
-	flags.StringVarP(&upConfig.debugMode, "debug", "d", "", "Debug mode")
-	flags.IntVarP(&upConfig.debugPort, "debug-port", "p", 5678, "Language Host Debug port")
+	flags.StringVar(&downConfig.stateDir, "state-directory", "", "State directory")
+	flags.StringVar(&downConfig.debugMode, "debug", "", "Debug mode")
+	flags.IntVar(&downConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
 	return downCommand
 
 }
 
 func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
-		Port: upConfig.debugPort,
-		Mode: upConfig.debugMode,
+		Port: downConfig.debugPort,
+		Mode: downConfig.debugMode,
 	}, filepath.Dir(inputPath))
 	if err != nil {
 		return "", err
@@ -60,7 +60,7 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	log := logging.GetLogger(ctx).Sugar()
 
 	log.Debug("Waiting for Python server to start")
-	if upConfig.debugMode != "" {
+	if downConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
 		<-addr.HasAddr
 	} else {
@@ -86,7 +86,7 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 
 	// make sure the ctx used later doesn't have the timeout (which is only for the IR request)
 	irCtx := ctx
-	if upConfig.debugMode == "" {
+	if downConfig.debugMode == "" {
 		var cancel context.CancelFunc
 		irCtx, cancel = context.WithTimeout(irCtx, time.Second*10)
 		defer cancel()
@@ -138,17 +138,21 @@ func down(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid number of arguments (%d) expected 4", len(args))
 	}
 
-	if downConfig.outputPath == "" {
-		downConfig.outputPath = filepath.Join(filepath.Dir(absolutePath), ".k2")
+	if downConfig.stateDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		downConfig.stateDir = filepath.Join(homeDir, ".k2")
 	}
 
 	debugDir := debug.GetDebugDir(cmd.Context())
 	if debugDir == "" {
-		debugDir = upConfig.outputPath
+		debugDir = downConfig.stateDir
 		cmd.SetContext(debug.WithDebugDir(cmd.Context(), debugDir))
 	}
 
-	stateFile := filepath.Join(downConfig.outputPath, projectPath, "state.yaml")
+	stateFile := filepath.Join(downConfig.stateDir, projectPath, "state.yaml")
 
 	osfs := afero.NewOsFs()
 	sm := model.NewStateManager(osfs, stateFile)
@@ -164,7 +168,7 @@ func down(cmd *cobra.Command, args []string) error {
 
 	var stackReferences []stack.Reference
 	for name, construct := range sm.GetAllConstructs() {
-		constructPath := filepath.Join(downConfig.outputPath, projectPath, name)
+		constructPath := filepath.Join(downConfig.stateDir, projectPath, name)
 		stackReference := stack.Reference{
 			ConstructURN: *construct.URN,
 			Name:         name,
@@ -173,7 +177,7 @@ func down(cmd *cobra.Command, args []string) error {
 		stackReferences = append(stackReferences, stackReference)
 	}
 
-	o := orchestration.NewDownOrchestrator(sm, osfs, downConfig.outputPath)
+	o := orchestration.NewDownOrchestrator(sm, osfs, downConfig.stateDir)
 	err = o.RunDownCommand(
 		cmd.Context(),
 		orchestration.DownRequest{StackReferences: stackReferences, DryRun: model.DryRun(commonCfg.dryRun)},
