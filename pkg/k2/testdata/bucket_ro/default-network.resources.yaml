@@ -1,0 +1,173 @@
+resources:
+    aws:subnet:default-network-vpc:default-network-private-subnet-1:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
+        CidrBlock: 10.0.128.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+    aws:subnet:default-network-vpc:default-network-private-subnet-2:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
+        CidrBlock: 10.0.192.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+    aws:route_table_association:default-network-private-subnet-1-default-network-private-subnet-1-route_table:
+        RouteTableId: aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table#Id
+        SubnetId: aws:subnet:default-network-vpc:default-network-private-subnet-1#Id
+    aws:route_table_association:default-network-private-subnet-2-default-network-private-subnet-2-route_table:
+        RouteTableId: aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table#Id
+        SubnetId: aws:subnet:default-network-vpc:default-network-private-subnet-2#Id
+    aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:default-network-public-subnet-1:default-network-private-subnet-1-route_table-nat_gateway
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1-route_table
+        Vpc: aws:vpc:default-network-vpc
+    aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              NatGateway: aws:nat_gateway:default-network-public-subnet-2:default-network-private-subnet-2-route_table-nat_gateway
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2-route_table
+        Vpc: aws:vpc:default-network-vpc
+    aws:nat_gateway:default-network-public-subnet-1:default-network-private-subnet-1-route_table-nat_gateway:
+        ElasticIp: aws:elastic_ip:default-network-private-subnet-1-route_table-nat_gateway-elastic_ip
+        Subnet: aws:subnet:default-network-vpc:default-network-public-subnet-1
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1-route_table-nat_gateway
+    aws:nat_gateway:default-network-public-subnet-2:default-network-private-subnet-2-route_table-nat_gateway:
+        ElasticIp: aws:elastic_ip:default-network-private-subnet-2-route_table-nat_gateway-elastic_ip
+        Subnet: aws:subnet:default-network-vpc:default-network-public-subnet-2
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2-route_table-nat_gateway
+    aws:elastic_ip:default-network-private-subnet-1-route_table-nat_gateway-elastic_ip:
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1-route_table-nat_gateway-elastic_ip
+    aws:subnet:default-network-vpc:default-network-public-subnet-1:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
+        CidrBlock: 10.0.0.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-1
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+    aws:elastic_ip:default-network-private-subnet-2-route_table-nat_gateway-elastic_ip:
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2-route_table-nat_gateway-elastic_ip
+    aws:subnet:default-network-vpc:default-network-public-subnet-2:
+        AvailabilityZone: aws:availability_zone:region-0:availability_zone-1
+        CidrBlock: 10.0.64.0/18
+        MapPublicIpOnLaunch: false
+        RouteTable: aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-2
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+    aws:availability_zone:region-0:availability_zone-0:
+        Index: 0
+        Region: aws:region:region-0
+    aws:route_table_association:default-network-public-subnet-1-default-network-public-subnet-1-route_table:
+        RouteTableId: aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table#Id
+        SubnetId: aws:subnet:default-network-vpc:default-network-public-subnet-1#Id
+    aws:availability_zone:region-0:availability_zone-1:
+        Index: 1
+        Region: aws:region:region-0
+    aws:route_table_association:default-network-public-subnet-2-default-network-public-subnet-2-route_table:
+        RouteTableId: aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table#Id
+        SubnetId: aws:subnet:default-network-vpc:default-network-public-subnet-2#Id
+    aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:default-network-vpc:internet_gateway-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-1-route_table
+        Vpc: aws:vpc:default-network-vpc
+    aws:region:region-0:
+    aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table:
+        Routes:
+            - CidrBlock: 0.0.0.0/0
+              Gateway: aws:internet_gateway:default-network-vpc:internet_gateway-0
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-2-route_table
+        Vpc: aws:vpc:default-network-vpc
+    aws:internet_gateway:default-network-vpc:internet_gateway-0:
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: internet_gateway-0
+        Vpc: aws:vpc:default-network-vpc
+    aws:vpc:default-network-vpc:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-vpc
+edges:
+    aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:availability_zone:region-0:availability_zone-0:
+    ? aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:route_table_association:default-network-private-subnet-1-default-network-private-subnet-1-route_table
+    :
+    aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:availability_zone:region-0:availability_zone-1:
+    ? aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:route_table_association:default-network-private-subnet-2-default-network-private-subnet-2-route_table
+    :
+    aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:vpc:default-network-vpc:
+    ? aws:route_table_association:default-network-private-subnet-1-default-network-private-subnet-1-route_table -> aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table
+    :
+    ? aws:route_table_association:default-network-private-subnet-2-default-network-private-subnet-2-route_table -> aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table
+    :
+    ? aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table -> aws:nat_gateway:default-network-public-subnet-1:default-network-private-subnet-1-route_table-nat_gateway
+    :
+    aws:route_table:default-network-vpc:default-network-private-subnet-1-route_table -> aws:vpc:default-network-vpc:
+    ? aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table -> aws:nat_gateway:default-network-public-subnet-2:default-network-private-subnet-2-route_table-nat_gateway
+    :
+    aws:route_table:default-network-vpc:default-network-private-subnet-2-route_table -> aws:vpc:default-network-vpc:
+    ? aws:nat_gateway:default-network-public-subnet-1:default-network-private-subnet-1-route_table-nat_gateway -> aws:elastic_ip:default-network-private-subnet-1-route_table-nat_gateway-elastic_ip
+    :
+    ? aws:nat_gateway:default-network-public-subnet-1:default-network-private-subnet-1-route_table-nat_gateway -> aws:subnet:default-network-vpc:default-network-public-subnet-1
+    :
+    ? aws:nat_gateway:default-network-public-subnet-2:default-network-private-subnet-2-route_table-nat_gateway -> aws:elastic_ip:default-network-private-subnet-2-route_table-nat_gateway-elastic_ip
+    :
+    ? aws:nat_gateway:default-network-public-subnet-2:default-network-private-subnet-2-route_table-nat_gateway -> aws:subnet:default-network-vpc:default-network-public-subnet-2
+    :
+    aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:availability_zone:region-0:availability_zone-0:
+    ? aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:route_table_association:default-network-public-subnet-1-default-network-public-subnet-1-route_table
+    :
+    aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:availability_zone:region-0:availability_zone-1:
+    ? aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:route_table_association:default-network-public-subnet-2-default-network-public-subnet-2-route_table
+    :
+    aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
+    aws:availability_zone:region-0:availability_zone-0 -> aws:region:region-0:
+    ? aws:route_table_association:default-network-public-subnet-1-default-network-public-subnet-1-route_table -> aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table
+    :
+    aws:availability_zone:region-0:availability_zone-1 -> aws:region:region-0:
+    ? aws:route_table_association:default-network-public-subnet-2-default-network-public-subnet-2-route_table -> aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table
+    :
+    ? aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table -> aws:internet_gateway:default-network-vpc:internet_gateway-0
+    :
+    aws:route_table:default-network-vpc:default-network-public-subnet-1-route_table -> aws:vpc:default-network-vpc:
+    ? aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table -> aws:internet_gateway:default-network-vpc:internet_gateway-0
+    :
+    aws:route_table:default-network-vpc:default-network-public-subnet-2-route_table -> aws:vpc:default-network-vpc:
+    aws:internet_gateway:default-network-vpc:internet_gateway-0 -> aws:vpc:default-network-vpc:
+outputs: {}

@@ -1,0 +1,201 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:api_integration:my-api:my-container
+    - scope: application
+      operator: must_exist
+      node: aws:api_stage:my-api-api:my-api-stage
+    - scope: application
+      operator: must_exist
+      node: aws:rest_api:my-api-api
+    - scope: resource
+      operator: equals
+      target: aws:api_integration:my-api:my-container
+      property: Route
+      value: /
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: RestApi
+      value: aws:rest_api:my-api-api
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: StageName
+      value: api
+    - scope: edge
+      operator: must_exist
+      target:
+        source: aws:api_integration:my-api:my-container
+        target: aws:load_balancer:api-my-container-lb
+      data: {}
+    - scope: edge
+      operator: must_exist
+      target:
+        source: aws:rest_api:my-api-api
+        target: aws:api_integration:my-api:my-container
+      data: {}
+    - scope: output
+      operator: must_exist
+      ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+      name: Endpoint
+      value: null
+resources:
+    aws:load_balancer:api-my-container-lb:
+        Id: preview(id=aws:load_balancer:api-my-container-lb)
+        Scheme: internal
+        Subnets:
+            - aws:subnet:default-network-vpc:default-network-private-subnet-1
+            - aws:subnet:default-network-vpc:default-network-private-subnet-2
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: api-my-container-lb
+        Type: network
+        imported: true
+    aws:subnet:default-network-vpc:default-network-public-subnet-1:
+        CidrBlock: 10.0.0.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-public-subnet-1)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-1
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:subnet:default-network-vpc:default-network-public-subnet-2:
+        CidrBlock: 10.0.64.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-public-subnet-2)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-public-subnet-2
+        Type: public
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:target_group:my-container-tg:
+        HealthCheck:
+            Enabled: true
+            HealthyThreshold: 5
+            Interval: 30
+            Protocol: TCP
+            Timeout: 5
+            UnhealthyThreshold: 2
+        Id: preview(id=aws:target_group:my-container-tg)
+        Port: 80
+        Protocol: TCP
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-container-tg
+        TargetType: ip
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:ecs_cluster:ecs_cluster-0:
+        ClusterSettings:
+            - Name: containerInsights
+              Value: enabled
+        Id: preview(id=aws:ecs_cluster:ecs_cluster-0)
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: ecs_cluster-0
+        imported: true
+    aws:ecs_service:my-container-service:
+        Arn: preview(id=aws:ecs_service:my-container-service)
+        AssignPublicIp: false
+        Cluster: aws:ecs_cluster:ecs_cluster-0
+        DesiredCount: 1
+        EnableExecuteCommand: false
+        ForceNewDeployment: true
+        LaunchType: FARGATE
+        LoadBalancers:
+            - ContainerName: my-container
+              ContainerPort: 80
+              TargetGroup: aws:target_group:my-container-tg
+        Name: preview(id=aws:ecs_service:my-container-service)
+        SecurityGroups:
+            - aws:security_group:default-network-vpc:my-container-service-security_group
+        Subnets:
+            - aws:subnet:default-network-vpc:default-network-private-subnet-1
+            - aws:subnet:default-network-vpc:default-network-private-subnet-2
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-container-service
+        imported: true
+    aws:subnet:default-network-vpc:default-network-private-subnet-1:
+        CidrBlock: 10.0.128.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-private-subnet-1)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-1
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:subnet:default-network-vpc:default-network-private-subnet-2:
+        CidrBlock: 10.0.192.0/18
+        Id: preview(id=aws:subnet:default-network-vpc:default-network-private-subnet-2)
+        MapPublicIpOnLaunch: false
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-private-subnet-2
+        Type: private
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:security_group:default-network-vpc:my-container-service-security_group:
+        EgressRules:
+            - CidrBlocks:
+                - 0.0.0.0/0
+              Description: Allows all outbound IPv4 traffic
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+        Id: preview(id=aws:security_group:default-network-vpc:my-container-service-security_group)
+        IngressRules:
+            - CidrBlocks:
+                - 10.0.128.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet default-network-private-subnet-1
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+            - CidrBlocks:
+                - 10.0.192.0/18
+              Description: Allow ingress traffic from ip addresses within the subnet default-network-private-subnet-2
+              FromPort: 0
+              Protocol: "-1"
+              ToPort: 0
+            - Description: Allow ingress traffic from within the same security group
+              FromPort: 0
+              Protocol: "-1"
+              Self: true
+              ToPort: 0
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-container-service-security_group
+        Vpc: aws:vpc:default-network-vpc
+        imported: true
+    aws:vpc:default-network-vpc:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Id: preview(id=aws:vpc:default-network-vpc)
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: default-network-vpc
+        imported: true
+edges:
+    aws:load_balancer:api-my-container-lb -> aws:subnet:default-network-vpc:default-network-private-subnet-1:
+    aws:load_balancer:api-my-container-lb -> aws:subnet:default-network-vpc:default-network-private-subnet-2:
+    aws:subnet:default-network-vpc:default-network-public-subnet-1 -> aws:vpc:default-network-vpc:
+    aws:subnet:default-network-vpc:default-network-public-subnet-2 -> aws:vpc:default-network-vpc:
+    aws:target_group:my-container-tg -> aws:ecs_service:my-container-service:
+    aws:ecs_service:my-container-service -> aws:ecs_cluster:ecs_cluster-0:
+    aws:ecs_service:my-container-service -> aws:subnet:default-network-vpc:default-network-private-subnet-1:
+    aws:ecs_service:my-container-service -> aws:subnet:default-network-vpc:default-network-private-subnet-2:
+    ? aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:security_group:default-network-vpc:my-container-service-security_group
+    :
+    aws:subnet:default-network-vpc:default-network-private-subnet-1 -> aws:vpc:default-network-vpc:
+    ? aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:security_group:default-network-vpc:my-container-service-security_group
+    :
+    aws:subnet:default-network-vpc:default-network-private-subnet-2 -> aws:vpc:default-network-vpc:
+    aws:security_group:default-network-vpc:my-container-service-security_group -> aws:ecs_service:my-container-service:
+    aws:security_group:default-network-vpc:my-container-service-security_group -> aws:vpc:default-network-vpc:
+outputs: {}

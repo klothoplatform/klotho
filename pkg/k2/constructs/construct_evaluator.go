@@ -640,6 +640,15 @@ func (ce *ConstructEvaluator) evaluateBindings(c *Construct, state model.State, 
 	return nil
 }
 
+func getBinding(list []model.Binding, urn model.URN) (model.Binding, bool) {
+	for _, b := range list {
+		if b.URN.Equals(urn) {
+			return b, true
+		}
+	}
+	return model.Binding{}, false
+}
+
 func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, state model.State, ctx context.Context) error {
 	if owner == nil || b == nil {
 		return errors.New("construct or binding is nil")
@@ -651,20 +660,13 @@ func (ce *ConstructEvaluator) evaluateBinding(owner *Construct, b *Binding, stat
 	var err error
 
 	if b.From != nil {
-		var bState *model.Binding
 		cState, ok := state.Constructs[b.From.URN.ResourceID]
-		if ok {
-			for _, cb := range cState.Bindings {
-				if cb.URN.Equals(b.To.URN) {
-					bState = &cb
-					break
-				}
-			}
-			ok = bState != nil
-		}
-
 		if !ok {
-			return fmt.Errorf("could not get state state for binding: (%s) %s -> %s", owner.URN.String(), b.From.URN.String(), b.To.URN.String())
+			return fmt.Errorf("could not get state state for binding: (%s) %s -> %s", owner.URN, b.From.URN, b.To.URN)
+		}
+		bState, ok := getBinding(cState.Bindings, b.To.URN)
+		if !ok {
+			return fmt.Errorf("could not find binding by URN (%s)", b.To.URN)
 		}
 
 		inputs := make(map[string]any)
@@ -1201,7 +1203,7 @@ func (ce *ConstructEvaluator) importResources(o InfraOwner, ctx context.Context)
 		// then go through the resources of the construct and add them to the imported resources of the current construct
 		// if the resource is not found, return an error
 		if i.Type == "Construct" {
-			return errors.New("input of type Construct must have a type specified in the form of Construct(type)")
+			return errors.New("input of type Construct must have a type specified in the form of Construct<type>")
 		}
 		if !constructTypePattern.MatchString(i.Type) {
 			continue // skip the input if it is not a construct

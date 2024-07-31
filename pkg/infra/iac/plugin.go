@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -147,8 +148,13 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 
 func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[string]construct.Output) {
 	buf.WriteString("export const $outputs = {\n")
-	for name, output := range outputs {
-
+	names := make([]string, 0, len(outputs))
+	for name := range outputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		output := outputs[name]
 		if !output.Ref.IsZero() {
 			val, err := tc.PropertyRefValue(output.Ref)
 			if err != nil {
