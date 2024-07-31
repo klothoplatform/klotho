@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -74,11 +73,77 @@ func (args Args) Run(ctx *kong.Context) error {
 				return fmt.Errorf("could not parse target: %w", err)
 			}
 			edge.Target.Name = "target"
-			g, err := path_selection.BuildPathSelectionGraph(context.Background(), edge, kb, args.Classification, true)
+
+			resultGraph := construct.NewGraph()
+			err := resultGraph.AddVertex(
+				&construct.Resource{ID: edge.Source, Properties: make(construct.Properties)},
+				graph.VertexAttributes(map[string]string{
+					"rank":     "source",
+					"color":    "green",
+					"penwidth": "2",
+				}),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", edge, err)
+			}
+			err = resultGraph.AddVertex(
+				&construct.Resource{ID: edge.Target, Properties: make(construct.Properties)},
+				graph.VertexAttributes(map[string]string{
+					"rank":     "sink",
+					"color":    "green",
+					"penwidth": "2",
+				}),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", edge, err)
+			}
+
+			satisfied_paths := 0
+			addPath := func(path []string) error {
+				var prevId construct.ResourceId
+				for i, typeName := range path {
+					tmpl, err := kb.Graph().Vertex(typeName)
+					if err != nil {
+						return fmt.Errorf("failed to get template for path[%d]: %w", i, err)
+					}
+
+					var id construct.ResourceId
+					switch i {
+					case 0:
+						prevId = edge.Source
+						continue
+					case len(path) - 1:
+						id = edge.Target
+					default:
+						id = tmpl.Id()
+						id.Name = "phantom"
+						if _, err := resultGraph.Vertex(id); errors.Is(err, graph.ErrVertexNotFound) {
+							res := &construct.Resource{ID: id, Properties: make(construct.Properties)}
+							if err := resultGraph.AddVertex(res); err != nil {
+								return fmt.Errorf("failed to add phantom vertex for path[%d]: %w", i, err)
+							}
+						}
+					}
+
+					if _, err := resultGraph.Edge(prevId, id); errors.Is(err, graph.ErrEdgeNotFound) {
+						weight := graph.EdgeWeight(path_selection.CalculateEdgeWeight(edge, prevId, id, 0, 0, args.Classification, kb))
+						if err := resultGraph.AddEdge(prevId, id, weight); err != nil {
+							return fmt.Errorf("failed to add edge[%d] %s -> %s: %w", i-1, prevId, id, err)
+						}
+					}
+					prevId = id
+				}
+				satisfied_paths++
+				return nil
+			}
+
+			err = path_selection.ClassPaths(kb.Graph(), args.Source, args.Target, args.Classification, addPath)
 			if err != nil {
 				return err
 			}
-			return engine.GraphToSVG(kb, g, "kb_path_selection")
+			zap.S().Debugf("Found %d paths for %s :: %s", satisfied_paths, edge, args.Classification)
+
+			return engine.GraphToSVG(kb, resultGraph, "kb_path_selection")
 		}
 		kb = args.filterPathKB(kb)
 	}
@@ -205,7 +270,7 @@ func (args Args) filterSingleKb(kb *knowledgebase.KnowledgeBase) *knowledgebase.
 			if err != nil {
 				return err
 			}
-			err = g.AddEdge(p[len(p)-2], last, func(ep *graph.EdgeProperties) {
+			err = g.AddEdge(edge.Source.QualifiedTypeName, edge.Target.QualifiedTypeName, func(ep *graph.EdgeProperties) {
 				*ep = edge.Properties
 			})
 			if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {

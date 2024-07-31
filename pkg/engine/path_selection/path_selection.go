@@ -8,7 +8,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
-	construct "github.com/klothoplatform/klotho/pkg/construct"
+	"github.com/klothoplatform/klotho/pkg/construct"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/logging"
 )
@@ -57,7 +57,7 @@ func BuildPathSelectionGraph(
 			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 				return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 			}
-			err = tempGraph.AddEdge(dep.Source, dep.Target, graph.EdgeWeight(calculateEdgeWeight(dep, dep.Source, dep.Target, 0, 0, classification, kb)))
+			err = tempGraph.AddEdge(dep.Source, dep.Target, graph.EdgeWeight(CalculateEdgeWeight(dep, dep.Source, dep.Target, 0, 0, classification, kb)))
 			if err != nil {
 				return nil, err
 			}
@@ -65,75 +65,60 @@ func BuildPathSelectionGraph(
 		}
 	}
 
-	paths, err := kb.AllPaths(dep.Source, dep.Target)
+	// Panic is okay on the cast in following line since it will only happen on programming error
+	kbGraph := kb.(interface{ Graph() knowledgebase.Graph }).Graph()
+
+	err := tempGraph.AddVertex(&construct.Resource{ID: dep.Source, Properties: make(construct.Properties)})
 	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to get all paths between resources while building path selection graph for %s: %w",
-			dep, err,
-		)
-	}
-	log.Debugf("Found %d paths %s", len(paths), dep)
-	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Source})
-	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
 		return nil, fmt.Errorf("failed to add source vertex to path selection graph for %s: %w", dep, err)
 	}
-	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Target})
-	if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+	err = tempGraph.AddVertex(&construct.Resource{ID: dep.Target, Properties: make(construct.Properties)})
+	if err != nil {
 		return nil, fmt.Errorf("failed to add target vertex to path selection graph for %s: %w", dep, err)
 	}
-	satisfied_paths := 0
-	for _, path := range paths {
-		resourcePath := make([]construct.ResourceId, len(path))
-		for i, res := range path {
-			resourcePath[i] = res.Id()
-		}
-		if !PathSatisfiesClassification(kb, resourcePath, classification) {
-			continue
-		}
-		// Check to see if the whole path is valid before adding phantoms and edges.
-		// It's a miniscule performance benefit, and is mostly done for clarity in the debug graph output.
-		validPath := true
-		for i, res := range path {
-			if i == 0 {
-				continue
-			}
-			edgeTemplate := kb.GetEdgeTemplate(path[i-1].Id(), res.Id())
-			if edgeTemplate == nil || edgeTemplate.DirectEdgeOnly {
-				validPath = false
-				break
-			}
-		}
-		if !validPath {
-			continue
-		}
 
-		satisfied_paths++
-		var prevRes construct.ResourceId
-		for i, res := range path {
-			id, err := makePhantom(tempGraph, res.Id())
+	satisfied_paths := 0
+	addPath := func(path []string) error {
+		var prevId construct.ResourceId
+		for i, typeName := range path {
+			tmpl, err := kbGraph.Vertex(typeName)
 			if err != nil {
-				return nil, err
+				return fmt.Errorf("failed to get template for path[%d]: %w", i, err)
 			}
-			if i == 0 {
-				id = dep.Source
-			} else if i == len(path)-1 {
+
+			var id construct.ResourceId
+			switch i {
+			case 0:
+				prevId = dep.Source
+				continue
+			case len(path) - 1:
 				id = dep.Target
-			}
-			resource := &construct.Resource{ID: id, Properties: make(construct.Properties)}
-			err = tempGraph.AddVertex(resource)
-			if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
-				return nil, err
-			}
-			if !prevRes.IsZero() {
-				err := tempGraph.AddEdge(prevRes, id,
-					graph.EdgeWeight(calculateEdgeWeight(dep, prevRes, id, 0, 0, classification, kb)))
+			default:
+				id, err = makePhantom(tempGraph, tmpl.Id())
 				if err != nil {
-					return nil, err
+					return fmt.Errorf("failed to make phantom for path[%d]: %w", i, err)
+				}
+				res := &construct.Resource{ID: id, Properties: make(construct.Properties)}
+				if err := tempGraph.AddVertex(res); err != nil {
+					return fmt.Errorf("failed to add phantom vertex for path[%d]: %w", i, err)
 				}
 			}
-			prevRes = id
+
+			weight := graph.EdgeWeight(CalculateEdgeWeight(dep, prevId, id, 0, 0, classification, kb))
+			if err := tempGraph.AddEdge(prevId, id, weight); err != nil {
+				return fmt.Errorf("failed to add edge[%d] %s -> %s: %w", i-1, prevId, id, err)
+			}
+			prevId = id
 		}
+		satisfied_paths++
+		return nil
 	}
+
+	err = ClassPaths(kbGraph, dep.Source.QualifiedTypeName(), dep.Target.QualifiedTypeName(), classification, addPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find paths for %s: %w", dep, err)
+	}
+
 	log.Debugf("Found %d paths for %s :: %s", satisfied_paths, dep, classification)
 
 	return tempGraph, nil
@@ -180,7 +165,7 @@ func makePhantom(g construct.Graph, id construct.ResourceId) (construct.Resource
 	return id, fmt.Errorf("exhausted suffixes for creating phantom for %s", id)
 }
 
-func calculateEdgeWeight(
+func CalculateEdgeWeight(
 	dep construct.SimpleEdge,
 	source, target construct.ResourceId,
 	divideSourceBy, divideTargetBy int,
