@@ -30,10 +30,27 @@ type StackInterface interface {
 	Destroy(ctx context.Context, opts ...optdestroy.Option) (auto.DestroyResult, error)
 	SetConfig(ctx context.Context, key string, value auto.ConfigValue) error
 	Workspace() auto.Workspace
+	Outputs(ctx context.Context) (auto.OutputMap, error)
 }
 
 // GetState retrieves the state of a stack
 func GetState(ctx context.Context, stack StackInterface) (State, error) {
+
+	rawOutputs, err := stack.Outputs(ctx)
+	if err != nil {
+		return State{}, err
+	}
+
+	stackOutputs, err := GetStackOutputs(rawOutputs)
+	if err != nil {
+		return State{}, err
+	}
+
+	resourceIdByUrn, err := GetResourceIdByURNMap(rawOutputs)
+	if err != nil {
+		return State{}, err
+
+	}
 	rawState, err := stack.Export(ctx)
 	if err != nil {
 		return State{}, err
@@ -46,41 +63,6 @@ func GetState(ctx context.Context, stack StackInterface) (State, error) {
 	}
 
 	zap.S().Debugf("unmarshalled state: %v", unmarshalledState)
-
-	var stackResource apitype.ResourceV3
-	foundStackResource := false
-	for _, res := range unmarshalledState.Resources {
-		if res.Type == "pulumi:pulumi:Stack" {
-			stackResource = res
-			foundStackResource = true
-			break
-		}
-	}
-	if !foundStackResource {
-		return State{}, fmt.Errorf("could not find pulumi:pulumi:Stack resource in state")
-	}
-
-	stackOutputs := make(map[string]any)
-	outputs, ok := stackResource.Outputs["$outputs"].(map[string]any)
-	if !ok {
-		return State{}, fmt.Errorf("failed to parse stack outputs")
-	}
-	for key, value := range outputs {
-		stackOutputs[key] = value
-	}
-
-	resourceIdByUrn := make(map[string]string)
-	urns, ok := stackResource.Outputs["$urns"].(map[string]any)
-	if !ok {
-		return State{}, fmt.Errorf("failed to parse resource URNs")
-	}
-	for id, rawUrn := range urns {
-		if urn, ok := rawUrn.(string); ok {
-			resourceIdByUrn[urn] = id
-		} else {
-			zap.S().Warnf("could not convert urn %v to string", rawUrn)
-		}
-	}
 
 	resourcesByResourceId := make(map[construct.ResourceId]apitype.ResourceV3)
 	for _, res := range unmarshalledState.Resources {
@@ -104,6 +86,43 @@ func GetState(ctx context.Context, stack StackInterface) (State, error) {
 		Outputs:    stackOutputs,
 		Resources:  resourcesByResourceId,
 	}, nil
+}
+
+func GetStackOutputs(rawOutputs auto.OutputMap) (map[string]any, error) {
+	stackOutputs := make(map[string]any)
+	outputs, ok := rawOutputs["$outputs"]
+	if !ok {
+		return nil, fmt.Errorf("$outputs not found in stack outputs")
+	}
+
+	outputsValue, ok := outputs.Value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse stack outputs")
+	}
+	for key, value := range outputsValue {
+		stackOutputs[key] = value
+	}
+	return stackOutputs, nil
+}
+
+func GetResourceIdByURNMap(rawOutputs auto.OutputMap) (map[string]string, error) {
+	urns, ok := rawOutputs["$urns"]
+	if !ok {
+		return nil, fmt.Errorf("$urns not found in stack outputs")
+	}
+	urnsValue, ok := urns.Value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse URNs")
+	}
+	resourceIdByUrn := make(map[string]string)
+	for id, rawUrn := range urnsValue {
+		if urn, ok := rawUrn.(string); ok {
+			resourceIdByUrn[urn] = id
+		} else {
+			zap.S().Warnf("could not convert urn %v to string", rawUrn)
+		}
+	}
+	return resourceIdByUrn, nil
 }
 
 func UpdateConstructStateFromUpResult(sm *model.StateManager, stackReference Reference, summary *auto.UpResult) error {

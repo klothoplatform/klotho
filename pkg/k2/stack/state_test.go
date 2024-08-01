@@ -17,21 +17,35 @@ type mockStack struct {
 	auto.Stack
 	rawState apitype.UntypedDeployment
 	err      error
+	outputs  auto.OutputMap
 }
 
 func (m *mockStack) Export(ctx context.Context) (apitype.UntypedDeployment, error) {
 	return m.rawState, m.err
+}
+func (m *mockStack) Outputs(ctx context.Context) (auto.OutputMap, error) {
+	return m.outputs, nil
+}
+
+func emptyOutputs() auto.OutputMap {
+	return auto.OutputMap{
+		"$outputs": auto.OutputValue{Value: map[string]any{}},
+		"$urns":    auto.OutputValue{Value: map[string]any{}},
+	}
+
 }
 
 func TestGetState(t *testing.T) {
 	tests := []struct {
 		name          string
 		rawState      apitype.UntypedDeployment
+		outputs       auto.OutputMap
 		expectedError string
 		expectedState State
 	}{
 		{
-			name: "Empty State",
+			name:    "Empty State",
+			outputs: emptyOutputs(),
 			rawState: apitype.UntypedDeployment{
 				Version:    3,
 				Deployment: json.RawMessage(`{"resources": [{"type": "pulumi:pulumi:Stack", "urn": "urn:pulumi:stack::project::resource", "outputs": {"$outputs": {}, "$urns": {}}}]}`),
@@ -45,23 +59,20 @@ func TestGetState(t *testing.T) {
 			},
 		},
 		{
-			name: "Missing Stack Resource",
-			rawState: apitype.UntypedDeployment{
-				Version:    3,
-				Deployment: json.RawMessage(`{"resources": [{"type": "example:type:Resource", "urn": "urn:pulumi:stack::project::example-resource"}]}`),
-			},
-			expectedError: "could not find pulumi:pulumi:Stack resource in state",
-		},
-		{
-			name: "Malformed URN and Outputs",
+			name:    "Malformed URN and Outputs",
+			outputs: auto.OutputMap{},
 			rawState: apitype.UntypedDeployment{
 				Version:    3,
 				Deployment: json.RawMessage(`{"resources": [{"type": "pulumi:pulumi:Stack", "urn": "urn:pulumi:stack::project::resource", "outputs": {}}]}`),
 			},
-			expectedError: "failed to parse stack outputs",
+			expectedError: "$outputs not found in stack outputs",
 		},
 		{
 			name: "Valid State with Multiple Resources",
+			outputs: auto.OutputMap{
+				"$outputs": auto.OutputValue{Value: map[string]any{"outputKey": "outputValue"}},
+				"$urns":    auto.OutputValue{Value: map[string]any{"provider:type:namespace:name": "urn:pulumi:stack::project::resource"}},
+			},
 			rawState: apitype.UntypedDeployment{
 				Version: 3,
 				Deployment: json.RawMessage(`{
@@ -135,6 +146,7 @@ func TestGetState(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := &mockStack{
 				rawState: tt.rawState,
+				outputs:  tt.outputs,
 				err:      nil,
 			}
 
