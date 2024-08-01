@@ -26,7 +26,7 @@ on:
 
 env:
   DEV_PYPI_URL: https://test.pypi.org/legacy/
-  PROD_PYPI_URL: https://pypi.org/legacy/
+  PROD_PYPI_URL: https://upload.pypi.org/legacy/
   PACKAGE_DIR: pkg/k2/language_host/python/klothosdk
   PACKAGE_NAME: klotho
 
