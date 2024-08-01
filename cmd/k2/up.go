@@ -56,7 +56,7 @@ func up(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		upConfig.stateDir = filepath.Join(homeDir, ".k2")
+		upConfig.stateDir = filepath.Join(homeDir, ".k2", "projects")
 	}
 
 	if debugDir := debug.GetDebugDir(ctx); debugDir == "" {
