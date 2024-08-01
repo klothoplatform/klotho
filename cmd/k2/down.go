@@ -143,7 +143,7 @@ func down(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		downConfig.stateDir = filepath.Join(homeDir, ".k2")
+		downConfig.stateDir = filepath.Join(homeDir, ".k2", "projects")
 	}
 
 	debugDir := debug.GetDebugDir(cmd.Context())
