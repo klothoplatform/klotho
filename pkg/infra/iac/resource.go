@@ -335,3 +335,7 @@ func (tc *TemplatesCompiler) lowerCamelCase(val any) (any, error) {
 func (tc *TemplatesCompiler) camelCase(val any) (any, error) {
 	return tc.convertArg(val, &Arg{Wrapper: CamelCaseWrapper})
 }
+
+func (tc *TemplatesCompiler) matches(s string, pattern string) (bool, error) {
+	return regexp.MatchString(pattern, s)
+}
