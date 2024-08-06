@@ -956,7 +956,9 @@ func (ce *ConstructEvaluator) resolveResource(o ResourceOwner, key string, rt Re
 	for k, v := range resTmpl.Properties {
 		// if the base resource does not have the property, set the property
 		if resource.Properties[k] == nil {
-			resource.Properties[k] = v
+			if v != nil {
+				resource.Properties[k] = v
+			}
 			continue
 		}
 		// if the property is a map, merge the map
