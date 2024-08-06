@@ -86,5 +86,5 @@ outputs:
   TableArn:
     name: Table ARN
     description: The Amazon Resource Name (ARN) of the DynamoDB table
-    value: ${resources:DynamoDBTable.Arn}
+    value: ${resources:DynamoDBTable#Arn}
 
