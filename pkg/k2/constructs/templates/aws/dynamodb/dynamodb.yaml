@@ -9,8 +9,6 @@ resources:
       Attributes: ${inputs:Attributes}
       BillingMode: ${inputs:BillingMode}
       HashKey: ${inputs:HashKey}
-      RangeKey: ${inputs:RangeKey}
-      Tags: ${inputs:Tags}
 
 inputs:
   Name:
@@ -75,7 +73,7 @@ inputs:
   Tags:
     name: Tags
     description: Key-value pairs to tag the DynamoDB table
-    type: model
+    type: map(string,string)
 
 outputs:
   TableName:
@@ -88,3 +86,16 @@ outputs:
     description: The Amazon Resource Name (ARN) of the DynamoDB table
     value: ${resources:DynamoDBTable#Arn}
 
+input_rules:
+  - if: '{{ (inputs "RangeKey") }}'
+    then:
+      resources:
+        DynamoDBTable:
+          properties:
+            RangeKey: ${inputs:RangeKey}
+  - if: '{{ not (eq (inputs "Tags") nil) }}'
+    then:
+      resources:
+        DynamoDBTable:
+          properties:
+            Tags: ${inputs:Tags}
