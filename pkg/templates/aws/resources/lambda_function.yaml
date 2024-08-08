@@ -102,16 +102,20 @@ properties:
     max_value: 10240
   EfsAccessPoint:
     type: resource(aws:efs_access_point)
-  LogGroup:
-    type: resource(aws:log_group)
-    operational_rule:
-      step:
-        direction: downstream
-        resources:
-          - selector: aws:log_group:{{ .Self.Name }}-log-group
-            properties:
-              LogGroupName: '{{ fieldRef "DefaultLogGroup" .Self }}'
-        unique: true
+  LogConfig:
+    type: map
+    properties:
+      Format:
+        type: string
+        default_value: Text
+      ApplicationLogLevel:
+        type: string
+        description: for JSON structured logs, choose the detail level of the logs your application sends to CloudWatch when using supported logging libraries
+      LogGroup:
+        type: resource(aws:log_group)
+      SystemLogLevel:
+        type: string
+        description: for JSON structured logs, choose the detail level of the Lambda platform event logs sent to CloudWatch, such as ERROR, DEBUG, or INFO.
   aws:tags:
     type: model
   LambdaIntegrationUri:
@@ -147,6 +151,16 @@ classification:
   is:
     - serverless
     - compute
+
+additional_rules:
+  # Create the default log group if there isn't one already
+  - if: '{{ and (not (hasDownstream "aws:log_group" .Self)) (not (hasField "LogConfig.LogGroup" .Self)) }}'
+    steps:
+      - resources:
+          - selector: aws:log_group
+            properties:
+              LogGroupName: '{{ fieldRef "DefaultLogGroup" .Self }}'
+        unique: true
 
 delete_context:
   requires_no_upstream: true

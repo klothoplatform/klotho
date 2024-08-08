@@ -1,0 +1,26 @@
+{
+    "Statement": [
+        {
+            "Action": [
+                "ec2:DeleteNetworkInterface",
+                "iam:*RolePolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole*",
+                "iam:GetRole*",
+                "iam:List*",
+                "iam:PutRole*",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:Update*",
+                "lambda:*Function*",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "logs:*LogGroup*",
+                "logs:PutRetentionPolicy"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ],
+    "Version": "2012-10-17"
+}
