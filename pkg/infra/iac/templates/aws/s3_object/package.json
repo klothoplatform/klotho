@@ -2,7 +2,7 @@
     "name": "s3_object",
     "dependencies": {
         "mime": "^2.0.0",
-        "@pulumi/aws": "^5.37.0",
+        "@pulumi/aws": "^6.48.0",
         "@pulumi/pulumi": "^3.69.0"
     }
 }

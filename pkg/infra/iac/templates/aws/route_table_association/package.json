@@ -1,6 +1,6 @@
 {
     "name": "route_table_association",
     "dependencies": {
-        "@pulumi/aws": "^5.37.0"
+        "@pulumi/aws": "^6.48.0"
     }
 }

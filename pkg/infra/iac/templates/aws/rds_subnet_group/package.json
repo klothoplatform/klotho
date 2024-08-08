@@ -1,6 +1,6 @@
 {
     "name": "rds_subnet_group",
     "dependencies": {
-        "@pulumi/aws": "^5.37.0"
+        "@pulumi/aws": "^6.48.0"
     }
 }
