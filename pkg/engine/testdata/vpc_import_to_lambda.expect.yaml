@@ -34,8 +34,10 @@ resources:
     aws:lambda_function:lambda_function:
         ExecutionRole: aws:iam_role:lambda_function-ExecutionRole
         Image: aws:ecr_image:lambda_function-image#ImageName
-        LogGroup: aws:log_group:lambda_function-log-group
+        LogConfig:
+            Format: Text
         MemorySize: 512
+        Runtime: nodejs20.x
         SecurityGroups:
             - aws:security_group:vpc:lambda_function-security_group
         Subnets:
@@ -66,6 +68,12 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-ExecutionRole
+    aws:log_group:lambda_function-log_group:
+        LogGroupName: aws:lambda_function:lambda_function#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_function-log_group
     aws:subnet:subnet1:
         Tags:
             GLOBAL_KLOTHO_TAG: test
@@ -85,33 +93,22 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-image-ecr_repo
-    aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:vpc:vpc:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: vpc
         imported: true
-    aws:log_group:lambda_function-log-group:
-        LogGroupName: /aws/lambda/lambda_function
-        RetentionInDays: 5
-        Tags:
-            GLOBAL_KLOTHO_TAG: test
-            RESOURCE_NAME: lambda_function-log-group
 edges:
     aws:security_group:vpc:lambda_function-security_group -> aws:lambda_function:lambda_function:
     aws:security_group:vpc:lambda_function-security_group -> aws:vpc:vpc:
     aws:subnet:subnet3 -> aws:vpc:vpc:
     aws:subnet:subnet4 -> aws:vpc:vpc:
-    aws:lambda_function:lambda_function -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:lambda_function:lambda_function -> aws:ecr_image:lambda_function-image:
     aws:lambda_function:lambda_function -> aws:iam_role:lambda_function-ExecutionRole:
+    aws:lambda_function:lambda_function -> aws:log_group:lambda_function-log_group:
     aws:lambda_function:lambda_function -> aws:subnet:subnet1:
     aws:lambda_function:lambda_function -> aws:subnet:subnet2:
     aws:ecr_image:lambda_function-image -> aws:ecr_repo:lambda_function-image-ecr_repo:
-    aws:iam_role:lambda_function-ExecutionRole -> aws:log_group:lambda_function-log-group:
-    aws:subnet:subnet1 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:subnet1 -> aws:vpc:vpc:
-    aws:subnet:subnet2 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:subnet2 -> aws:vpc:vpc:
-    aws:SERVICE_API:lambda_function-lambda_function-log-group -> aws:log_group:lambda_function-log-group:
 outputs: {}

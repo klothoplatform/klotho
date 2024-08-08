@@ -4,7 +4,6 @@ resources:
 
   lambda_function/lambda_function_0 -> ecr_image/lambda_function_0-image:
   lambda_function/lambda_function_0 -> iam_role/lambda_function_0-executionrole:
-  lambda_function/lambda_function_0 -> log_group/lambda_function_0-log-group:
   lambda_function/lambda_function_0 -> rds_instance/rds-instance-1:
   lambda_function/lambda_function_0 -> aws:security_group:vpc-0/lambda_function_0-security_group:
   lambda_function/lambda_function_0 -> aws:subnet:vpc-0/subnet-0:
@@ -13,7 +12,6 @@ resources:
 
   lambda_function/lambda_function_3 -> ecr_image/lambda_function_3-image:
   lambda_function/lambda_function_3 -> iam_role/lambda_function_3-executionrole:
-  lambda_function/lambda_function_3 -> log_group/lambda_function_3-log-group:
   lambda_function/lambda_function_3 -> rds_instance/rds-instance-1:
   lambda_function/lambda_function_3 -> aws:security_group:vpc-0/lambda_function_3-security_group:
   lambda_function/lambda_function_3 -> aws:subnet:vpc-0/subnet-0:

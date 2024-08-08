@@ -2,13 +2,14 @@ resources:
     aws:lambda_function:lambda_function_0:
         ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
         Image: aws:ecr_image:lambda_function_0-image#ImageName
-        LogGroup: aws:log_group:lambda_function_0-log-group
+        LogConfig:
+            Format: Text
         MemorySize: 512
+        Runtime: nodejs20.x
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0
         Timeout: 180
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
     aws:ecr_image:lambda_function_0-image:
         Context: .
         Dockerfile: lambda_function_0-image.Dockerfile
@@ -29,22 +30,20 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-ExecutionRole
+    aws:log_group:lambda_function_0-log_group:
+        LogGroupName: aws:lambda_function:lambda_function_0#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_function_0-log_group
     aws:ecr_repo:lambda_function_0-image-ecr_repo:
         ForceDelete: true
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_0-image-ecr_repo
-    aws:log_group:lambda_function_0-log-group:
-        LogGroupName: /aws/lambda/lambda_function_0
-        RetentionInDays: 5
-        Tags:
-            GLOBAL_KLOTHO_TAG: test
-            RESOURCE_NAME: lambda_function_0-log-group
 edges:
-    aws:lambda_function:lambda_function_0 -> aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group:
     aws:lambda_function:lambda_function_0 -> aws:ecr_image:lambda_function_0-image:
     aws:lambda_function:lambda_function_0 -> aws:iam_role:lambda_function_0-ExecutionRole:
-    aws:SERVICE_API:lambda_function_0-lambda_function_0-log-group -> aws:log_group:lambda_function_0-log-group:
+    aws:lambda_function:lambda_function_0 -> aws:log_group:lambda_function_0-log_group:
     aws:ecr_image:lambda_function_0-image -> aws:ecr_repo:lambda_function_0-image-ecr_repo:
-    aws:iam_role:lambda_function_0-ExecutionRole -> aws:log_group:lambda_function_0-log-group:
 outputs: {}

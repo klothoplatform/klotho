@@ -21,8 +21,10 @@ resources:
         EfsAccessPoint: aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs
         ExecutionRole: aws:iam_role:lambda_test_app-ExecutionRole
         Image: aws:ecr_image:lambda_test_app-image#ImageName
-        LogGroup: aws:log_group:lambda_test_app-log-group
+        LogConfig:
+            Format: Text
         MemorySize: 512
+        Runtime: nodejs20.x
         SecurityGroups:
             - aws:security_group:vpc-0:lambda_test_app-security_group
         Subnets:
@@ -77,6 +79,12 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app-ExecutionRole
+    aws:log_group:lambda_test_app-log_group:
+        LogGroupName: aws:lambda_function:lambda_test_app#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_test_app-log_group
     aws:ecr_repo:lambda_test_app-image-ecr_repo:
         ForceDelete: true
         Tags:
@@ -139,13 +147,6 @@ resources:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: subnet-2-route_table
         Vpc: aws:vpc:vpc-0
-    aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
-    aws:log_group:lambda_test_app-log-group:
-        LogGroupName: /aws/lambda/lambda_test_app
-        RetentionInDays: 5
-        Tags:
-            GLOBAL_KLOTHO_TAG: test
-            RESOURCE_NAME: lambda_test_app-log-group
     aws:availability_zone:region-0:availability_zone-1:
         Index: 1
         Region: aws:region:region-0
@@ -263,19 +264,17 @@ resources:
 edges:
     aws:security_group:vpc-0:lambda_test_app-security_group -> aws:lambda_function:lambda_test_app:
     aws:security_group:vpc-0:lambda_test_app-security_group -> aws:vpc:vpc-0:
-    aws:lambda_function:lambda_test_app -> aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
     aws:lambda_function:lambda_test_app -> aws:ecr_image:lambda_test_app-image:
     aws:lambda_function:lambda_test_app -> aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs:
     aws:lambda_function:lambda_test_app -> aws:iam_role:lambda_test_app-ExecutionRole:
+    aws:lambda_function:lambda_test_app -> aws:log_group:lambda_test_app-log_group:
     aws:lambda_function:lambda_test_app -> aws:subnet:vpc-0:lambda_test_app-test-efs-fs:
     aws:lambda_function:lambda_test_app -> aws:subnet:vpc-0:subnet-1:
     aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:lambda_test_app-image-ecr_repo:
     aws:efs_access_point:test-efs-fs:lambda_test_app-test-efs-fs -> aws:efs_file_system:test-efs-fs:
     aws:iam_role:lambda_test_app-ExecutionRole -> aws:efs_file_system:test-efs-fs:
-    aws:iam_role:lambda_test_app-ExecutionRole -> aws:log_group:lambda_test_app-log-group:
     aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs -> aws:efs_file_system:test-efs-fs:
     aws:efs_mount_target:test-efs-fs:lambda_test_app-test-efs-fs -> aws:subnet:vpc-0:lambda_test_app-test-efs-fs:
-    aws:subnet:vpc-0:lambda_test_app-test-efs-fs -> aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
     aws:subnet:vpc-0:lambda_test_app-test-efs-fs -> aws:availability_zone:region-0:availability_zone-1:
     ? aws:subnet:vpc-0:lambda_test_app-test-efs-fs -> aws:route_table_association:lambda_test_app-test-efs-fs-lambda_test_app-test-efs-fs-route_table
     :
@@ -295,13 +294,11 @@ edges:
     aws:route_table_association:subnet-2-subnet-2-route_table -> aws:route_table:vpc-0:subnet-2-route_table:
     aws:route_table:vpc-0:subnet-2-route_table -> aws:internet_gateway:vpc-0:internet_gateway-0:
     aws:route_table:vpc-0:subnet-2-route_table -> aws:vpc:vpc-0:
-    aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group -> aws:log_group:lambda_test_app-log-group:
     aws:availability_zone:region-0:availability_zone-1 -> aws:region:region-0:
     aws:efs_file_system:test-efs-fs -> aws:availability_zone:region-0:availability_zone-0:
     aws:availability_zone:region-0:availability_zone-0 -> aws:region:region-0:
     aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs -> aws:efs_file_system:test-efs-fs:
     aws:efs_mount_target:test-efs-fs:subnet-1-test-efs-fs -> aws:subnet:vpc-0:subnet-1:
-    aws:subnet:vpc-0:subnet-1 -> aws:SERVICE_API:lambda_test_app-lambda_test_app-log-group:
     aws:subnet:vpc-0:subnet-1 -> aws:availability_zone:region-0:availability_zone-0:
     aws:subnet:vpc-0:subnet-1 -> aws:route_table_association:subnet-1-subnet-1-route_table:
     aws:subnet:vpc-0:subnet-1 -> aws:security_group:vpc-0:lambda_test_app-test-efs-fs:

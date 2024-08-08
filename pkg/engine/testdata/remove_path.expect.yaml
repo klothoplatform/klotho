@@ -43,8 +43,11 @@ resources:
             RDS_INSTANCE_1_RDS_USERNAME: aws:rds_instance:rds-instance-1#Username
         ExecutionRole: aws:iam_role:lambda_function_0-ExecutionRole
         Image: aws:ecr_image:lambda_function_0-image
+        LogConfig:
+            Format: Text
         LogGroup: aws:log_group:lambda_function_0-log-group
         MemorySize: 512
+        Runtime: nodejs20.x
         SecurityGroups:
             - aws:security_group:vpc-0:lambda_function_0-security_group
         Subnets:
@@ -62,8 +65,11 @@ resources:
             RDS_INSTANCE_1_RDS_USERNAME: aws:rds_instance:rds-instance-1#Username
         ExecutionRole: aws:iam_role:lambda_function_3-ExecutionRole
         Image: aws:ecr_image:lambda_function_3-image
+        LogConfig:
+            Format: Text
         LogGroup: aws:log_group:lambda_function_3-log-group
         MemorySize: 512
+        Runtime: nodejs20.x
         SecurityGroups:
             - aws:security_group:vpc-0:lambda_function_3-security_group
         Subnets:
