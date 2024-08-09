@@ -1,0 +1,6 @@
+from: klotho.aws.Function
+to: klotho.aws.DynamoDB
+
+edges:
+  - from: ${from.resources:LambdaFunction}
+    to: ${to.resources:DynamoDBTable}

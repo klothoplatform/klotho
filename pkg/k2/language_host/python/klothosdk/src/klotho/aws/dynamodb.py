@@ -14,6 +14,8 @@ class DynamoDBArgs:
                  hash_key: Input[str],
                  billing_mode: Optional[Input[str]] = None,
                  range_key: Optional[Input[str]] = None,
+                 global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None, 
+                 local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,
                  tags: Optional[Input[Dict[str, str]]] = None
                 ):
         set_field(self, "attributes", attributes)
@@ -22,6 +24,10 @@ class DynamoDBArgs:
             set_field(self, "billing_mode", billing_mode)
         if range_key is not None:
             set_field(self, "range_key", range_key)
+        if global_secondary_indexes is not None:
+            set_field(self, "global_secondary_indexes", global_secondary_indexes)
+        if local_secondary_indexes is not None:
+            set_field(self, "local_secondary_indexes", local_secondary_indexes)
         if tags is not None:
             set_field(self, "tags", tags)
 
@@ -64,6 +70,22 @@ class DynamoDBArgs:
         self._set_property("range_key", value)
 
     @property
+    def global_secondary_indexes(self) -> Optional[Input[List[Dict[str, str]]]]:
+        return self._get_property("global_secondary_indexes")
+
+    @global_secondary_indexes.setter
+    def global_secondary_indexes(self, value: Optional[Input[List[Dict[str, str]]]]) -> None:
+        self._set_property("global_secondary_indexes", value)
+
+    @property
+    def local_secondary_indexes(self) -> Optional[Input[List[Dict[str, str]]]]:
+        return self._get_property("local_secondary_indexes")
+
+    @local_secondary_indexes.setter
+    def local_secondary_indexes(self, value: Optional[Input[List[Dict[str, str]]]]) -> None:
+        self._set_property("local_secondary_indexes", value)
+
+    @property
     def tags(self) -> Optional[Input[Dict[str, str]]]:
         return self._get_property("tags")
 
@@ -87,6 +109,8 @@ class DynamoDB(Construct):
         hash_key: Input[str],
         billing_mode: Optional[Input[str]] = None,
         range_key: Optional[Input[str]] = None,
+        global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
+        local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
         tags: Optional[Input[Dict[str, str]]] = None,
         opts: Optional[ConstructOptions] = None,
     ): ...
@@ -105,6 +129,8 @@ class DynamoDB(Construct):
         hash_key: Input[str],
         billing_mode: Optional[Input[str]] = None,
         range_key: Optional[Input[str]] = None,
+        global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
+        local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
         tags: Optional[Input[Dict[str, str]]] = None,
         opts: Optional[ConstructOptions] = None,
     ):
@@ -120,6 +146,8 @@ class DynamoDB(Construct):
                 "BillingMode": billing_mode,
                 "HashKey": hash_key,
                 "RangeKey": range_key,
+                "GlobalSecondaryIndexes": global_secondary_indexes,  
+                "LocalSecondaryIndexes": local_secondary_indexes,   
                 "Tags": tags,
             },
             opts=opts,

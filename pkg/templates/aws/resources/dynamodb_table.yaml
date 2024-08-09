@@ -51,12 +51,52 @@ properties:
   RangeKey:
     type: string
     description: The table range key, which is the sort key for the DynamoDB table
+  GlobalSecondaryIndexes:
+    type: list
+    description: List of global secondary indexes to define on the table
+    properties:
+      Name:
+        type: string
+        description: The name of the global secondary index
+      HashKey:
+        type: string
+        description: The partition key for the global secondary index
+      RangeKey:
+        type: string
+        description: The sort key for the global secondary index (optional)
+      ProjectionType:
+        type: string
+        description: The set of attributes that are projected into the index, can be 'ALL', 'KEYS_ONLY', or 'INCLUDE'
+      NonKeyAttributes:
+        type: list
+        description: The non-key attribute names to include in the projection for the index
+  LocalSecondaryIndexes:
+    type: list
+    description: List of local secondary indexes to define on the table
+    properties:
+      Name:
+        type: string
+        description: The name of the local secondary index
+      RangeKey:
+        type: string
+        description: The sort key for the local secondary index
+      ProjectionType:
+        type: string
+        description: The set of attributes that are projected into the index, can be 'ALL', 'KEYS_ONLY', or 'INCLUDE'
+      NonKeyAttributes:
+        type: list
+        description: The non-key attribute names to include in the projection for the index
   aws:tags:
     type: model
   Name:
     type: string
     configuration_disabled: true
     deploy_time: true
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    required: true
 
 path_satisfaction:
   as_target:
@@ -79,14 +119,12 @@ consumption:
       value:
         '{{ .Self.Name }}_TABLE_NAME': '{{ fieldRef "Name" .Self }}'
 
-
 delete_context:
   requires_no_upstream: true
   requires_no_downstream: true
 
 views:
   dataflow: big
-
 
 deployment_permissions:
   deploy: ["dynamodb:CreateTable"]
