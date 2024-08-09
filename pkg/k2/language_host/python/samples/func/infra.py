@@ -19,7 +19,7 @@ app = klotho.Application(
 
 dir = Path(__file__).parent.absolute()
 
-container = aws.Function(
+my_function = aws.Function(
     "my-function",
     handler="handler.handler",
     runtime="python3.12",
