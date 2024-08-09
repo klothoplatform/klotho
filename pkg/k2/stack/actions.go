@@ -3,6 +3,7 @@ package stack
 import (
 	"context"
 	"fmt"
+	pulumi "github.com/pulumi/pulumi/sdk/v3"
 	"io"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func Initialize(ctx context.Context, fs afero.Fs, projectName string, stackName 
 	})
 
 	pulumiCmd, err := auto.NewPulumiCommand(&auto.PulumiCommandOptions{
-		Root: pulumiHomeDir,
+		Root: filepath.Join(pulumiHomeDir, "versions", pulumi.Version.String()),
 	})
 	if err != nil {
 		return nil, err

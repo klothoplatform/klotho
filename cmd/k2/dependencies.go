@@ -10,7 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	pulumi "github.com/pulumi/pulumi/sdk/v3/go/auto"
+	pulumi "github.com/pulumi/pulumi/sdk/v3"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 )
 
 type (
@@ -79,14 +80,14 @@ func installDocker(ctx context.Context) error {
 }
 
 func installPulumi(ctx context.Context) error {
-	pulumiHome, err := pulumiHome()
+	installDir, err := pulumiInstallDir()
 	if err != nil {
 		return err
 	}
-
-	_, err = pulumi.InstallPulumiCommand(ctx, &pulumi.PulumiCommandOptions{
-		Root: pulumiHome,
+	_, err = auto.InstallPulumiCommand(ctx, &auto.PulumiCommandOptions{
+		Root: installDir,
 	})
+
 	if err != nil {
 		return fmt.Errorf("failed to install pulumi: %w", err)
 	}
@@ -101,20 +102,24 @@ func isDockerInstalled() bool {
 }
 
 func isPulumiInstalled() bool {
-	pulumiHome, err := pulumiHome()
+	installDir, err := pulumiInstallDir()
 	if err != nil {
 		return false
 	}
-	_, err = pulumi.NewPulumiCommand(&pulumi.PulumiCommandOptions{
-		Root: pulumiHome,
+	cmd, err := auto.NewPulumiCommand(&auto.PulumiCommandOptions{
+		Root: installDir,
 	})
-	return err == nil
+	if err != nil {
+		return false
+	}
+	// The installed version must be the same as the current SDK version
+	return cmd.Version().EQ(pulumi.Version)
 }
 
-func pulumiHome() (string, error) {
+func pulumiInstallDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".k2", "pulumi"), nil
+	return filepath.Join(home, ".k2", "pulumi", "versions", pulumi.Version.String()), nil
 }
