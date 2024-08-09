@@ -4,17 +4,16 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/command"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
 	"syscall"
 
+	"github.com/klothoplatform/klotho/pkg/command"
 	"github.com/klothoplatform/klotho/pkg/k2/cleanup"
-	"go.uber.org/zap"
-
 	"github.com/klothoplatform/klotho/pkg/logging"
+	"go.uber.org/zap"
 )
 
 //go:embed python/python_language_host.py
@@ -119,7 +118,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath 
 	go func() {
 		err := cmd.Wait()
 		if err != nil {
-			log.Errorf("Python process exited with error: %v", err)
+			log.Debugf("Python process exited with error: %v", err)
 		} else {
 			log.Debug("Python process exited successfully")
 		}
