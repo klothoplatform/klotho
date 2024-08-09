@@ -10,15 +10,49 @@ properties:
         resources:
           - aws:iam_role:{{ .Self.Name }}-ExecutionRole
         unique: true
+  Handler:
+    type: string
+  Runtime:
+    type: string
+    default_value: nodejs20.x
+    allowed_values:
+      - nodejs20.x
+      - nodejs18.x
+      - nodejs16.x
+      - python3.12
+      - python3.11
+      - python3.10
+      - python3.9
+      - python3.8
+      - java21
+      - java17
+      - java11
+      - java8.al2
+      - dotnet8
+      - dotnet6
+      - ruby3.3
+      - ruby3.2
+      - provided.al2023
+      - provided.al2
   Image:
     type: string
     operational_rule:
+      if: |
+        {{ and (not (hasField "Code" .Self)) (not (hasField "S3Bucket" .Self)) }}
       step:
         direction: downstream
         resources:
           - aws:ecr_image:{{ .Self.Name }}-image
         unique: true
         use_property_ref: ImageName
+  Code:
+    type: string
+  S3Bucket:
+    type: string
+  S3Key:
+    type: string
+  S3ObjectVersion:
+    type: string
   EnvironmentVariables:
     type: map(string,string)
     important: true
@@ -29,6 +63,10 @@ properties:
           | replace `^[^a-zA-Z]+` ""
           | upper
         }}
+  DefaultLogGroup:
+    type: string
+    deploy_time: true
+    configuration_disabled: true
   SecurityGroups:
     type: list(resource(aws:security_group))
     operational_rule:
@@ -64,16 +102,20 @@ properties:
     max_value: 10240
   EfsAccessPoint:
     type: resource(aws:efs_access_point)
-  LogGroup:
-    type: resource(aws:log_group)
-    operational_rule:
-      step:
-        direction: downstream
-        resources:
-          - selector: aws:log_group:{{ .Self.Name }}-log-group
-            properties:
-              LogGroupName: /aws/lambda/{{ .Self.Name }}
-        unique: true
+  LogConfig:
+    type: map
+    properties:
+      Format:
+        type: string
+        default_value: Text
+      ApplicationLogLevel:
+        type: string
+        description: for JSON structured logs, choose the detail level of the logs your application sends to CloudWatch when using supported logging libraries
+      LogGroup:
+        type: resource(aws:log_group)
+      SystemLogLevel:
+        type: string
+        description: for JSON structured logs, choose the detail level of the Lambda platform event logs sent to CloudWatch, such as ERROR, DEBUG, or INFO.
   aws:tags:
     type: model
   LambdaIntegrationUri:
@@ -88,7 +130,10 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
-
+  FunctionName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 path_satisfaction:
   as_target:
     - network
@@ -106,6 +151,16 @@ classification:
   is:
     - serverless
     - compute
+
+additional_rules:
+  # Create the default log group if there isn't one already
+  - if: '{{ and (not (hasDownstream "aws:log_group" .Self)) (not (hasField "LogConfig.LogGroup" .Self)) }}'
+    steps:
+      - resources:
+          - selector: aws:log_group
+            properties:
+              LogGroupName: '{{ fieldRef "DefaultLogGroup" .Self }}'
+        unique: true
 
 delete_context:
   requires_no_upstream: true

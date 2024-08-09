@@ -3,6 +3,7 @@ from klotho.aws.bucket import Bucket
 from klotho.aws.container import Container
 from klotho.aws.postgres import Postgres
 from klotho.aws.fastapi import FastAPI
+from klotho.aws.function import Function
 
 from klotho.aws.provider import AwsProvider
 from klotho.runtime import instance as runtime

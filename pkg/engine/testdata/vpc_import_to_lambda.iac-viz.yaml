@@ -1,5 +1,14 @@
 provider: aws
 resources:
+  log_group/lambda_function-log_group:
+
+  log_group/lambda_function-log_group -> lambda_function/lambda_function:
+  subnet/subnet3:
+
+  subnet/subnet3 -> vpc/vpc:
+  subnet/subnet4:
+
+  subnet/subnet4 -> vpc/vpc:
   lambda_function/lambda_function:
 
   lambda_function/lambda_function -> ecr_image/lambda_function-image:
@@ -7,18 +16,11 @@ resources:
   lambda_function/lambda_function -> aws:security_group:vpc/lambda_function-security_group:
   lambda_function/lambda_function -> subnet/subnet1:
   lambda_function/lambda_function -> subnet/subnet2:
-  subnet/subnet3:
-
-  subnet/subnet3 -> vpc/vpc:
-  subnet/subnet4:
-
-  subnet/subnet4 -> vpc/vpc:
   ecr_image/lambda_function-image:
 
   ecr_image/lambda_function-image -> ecr_repo/lambda_function-image-ecr_repo:
   iam_role/lambda_function-executionrole:
 
-  iam_role/lambda_function-executionrole -> log_group/lambda_function-log-group:
   aws:security_group:vpc/lambda_function-security_group:
 
   aws:security_group:vpc/lambda_function-security_group -> vpc/vpc:
@@ -29,8 +31,6 @@ resources:
 
   subnet/subnet2 -> vpc/vpc:
   ecr_repo/lambda_function-image-ecr_repo:
-
-  log_group/lambda_function-log-group:
 
   vpc/vpc:
 

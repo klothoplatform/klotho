@@ -62,18 +62,6 @@
   {
     "error": {
       "chain": [
-        "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image"
-      ]
-    },
-    "error_code": "config_invalid",
-    "property": "BaseImage",
-    "resource": "aws:ecr_image:lambda_function-image",
-    "validation_error": "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image",
-    "value": null
-  },
-  {
-    "error": {
-      "chain": [
         "required property Id is not set on resource aws:subnet:subnet1"
       ]
     },
@@ -129,6 +117,18 @@
     "property": "Id",
     "resource": "aws:vpc:vpc",
     "validation_error": "required property Id is not set on resource aws:vpc:vpc",
+    "value": null
+  },
+  {
+    "error": {
+      "chain": [
+        "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image"
+      ]
+    },
+    "error_code": "config_invalid",
+    "property": "BaseImage",
+    "resource": "aws:ecr_image:lambda_function-image",
+    "validation_error": "required property BaseImage is not set on resource aws:ecr_image:lambda_function-image",
     "value": null
   }
 ]

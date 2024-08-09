@@ -1,0 +1,12 @@
+{
+                logFormat: "{{ .Format }}",
+                {{- if .LogConfig.ApplicationLogLevel }}
+                applicationLogLevel: "{{ .ApplicationLogLevel }}",
+                {{- end }}
+                {{- if .SystemLogLevel }}
+                systemLogLevel: "{{ .SystemLogLevel }}",
+                {{- end }}
+                {{- if .LogGroup }}
+                logGroup: {{ getVar .LogGroup }}.name,
+                {{- end }}
+            }

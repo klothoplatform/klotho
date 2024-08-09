@@ -1,0 +1,17 @@
+provider: aws
+resources:
+  lambda_function/code_folder:
+    children:
+        - aws:iam_role:code_folder-ExecutionRole
+    tag: big
+
+  lambda_function/remote:
+    children:
+        - aws:iam_role:remote-ExecutionRole
+    tag: big
+
+  lambda_function/zip:
+    children:
+        - aws:iam_role:zip-ExecutionRole
+    tag: big
+

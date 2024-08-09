@@ -1,0 +1,53 @@
+constraints:
+  - node: aws:lambda_function:zip
+    operator: add
+    scope: application
+  - operator: equals
+    property: Code
+    scope: resource
+    target: aws:lambda_function:zip
+    value: mycode.zip
+  - operator: equals
+    property: Handler
+    scope: resource
+    target: aws:lambda_function:zip
+    value: my_function.handler
+
+  - node: aws:lambda_function:remote
+    operator: add
+    scope: application
+  - operator: equals
+    property: Code
+    scope: resource
+    target: aws:lambda_function:remote
+    value: https://example.com/my_lambda.zip
+  - operator: equals
+    property: Handler
+    scope: resource
+    target: aws:lambda_function:remote
+    value: my_function.handler
+
+  - node: aws:lambda_function:code_folder
+    operator: add
+    scope: application
+  - operator: equals
+    property: Code
+    scope: resource
+    target: aws:lambda_function:code_folder
+    value: my_folder
+  - operator: equals
+    property: Handler
+    scope: resource
+    target: aws:lambda_function:code_folder
+    value: my_function.handler
+
+  # Custom Log Group
+  - node: aws:log_group:custom
+    operator: add
+    scope: application
+  - operator: equals
+    property: LogConfig
+    scope: resource
+    target: aws:lambda_function:zip
+    value:
+      LogGroup: aws:log_group:custom

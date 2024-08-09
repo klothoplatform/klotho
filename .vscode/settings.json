@@ -4,6 +4,12 @@
       120
     ]
   },
+  "files.associations": {
+    "*.tmpl": "gotmpl"
+  },
+  "[gotmpl]": {
+    "files.insertFinalNewline": false
+  },
   "files.exclude": {
     "**/.git": true,
     "**/.svn": true,

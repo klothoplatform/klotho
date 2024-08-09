@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -185,7 +186,20 @@ func createNodeToTemplate(node *sitter.Node, name string) (*template.Template, s
 
 	// transform escaped double curly brace literals e.g. ~~{{ .ID }} -> {{ `{{` }} .ID }}
 	expressionBody = curlyEscapes.ReplaceAllString(expressionBody, "{{ `{{` }}")
-	tmpl, err := template.New(name).Parse(expressionBody)
+	tmpl, err := template.New(name).Funcs(template.FuncMap{
+		"dir": func(path templateString) string {
+			// dir returns the parent directory of the current path
+			return filepath.Dir(string(path))
+		},
+		"filepathBase": func(path templateString) string {
+			// filename returns the basename of the current path
+			return filepath.Base(string(path))
+		},
+		"matches": func(pattern string, value templateString) bool {
+			// matches returns true if the value matches the pattern
+			matched, _ := regexp.MatchString(pattern, string(value))
+			return matched
+		}}).Parse(expressionBody)
 
 	return tmpl, outputType, err
 }

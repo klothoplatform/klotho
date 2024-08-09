@@ -2,6 +2,6 @@
     "name": "security_group_rule",
     "dependencies": {
         "@pulumi/pulumi": "^3.69.0",
-        "@pulumi/aws": "^5.37.0"
+        "@pulumi/aws": "^6.48.0"
     }
 }
