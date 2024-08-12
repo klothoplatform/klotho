@@ -21,7 +21,15 @@ dynamodb = aws.DynamoDB(
         {"Name": "data", "Type": "S"},  # Attribute for indexing
     ],
     hash_key="id",
-    range_key="data", 
+
+    # Define a Global Secondary Index (GSI)
+    global_secondary_indexes=[
+        {
+            "name": "DataIndex",
+            "hash_key": "data",                  # Partition key for the GSI
+            "projection_type": "ALL"             # Project all attributes
+        }
+    ],
 )
 
 my_function = aws.Function(

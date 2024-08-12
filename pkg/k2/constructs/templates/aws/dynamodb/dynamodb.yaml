@@ -109,3 +109,17 @@ input_rules:
         DynamoDBTable:
           properties:
             Tags: ${inputs:Tags}
+
+  - if: '{{ not (eq (inputs "GlobalSecondaryIndexes") nil) }}'
+    then:
+      resources:
+        DynamoDBTable:
+          properties:
+            GlobalSecondaryIndexes: ${inputs:GlobalSecondaryIndexes}
+
+  - if: '{{ not (eq (inputs "LocalSecondaryIndexes") nil) }}'
+    then:
+      resources:
+        DynamoDBTable:
+          properties:
+            LocalSecondaryIndexes: ${inputs:LocalSecondaryIndexes}

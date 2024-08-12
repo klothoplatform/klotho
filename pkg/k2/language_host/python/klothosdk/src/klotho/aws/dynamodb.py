@@ -138,6 +138,13 @@ class DynamoDB(Construct):
         if billing_mode is None:
             billing_mode = "PAY_PER_REQUEST"
 
+
+        if global_secondary_indexes is not None:
+            global_secondary_indexes = [{''.join(word.capitalize() for word in key.split('_')): value for key, value in gsi.items()} for gsi in global_secondary_indexes]
+
+        if local_secondary_indexes is not None:
+            local_secondary_indexes = [{''.join(word.capitalize() for word in key.split('_')): value for key, value in lsi.items()} for lsi in local_secondary_indexes]
+
         super().__init__(
             name,
             construct_type="klotho.aws.DynamoDB",

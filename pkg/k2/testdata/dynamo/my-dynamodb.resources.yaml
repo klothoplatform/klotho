@@ -1,0 +1,31 @@
+resources:
+    aws:dynamodb_table:my-dynamodb:
+        Attributes:
+            - Name: id
+              Type: S
+            - Name: data
+              Type: S
+            - Name: status
+              Type: S
+            - Name: timestamp
+              Type: "N"
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+            - HashKey: status
+              Name: StatusIndex
+              ProjectionType: ALL
+        HashKey: id
+        LocalSecondaryIndexes:
+            - Name: TimestampIndex
+              ProjectionType: ALL
+              RangeKey: timestamp
+        RangeKey: data
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-dynamodb
+edges:
+outputs:
+    TableArn:
+        ref: aws:dynamodb_table:my-dynamodb#Arn
+    TableName:
+        value: my-dynamodb

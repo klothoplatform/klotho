@@ -883,15 +883,6 @@ func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemp
 		body = rule.Else
 	}
 
-	// add raw resources to the context
-	for key, resource := range body.Resources {
-		r, err := ce.resolveResource(o, key, resource, interpolationCtx)
-		if err != nil {
-			return fmt.Errorf("could not resolve resource %s: %w", key, err)
-		}
-		o.SetResource(key, r)
-	}
-
 	for key, resource := range body.Resources {
 		rp, err := ce.interpolateValue(o, resource, interpolationCtx)
 		if err != nil {
@@ -901,7 +892,7 @@ func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemp
 
 		r, err := ce.resolveResource(o, key, rt, interpolationCtx)
 		if err != nil {
-			return fmt.Errorf("could not resolve resource %s : %w", key, err)
+			return fmt.Errorf("could not resolve resource %s: %w", key, err)
 		}
 		o.SetResource(key, r)
 	}
