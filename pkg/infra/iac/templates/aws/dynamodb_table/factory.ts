@@ -3,7 +3,6 @@ import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
 import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
-
 interface Args {
     Name: string
     Id: string
@@ -11,7 +10,9 @@ interface Args {
     HashKey: string
     RangeKey: string
     BillingMode: string
-    GlobalSecondaryIndexes: pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableGlobalSecondaryIndex>[]>
+    GlobalSecondaryIndexes: pulumi.Input<
+        pulumi.Input<awsInputs.dynamodb.TableGlobalSecondaryIndex>[]
+    >
     LocalSecondaryIndexes: pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableLocalSecondaryIndex>[]>
     protect: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
