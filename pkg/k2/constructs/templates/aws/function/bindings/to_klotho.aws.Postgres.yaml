@@ -1,0 +1,6 @@
+from: klotho.aws.Function
+to: klotho.aws.Postgres
+
+edges:
+  - from: ${from.resources:LambdaFunction}
+    to: ${to.resources:RDSInstance}

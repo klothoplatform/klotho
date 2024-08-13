@@ -1,7 +1,6 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as aws from '@pulumi/aws'
-import * as command from '@pulumi/command'
 
 interface Args {
     Name: string
@@ -9,7 +8,6 @@ interface Args {
     Repo: aws.ecr.Repository
     Context: string
     Dockerfile: string
-    BaseImage: string
     Platform: string
     dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }

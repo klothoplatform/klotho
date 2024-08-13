@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -39,6 +40,11 @@ func TestK2(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	tmp, err := os.MkdirTemp("", "k2-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// use a shared semaphore to prevent too many parallel tests
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU()))
 
@@ -51,10 +57,19 @@ func TestK2(t *testing.T) {
 	}.NewLogger()
 	defer zap.ReplaceGlobals(log)()
 
+	log.Sugar().Debugf("Using temp dir %s", tmp)
+
 	for _, p := range tests {
 		dir := filepath.Dir(p)
 		name := filepath.Base(dir)
-		tc := testCase{inputPath: p, sem: sem, log: log.Named("test." + name)}
+		ctx := context.Background()
+		ctx = logging.WithLogger(ctx, log.Named("test."+name))
+		ctx = debug.WithDebugDir(ctx, filepath.Join(tmp, name))
+		tc := testCase{
+			inputPath: p,
+			sem:       sem,
+			ctx:       ctx,
+		}
 		t.Run(name, tc.Test)
 	}
 }
@@ -63,7 +78,7 @@ type testCase struct {
 	// input fields
 	inputPath string
 	sem       *semaphore.Weighted
-	log       *zap.Logger
+	ctx       context.Context
 
 	// output/intermediate fields
 	project, application string
@@ -74,13 +89,10 @@ type testCase struct {
 func (tc testCase) Test(t *testing.T) {
 	t.Parallel()
 
-	log := tc.log.Sugar()
-
-	ctx := context.Background()
-	ctx = logging.WithLogger(ctx, tc.log)
+	log := logging.GetLogger(tc.ctx).Sugar()
 
 	var langHost language_host.LanguageHost
-	err := langHost.Start(ctx, language_host.DebugConfig{}, filepath.Dir(tc.inputPath))
+	err := langHost.Start(tc.ctx, language_host.DebugConfig{}, filepath.Dir(tc.inputPath))
 	if err != nil {
 		t.Fatalf("Failed to start language host: %v", err)
 		return
@@ -91,7 +103,7 @@ func (tc testCase) Test(t *testing.T) {
 		}
 	}()
 
-	ir, err := langHost.GetIR(ctx, &pb.IRRequest{Filename: tc.inputPath})
+	ir, err := langHost.GetIR(tc.ctx, &pb.IRRequest{Filename: tc.inputPath})
 	if err != nil {
 		t.Fatalf("Failed to get IR: %v", err)
 		return
@@ -129,7 +141,7 @@ func (tc testCase) Test(t *testing.T) {
 		return
 	}
 
-	err = o.RunUpCommand(ctx, ir, model.DryRunFileOnly, tc.sem)
+	err = o.RunUpCommand(tc.ctx, ir, model.DryRunFileOnly, tc.sem)
 	if err != nil {
 		t.Fatalf("Failed to run up command: %v", err)
 		return

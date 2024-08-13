@@ -13,7 +13,6 @@ interface Args {
     MemorySize: pulumi.Input<number>
     Timeout: pulumi.Input<number>
     EfsAccessPoint: aws.efs.AccessPoint
-    dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
     Tags: ModelCaseWrapper<Record<string, string>>
     Code: string
     Handler: string
@@ -21,8 +20,8 @@ interface Args {
     S3Bucket: string
     S3Key: string
     S3ObjectVersion: string
-    Id: string
     LogConfig: TemplateWrapper<aws.types.input.lambda.FunctionLoggingConfig>
+    dependsOn?: pulumi.Input<pulumi.Input<pulumi.Resource>[]> | pulumi.Input<pulumi.Resource>
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -96,6 +95,8 @@ function properties(object: aws.lambda.Function, args: Args) {
     }
 }
 
-function importResource(args: Args): aws.lambda.Function {
-    return aws.lambda.Function.get(args.Name, args.Id)
+type AllProperties = Args & ReturnType<typeof properties>
+
+function importResource(args: AllProperties): aws.lambda.Function {
+    return aws.lambda.Function.get(args.Name, args.FunctionName)
 }

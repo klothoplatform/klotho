@@ -871,7 +871,10 @@ func (ce *ConstructEvaluator) evaluateInputRule(o InfraOwner, rule InputRuleTemp
 		return fmt.Errorf("template execution failed: %w", err)
 	}
 
-	executeThen := rawResult.String() != "" && strings.ToLower(rawResult.String()) != "false"
+	result := rawResult.String()
+	// If the input (eg 'field') is nil and the 'if' statement just uses '{{ inputs "field" }}',
+	// then the string result will be '<no value>'. Make sure we don't interpret that as a true condition.
+	executeThen := result != "" && result != "<no value>" && strings.ToLower(result) != "false"
 
 	var body ConditionalExpressionTemplate
 	if executeThen {

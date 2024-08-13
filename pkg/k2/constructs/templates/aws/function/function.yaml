@@ -87,6 +87,14 @@ inputs:
     name: Image URI
     description: The URI of a container image in the Amazon ECR registry
     type: string
+  Dockerfile:
+    name: Dockerfile
+    description: The path to the Dockerfile used to build the container image
+    type: path
+  DockerContext:
+    name: Docker Context
+    description: The path to the build context used to build the container image
+    type: path
 
 input_rules:
   - if: '{{ inputs "Code" }}'
@@ -113,8 +121,35 @@ input_rules:
       resources:
         LambdaFunction:
           properties:
-            PackageType: Image
             ImageUri: ${inputs:ImageUri}
+  - if: '{{ inputs "Dockerfile" }}'
+    then:
+      resources:
+        Image:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
+          properties:
+            Dockerfile: ${inputs:Dockerfile}
+        LambdaFunction:
+          properties:
+            Image: aws:ecr_image:${inputs:Name}-image#ImageName
+  - if: '{{ inputs "DockerContext" }}'
+    then:
+      resources:
+        Image:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
+          properties:
+            Context: ${inputs:DockerContext}
+        LambdaFunction:
+          properties:
+            Image: aws:ecr_image:${inputs:Name}-image#ImageName
+  - if: '{{ or (inputs "ImageUri") (inputs "Dockerfile") }}'
+    then:
+      resources:
+        LambdaFunction:
+          properties:
+            PackageType: Image
     else:
       resources:
         LambdaFunction:

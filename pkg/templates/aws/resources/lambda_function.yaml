@@ -134,6 +134,7 @@ properties:
     type: string
     configuration_disabled: true
     deploy_time: true
+    required: true
 path_satisfaction:
   as_target:
     - network
