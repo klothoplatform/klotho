@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper } from '../../wrappers'
+import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
@@ -9,6 +9,10 @@ interface Args {
     HashKey: string
     RangeKey: string
     BillingMode: string
+    GlobalSecondaryIndexes: pulumi.Input<
+        pulumi.Input<awsInputs.dynamodb.TableGlobalSecondaryIndex>[]
+    >
+    LocalSecondaryIndexes: pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableLocalSecondaryIndex>[]>
     protect: boolean
     Tags: ModelCaseWrapper<Record<string, string>>
 }
@@ -26,6 +30,12 @@ function create(args: Args): aws.dynamodb.Table {
             //TMPL {{- if .Tags }}
             tags: args.Tags,
             //TMPL {{- end }}
+            //TMPL {{- if .GlobalSecondaryIndexes}}
+            globalSecondaryIndexes: args.GlobalSecondaryIndexes,
+            //TMPL {{- end }}
+            //TMPL {{- if .LocalSecondaryIndexes}}
+            localSecondaryIndexes: args.LocalSecondaryIndexes,
+            //TMPL {{- end }}
         },
         { protect: args.protect }
     )
@@ -38,6 +48,13 @@ function properties(object: aws.dynamodb.Table, args: Args) {
         DynamoTableBackupArn: pulumi.interpolate`${object.arn}/backup/*`,
         DynamoTableExportArn: pulumi.interpolate`${object.arn}/export/*`,
         DynamoTableIndexArn: pulumi.interpolate`${object.arn}/index/*`,
+        Id: object.id,
         Name: object.name,
     }
+}
+
+type AllProperties = Args & ReturnType<typeof properties>
+
+function importResource(args: AllProperties): aws.dynamodb.Table {
+    return aws.dynamodb.Table.get(args.Name, args.Id)
 }

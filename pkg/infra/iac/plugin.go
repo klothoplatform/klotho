@@ -48,7 +48,7 @@ var (
 	pulumiStack = templateutils.MustTemplate(files, "Pulumi.dev.yaml.tmpl")
 )
 
-func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
+func (p Plugin) Translate(sol solution.Solution) ([]kio.File, error) {
 
 	err := p.sanitizeConfig()
 	if err != nil {
@@ -63,12 +63,12 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = addPulumiKubernetesProviders(ctx.DeploymentGraph())
+	err = addPulumiKubernetesProviders(sol.DeploymentGraph())
 	if err != nil {
 		return nil, fmt.Errorf("error adding pulumi kubernetes providers: %w", err)
 	}
 	tc := &TemplatesCompiler{
-		graph:     ctx.DeploymentGraph(),
+		graph:     sol.DeploymentGraph(),
 		templates: &templateStore{fs: templatesFS},
 	}
 	tc.vars, err = VariablesFromGraph(tc.graph)
@@ -100,7 +100,7 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 	}
 
 	buf.WriteString("\n")
-	renderStackOutputs(tc, buf, ctx.Outputs())
+	renderStackOutputs(tc, buf, sol.Outputs())
 
 	buf.WriteString("\n")
 	tc.renderUrnMap(buf, resources)
@@ -136,7 +136,7 @@ func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 
 	files := []kio.File{indexTs, pJson, pulumiYaml, pulumiStack, tsConfig}
 
-	dockerfiles, err := RenderDockerfiles(ctx)
+	dockerfiles, err := RenderDockerfiles(sol)
 	if err != nil {
 		return nil, err
 	}

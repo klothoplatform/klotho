@@ -1,0 +1,7 @@
+qualified_type_name: aws:dynamodb_table
+iac_qualified_type: aws:dynamodb/table:Table
+
+property_mappings:
+  arn: Arn
+  tags: Tags
+  id: Id
