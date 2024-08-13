@@ -1,22 +1,22 @@
 from typing import Optional, overload, List, Dict
 
 from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
-from klotho.output import Input
-from klotho.runtime_util import get_default_construct
-from klotho.type_util import set_field, get_field
+from klotho.output import Input, MappingInput, Output
+from klotho.type_util import set_field, get_field, get_output
+
 
 class DynamoDBArgs:
     """Arguments for configuring a DynamoDB table."""
 
     def __init__(
                  self,
-                 attributes: Input[List[Dict[str, str]]],
+                 attributes: Input[List[MappingInput[str]]],
                  hash_key: Input[str],
                  billing_mode: Optional[Input[str]] = None,
                  range_key: Optional[Input[str]] = None,
-                 global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None, 
-                 local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,
-                 tags: Optional[Input[Dict[str, str]]] = None
+                 global_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None, 
+                 local_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None,
+                 tags: Optional[Input[MappingInput[str]]] = None
                 ):
         set_field(self, "attributes", attributes)
         set_field(self, "hash_key", hash_key)
@@ -38,11 +38,11 @@ class DynamoDBArgs:
         set_field(self, name, value)
 
     @property
-    def attributes(self) -> Input[List[Dict[str, str]]]:
+    def attributes(self) -> Optional[Input[List[MappingInput[str]]]]:
         return self._get_property("attributes")
 
     @attributes.setter
-    def attributes(self, value: Input[List[Dict[str, str]]]) -> None:
+    def attributes(self, value: Input[List[MappingInput[str]]]) -> None:
         self._set_property("attributes", value)
 
     @property
@@ -54,7 +54,7 @@ class DynamoDBArgs:
         self._set_property("billing_mode", value)
 
     @property
-    def hash_key(self) -> Input[str]:
+    def hash_key(self) ->Optional[Input[str]]:
         return self._get_property("hash_key")
 
     @hash_key.setter
@@ -70,27 +70,27 @@ class DynamoDBArgs:
         self._set_property("range_key", value)
 
     @property
-    def global_secondary_indexes(self) -> Optional[Input[List[Dict[str, str]]]]:
+    def global_secondary_indexes(self) -> Optional[Input[List[MappingInput[str]]]]:
         return self._get_property("global_secondary_indexes")
 
     @global_secondary_indexes.setter
-    def global_secondary_indexes(self, value: Optional[Input[List[Dict[str, str]]]]) -> None:
+    def global_secondary_indexes(self, value: Optional[Input[List[MappingInput[str]]]]) -> None:
         self._set_property("global_secondary_indexes", value)
 
     @property
-    def local_secondary_indexes(self) -> Optional[Input[List[Dict[str, str]]]]:
+    def local_secondary_indexes(self) -> Optional[Input[List[MappingInput[str]]]]:
         return self._get_property("local_secondary_indexes")
 
     @local_secondary_indexes.setter
-    def local_secondary_indexes(self, value: Optional[Input[List[Dict[str, str]]]]) -> None:
+    def local_secondary_indexes(self, value: Optional[Input[List[MappingInput[str]]]]) -> None:
         self._set_property("local_secondary_indexes", value)
 
     @property
-    def tags(self) -> Optional[Input[Dict[str, str]]]:
+    def tags(self) -> Optional[Input[MappingInput[str]]]:
         return self._get_property("tags")
 
     @tags.setter
-    def tags(self, value: Optional[Input[Dict[str, str]]]) -> None:
+    def tags(self, value: Optional[Input[MappingInput[str]]]) -> None:
         self._set_property("tags", value)
 
 class DynamoDB(Construct):
@@ -105,45 +105,38 @@ class DynamoDB(Construct):
     def __init__(
         self,
         name: str,
-        attributes: Input[List[Dict[str, str]]],
+        attributes: Input[List[MappingInput[str]]],
         hash_key: Input[str],
         billing_mode: Optional[Input[str]] = None,
         range_key: Optional[Input[str]] = None,
-        global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
-        local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
-        tags: Optional[Input[Dict[str, str]]] = None,
+        global_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None,  
+        local_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None,  
+        tags: Optional[MappingInput[str]] = None,
         opts: Optional[ConstructOptions] = None,
     ): ...
 
     def __init__(self, name: str, *args, **kwargs):
         construct_args, opts = get_construct_args_opts(DynamoDBArgs, *args, **kwargs)
         if construct_args is not None:
-            self._internal_init(name, opts, **construct_args.__dict__)
+            self._internal_init(name,  opts=opts, **construct_args.__dict__)
         else:
             self._internal_init(name, *args, **kwargs)
 
     def _internal_init(
         self,
         name: str,
-        attributes: Input[List[Dict[str, str]]],
+        attributes: Input[List[MappingInput[str]]],
         hash_key: Input[str],
         billing_mode: Optional[Input[str]] = None,
         range_key: Optional[Input[str]] = None,
-        global_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
-        local_secondary_indexes: Optional[Input[List[Dict[str, str]]]] = None,  
-        tags: Optional[Input[Dict[str, str]]] = None,
+        global_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None,  
+        local_secondary_indexes: Optional[Input[List[MappingInput[str]]]] = None,  
+        tags: Optional[Input[MappingInput[str]]] = None,
         opts: Optional[ConstructOptions] = None,
     ):
         """Internal initializer for DynamoDB."""
         if billing_mode is None:
             billing_mode = "PAY_PER_REQUEST"
-
-
-        if global_secondary_indexes is not None:
-            global_secondary_indexes = [{''.join(word.capitalize() for word in key.split('_')): value for key, value in gsi.items()} for gsi in global_secondary_indexes]
-
-        if local_secondary_indexes is not None:
-            local_secondary_indexes = [{''.join(word.capitalize() for word in key.split('_')): value for key, value in lsi.items()} for lsi in local_secondary_indexes]
 
         super().__init__(
             name,
@@ -161,11 +154,11 @@ class DynamoDB(Construct):
         )
 
     @property
-    def table_name(self) -> str:
+    def table_name(self) -> Output[str]:
         """The name of the DynamoDB table."""
-        return get_field(self, "TableName")
+        return get_output(self, "TableName", str)
 
     @property
-    def table_arn(self) -> str:
+    def table_arn(self) -> Output[str]:
         """The Amazon Resource Name (ARN) of the DynamoDB table."""
-        return get_field(self, "TableArn")
+        return get_output(self, "TableArn", str)

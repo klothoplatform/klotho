@@ -25,9 +25,9 @@ dynamodb = aws.DynamoDB(
     # Define a Global Secondary Index (GSI)
     global_secondary_indexes=[
         {
-            "name": "DataIndex",
-            "hash_key": "data",                  # Partition key for the GSI
-            "projection_type": "ALL"             # Project all attributes
+            "Name": "DataIndex",
+            "HashKey": "data",                  # Partition key for the GSI
+            "ProjectionType": "ALL"             # Project all attributes
         }
     ],
 )
