@@ -16,11 +16,10 @@ if TYPE_CHECKING:
     from klotho.aws.postgres import Postgres
 
 BindingType = Union[
-    Binding["DynamoDB"],
-    Binding["Bucket"],
-    Binding["Postgres"]
+    Binding["DynamoDB"], "DynamoDB",
+    Binding["Bucket"], "Bucket",
+    Binding["Postgres"], "Postgres",
 ]
-
 
 class FunctionArgs:
     def __init__(
