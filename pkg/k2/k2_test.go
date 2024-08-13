@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klothoplatform/klotho/pkg/engine/debug"
 	"github.com/klothoplatform/klotho/pkg/k2/language_host"
 	pb "github.com/klothoplatform/klotho/pkg/k2/language_host/go"
 	"github.com/klothoplatform/klotho/pkg/k2/model"
@@ -40,11 +39,6 @@ func TestK2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmp, err := os.MkdirTemp("", "k2-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// use a shared semaphore to prevent too many parallel tests
 	sem := semaphore.NewWeighted(int64(runtime.NumCPU()))
 
@@ -57,14 +51,11 @@ func TestK2(t *testing.T) {
 	}.NewLogger()
 	defer zap.ReplaceGlobals(log)()
 
-	log.Sugar().Debugf("Using temp dir %s", tmp)
-
 	for _, p := range tests {
 		dir := filepath.Dir(p)
 		name := filepath.Base(dir)
 		ctx := context.Background()
 		ctx = logging.WithLogger(ctx, log.Named("test."+name))
-		ctx = debug.WithDebugDir(ctx, filepath.Join(tmp, name))
 		tc := testCase{
 			inputPath: p,
 			sem:       sem,

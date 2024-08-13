@@ -1,0 +1,66 @@
+resources:
+    aws:api_stage:my-api-api:my-api-stage:
+        Deployment: aws:api_deployment:my-api-api:api_deployment-0
+        RestApi: aws:rest_api:my-api-api
+        StageName: api
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-api-stage
+    aws:api_deployment:my-api-api:api_deployment-0:
+        RestApi: aws:rest_api:my-api-api
+        Triggers:
+            docker-func: docker-func
+            docker-func-api_method: docker-func-api_method
+    aws:rest_api:my-api-api:
+        BinaryMediaTypes:
+            - application/octet-stream
+            - image/*
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-api-api
+    aws:api_method:my-api-api:docker-func-api_method:
+        Authorization: NONE
+        HttpMethod: ANY
+        RequestParameters: {}
+        RestApi: aws:rest_api:my-api-api
+    aws:api_integration:my-api-api:docker-func:
+        IntegrationHttpMethod: POST
+        Method: aws:api_method:my-api-api:docker-func-api_method
+        RequestParameters: {}
+        RestApi: aws:rest_api:my-api-api
+        Route: /
+        Target: aws:lambda_function:docker-func-function
+        Type: AWS_PROXY
+        Uri: aws:lambda_function:docker-func-function#LambdaIntegrationUri
+    aws:lambda_permission:docker-func-docker-func-function:
+        Action: lambda:InvokeFunction
+        Function: aws:lambda_function:docker-func-function
+        Principal: apigateway.amazonaws.com
+        Source: aws:rest_api:my-api-api#ChildResources
+    aws:lambda_function:docker-func-function:
+        EnvironmentVariables: {}
+        FunctionName: preview(id=aws:lambda_function:docker-func-function)
+        Handler: ""
+        LogConfig:
+            Format: Text
+        MemorySize: 128
+        Runtime: nodejs14.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-function
+        Timeout: 3
+        imported: true
+edges:
+    aws:api_stage:my-api-api:my-api-stage -> aws:api_deployment:my-api-api:api_deployment-0:
+    aws:api_stage:my-api-api:my-api-stage -> aws:rest_api:my-api-api:
+    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_integration:my-api-api:docker-func:
+    aws:api_deployment:my-api-api:api_deployment-0 -> aws:api_method:my-api-api:docker-func-api_method:
+    aws:api_deployment:my-api-api:api_deployment-0 -> aws:rest_api:my-api-api:
+    aws:rest_api:my-api-api -> aws:api_integration:my-api-api:docker-func:
+    aws:rest_api:my-api-api -> aws:api_method:my-api-api:docker-func-api_method:
+    aws:api_method:my-api-api:docker-func-api_method -> aws:api_integration:my-api-api:docker-func:
+    aws:api_integration:my-api-api:docker-func -> aws:lambda_permission:docker-func-docker-func-function:
+    aws:lambda_permission:docker-func-docker-func-function -> aws:lambda_function:docker-func-function:
+outputs:
+    Endpoint:
+        ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
