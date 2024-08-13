@@ -12,18 +12,15 @@ from klotho.type_util import get_field, get_output, set_field
 
 if TYPE_CHECKING:
     from klotho.aws.dynamodb import DynamoDB
+    from klotho.aws.bucket import Bucket
+    from klotho.aws.postgres import Postgres
 
 BindingType = Union[
     Binding["DynamoDB"],
-    "DynamoDB",
+    Binding["Bucket"],
+    Binding["Postgres"]
 ]
 
-if TYPE_CHECKING:
-    from klotho.aws.dynamodb import DynamoDB
-
-BindingType = Union[
-    Binding["DynamoDB"], "DynamoDB",
-]
 
 class FunctionArgs:
     def __init__(
@@ -40,7 +37,7 @@ class FunctionArgs:
         image_uri: Optional[Input[str]] = None,
         dockerfile: Optional[Input[str]] = None,
         docker_context: Optional[Input[str]] = None,
-        bindings: Optional[list[Binding]] = None,
+        bindings: Optional[list[BindingType]] = None,
     ):
         if handler is not None:
             set_field(self, "handler", handler)
@@ -189,7 +186,7 @@ class Function(Construct):
         image_uri: Optional[Input[str]] = None,
         dockerfile: Optional[Input[str]] = None,
         docker_context: Optional[Input[str]] = None,
-        bindings: Optional[list[Binding]] = None,
+        bindings: Optional[list[BindingType]] = None,
         opts: Optional[ConstructOptions] = None,
     ): ...
 
@@ -215,7 +212,7 @@ class Function(Construct):
         image_uri: Optional[Input[str]] = None,
         dockerfile: Optional[Input[str]] = None,
         docker_context: Optional[Input[str]] = None,
-        bindings: Optional[list[Binding]] = None,
+        bindings: Optional[list[BindingType]] = None,
         opts: Optional[ConstructOptions] = None,
     ):
         super().__init__(
@@ -251,5 +248,5 @@ class Function(Construct):
     def function_name(self) -> Output[str]:
         return get_output(self, "FunctionName", str)
 
-    def bind(self, binding: Binding) -> None:
+    def bind(self, binding: BindingType) -> None:
         add_binding(self, binding)

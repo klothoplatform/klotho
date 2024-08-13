@@ -45,7 +45,7 @@ const my_dynamodb = new aws.dynamodb.Table(
 
 export const $outputs = {
 	TableArn: my_dynamodb.arn,
-	TableName: "my-dynamodb",
+	TableName: my_dynamodb.name,
 }
 
 export const $urns = {

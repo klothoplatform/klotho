@@ -89,7 +89,7 @@ outputs:
   TableName:
     name: Table Name
     description: The name of the DynamoDB table
-    value: ${resources:DynamoDBTable.Name}
+    value: ${resources:DynamoDBTable#Name}
 
   TableArn:
     name: Table ARN

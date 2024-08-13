@@ -53,9 +53,9 @@ constraints:
       value: null
     - scope: output
       operator: must_exist
-      ref: ""
+      ref: aws:dynamodb_table:my-dynamodb#Name
       name: TableName
-      value: my-dynamodb
+      value: null
 resources:
 edges:
 outputs: {}
