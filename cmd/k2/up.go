@@ -59,7 +59,7 @@ func up(cmd *cobra.Command, args []string) error {
 		upConfig.stateDir = filepath.Join(homeDir, ".k2", "projects")
 	}
 
-	if debugDir := debug.GetDebugDir(ctx); debugDir == "" {
+	if debugDir := debug.GetDebugDir(ctx); debugDir == "" && commonCfg.CommonConfig.Verbose > 0 {
 		ctx = debug.WithDebugDir(ctx, upConfig.stateDir)
 		cmd.SetContext(ctx)
 	}

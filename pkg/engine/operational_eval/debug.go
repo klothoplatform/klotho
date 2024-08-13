@@ -45,6 +45,8 @@ func PrintGraph(g Graph) {
 func (eval *Evaluator) writeGraph(prefix string) {
 	if debugDir := debug.GetDebugDir(eval.Solution.Context()); debugDir != "" {
 		prefix = filepath.Join(debugDir, prefix)
+	} else {
+		return
 	}
 	log := logging.GetLogger(eval.Solution.Context()).Sugar()
 	if err := os.MkdirAll(filepath.Dir(prefix), 0755); err != nil {
@@ -100,6 +102,8 @@ func (eval *Evaluator) writeExecOrder() {
 	path := "exec-order.yaml"
 	if debugDir := debug.GetDebugDir(eval.Solution.Context()); debugDir != "" {
 		path = filepath.Join(debugDir, path)
+	} else {
+		return
 	}
 	log := logging.GetLogger(eval.Solution.Context()).Sugar()
 

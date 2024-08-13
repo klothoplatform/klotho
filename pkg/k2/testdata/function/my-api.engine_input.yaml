@@ -1,0 +1,58 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:api_integration:my-api:docker-func
+    - scope: application
+      operator: must_exist
+      node: aws:api_stage:my-api-api:my-api-stage
+    - scope: application
+      operator: must_exist
+      node: aws:rest_api:my-api-api
+    - scope: resource
+      operator: equals
+      target: aws:api_integration:my-api:docker-func
+      property: Route
+      value: /
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: RestApi
+      value: aws:rest_api:my-api-api
+    - scope: resource
+      operator: equals
+      target: aws:api_stage:my-api-api:my-api-stage
+      property: StageName
+      value: api
+    - scope: edge
+      operator: must_exist
+      target:
+        source: aws:api_integration:my-api:docker-func
+        target: aws:lambda_function:docker-func-function
+      data: {}
+    - scope: edge
+      operator: must_exist
+      target:
+        source: aws:rest_api:my-api-api
+        target: aws:api_integration:my-api:docker-func
+      data: {}
+    - scope: output
+      operator: must_exist
+      ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+      name: Endpoint
+      value: null
+resources:
+    aws:lambda_function:docker-func-function:
+        EnvironmentVariables: {}
+        FunctionName: preview(id=aws:lambda_function:docker-func-function)
+        Handler: ""
+        LogConfig:
+            Format: Text
+        MemorySize: 128
+        Runtime: nodejs14.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-function
+        Timeout: 3
+        imported: true
+edges:
+outputs: {}

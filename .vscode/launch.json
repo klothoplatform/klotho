@@ -86,7 +86,9 @@
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/k2",
-            "cwd": "${fileDirname}",
+            // CWD is mostly responsible for the pipenv environment. There's one at the root that can be used generally.
+            // If a specific env is needed, uncomment the following line.
+            // "cwd": "${fileDirname}",
             "args": [
                 "up",
                 "-v=3",

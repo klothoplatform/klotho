@@ -2,10 +2,11 @@ package clicommon
 
 import (
 	"fmt"
-	"github.com/spf13/pflag"
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+
+	"github.com/spf13/pflag"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/term"
@@ -19,7 +20,7 @@ import (
 type (
 	CommonConfig struct {
 		jsonLog   bool
-		verbose   LevelledFlag
+		Verbose   LevelledFlag
 		logsDir   string
 		profileTo string
 		color     string
@@ -52,7 +53,7 @@ func SetupCoreCommand(root *cobra.Command, commonCfg *CommonConfig) func() {
 
 	flags := root.PersistentFlags()
 
-	verbosity := flags.VarPF(&commonCfg.verbose, "verbose", "v", "Enable verbose logging")
+	verbosity := flags.VarPF(&commonCfg.Verbose, "verbose", "v", "Enable verbose logging")
 	verbosity.NoOptDefVal = "true" // Allow -v to be used without a value
 
 	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Enable JSON logging")
@@ -66,7 +67,7 @@ func SetupCoreCommand(root *cobra.Command, commonCfg *CommonConfig) func() {
 	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		cmd.SilenceUsage = true // Silence usage after args have been parsed
 
-		verbosity := tui.Verbosity(commonCfg.verbose)
+		verbosity := tui.Verbosity(commonCfg.Verbose)
 
 		logOpts := logging.LogOpts{
 			Verbose:         verbosity.LogLevel() <= zapcore.DebugLevel,

@@ -13,5 +13,4 @@
     body: (statement_block) @body
   )
   (#eq? @function_name "importResource")
-  (#eq? @input_type "Args")
 )

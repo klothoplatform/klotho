@@ -1,14 +1,1 @@
-[
-  {
-    "error": {
-      "chain": [
-        "required property BaseImage is not set on resource aws:ecr_image:ecs_service_0-ecs_service_0"
-      ]
-    },
-    "error_code": "config_invalid",
-    "property": "BaseImage",
-    "resource": "aws:ecr_image:ecs_service_0-ecs_service_0",
-    "validation_error": "required property BaseImage is not set on resource aws:ecr_image:ecs_service_0-ecs_service_0",
-    "value": null
-  }
-]
+[]

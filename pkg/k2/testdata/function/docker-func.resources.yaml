@@ -1,0 +1,55 @@
+resources:
+    aws:lambda_function:docker-func-function:
+        EnvironmentVariables: {}
+        ExecutionRole: aws:iam_role:docker-func-function-ExecutionRole
+        Handler: ""
+        Image: aws:ecr_image:docker-func-image#ImageName
+        LogConfig:
+            Format: Text
+        MemorySize: 128
+        Runtime: nodejs14.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-function
+        Timeout: 3
+    aws:ecr_image:docker-func-image:
+        Context: /
+        Dockerfile: /Dockerfile
+        Platform: linux/amd64
+        Repo: aws:ecr_repo:docker-func-image-ecr_repo
+    aws:iam_role:docker-func-function-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-function-ExecutionRole
+    aws:log_group:docker-func-function-log_group:
+        LogGroupName: aws:lambda_function:docker-func-function#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-function-log_group
+    aws:ecr_repo:docker-func-image-ecr_repo:
+        ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: docker-func-image-ecr_repo
+edges:
+    aws:lambda_function:docker-func-function -> aws:ecr_image:docker-func-image:
+    aws:lambda_function:docker-func-function -> aws:iam_role:docker-func-function-ExecutionRole:
+    aws:lambda_function:docker-func-function -> aws:log_group:docker-func-function-log_group:
+    aws:ecr_image:docker-func-image -> aws:ecr_repo:docker-func-image-ecr_repo:
+outputs:
+    FunctionArn:
+        ref: aws:lambda_function:docker-func-function#Arn
+    FunctionName:
+        ref: aws:lambda_function:docker-func-function#FunctionName

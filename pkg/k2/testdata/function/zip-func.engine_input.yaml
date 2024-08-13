@@ -1,0 +1,68 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:lambda_function:zip-func-function
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: Code
+      value: /
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: EnvironmentVariables
+      value: {}
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: Handler
+      value: handler.handler
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: MemorySize
+      value: 128
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: PackageType
+      value: Zip
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: Runtime
+      value: python3.12
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:zip-func-function
+      property: Timeout
+      value: 3
+    - scope: edge
+      operator: must_exist
+      target:
+        source: aws:lambda_function:zip-func-function
+        target: aws:s3_bucket:my-bucket
+      data:
+        connection_type: readonly
+    - scope: output
+      operator: must_exist
+      ref: aws:lambda_function:zip-func-function#Arn
+      name: FunctionArn
+      value: null
+    - scope: output
+      operator: must_exist
+      ref: aws:lambda_function:zip-func-function#FunctionName
+      name: FunctionName
+      value: null
+resources:
+    aws:s3_bucket:my-bucket:
+        ForceDestroy: true
+        Id: preview(id=aws:s3_bucket:my-bucket)
+        IndexDocument: ""
+        SSEAlgorithm: aws:kms
+        Tags:
+            GLOBAL_KLOTHO_TAG: k2
+            RESOURCE_NAME: my-bucket
+        imported: true
+edges:
+outputs: {}

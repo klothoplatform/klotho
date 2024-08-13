@@ -1,6 +1,5 @@
 import * as aws from '@pulumi/aws'
 import * as awsInputs from '@pulumi/aws/types/input'
-import * as command from '@pulumi/command'
 import * as docker from '@pulumi/docker'
 import * as pulumi from '@pulumi/pulumi'
 import { OutputInstance } from '@pulumi/pulumi'

@@ -1,8 +1,22 @@
-from typing import Optional, overload, Mapping, Any
+from typing import TYPE_CHECKING, Optional, Union, overload
 
-from klotho.construct import ConstructOptions, get_construct_args_opts, Construct
-from klotho.output import Input, Output, MappingInput
-from klotho.type_util import set_field, get_field, get_output
+from klotho.construct import (
+    Binding,
+    Construct,
+    ConstructOptions,
+    add_binding,
+    get_construct_args_opts,
+)
+from klotho.output import Input, MappingInput, Output
+from klotho.type_util import get_field, get_output, set_field
+
+if TYPE_CHECKING:
+    from klotho.aws.dynamodb import DynamoDB
+
+BindingType = Union[
+    Binding["DynamoDB"],
+    "DynamoDB",
+]
 
 
 class FunctionArgs:
@@ -18,6 +32,9 @@ class FunctionArgs:
         s3_key: Optional[Input[str]] = None,
         s3_object_version: Optional[Input[str]] = None,
         image_uri: Optional[Input[str]] = None,
+        dockerfile: Optional[Input[str]] = None,
+        docker_context: Optional[Input[str]] = None,
+        bindings: Optional[list[BindingType]] = None,
     ):
         if handler is not None:
             set_field(self, "handler", handler)
@@ -39,6 +56,12 @@ class FunctionArgs:
             set_field(self, "s3_object_version", s3_object_version)
         if image_uri is not None:
             set_field(self, "image_uri", image_uri)
+        if dockerfile is not None:
+            set_field(self, "dockerfile", dockerfile)
+        if docker_context is not None:
+            set_field(self, "docker_context", docker_context)
+        if bindings is not None:
+            set_field(self, "bindings", bindings)
 
     @property
     def handler(self) -> Optional[Input[str]]:
@@ -120,6 +143,22 @@ class FunctionArgs:
     def image_uri(self, value: Optional[Input[str]]) -> None:
         set_field(self, "image_uri", value)
 
+    @property
+    def dockerfile(self) -> Optional[Input[str]]:
+        return get_field(self, "dockerfile")
+
+    @dockerfile.setter
+    def dockerfile(self, value: Optional[Input[str]]) -> None:
+        set_field(self, "dockerfile", value)
+
+    @property
+    def docker_context(self) -> Optional[Input[str]]:
+        return get_field(self, "docker_context")
+
+    @dockerfile.setter
+    def docker_context(self, value: Optional[Input[str]]) -> None:
+        set_field(self, "docker_context", value)
+
 
 class Function(Construct):
 
@@ -142,6 +181,8 @@ class Function(Construct):
         s3_key: Optional[Input[str]] = None,
         s3_object_version: Optional[Input[str]] = None,
         image_uri: Optional[Input[str]] = None,
+        dockerfile: Optional[Input[str]] = None,
+        docker_context: Optional[Input[str]] = None,
         opts: Optional[ConstructOptions] = None,
     ): ...
 
@@ -165,6 +206,9 @@ class Function(Construct):
         s3_key: Optional[Input[str]] = None,
         s3_object_version: Optional[Input[str]] = None,
         image_uri: Optional[Input[str]] = None,
+        dockerfile: Optional[Input[str]] = None,
+        docker_context: Optional[Input[str]] = None,
+        bindings: Optional[list[BindingType]] = None,
         opts: Optional[ConstructOptions] = None,
     ):
         super().__init__(
@@ -185,7 +229,10 @@ class Function(Construct):
                 "S3Key": s3_key,
                 "S3ObjectVersion": s3_object_version,
                 "ImageUri": image_uri,
+                "Dockerfile": dockerfile,
+                "DockerContext": docker_context,
             },
+            bindings=bindings,
             opts=opts,
         )
 
@@ -196,3 +243,6 @@ class Function(Construct):
     @property
     def function_name(self) -> Output[str]:
         return get_output(self, "FunctionName", str)
+
+    def bind(self, binding: BindingType) -> None:
+        add_binding(self, binding)
