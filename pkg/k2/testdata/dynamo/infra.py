@@ -22,18 +22,18 @@ dynamodb = aws.DynamoDB(
     # Define a Global Secondary Index (GSI)
     global_secondary_indexes=[
         {
-            "name": "StatusIndex",
-            "hash_key": "status",                  # Partition key for the GSI
-            "projection_type": "ALL"               # Project all attributes
+            "Name": "StatusIndex",
+            "HashKey": "status",                  # Partition key for the GSI
+            "ProjectionType": "ALL"               # Project all attributes
         }
     ],
 
     # Define a Local Secondary Index (LSI)
     local_secondary_indexes=[
         {
-            "name": "TimestampIndex",
-            "range_key": "timestamp",              # Sort key for the LSI
-            "projection_type": "ALL"               # Project all attributes
+            "Name": "TimestampIndex",
+            "RangeKey": "timestamp",              # Sort key for the LSI
+            "ProjectionType": "ALL"               # Project all attributes
         }
     ],
 )
