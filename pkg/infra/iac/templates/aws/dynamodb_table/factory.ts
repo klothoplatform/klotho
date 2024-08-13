@@ -5,7 +5,6 @@ import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
-    Id: string
     Attributes: TemplateWrapper<pulumi.Input<pulumi.Input<awsInputs.dynamodb.TableAttribute>[]>>
     HashKey: string
     RangeKey: string
@@ -49,10 +48,13 @@ function properties(object: aws.dynamodb.Table, args: Args) {
         DynamoTableBackupArn: pulumi.interpolate`${object.arn}/backup/*`,
         DynamoTableExportArn: pulumi.interpolate`${object.arn}/export/*`,
         DynamoTableIndexArn: pulumi.interpolate`${object.arn}/index/*`,
+        Id: object.id,
         Name: object.name,
     }
 }
 
-function importResource(args: Args): aws.dynamodb.Table {
+type AllProperties = Args & ReturnType<typeof properties>
+
+function importResource(args: AllProperties): aws.dynamodb.Table {
     return aws.dynamodb.Table.get(args.Name, args.Id)
 }
