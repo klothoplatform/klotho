@@ -224,7 +224,7 @@ type boxLine struct {
 //	├  29.3s DBG > AddEdge ...
 //	├  ...
 //	├ Outputs
-//	└ └ Endpoint: <aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl>
+//	└ └ Endpoint: <aws:api_stage:my-api-api:my-api-stage#InvokeUrl>
 //
 // Long lines are wrapped to fit the console width:
 //

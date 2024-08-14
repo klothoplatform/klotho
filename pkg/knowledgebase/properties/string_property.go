@@ -124,7 +124,7 @@ func (s *StringProperty) Validate(resource *construct.Resource, value any, ctx k
 		}
 	}
 
-	if s.AllowedValues != nil && len(s.AllowedValues) > 0 && !collectionutil.Contains(s.AllowedValues, stringVal) {
+	if len(s.AllowedValues) > 0 && !collectionutil.Contains(s.AllowedValues, stringVal) {
 		return fmt.Errorf("value %s is not allowed. allowed values are %s", stringVal, s.AllowedValues)
 	}
 

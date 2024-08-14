@@ -31,7 +31,7 @@ resources:
                     - TLSv1
                     - SSLv3
                     - TLSv1.1
-              DomainName: aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1#StageInvokeUrl
+              DomainName: aws:api_stage:rest_api_1:cloudfront_distribution_2-rest_api_1#DomainName
               OriginId: cloudfront_distribution_2-rest_api_1
               OriginPath: /stage
             - DomainName: aws:s3_bucket:s3-bucket-3#BucketRegionalDomainName

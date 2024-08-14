@@ -22,7 +22,11 @@ properties:
           - aws:api_deployment
   aws:tags:
     type: model
-  StageInvokeUrl:
+  InvokeUrl:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+  DomainName:
     type: string
     configuration_disabled: true
     deploy_time: true
@@ -39,6 +43,6 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["apigateway:CreateStage"]
-  tear_down: ["apigateway:DeleteStage"]
-  update: ["apigateway:UpdateStage"]
+  deploy: ['apigateway:CreateStage']
+  tear_down: ['apigateway:DeleteStage']
+  update: ['apigateway:UpdateStage']

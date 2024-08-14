@@ -23,7 +23,8 @@ function create(args: Args): aws.apigateway.Stage {
 
 function properties(object: ReturnType<typeof create>, args: Args) {
     return {
-        StageInvokeUrl: object.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
+        InvokeUrl: object.invokeUrl,
+        DomainName: object.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
     }
 }
 

@@ -208,4 +208,4 @@ edges:
     aws:security_group:default-network-vpc:my-container-service-security_group -> aws:vpc:default-network-vpc:
 outputs:
     Endpoint:
-        ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+        ref: aws:api_stage:my-api-api:my-api-stage#InvokeUrl

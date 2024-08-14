@@ -37,7 +37,7 @@ constraints:
       data: {}
     - scope: output
       operator: must_exist
-      ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+      ref: aws:api_stage:my-api-api:my-api-stage#InvokeUrl
       name: Endpoint
       value: null
 resources:
