@@ -8,47 +8,60 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/reconciler"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/tui"
 )
 
-func ApplyConstraints(ctx solution_context.SolutionContext) error {
-	var errs error
-	for _, constraint := range ctx.Constraints().Application {
-		err := applyApplicationConstraint(ctx, constraint)
+func ApplyConstraints(sol solution.Solution) error {
+	prog := tui.GetProgress(sol.Context())
+
+	cs := sol.Constraints()
+	current, total := 0, len(cs.Application)+len(cs.Edges)+len(cs.Resources)
+
+	var errs []error
+	for _, constraint := range cs.Application {
+		err := applyApplicationConstraint(sol, constraint)
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
 	}
-	if errs != nil {
-		return errs
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
-	for _, constraint := range ctx.Constraints().Edges {
-		err := applyEdgeConstraint(ctx, constraint)
+	for _, constraint := range cs.Edges {
+		err := applyEdgeConstraint(sol, constraint)
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", constraint, err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
 	}
-	if errs != nil {
-		return errs
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
-	resourceConstraints := ctx.Constraints().Resources
+	resourceConstraints := cs.Resources
 	for i := range resourceConstraints {
-		err := applySanitization(ctx, &resourceConstraints[i])
+		err := applySanitization(sol, &resourceConstraints[i])
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
+			errs = append(errs, fmt.Errorf("failed to apply constraint %#v: %w", resourceConstraints[i], err))
 		}
+		current++
+		prog.Update("Loading constraints", current, total)
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	return nil
 }
 
 // applyApplicationConstraint returns a resource to be made operational, if needed. Otherwise, it returns nil.
-func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint constraints.ApplicationConstraint) error {
-	ctx = ctx.With("constraint", constraint)
-
+func applyApplicationConstraint(ctx solution.Solution, constraint constraints.ApplicationConstraint) error {
 	res, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), constraint.Node)
 	if err != nil {
 		return err
@@ -116,9 +129,7 @@ func applyApplicationConstraint(ctx solution_context.SolutionContext, constraint
 // The following operators are handled during path selection, so any existing paths must be
 // - MustContainConstraintOperator, the constraint is applied to the edge before edge expansion, so when we use the knowledgebase to expand it ensures the node in the constraint is present in the expanded path
 // - MustNotContainConstraintOperator, the constraint is applied to the edge before edge expansion, so when we use the knowledgebase to expand it ensures the node in the constraint is not present in the expanded path
-func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constraints.EdgeConstraint) error {
-	ctx = ctx.With("constraint", constraint)
-
+func applyEdgeConstraint(ctx solution.Solution, constraint constraints.EdgeConstraint) error {
 	for _, id := range []*construct.ResourceId{&constraint.Target.Source, &constraint.Target.Target} {
 		rt, err := ctx.KnowledgeBase().GetResourceTemplate(*id)
 		if err != nil {
@@ -173,7 +184,7 @@ func applyEdgeConstraint(ctx solution_context.SolutionContext, constraint constr
 // applySanitization applies sanitization to the resource name in ResourceConstraints. This is not needed on
 // Application or Edge constraints due to them applying within the graph (to make sure that even generated resources
 // are sanitized).
-func applySanitization(ctx solution_context.SolutionContext, constraint *constraints.ResourceConstraint) error {
+func applySanitization(ctx solution.Solution, constraint *constraints.ResourceConstraint) error {
 	rt, err := ctx.KnowledgeBase().GetResourceTemplate(constraint.Target)
 	if err != nil {
 		return err

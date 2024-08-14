@@ -28,6 +28,6 @@ operational_rules:
         configuration:
           field: TargetType
           value: instance
-    
+
 classification:
   - service_discovery

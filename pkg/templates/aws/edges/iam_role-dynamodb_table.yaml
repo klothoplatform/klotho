@@ -1,7 +1,34 @@
 source: aws:iam_role
 target: aws:dynamodb_table
 operational_rules:
-  - configuration_rules:
+  - if: '{{ eq .EdgeData.ConnectionType "readonly" }}'
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Target.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      # from https://console.aws.amazon.com/iam/home#policies/arn:aws:iam::aws:policy/ReadOnlyAccess
+                      - dynamodb:BatchGet*
+                      - dynamodb:Describe*
+                      - dynamodb:Get*
+                      - dynamodb:List*
+                      - dynamodb:PartiQLSelect
+                      - dynamodb:Query
+                      - dynamodb:Scan
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Target }}#Arn'
+                      - '{{ .Target }}#DynamoTableStreamArn'
+                      - '{{ .Target }}#DynamoTableBackupArn'
+                      - '{{ .Target }}#DynamoTableExportArn'
+                      - '{{ .Target }}#DynamoTableIndexArn'
+  - if: '{{ ne .EdgeData.ConnectionType "readonly" }}'
+    configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: InlinePolicies

@@ -51,6 +51,48 @@ func (r *Resource) RemoveProperty(pathStr string, value any) error {
 	return path.Remove(value)
 }
 
+func (p Properties) Equals(other any) (equal bool) {
+	otherProps, ok := other.(Properties)
+	if !ok {
+		return false
+	}
+	if len(p) != len(otherProps) {
+		return false
+	}
+
+	equal = true
+	_ = p.WalkProperties(func(path PropertyPath, _ error) error {
+		otherPath, err := otherProps.PropertyPath(path.String())
+		if err != nil {
+			equal = false
+			return StopWalk
+		}
+		v := path.Get()
+		otherV := otherPath.Get()
+
+		if v == nil || otherV == nil {
+			equal = v == otherV
+		} else if vEq, ok := v.(interface{ Equals(any) bool }); ok {
+			equal = vEq.Equals(otherV)
+		} else {
+			vVal := reflect.ValueOf(v)
+			otherVVal := reflect.ValueOf(otherV)
+			if vVal.Comparable() && otherVVal.Comparable() && v == otherV {
+				return nil
+			}
+
+			equal = reflect.DeepEqual(v, otherV)
+		}
+		if !equal {
+			return StopWalk
+		}
+
+		return nil
+	})
+
+	return equal
+}
+
 type (
 	PropertyPathItem interface {
 		Get() any
@@ -121,18 +163,22 @@ func splitPath(path string) []string {
 	return parts
 }
 
-// PropertyPath interprets a string path to index (potentially deeply) into [Resource.Properties]
-// which can be used to get, set, append, or remove values.
 func (r *Resource) PropertyPath(pathStr string) (PropertyPath, error) {
 	if r.Properties == nil {
 		r.Properties = Properties{}
 	}
+	return r.Properties.PropertyPath(pathStr)
+}
+
+// PropertyPath interprets a string path to index (potentially deeply) into [Resource.Properties]
+// which can be used to get, set, append, or remove values.
+func (p Properties) PropertyPath(pathStr string) (PropertyPath, error) {
 	pathParts := splitPath(pathStr)
 	if len(pathParts) == 0 {
 		return nil, fmt.Errorf("empty path")
 	}
 	path := make(PropertyPath, len(pathParts))
-	value := reflect.ValueOf(r.Properties)
+	value := reflect.ValueOf(p)
 
 	setMap := func(i int, key string) error {
 		for value.Kind() == reflect.Interface || value.Kind() == reflect.Ptr {
@@ -649,13 +695,17 @@ func mapKeys(m reflect.Value) ([]reflect.Value, error) {
 
 var SkipProperty = fmt.Errorf("skip property")
 
+func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
+	return r.Properties.WalkProperties(fn)
+}
+
 // WalkProperties walks the properties of the resource, calling fn for each property. If fn returns
 // SkipProperty, the property and its decendants (if a map or array type) is skipped. If fn returns
 // StopWalk, the walk is stopped.
 // NOTE: does not walk over the _keys_ of any maps, only values.
-func (r *Resource) WalkProperties(fn WalkPropertiesFunc) error {
-	queue := make([]PropertyPath, len(r.Properties))
-	props := reflect.ValueOf(r.Properties)
+func (p Properties) WalkProperties(fn WalkPropertiesFunc) error {
+	queue := make([]PropertyPath, len(p))
+	props := reflect.ValueOf(p)
 	keys, _ := mapKeys(props)
 	for i, k := range keys {
 		queue[i] = PropertyPath{&mapValuePathItem{m: props, key: k}}

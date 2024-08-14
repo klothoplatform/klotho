@@ -4,16 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/templateutils"
@@ -26,7 +28,7 @@ type (
 
 	Plugin struct {
 		Config *PulumiConfig
-		KB     *knowledgebase.KnowledgeBase
+		KB     knowledgebase.TemplateKB
 	}
 )
 
@@ -46,7 +48,7 @@ var (
 	pulumiStack = templateutils.MustTemplate(files, "Pulumi.dev.yaml.tmpl")
 )
 
-func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
+func (p Plugin) Translate(sol solution.Solution) ([]kio.File, error) {
 
 	err := p.sanitizeConfig()
 	if err != nil {
@@ -61,12 +63,12 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	if err != nil {
 		return nil, err
 	}
-	err = addPulumiKubernetesProviders(ctx.DeploymentGraph())
+	err = addPulumiKubernetesProviders(sol.DeploymentGraph())
 	if err != nil {
 		return nil, fmt.Errorf("error adding pulumi kubernetes providers: %w", err)
 	}
 	tc := &TemplatesCompiler{
-		graph:     ctx.DeploymentGraph(),
+		graph:     sol.DeploymentGraph(),
 		templates: &templateStore{fs: templatesFS},
 	}
 	tc.vars, err = VariablesFromGraph(tc.graph)
@@ -97,10 +99,17 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 		return nil, errs
 	}
 
+	buf.WriteString("\n")
+	renderStackOutputs(tc, buf, sol.Outputs())
+
+	buf.WriteString("\n")
+	tc.renderUrnMap(buf, resources)
+
 	indexTs := &kio.RawFile{
 		FPath:   `index.ts`,
-		Content: buf.Bytes(),
+		Content: make([]byte, buf.Len()),
 	}
+	copy(indexTs.Content, buf.Bytes())
 
 	pJson, err := tc.PackageJSON()
 	if err != nil {
@@ -127,7 +136,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 
 	files := []kio.File{indexTs, pJson, pulumiYaml, pulumiStack, tsConfig}
 
-	dockerfiles, err := RenderDockerfiles(ctx)
+	dockerfiles, err := RenderDockerfiles(sol)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +144,47 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	files = append(files, dockerfiles...)
 
 	return files, nil
+}
+
+func renderStackOutputs(tc *TemplatesCompiler, buf *bytes.Buffer, outputs map[string]construct.Output) {
+	buf.WriteString("export const $outputs = {\n")
+	names := make([]string, 0, len(outputs))
+	for name := range outputs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		output := outputs[name]
+		if !output.Ref.IsZero() {
+			val, err := tc.PropertyRefValue(output.Ref)
+			if err != nil {
+				buf.WriteString(fmt.Sprintf("\t%s: null,\n", name))
+				continue
+			}
+			buf.WriteString(fmt.Sprintf("\t%s: %s,\n", name, val))
+		} else {
+			val, err := json.Marshal(output.Value)
+			if err != nil {
+				buf.WriteString(fmt.Sprintf("\t%s: null,\n", name))
+			} else {
+				buf.WriteString(fmt.Sprintf("\t%s: %s,\n", name, string(val)))
+			}
+		}
+	}
+	buf.WriteString("}\n")
+}
+
+func (tc *TemplatesCompiler) renderUrnMap(buf *bytes.Buffer, resources []construct.ResourceId) {
+	buf.WriteString("export const $urns = {\n")
+	for _, id := range resources {
+		obj, ok := tc.vars[id]
+		if !ok {
+			continue
+		}
+		// in TS/JS, if the object doesn't have property `urn`, it will be `undefined` and will not throw any errors
+		buf.WriteString(fmt.Sprintf("\t\"%s\": (%s as any).urn,\n", id, obj))
+	}
+	buf.WriteString("}\n")
 }
 
 func (p *Plugin) sanitizeConfig() error {

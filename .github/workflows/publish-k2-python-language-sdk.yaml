@@ -1,0 +1,138 @@
+name: Publish Python Language SDK distribution 📦
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment to publish to (test or prod)'
+        required: true
+        type: string
+      version:
+        description: 'Version of the package (a|b|rc|post|dev or a specific PEP-440 compliant version)'
+        type: string
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to publish to (test or prod)'
+        required: true
+        type: choice
+        default: 'test'
+        options:
+          - test
+          - prod
+      version:
+        description: 'Version of the package (a|b|rc|post|dev or a specific PEP-440 compliant version)'
+        type: string
+
+env:
+  DEV_PYPI_URL: https://test.pypi.org/legacy/
+  PROD_PYPI_URL: https://upload.pypi.org/legacy/
+  PACKAGE_DIR: pkg/k2/language_host/python/klothosdk
+  PACKAGE_NAME: klotho
+
+jobs:
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install pypa/build
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: python3 -m pip install build --user
+      - name: Update the project version
+        if: ${{ github.event.inputs.version != '' || github.event.inputs.environment != 'prod' }}
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: |
+          python3 -m pip install yq
+          CURRENT_VERSION=$(tomlq -r .project.version pyproject.toml)
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            NEW_VERSION="${CURRENT_VERSION}.dev${{ github.run_number }}"
+            echo "No version provided, creating a dev version: ${NEW_VERSION}"
+          elif [[ "${{ github.event.inputs.version }}" =~ ^(post|rc|a|b|dev) ]]; then
+            NEW_VERSION="${CURRENT_VERSION}.${{ github.event.inputs.version }}${{ github.run_number }}"
+            echo "Using the an auto-generated version: ${NEW_VERSION}"
+          else
+            NEW_VERSION=${{ github.event.inputs.version }}
+            echo "Using the provided version: ${NEW_VERSION}"
+          fi
+          echo "Setting the version to ${NEW_VERSION}"
+          tomlq -t -i ".project.version = \"${NEW_VERSION}\"" pyproject.toml
+      - name: Build a binary wheel and a source tarball
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: python3 -m build
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-package-distributions
+          path: ${{ env.PACKAGE_DIR }}/dist/
+
+  publish:
+    name: Publish Python 🐍 distribution 📦
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ format('https://{0}/p/{1}', inputs.environment == 'prod' && 'pypi.org' || 'test.pypi.org', env.PACAKGE_NAME) }}
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path: ${{ env.PACKAGE_DIR }}/dist/
+      - name: Publish distribution 📦
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ env.PACKAGE_DIR }}/dist/
+          repository-url: ${{ inputs.environment == 'prod' && env.PROD_PYPI_URL || env.DEV_PYPI_URL }}
+          skip-existing: ${{ inputs.environment == 'test' && 'true' || 'false' }}
+          print-hash: true
+
+  github-release:
+    name: Create GitHub Release
+    needs:
+      - publish
+    runs-on: ubuntu-latest
+    if: inputs.environment == 'prod'
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path:  ${{ env.PACKAGE_DIR }}/dist/
+      - name: Sign the dists with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v2.1.1
+        with:
+          inputs: >-
+            ${{ env.PACKAGE_DIR }}/dist/*.tar.gz
+            ${{ env.PACKAGE_DIR }}/dist/*.whl
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create
+          '${{ github.ref_name }}'
+          --repo '${{ github.repository }}'
+          --notes ""
+          --draft
+      - name: Upload artifact signatures to GitHub Release
+        working-directory: ${{ env.PACKAGE_DIR }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          gh release upload
+          '${{ github.ref_name }}' dist/**
+          --repo '${{ github.repository }}'

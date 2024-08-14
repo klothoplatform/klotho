@@ -1,7 +1,27 @@
 source: aws:iam_role
 target: aws:s3_bucket
 operational_rules:
-  - configuration_rules:
+  - if: '{{ eq .EdgeData.ConnectionType "readonly" }}'
+    configuration_rules:
+      - resource: '{{ .Source }}'
+        configuration:
+          field: InlinePolicies
+          value:
+            - Name: '{{ .Target.Name }}-policy'
+              Policy:
+                Version: '2012-10-17'
+                Statement:
+                  - Action:
+                      # from https://console.aws.amazon.com/iam/home#policies/arn:aws:iam::aws:policy/ReadOnlyAccess
+                      - s3:DescribeJob
+                      - s3:Get*
+                      - s3:List*
+                    Effect: Allow
+                    Resource:
+                      - '{{ .Target }}#Arn'
+                      - '{{ .Target }}#AllBucketDirectory'
+  - if: '{{ ne .EdgeData.ConnectionType "readonly" }}'
+    configuration_rules:
       - resource: '{{ .Source }}'
         configuration:
           field: InlinePolicies
@@ -14,5 +34,5 @@ operational_rules:
                       - s3:*
                     Effect: Allow
                     Resource:
-                      - '{{ .Target  }}#Arn'
+                      - '{{ .Target }}#Arn'
                       - '{{ .Target }}#AllBucketDirectory'

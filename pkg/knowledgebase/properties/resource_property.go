@@ -144,7 +144,7 @@ func (r *ResourceProperty) Validate(resource *construct.Resource, value any, ctx
 	if !ok {
 		return fmt.Errorf("invalid resource value %v", value)
 	}
-	if r.AllowedTypes != nil && len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(id) {
+	if len(r.AllowedTypes) > 0 && !r.AllowedTypes.MatchesAny(id) {
 		return fmt.Errorf("resource value %v does not match allowed types %s", value, r.AllowedTypes)
 	}
 	return nil

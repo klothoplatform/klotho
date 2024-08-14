@@ -1,11 +1,14 @@
 resources:
     aws:lambda_function:lambda_test_app:
         EnvironmentVariables:
-            ORIGINAL_BUCKET_BUCKET_NAME: aws:s3_bucket:new-bucket#BucketName
+            ORIGINAL_BUCKET_BUCKET_NAME: aws:s3_bucket:new-bucket#Id
         ExecutionRole: aws:iam_role:lambda_test_app-ExecutionRole
         Image: aws:ecr_image:lambda_test_app-image
+        LogConfig:
+            Format: Text
         LogGroup: aws:log_group:lambda_test_app-log-group
         MemorySize: 512
+        Runtime: nodejs20.x
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_test_app
@@ -68,3 +71,4 @@ edges:
     aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:ecr_repo-0:
     aws:iam_role:lambda_test_app-ExecutionRole -> aws:log_group:lambda_test_app-log-group:
     aws:iam_role:lambda_test_app-ExecutionRole -> aws:s3_bucket:new-bucket:
+outputs: {}

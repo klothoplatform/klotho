@@ -1,0 +1,37 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:s3_bucket:my-bucket
+    - scope: resource
+      operator: equals
+      target: aws:s3_bucket:my-bucket
+      property: ForceDestroy
+      value: true
+    - scope: resource
+      operator: equals
+      target: aws:s3_bucket:my-bucket
+      property: IndexDocument
+      value: null
+    - scope: resource
+      operator: equals
+      target: aws:s3_bucket:my-bucket
+      property: SSEAlgorithm
+      value: aws:kms
+    - scope: output
+      operator: must_exist
+      ref: aws:s3_bucket:my-bucket#Bucket
+      name: Bucket
+      value: null
+    - scope: output
+      operator: must_exist
+      ref: aws:s3_bucket:my-bucket#Arn
+      name: BucketArn
+      value: null
+    - scope: output
+      operator: must_exist
+      ref: aws:s3_bucket:my-bucket#BucketRegionalDomainName
+      name: BucketRegionalDomainName
+      value: null
+resources:
+edges:
+outputs: {}

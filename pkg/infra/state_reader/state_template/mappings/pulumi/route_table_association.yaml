@@ -1,0 +1,6 @@
+qualified_type_name: aws:route_table_association
+iac_qualified_type: aws:ec2/routeTableAssociation:RouteTableAssociation
+property_mappings:
+  id: Id
+  subnetId: SubnetId
+  routeTableId: RouteTableId

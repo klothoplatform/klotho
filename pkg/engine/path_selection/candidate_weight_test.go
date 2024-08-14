@@ -109,17 +109,14 @@ func Test_determineCandidateWeight(t *testing.T) {
 func TestBuildUndirectedGraph(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
-	kb := &kbtesting.MockKB{}
-	kb.Mock.
-		On("GetResourceTemplate", mock.MatchedBy(construct.ResourceId{Type: "compute"}.Matches)).
-		Return(&knowledgebase.ResourceTemplate{
-			Classification: knowledgebase.Classification{
-				Is: []string{"compute"},
-			},
-		}, nil)
-	kb.Mock.
-		On("GetResourceTemplate", mock.MatchedBy(construct.ResourceId{Type: "glue"}.Matches)).
-		Return(&knowledgebase.ResourceTemplate{}, nil)
+	compute := &knowledgebase.ResourceTemplate{
+		QualifiedTypeName: "p:compute",
+		Classification: knowledgebase.Classification{
+			Is: []string{"compute"},
+		},
+	}
+
+	kb := kbtesting.MakeKB(t, compute, "p:glue")
 
 	graph := graphtest.MakeGraph(t, construct.NewGraph(),
 		"p:compute:a -> p:glue:b -> p:glue:c -> p:compute:d",

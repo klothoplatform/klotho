@@ -111,7 +111,13 @@ func (eval *Evaluator) pathVertices(source, target construct.ResourceId) (graphC
 		var tempGraph construct.Graph
 		if buildTempGraph {
 			var err error
-			tempGraph, err = path_selection.BuildPathSelectionGraph(edge, kb, satisfication.Classification, !requireFullBuild)
+			tempGraph, err = path_selection.BuildPathSelectionGraph(
+				eval.Solution.Context(),
+				edge,
+				kb,
+				satisfication.Classification,
+				!requireFullBuild,
+			)
 			if err != nil {
 				return fmt.Errorf("could not build temp graph for %s: %w", edge, err)
 			}
@@ -186,7 +192,7 @@ func (eval *Evaluator) edgeVertices(
 	changes := newChanges()
 
 	opVertex := &edgeVertex{
-		Edge:  construct.SimpleEdge{Source: edge.Source, Target: edge.Target},
+		Edge:  edge,
 		Rules: tmpl.OperationalRules,
 	}
 
@@ -228,7 +234,7 @@ func (eval *Evaluator) RemoveEdge(source, target construct.ResourceId) error {
 			}
 
 		case *edgeVertex:
-			if v.Edge == edge {
+			if v.Edge.Source == edge.Source && v.Edge.Target == edge.Target {
 				errs = errors.Join(errs, eval.removeKey(v.Key()))
 			}
 

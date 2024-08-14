@@ -3,6 +3,7 @@ import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Id?: string
     Vpc: aws.ec2.Vpc
     Routes: TemplateWrapper<aws.types.input.ec2.RouteTableRoute[]>
     Tags: ModelCaseWrapper<Record<string, string>>
@@ -17,4 +18,14 @@ function create(args: Args): aws.ec2.RouteTable {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function properties(object: aws.ec2.RouteTable, args: Args) {
+    return {
+        Id: object.id,
+    }
+}
+
+function importResource(args: Args): aws.ec2.RouteTable {
+    return aws.ec2.RouteTable.get(args.Name, args.Id)
 }

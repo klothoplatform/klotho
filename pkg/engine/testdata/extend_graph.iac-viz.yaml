@@ -33,7 +33,6 @@ resources:
 
   lambda_function/lambda_function_0 -> ecr_image/lambda_function_0-image:
   lambda_function/lambda_function_0 -> iam_role/lambda_function_0-executionrole:
-  lambda_function/lambda_function_0 -> log_group/lambda_function_0-log-group:
   rest_api/rest_api_1:
 
   ecr_image/lambda_function_0-image:

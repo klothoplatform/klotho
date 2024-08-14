@@ -1,12 +1,8 @@
 provider: aws
 resources:
-  lambda_function/lambda_function:
+  log_group/lambda_function-log_group:
 
-  lambda_function/lambda_function -> ecr_image/lambda_function-image:
-  lambda_function/lambda_function -> iam_role/lambda_function-executionrole:
-  lambda_function/lambda_function -> aws:security_group:vpc/lambda_function-security_group:
-  lambda_function/lambda_function -> aws:subnet:vpc/lambda_function-vpc:
-  lambda_function/lambda_function -> aws:subnet:vpc/subnet-1:
+  log_group/lambda_function-log_group -> lambda_function/lambda_function:
   route_table_association/lambda_function-vpc-lambda_function-vpc-route_table:
 
   route_table_association/lambda_function-vpc-lambda_function-vpc-route_table -> aws:route_table:vpc/lambda_function-vpc-route_table:
@@ -23,31 +19,21 @@ resources:
 
   route_table_association/subnet-3-subnet-3-route_table -> aws:route_table:vpc/subnet-3-route_table:
   route_table_association/subnet-3-subnet-3-route_table -> aws:subnet:vpc/subnet-3:
-  ecr_image/lambda_function-image:
+  lambda_function/lambda_function:
 
-  ecr_image/lambda_function-image -> ecr_repo/lambda_function-image-ecr_repo:
-  iam_role/lambda_function-executionrole:
-
-  iam_role/lambda_function-executionrole -> log_group/lambda_function-log-group:
-  aws:security_group:vpc/lambda_function-security_group:
-
-  aws:security_group:vpc/lambda_function-security_group -> vpc/vpc:
+  lambda_function/lambda_function -> ecr_image/lambda_function-image:
+  lambda_function/lambda_function -> iam_role/lambda_function-executionrole:
+  lambda_function/lambda_function -> aws:security_group:vpc/lambda_function-security_group:
+  lambda_function/lambda_function -> aws:subnet:vpc/lambda_function-vpc:
+  lambda_function/lambda_function -> aws:subnet:vpc/subnet-1:
   aws:route_table:vpc/lambda_function-vpc-route_table:
 
   aws:route_table:vpc/lambda_function-vpc-route_table -> aws:nat_gateway:subnet-2/lambda_function-vpc-route_table-nat_gateway:
   aws:route_table:vpc/lambda_function-vpc-route_table -> vpc/vpc:
-  aws:subnet:vpc/lambda_function-vpc:
-
-  aws:subnet:vpc/lambda_function-vpc -> aws:availability_zone:region-0/availability_zone-0:
-  aws:subnet:vpc/lambda_function-vpc -> vpc/vpc:
   aws:route_table:vpc/subnet-1-route_table:
 
   aws:route_table:vpc/subnet-1-route_table -> aws:nat_gateway:subnet-3/subnet-1-route_table-nat_gateway:
   aws:route_table:vpc/subnet-1-route_table -> vpc/vpc:
-  aws:subnet:vpc/subnet-1:
-
-  aws:subnet:vpc/subnet-1 -> aws:availability_zone:region-0/availability_zone-1:
-  aws:subnet:vpc/subnet-1 -> vpc/vpc:
   aws:route_table:vpc/subnet-2-route_table:
 
   aws:route_table:vpc/subnet-2-route_table -> aws:internet_gateway:vpc/internet_gateway-0:
@@ -56,10 +42,22 @@ resources:
 
   aws:route_table:vpc/subnet-3-route_table -> aws:internet_gateway:vpc/internet_gateway-0:
   aws:route_table:vpc/subnet-3-route_table -> vpc/vpc:
-  ecr_repo/lambda_function-image-ecr_repo:
+  ecr_image/lambda_function-image:
 
-  log_group/lambda_function-log-group:
+  ecr_image/lambda_function-image -> ecr_repo/lambda_function-image-ecr_repo:
+  iam_role/lambda_function-executionrole:
 
+  aws:security_group:vpc/lambda_function-security_group:
+
+  aws:security_group:vpc/lambda_function-security_group -> vpc/vpc:
+  aws:subnet:vpc/lambda_function-vpc:
+
+  aws:subnet:vpc/lambda_function-vpc -> aws:availability_zone:region-0/availability_zone-0:
+  aws:subnet:vpc/lambda_function-vpc -> vpc/vpc:
+  aws:subnet:vpc/subnet-1:
+
+  aws:subnet:vpc/subnet-1 -> aws:availability_zone:region-0/availability_zone-1:
+  aws:subnet:vpc/subnet-1 -> vpc/vpc:
   aws:nat_gateway:subnet-2/lambda_function-vpc-route_table-nat_gateway:
 
   aws:nat_gateway:subnet-2/lambda_function-vpc-route_table-nat_gateway -> elastic_ip/lambda_function-vpc-route_table-nat_gateway-elastic_ip:
@@ -71,6 +69,8 @@ resources:
   aws:internet_gateway:vpc/internet_gateway-0:
 
   aws:internet_gateway:vpc/internet_gateway-0 -> vpc/vpc:
+  ecr_repo/lambda_function-image-ecr_repo:
+
   elastic_ip/lambda_function-vpc-route_table-nat_gateway-elastic_ip:
 
   aws:subnet:vpc/subnet-2:

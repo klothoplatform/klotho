@@ -7,7 +7,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
@@ -178,7 +178,7 @@ func (p *ClosestPlacer) SetCtx(ctx OperationalRuleContext) {
 	p.ctx = ctx
 }
 
-func BuildUndirectedGraph(ctx solution_context.SolutionContext) (construct.Graph, error) {
+func BuildUndirectedGraph(ctx solution.Solution) (construct.Graph, error) {
 	undirected := graph.NewWithStore(
 		construct.ResourceHasher,
 		graph_addons.NewMemoryStore[construct.ResourceId, *construct.Resource](),
@@ -221,10 +221,10 @@ func (ctx OperationalRuleContext) findNumConnectionsToTypeForAvailableResources(
 		// We will look to see what direct dependencies are already existing in the same direction as the rule
 		// if we dont only look at direct, we risk getting incorrect results if the resource can have non functional connections
 		if step.Direction == knowledgebase.DirectionDownstream {
-			connections, err = solution_context.Upstream(ctx.Solution, availableResource.ID,
+			connections, err = solution.Upstream(ctx.Solution, availableResource.ID,
 				knowledgebase.ResourceDirectLayer)
 		} else {
-			connections, err = solution_context.Downstream(ctx.Solution, availableResource.ID,
+			connections, err = solution.Downstream(ctx.Solution, availableResource.ID,
 				knowledgebase.ResourceDirectLayer)
 		}
 		var connectionsOfType []construct.ResourceId

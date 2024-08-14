@@ -2,14 +2,18 @@ qualified_type_name: aws:route_table_association
 display_name: Route Table Association
 
 properties:
-  RouteTable:
-    type: resource(aws:route_table)
-    default_value: '{{ downstream "aws:route_table" .Self }}'
-    description: The Route Table to be associated with the subnet
-  Subnet:
-    type: resource(aws:subnet)
-    default_value: '{{ upstream "aws:subnet" .Self }}'
-    description: The Subnet to which the Route Table will be associated
+  RouteTableId:
+    type: string
+    default_value: '{{ downstream "aws:route_table" .Self }}#Id'
+    description: The ID of the Route Table to be associated with the subnet
+  SubnetId:
+    type: string
+    default_value: '{{ upstream "aws:subnet" .Self }}#Id'
+    description: The ID of the Subnet to which the Route Table will be associated
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
 
 
 deployment_permissions:

@@ -4,7 +4,6 @@ resources:
 
   lambda_function/lambda_test_app -> ecr_image/lambda_test_app-image:
   lambda_function/lambda_test_app -> iam_role/lambda_test_app-executionrole:
-  lambda_function/lambda_test_app -> log_group/lambda_test_app-log-group:
   lambda_function/lambda_test_app -> s3_bucket/new-bucket:
   ecr_image/lambda_test_app-image:
 

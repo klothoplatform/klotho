@@ -1,0 +1,65 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:ecr_image:docker-func-image
+    - scope: application
+      operator: must_exist
+      node: aws:lambda_function:docker-func-function
+    - scope: resource
+      operator: equals
+      target: aws:ecr_image:docker-func-image
+      property: Context
+      value: /
+    - scope: resource
+      operator: equals
+      target: aws:ecr_image:docker-func-image
+      property: Dockerfile
+      value: /Dockerfile
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: EnvironmentVariables
+      value: {}
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: Handler
+      value: null
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: Image
+      value: aws:ecr_image:docker-func-image#ImageName
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: MemorySize
+      value: 128
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: PackageType
+      value: Image
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: Runtime
+      value: nodejs14.x
+    - scope: resource
+      operator: equals
+      target: aws:lambda_function:docker-func-function
+      property: Timeout
+      value: 3
+    - scope: output
+      operator: must_exist
+      ref: aws:lambda_function:docker-func-function#Arn
+      name: FunctionArn
+      value: null
+    - scope: output
+      operator: must_exist
+      ref: aws:lambda_function:docker-func-function#FunctionName
+      name: FunctionName
+      value: null
+resources:
+edges:
+outputs: {}

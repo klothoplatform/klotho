@@ -1,0 +1,35 @@
+id: klotho.aws.Network
+version: 1.0.0
+description: A construct for creating a VPC, and subnets
+resources:
+  Vpc:
+    type: aws:vpc
+    name: ${inputs:Name}-vpc
+  PrivateSubnet1:
+    type: aws:subnet
+    namespace: ${resources:Vpc.Name}
+    name: ${inputs:Name}-private-subnet-1
+    properties:
+      Vpc: ${resources:Vpc}
+      Type: private
+  PrivateSubnet2:
+    type: aws:subnet
+    namespace: ${resources:Vpc.Name}
+    name: ${inputs:Name}-private-subnet-2
+    properties:
+      Vpc: ${resources:Vpc}
+      Type: private
+  PublicSubnet1:
+    type: aws:subnet
+    namespace: ${resources:Vpc.Name}
+    name: ${inputs:Name}-public-subnet-1
+    properties:
+      Vpc: ${resources:Vpc}
+      Type: public
+  PublicSubnet2:
+    type: aws:subnet
+    namespace: ${resources:Vpc.Name}
+    name: ${inputs:Name}-public-subnet-2
+    properties:
+      Vpc: ${resources:Vpc}
+      Type: public

@@ -9,54 +9,52 @@ import (
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/knowledgebase/properties"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestDownstream(t *testing.T) {
 	// The following variables are provided as a convenience for writing tests that all can use the same
 	// basic structure / parameters
 	defaultGraph := graphtest.MakeGraph(t, construct.NewGraph(),
-		"p:t:A -> p:t:B -> p:t:C", // A -> B -> C all within the same operational boundary
-		"p:t:B -> p:t:D",          // B -> D crosses operational boundaries
-		"p:t:B -> p:t:X -> p:t:Y", // X is a functional boundary
+		"p:A:A -> p:B:B -> p:C:C", // A -> B -> C all within the same operational boundary
+		"p:B:B -> p:D:D",          // B -> D crosses operational boundaries
+		"p:B:B -> p:X:X -> p:Y:Y", // X is a functional boundary
 	)
-	defaultResource := graphtest.ParseId(t, "p:t:A")
-	defaultKB := func(t *testing.T, kb *MockKB) {
-		named := func(name string) func(construct.ResourceId) bool {
-			return func(id construct.ResourceId) bool {
-				return id.Name == name
-			}
-		}
-		makeOpProperty := func(name string, namespace bool) knowledgebase.Property {
-			p := &properties.ResourceProperty{}
-			p.Name = name
-			p.Path = name
-			p.Namespace = namespace
-			p.OperationalRule = &knowledgebase.PropertyRule{
-				Step: knowledgebase.OperationalStep{
-					Resources: []knowledgebase.ResourceSelector{{Selector: "p:t:" + name}},
-				},
-			}
-			return p
-		}
+	defaultResource := graphtest.ParseId(t, "p:A:A")
 
-		kb.On("GetResourceTemplate", mock.MatchedBy(named("A"))).Return(&knowledgebase.ResourceTemplate{
-			Classification: knowledgebase.Classification{Is: []string{"compute"}},
-			Properties: knowledgebase.Properties{
-				"B": makeOpProperty("B", false),
+	makeOpProperty := func(name string, namespace bool) knowledgebase.Property {
+		p := &properties.ResourceProperty{}
+		p.Name = name
+		p.Path = name
+		p.Namespace = namespace
+		p.OperationalRule = &knowledgebase.PropertyRule{
+			Step: knowledgebase.OperationalStep{
+				Resources: []knowledgebase.ResourceSelector{{Selector: "p:" + name + ":" + name}},
 			},
-		}, nil)
-		kb.On("GetResourceTemplate", mock.MatchedBy(named("B"))).Return(&knowledgebase.ResourceTemplate{
-			Properties: knowledgebase.Properties{
-				"C": makeOpProperty("C", false),
-				"D": &properties.ResourceProperty{}, // not an operational property
-			},
-		}, nil)
-		kb.On("GetResourceTemplate", mock.MatchedBy(named("X"))).Return(&knowledgebase.ResourceTemplate{
-			Classification: knowledgebase.Classification{Is: []string{"compute"}},
-		}, nil)
-		kb.On("GetResourceTemplate", mock.Anything).Return(&knowledgebase.ResourceTemplate{}, nil)
+		}
+		return p
 	}
+
+	a := &knowledgebase.ResourceTemplate{
+		QualifiedTypeName: "p:A",
+		Classification:    knowledgebase.Classification{Is: []string{"compute"}},
+		Properties: knowledgebase.Properties{
+			"B": makeOpProperty("B", false),
+		},
+	}
+	b := &knowledgebase.ResourceTemplate{
+		QualifiedTypeName: "p:B",
+		Properties: knowledgebase.Properties{
+			"C": makeOpProperty("C", false),
+			"D": &properties.ResourceProperty{}, // not an operational property
+		},
+	}
+	x := &knowledgebase.ResourceTemplate{
+		QualifiedTypeName: "p:X",
+		Classification:    knowledgebase.Classification{Is: []string{"compute"}},
+	}
+
+	kb := MakeKB(t, a, b, "p:C", "p:D", x, "p:Y")
+
 	setProp := func(idStr string, prop string, resValueStr string) {
 		id := graphtest.ParseId(t, idStr)
 		resValue := graphtest.ParseId(t, resValueStr)
@@ -69,16 +67,15 @@ func TestDownstream(t *testing.T) {
 			t.Fatal(fmt.Errorf("error setting property %s.%s = %s: %w", idStr, prop, resValueStr, err))
 		}
 	}
-	setProp("p:t:A", "B", "p:t:B")
-	setProp("p:t:B", "C", "p:t:C")
-	setProp("p:t:B", "D", "p:t:D")
+	setProp("p:A:A", "B", "p:B:B")
+	setProp("p:B:B", "C", "p:C:C")
+	setProp("p:B:B", "D", "p:D:D")
 
 	tests := []struct {
 		name     string
 		graph    []any
 		resource string
 		layer    knowledgebase.DependencyLayer
-		kbmock   func(*testing.T, *MockKB)
 		want     []string
 		wantErr  bool
 	}{
@@ -86,68 +83,68 @@ func TestDownstream(t *testing.T) {
 		{
 			name:  "local",
 			layer: knowledgebase.ResourceLocalLayer,
-			want:  []string{"p:t:B", "p:t:C"},
+			want:  []string{"p:B:B", "p:C:C"},
 		},
 
 		// Direct
 		{
 			name:     "no downstream",
-			resource: "p:t:C",
+			resource: "p:C:C",
 			layer:    knowledgebase.ResourceDirectLayer,
 		},
 		{
 			name:  "direct downstream",
 			layer: knowledgebase.ResourceDirectLayer,
-			want:  []string{"p:t:B"},
+			want:  []string{"p:B:B"},
 		},
 		{
 			name:     "direct downstream B",
 			layer:    knowledgebase.ResourceDirectLayer,
-			resource: "p:t:B",
-			want:     []string{"p:t:C", "p:t:D", "p:t:X"},
+			resource: "p:B:B",
+			want:     []string{"p:C:C", "p:D:D", "p:X:X"},
 		},
 		// Glue
 		{
 			name:  "glue",
 			layer: knowledgebase.ResourceGlueLayer,
-			want:  []string{"p:t:B", "p:t:C", "p:t:D"},
+			want:  []string{"p:B:B", "p:C:C", "p:D:D"},
 		},
 		// Functional
 		{
 			name:  "functional",
 			layer: knowledgebase.FirstFunctionalLayer,
-			want:  []string{"p:t:B", "p:t:C", "p:t:D", "p:t:X"},
+			want:  []string{"p:B:B", "p:C:C", "p:D:D", "p:X:X"},
 		},
 		// All
 		{
 			name:  "all",
 			layer: knowledgebase.AllDepsLayer,
-			want:  []string{"p:t:B", "p:t:C", "p:t:D", "p:t:X", "p:t:Y"},
+			want:  []string{"p:B:B", "p:C:C", "p:D:D", "p:X:X", "p:Y:Y"},
 		},
 		{
 			name: "all downstream, simple",
 			graph: []any{
-				"a:a:a", "a:a:b", "a:a:c", "a:b:a", "a:b:b", "a:b:c",
-				"a:a:a -> a:a:b", "a:a:b -> a:a:c",
+				"p:A:a", "p:A:b", "p:A:c", "p:B:a", "p:B:b", "p:B:c",
+				"p:A:a -> p:A:b", "p:A:b -> p:A:c",
 			},
-			resource: "a:a:a",
+			resource: "p:A:a",
 			layer:    knowledgebase.AllDepsLayer,
 			want: []string{
-				"a:a:b", "a:a:c",
+				"p:A:b", "p:A:c",
 			},
 		},
 		{
 			name: "all downstream, multiple paths for same resources",
 			graph: []any{
-				"a:a:a", "a:a:b", "a:a:c", "a:b:a", "a:b:b", "a:b:c",
-				"a:a:a -> a:a:b", "a:a:b -> a:a:c",
-				"a:a:b -> a:b:b", "a:b:b -> a:b:c",
-				"a:a:c -> a:b:b", "a:b:b -> a:b:c",
+				"p:A:a", "p:A:b", "p:A:c", "p:B:a", "p:B:b", "p:B:c",
+				"p:A:a -> p:A:b", "p:A:b -> p:A:c",
+				"p:A:b -> p:B:b", "p:B:b -> p:B:c",
+				"p:A:c -> p:B:b", "p:B:b -> p:B:c",
 			},
-			resource: "a:a:a",
+			resource: "p:A:a",
 			layer:    knowledgebase.AllDepsLayer,
 			want: []string{
-				"a:a:b", "a:a:c", "a:b:b", "a:b:c",
+				"p:A:b", "p:A:c", "p:B:b", "p:B:c",
 			},
 		},
 	}
@@ -169,12 +166,6 @@ func TestDownstream(t *testing.T) {
 				g = defaultGraph
 			}
 
-			kb := &MockKB{}
-			if tt.kbmock != nil {
-				tt.kbmock(t, kb)
-			} else {
-				defaultKB(t, kb)
-			}
 			gotIds, err := knowledgebase.Downstream(g, kb, rid, tt.layer)
 			if tt.wantErr {
 				assert.Error(err)

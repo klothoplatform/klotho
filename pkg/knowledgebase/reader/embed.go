@@ -61,11 +61,12 @@ func NewKBFromFs(resources, edges, models fs.FS) (*knowledgebase.KnowledgeBase, 
 
 func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 	inputModels := map[string]*Model{}
+	log := zap.S().Named("kb.load.models")
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		zap.S().Debug("Loading model: ", path)
 		if d.IsDir() {
 			return nil
 		}
+		log.Debugf("Loading model: %s", path)
 		f, err := dir.Open(path)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error opening model file %s: %w", path, err))
@@ -93,11 +94,12 @@ func ModelsFromFS(dir fs.FS) (map[string]*Model, error) {
 
 func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.ResourceId]*knowledgebase.ResourceTemplate, error) {
 	templates := map[construct.ResourceId]*knowledgebase.ResourceTemplate{}
+	log := zap.S().Named("kb.load.resources")
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		zap.S().Debug("Loading resource template: ", path)
 		if d.IsDir() {
 			return nil
 		}
+		log.Debugf("Loading resource template: %s", path)
 		f, err := dir.Open(path)
 		if err != nil {
 			return errors.Join(nerr, err)
@@ -131,11 +133,12 @@ func TemplatesFromFs(dir fs.FS, models map[string]*Model) (map[construct.Resourc
 
 func EdgeTemplatesFromFs(dir fs.FS) (map[string]*knowledgebase.EdgeTemplate, error) {
 	templates := map[string]*knowledgebase.EdgeTemplate{}
+	log := zap.S().Named("kb.load.edges")
 	err := fs.WalkDir(dir, ".", func(path string, d fs.DirEntry, nerr error) error {
-		zap.S().Debug("Loading edge template: ", path)
 		if d.IsDir() {
 			return nil
 		}
+		log.Debugf("Loading edge template: %s", path)
 		f, err := dir.Open(path)
 		if err != nil {
 			return errors.Join(nerr, fmt.Errorf("error opening edge template %s: %w", path, err))

@@ -10,7 +10,7 @@ import (
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
@@ -175,7 +175,7 @@ func (v *pathExpandVertex) addDepsFromProps(
 				continue
 			}
 			// if this dependency could pass validation for the resources property, consider it as a dependent vertex
-			if err := prop.Validate(resource, dep, solution_context.DynamicCtx(eval.Solution)); err == nil {
+			if err := prop.Validate(resource, dep, solution.DynamicCtx(eval.Solution)); err == nil {
 				changes.addEdge(v.Key(), Key{Ref: ref})
 			}
 		}
@@ -202,7 +202,11 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return err
 	}
 
-	se := construct.Edge{Source: edge.Source, Target: edge.Target}
+	se := construct.Edge{
+		Source:     edge.Source,
+		Target:     edge.Target,
+		Properties: edge.Properties,
+	}
 	se.Source.Name = ""
 	se.Target.Name = ""
 
@@ -232,7 +236,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 		return nil
 	}
 
-	dyn := solution_context.DynamicCtx(eval.Solution)
+	dyn := solution.DynamicCtx(eval.Solution)
 
 	var errs error
 	for i, rule := range tmpl.OperationalRules {
@@ -268,7 +272,7 @@ func (v *pathExpandVertex) addDepsFromEdge(
 // getDepsForPropertyRef takes a property reference and recurses down until the property is not filled in on the resource
 // When we reach resources with missing property references, we know they are the property vertex keys we must depend on
 func getDepsForPropertyRef(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	res construct.ResourceId,
 	propertyRef string,
 ) set.Set[Key] {
@@ -276,7 +280,7 @@ func getDepsForPropertyRef(
 		return nil
 	}
 	keys := make(set.Set[Key])
-	cfgCtx := solution_context.DynamicCtx(sol)
+	cfgCtx := solution.DynamicCtx(sol)
 	currResources := []construct.ResourceId{res}
 	parts := strings.Split(propertyRef, "#")
 	for _, part := range parts {
@@ -370,7 +374,13 @@ func (runner *pathExpandVertexRunner) getExpansionsToRun(v *pathExpandVertex) ([
 		}
 		if expansion.SatisfactionEdge.Source != edge.Source || expansion.SatisfactionEdge.Target != edge.Target {
 			simple := construct.SimpleEdge{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID}
-			tempGraph, err := path_selection.BuildPathSelectionGraph(simple, eval.Solution.KnowledgeBase(), expansion.Classification, requireFullBuild)
+			tempGraph, err := path_selection.BuildPathSelectionGraph(
+				runner.Eval.Solution.Context(),
+				simple,
+				eval.Solution.KnowledgeBase(),
+				expansion.Classification,
+				requireFullBuild,
+			)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("error getting expansions to run. could not build path selection graph: %w", err))
 				continue
@@ -388,71 +398,101 @@ func (runner *pathExpandVertexRunner) addResourcesAndEdges(
 	v *pathExpandVertex,
 ) error {
 	eval := runner.Eval
+	op := eval.Solution.OperationalView()
+
 	adj, err := result.Graph.AdjacencyMap()
 	if err != nil {
 		return err
 	}
+	// Copy the edge data from a constraint that matches the expansion
+	// which enables setting, for example, lambda -> s3_bucket readonly,
+	// then applying that to the iam_role -> s3_bucket edge, which is what actually
+	// does something.
+	var data construct.EdgeData
+	for _, ec := range runner.Eval.Solution.Constraints().Edges {
+		if ec.Target.Source.Matches(v.SatisfactionEdge.Source) && ec.Target.Target.Matches(v.SatisfactionEdge.Target) {
+			data = ec.Data
+			break
+		}
+	}
+
 	if len(adj) > 2 {
-		_, err := eval.Solution.OperationalView().Edge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
+		_, err := op.Edge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target)
 		if err == nil {
-			if err := eval.Solution.OperationalView().RemoveEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target); err != nil {
+			if err := op.RemoveEdge(v.SatisfactionEdge.Source, v.SatisfactionEdge.Target); err != nil {
 				return err
 			}
 		} else if !errors.Is(err, graph.ErrEdgeNotFound) {
 			return err
 		}
 	} else if len(adj) == 2 {
-		err = eval.Solution.RawView().AddEdge(expansion.SatisfactionEdge.Source.ID, expansion.SatisfactionEdge.Target.ID)
-		if err != nil {
+		err = op.AddEdge(
+			expansion.SatisfactionEdge.Source.ID,
+			expansion.SatisfactionEdge.Target.ID,
+			graph.EdgeData(data),
+		)
+		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			// NOTE(gg): See note below why we're ignoring/allowing already exists errors.
 			return err
 		}
-		return eval.Solution.OperationalView().MakeEdgesOperational([]construct.Edge{
-			{Source: expansion.SatisfactionEdge.Source.ID, Target: expansion.SatisfactionEdge.Target.ID},
-		})
 	}
 
 	// Once the path is selected & expanded, first add all the resources to the graph
 	var errs error
-	resources := []*construct.Resource{}
 	for pathId := range adj {
-		res, err := eval.Solution.OperationalView().Vertex(pathId)
+		_, err := op.Vertex(pathId)
 		switch {
 		case errors.Is(err, graph.ErrVertexNotFound):
-			res, err = result.Graph.Vertex(pathId)
+			res, err := result.Graph.Vertex(pathId)
 			if err != nil {
 				errs = errors.Join(errs, err)
 				continue
 			}
-			// add the resource to the raw view because we want to wait until after the edges are added to make it operational
-			errs = errors.Join(errs, eval.Solution.OperationalView().AddVertex(res))
+			err = op.AddVertex(res)
+			if err != nil {
+				errs = errors.Join(errs, err)
+				continue
+			}
 
 		case err != nil:
 			errs = errors.Join(errs, err)
+			continue
 		}
-		resources = append(resources, res)
 	}
 	if errs != nil {
 		return errs
 	}
 
 	// After all the resources, then add all the dependencies
-	edges := []construct.Edge{}
 	for _, edgeMap := range adj {
 		for _, edge := range edgeMap {
-			err := eval.Solution.OperationalView().AddEdge(edge.Source, edge.Target)
-			if err != nil {
+			_, err := op.Edge(edge.Source, edge.Target)
+			switch {
+			case errors.Is(err, graph.ErrEdgeNotFound):
+				err := op.AddEdge(edge.Source, edge.Target, graph.EdgeData(data))
+				if err != nil {
+					errs = errors.Join(errs, err)
+					continue
+				}
+
+			case err != nil:
 				errs = errors.Join(errs, err)
+				continue
+
+			default:
+				// NOTE(gg): we could update the edge to set the edge data, but if that edge already existed it either:
+				// 1) was added as a different path expansion process (another classification)
+				// 2) was not added as part of path expansion
+				// If (1), then the edge data is already correct
+				// If (2), then the edge isn't unique to the expansion, so don't copy the edge data. This may not be the
+				// correct behaviour, but without a use-case it's hard to tell.
 			}
-			edges = append(edges, edge)
 		}
 	}
 	if errs != nil {
 		return errs
 	}
-	if err := eval.AddResources(resources...); err != nil {
-		return err
-	}
-	return eval.AddEdges(edges...)
+	return nil
 }
 
 func (runner *pathExpandVertexRunner) addSubExpansion(
@@ -488,7 +528,7 @@ func (runner *pathExpandVertexRunner) consumeExpansionProperties(expansion path_
 	delays, err := knowledgebase.ConsumeFromResource(
 		expansion.SatisfactionEdge.Source,
 		expansion.SatisfactionEdge.Target,
-		solution_context.DynamicCtx(runner.Eval.Solution),
+		solution.DynamicCtx(runner.Eval.Solution),
 	)
 	if err != nil {
 		return err
@@ -548,7 +588,7 @@ func (runner *pathExpandVertexRunner) handleResultProperties(
 				for _, selector := range step.Resources {
 					if step.Direction == Direction {
 						canUse, err := selector.CanUse(
-							solution_context.DynamicCtx(eval.Solution),
+							solution.DynamicCtx(eval.Solution),
 							knowledgebase.DynamicValueData{Resource: res.ID},
 							targetRes,
 						)

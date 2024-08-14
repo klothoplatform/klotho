@@ -2,10 +2,6 @@ qualified_type_name: aws:ecr_image
 display_name: ECR Image
 
 properties:
-  BaseImage:
-    type: string
-    required: true
-    description: The base image to use for the Docker image
   Tag:
     type: string
     description: The tag assigned to the Docker image in the repository

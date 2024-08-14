@@ -2,7 +2,6 @@ package io
 
 import (
 	"io"
-	"os"
 )
 
 // RawFile represents a file with its included `Content` in case the compiler needs to read/manipulate it.
@@ -16,10 +15,6 @@ type File interface {
 	Path() string
 	WriteTo(io.Writer) (int64, error)
 	Clone() File
-}
-
-type NonOverwritable interface {
-	Overwrite(*os.File) bool
 }
 
 func (r *RawFile) Clone() File {

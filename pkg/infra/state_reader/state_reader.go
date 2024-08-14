@@ -300,7 +300,8 @@ func (p propertyCorrelator) checkValueForReferences(
 		}
 		if newRes == nil {
 			newRes = &construct.Resource{
-				ID: id,
+				ID:         id,
+				Properties: make(construct.Properties),
 			}
 		}
 

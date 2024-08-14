@@ -9,43 +9,52 @@ import (
 	prettyconsole "github.com/thessem/zap-prettyconsole"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 )
 
 type LogOpts struct {
 	Verbose         bool
+	Color           string
 	CategoryLogsDir string
 	Encoding        string
 	DefaultLevels   map[string]zapcore.Level
 }
 
-func (opts LogOpts) NewLogger() *zap.Logger {
-	var enc zapcore.Encoder
-	leveller := zap.NewAtomicLevel()
+func (opts LogOpts) Encoder() zapcore.Encoder {
 	switch opts.Encoding {
 	case "json":
 		if opts.Verbose {
-			enc = zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
+			return zapcore.NewJSONEncoder(zap.NewDevelopmentEncoderConfig())
 		} else {
-			enc = zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+			return zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
 		}
 	case "console", "pretty_console", "":
-		cfg := prettyconsole.NewEncoderConfig()
-		cfg.EncodeTime = TimeOffsetFormatter(time.Now())
-		enc = prettyconsole.NewEncoder(cfg)
+		useColor := true
+		switch opts.Color {
+		case "auto":
+			useColor = term.IsTerminal(int(os.Stderr.Fd()))
+		case "always", "on":
+			useColor = true
+		case "never", "off":
+			useColor = false
+		}
+
+		if useColor {
+			cfg := prettyconsole.NewEncoderConfig()
+			cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
+			return prettyconsole.NewEncoder(cfg)
+		}
+		cfg := zap.NewDevelopmentEncoderConfig()
+		cfg.EncodeTime = TimeOffsetFormatter(time.Now(), useColor)
+		return zapcore.NewConsoleEncoder(cfg)
 	default:
 		panic(fmt.Errorf("unknown encoding %q", opts.Encoding))
 	}
-	if opts.Verbose {
-		leveller.SetLevel(zap.DebugLevel)
-	} else {
-		leveller.SetLevel(zap.InfoLevel)
-	}
+}
 
-	core := zapcore.NewCore(enc, os.Stderr, leveller)
-
+func (opts LogOpts) EntryLeveller(core zapcore.Core) zapcore.Core {
 	levels := opts.DefaultLevels
-	levelEnv, ok := os.LookupEnv("LOG_LEVEL")
-	if ok {
+	if levelEnv, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		values := strings.Split(levelEnv, ",")
 		levels = make(map[string]zapcore.Level, len(values))
 		for _, v := range values {
@@ -61,9 +70,13 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 		}
 	}
 
-	if levels != nil {
+	if len(levels) > 0 {
 		core = NewEntryLeveller(core, levels)
 	}
+	return core
+}
+
+func (opts LogOpts) CategoryCore(core zapcore.Core) zapcore.Core {
 	if opts.CategoryLogsDir != "" {
 		var categEnc zapcore.Encoder
 		switch opts.Encoding {
@@ -79,16 +92,39 @@ func (opts LogOpts) NewLogger() *zap.Logger {
 			NewCategoryWriter(categEnc, opts.CategoryLogsDir),
 		)
 	}
+	return core
+}
 
-	return zap.New(core)
+func (opts LogOpts) NewCore(w zapcore.WriteSyncer) zapcore.Core {
+	enc := opts.Encoder()
+
+	leveller := zap.NewAtomicLevel()
+	if opts.Verbose {
+		leveller.SetLevel(zap.DebugLevel)
+	} else {
+		leveller.SetLevel(zap.InfoLevel)
+	}
+
+	core := zapcore.NewCore(enc, w, leveller)
+	core = opts.EntryLeveller(core)
+	core = opts.CategoryCore(core)
+	return core
+}
+
+func (opts LogOpts) NewLogger() *zap.Logger {
+	return zap.New(opts.NewCore(os.Stderr))
 }
 
 // TimeOffsetFormatter returns a time encoder that formats the time as an offset from the start time.
 // This is mostly useful for CLI logging not long-standing services as times beyond a few minutes will
 // be less readable.
-func TimeOffsetFormatter(start time.Time) zapcore.TimeEncoder {
-	const colStart = "\x1b[90m"
-	const colEnd = "\x1b[0m"
+func TimeOffsetFormatter(start time.Time, color bool) zapcore.TimeEncoder {
+	var colStart = "\x1b[90m"
+	var colEnd = "\x1b[0m"
+	if !color {
+		colStart = ""
+		colEnd = ""
+	}
 	return func(t time.Time, e zapcore.PrimitiveArrayEncoder) {
 		diff := t.Sub(start)
 		if diff < time.Second {

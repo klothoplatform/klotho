@@ -50,7 +50,7 @@ func (v *resourceRuleVertex) UpdateFrom(other Vertex) {
 }
 
 func (v *resourceRuleVertex) Evaluate(eval *Evaluator) error {
-	sol := eval.Solution.With("resource", v.Resource)
+	sol := eval.Solution
 	opCtx := operational_rule.OperationalRuleContext{
 		Solution: sol,
 		Data:     knowledgebase.DynamicValueData{Resource: v.Resource},

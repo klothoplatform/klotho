@@ -22,7 +22,8 @@ func TestGraphToYAML(t *testing.T) {
 			name: "empty graph",
 			g:    construct.NewGraph(),
 			yml: `resources:
-edges:`,
+edges:
+outputs: {}`,
 		},
 		{
 			name: "simple graph",
@@ -33,7 +34,8 @@ edges:`,
     p:t:a:
     p:t:b:
 edges:
-    p:t:a -> p:t:b:`,
+    p:t:a -> p:t:b:
+outputs: {}`,
 		},
 		{
 			name: "graph with cycle (no roots)",
@@ -49,7 +51,8 @@ edges:
 edges:
     p:t:a -> p:t:b:
     p:t:b -> p:t:c:
-    p:t:c -> p:t:a:`,
+    p:t:c -> p:t:a:
+outputs: {}`,
 		},
 		{
 			name: "graph with cycle (with root)",
@@ -65,7 +68,8 @@ edges:
 edges:
     p:t:a -> p:t:b:
     p:t:b -> p:t:c:
-    p:t:c -> p:t:b:`,
+    p:t:c -> p:t:b:
+outputs: {}`,
 		},
 		{
 			name: "graph with cycle (predecessor count precedence)",
@@ -86,7 +90,8 @@ edges:
     p:t:b -> p:t:c:
     p:t:c -> p:t:b:
     p:t:c -> p:t:d:
-    p:t:d -> p:t:c:`,
+    p:t:d -> p:t:c:
+outputs: {}`,
 		},
 	}
 	for _, tt := range tests {

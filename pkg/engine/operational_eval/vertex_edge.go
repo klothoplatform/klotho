@@ -7,24 +7,24 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 type edgeVertex struct {
-	Edge construct.SimpleEdge
+	Edge construct.Edge
 
 	// Rules are run in order of how they exist in the template so that the order of operations handles the rules inter dependencies
 	Rules []knowledgebase.OperationalRule
 }
 
 func (ev edgeVertex) Key() Key {
-	return Key{Edge: ev.Edge}
+	return Key{Edge: construct.ToSimpleEdge(ev.Edge)}
 }
 
 func (ev *edgeVertex) Dependencies(eval *Evaluator, propCtx dependencyCapturer) error {
 	data := knowledgebase.DynamicValueData{
-		Edge: &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target},
+		Edge: &ev.Edge,
 	}
 
 	var errs error
@@ -73,20 +73,24 @@ func (ev *edgeVertex) UpdateFrom(other Vertex) {
 	if !ok {
 		panic(fmt.Sprintf("cannot merge edge with non-edge vertex: %T", other))
 	}
-	if ev.Edge != otherEdge.Edge {
-		panic(fmt.Sprintf("cannot merge edges with different refs: %s != %s", ev.Edge, otherEdge.Edge))
+	if ev.Key().Edge != otherEdge.Key().Edge {
+		panic(fmt.Sprintf(
+			"cannot merge edges with different refs: %s != %s",
+			construct.ToSimpleEdge(ev.Edge),
+			construct.ToSimpleEdge(otherEdge.Edge),
+		))
 	}
 	ev.Rules = otherEdge.Rules
 }
 
 func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
-	edge := &construct.Edge{Source: ev.Edge.Source, Target: ev.Edge.Target}
+	se := construct.ToSimpleEdge(ev.Edge)
 
-	cfgCtx := solution_context.DynamicCtx(eval.Solution)
+	cfgCtx := solution.DynamicCtx(eval.Solution)
 	opCtx := operational_rule.OperationalRuleContext{
-		Solution: eval.Solution.With("edge", edge),
+		Solution: eval.Solution,
 		Data: knowledgebase.DynamicValueData{
-			Edge: edge,
+			Edge: &ev.Edge,
 		},
 	}
 
@@ -100,7 +104,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s operational rule: %w",
-					ev.Edge, err,
+					se, err,
 				))
 				continue
 			}
@@ -118,7 +122,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"could not apply edge %s configuration rule: %w",
-				ev.Edge, err,
+				se, err,
 			))
 		}
 
@@ -130,7 +134,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s (res: %s) operational rule: %w",
-					ev.Edge, res, err,
+					se, res, err,
 				))
 				continue
 			}
@@ -153,7 +157,7 @@ func (ev *edgeVertex) Evaluate(eval *Evaluator) error {
 	delays, err := knowledgebase.ConsumeFromResource(
 		src,
 		target,
-		solution_context.DynamicCtx(eval.Solution),
+		solution.DynamicCtx(eval.Solution),
 	)
 	if err != nil {
 		return err

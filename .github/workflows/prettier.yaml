@@ -11,10 +11,11 @@ jobs:
   gofmt:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
           go-version: '1.22.3'
-      - uses: actions/checkout@v3
+          cache-dependency-path: go.sum
       - name: List files to check
         run: |
           set -euo pipefail
@@ -41,8 +42,12 @@ jobs:
   ts-prettier:
     runs-on: ubuntu-latest
     steps:
-      - name: Install
-        run: npm install -g prettier
       - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install
+        run: npm ci
       - name: Run
-        run: prettier -c pkg/**/*.ts
+        run: npx -c 'prettier -c pkg/**/*.ts'

@@ -9,10 +9,10 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/set"
-	"go.uber.org/zap"
 )
 
 //go:generate mockgen -source=./path_expansion.go --destination=../operational_eval/path_expansion_mock_test.go --package=operational_eval
@@ -34,7 +34,7 @@ type (
 	}
 
 	EdgeExpand struct {
-		Ctx solution_context.SolutionContext
+		Ctx solution.Solution
 	}
 )
 
@@ -49,7 +49,7 @@ func (e *EdgeExpand) ExpandEdge(
 		Graph: construct.NewGraph(),
 	}
 
-	defer writeGraph(input, tempGraph, result.Graph)
+	defer writeGraph(ctx.Context(), input, tempGraph, result.Graph)
 	var errs error
 	// TODO: Revisit if we want to run on namespaces (this causes issue depending on what the namespace is)
 	// A file system can be a namespace and that doesnt really fit the reason we are running this at the moment
@@ -67,7 +67,7 @@ func (e *EdgeExpand) ExpandEdge(
 }
 
 func expandEdge(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	input ExpansionInput,
 	g construct.Graph,
 ) ([]graph.Edge[construct.ResourceId], error) {
@@ -142,7 +142,7 @@ func expandEdge(
 }
 
 func renameAndReplaceInTempGraph(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	input ExpansionInput,
 	g construct.Graph,
 	path construct.Path,
@@ -204,15 +204,21 @@ func renameAndReplaceInTempGraph(
 			}
 		}
 	}
+	if errs != nil {
+		return nil, errs
+	}
 
 	// We need to replace the phantom nodes in the temp graph in case we reuse the temp graph for sub expansions
 	for i, res := range result {
-		errs = errors.Join(errs, construct.ReplaceResource(input.TempGraph, path[i], res))
+		err := construct.ReplaceResource(input.TempGraph, path[i], res)
+		if err != nil {
+			errs = errors.Join(errs, fmt.Errorf("error replacing path[%d] %s: %w", i, path[i], err))
+		}
 	}
 	return result, errs
 }
 
-func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId) (set.Set[string], error) {
+func getCurrNames(sol solution.Solution, resourceToSet *construct.ResourceId) (set.Set[string], error) {
 	currNames := make(set.Set[string])
 	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {
@@ -231,7 +237,7 @@ func getCurrNames(sol solution_context.SolutionContext, resourceToSet *construct
 
 func findSubExpansionsToRun(
 	result []*construct.Resource,
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) (edges []graph.Edge[construct.ResourceId], errs error) {
 	resourceTemplates := make(map[construct.ResourceId]*knowledgebase.ResourceTemplate)
 	added := make(map[construct.ResourceId]map[construct.ResourceId]bool)
@@ -302,12 +308,13 @@ func findSubExpansionsToRun(
 // 'undirected' is the undirected graph of the dataflow graph from 'ctx' but are a separate input to reuse
 // the calculated graph for performance.
 func expandPath(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	undirected construct.Graph,
 	input ExpansionInput,
 	path construct.Path,
 	resultGraph construct.Graph,
 ) error {
+	log := logging.GetLogger(ctx.Context()).Sugar()
 
 	if len(path) == 2 {
 		modifiesImport, err := checkModifiesImportedResource(input.SatisfactionEdge.Source.ID,
@@ -321,7 +328,7 @@ func expandPath(
 				input.SatisfactionEdge.Target.ID)
 		}
 	}
-	zap.S().Debugf("Resolving path %s", path)
+	log.Debugf("Resolving path %s", path)
 
 	type candidate struct {
 		id             construct.ResourceId
@@ -429,7 +436,7 @@ func expandPath(
 	// 2. If the edge exists, and its template specifies it is unique, only add it if it's an existing edge
 	// 3. Otherwise, add it
 	addEdge := func(source, target candidate) {
-		weight := calculateEdgeWeight(
+		weight := CalculateEdgeWeight(
 			construct.SimpleEdge{Source: input.SatisfactionEdge.Source.ID, Target: input.SatisfactionEdge.Target.ID},
 			source.id, target.id,
 			source.divideWeightBy, target.divideWeightBy,
@@ -510,17 +517,17 @@ func expandPath(
 	return nil
 }
 
-func connectThroughNamespace(src, target *construct.Resource, ctx solution_context.SolutionContext, result ExpansionResult) (
+func connectThroughNamespace(src, target *construct.Resource, sol solution.Solution, result ExpansionResult) (
 	connected bool,
 	errs error,
 ) {
-	kb := ctx.KnowledgeBase()
+	kb := sol.KnowledgeBase()
 	targetNamespaceResource, _ := kb.GetResourcesNamespaceResource(target)
 	if targetNamespaceResource.IsZero() {
 		return
 	}
 
-	downstreams, err := solution_context.Downstream(ctx, src.ID, knowledgebase.ResourceLocalLayer)
+	downstreams, err := solution.Downstream(sol, src.ID, knowledgebase.ResourceLocalLayer)
 	if err != nil {
 		return connected, err
 	}
@@ -531,7 +538,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 		if downId.QualifiedTypeName() != targetNamespaceResource.QualifiedTypeName() {
 			continue
 		}
-		down, err := ctx.RawView().Vertex(downId)
+		down, err := sol.RawView().Vertex(downId)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue
@@ -544,7 +551,13 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			continue
 		}
 		// if we have a namespace resource that is not the same as the target namespace resource
-		tg, err := BuildPathSelectionGraph(construct.SimpleEdge{Source: res, Target: target.ID}, kb, "", true)
+		tg, err := BuildPathSelectionGraph(
+			sol.Context(),
+			construct.SimpleEdge{Source: res, Target: target.ID},
+			kb,
+			"",
+			true,
+		)
 		if err != nil {
 			continue
 		}
@@ -553,7 +566,7 @@ func connectThroughNamespace(src, target *construct.Resource, ctx solution_conte
 			Classification:   "",
 			TempGraph:        tg,
 		}
-		edges, err := expandEdge(ctx, input, result.Graph)
+		edges, err := expandEdge(sol, input, result.Graph)
 		if err != nil {
 			errs = errors.Join(errs, err)
 			continue

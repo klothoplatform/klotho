@@ -9,8 +9,11 @@ resources:
     aws:lambda_function:lambda_function_2:
         ExecutionRole: aws:iam_role:lambda_function_2-ExecutionRole
         Image: aws:ecr_image:lambda_function_2-image
+        LogConfig:
+            Format: Text
         LogGroup: aws:log_group:lambda_function_2-log-group
         MemorySize: 512
+        Runtime: nodejs20.x
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function_2
@@ -99,3 +102,4 @@ edges:
     aws:api_resource:rest_api_0:api_resource-0 -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
     aws:api_resource:rest_api_0:api_resource-0 -> aws:api_method:rest_api_0:rest_api_0_integration_0_method:
     aws:api_method:rest_api_0:rest_api_0_integration_0_method -> aws:api_integration:rest_api_0:rest_api_0_integration_0:
+outputs: {}

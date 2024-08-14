@@ -2,7 +2,7 @@ import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 import { OutputInstance } from '@pulumi/pulumi'
 import * as awsInputs from '@pulumi/aws/types/input'
-import { TemplateWrapper, ModelCaseWrapper } from '../../wrappers'
+import { ModelCaseWrapper, TemplateWrapper } from '../../wrappers'
 
 interface Args {
     AssignPublicIp: Promise<boolean> | OutputInstance<boolean> | boolean
@@ -25,6 +25,7 @@ interface Args {
     ServiceConnectConfiguration: pulumi.Input<awsInputs.ecs.ServiceServiceConnectConfiguration>
     CapacityProviderStrategies: pulumi.Input<awsInputs.ecs.ServiceCapacityProviderStrategy[]>
     Tags: ModelCaseWrapper<Record<string, string>>
+    Arn: string
 }
 
 // noinspection JSUnusedLocalSymbols
@@ -80,9 +81,9 @@ function create(args: Args): aws.ecs.Service {
             //TMPL {{- if .ServiceRegistries }}
             serviceRegistries: args.ServiceRegistries,
             //TMPL {{- end }}
-            //TMP {{- if .ServiceConnectConfiguration }}
+            //TMPL {{- if .ServiceConnectConfiguration }}
             serviceConnectConfiguration: args.ServiceConnectConfiguration,
-            //TMP {{- end }}
+            //TMPL {{- end }}
             //TMPL {{- if .Tags }}
             tags: args.Tags,
             //TMPL {{- end }}
@@ -91,9 +92,16 @@ function create(args: Args): aws.ecs.Service {
     )
 }
 
-function properties(object: aws.cloudwatch.MetricAlarm, args: Args) {
+function properties(object: aws.ecs.Service, args: Args) {
     return {
-        Arn: object.arn,
+        // We should replace Arn with Id in the future
+        Arn: object.id,
         Name: object.name,
     }
+}
+
+function importResource(args: Args): aws.ecs.Service {
+    // Imported ID must be in the form cluster-name/service-name.
+    // The Id field is the service's ARN, which includes cluster-name/service-name as a suffix.
+    return aws.ecs.Service.get(args.Name, args.Arn.split('/').slice(-2).join('/'))
 }

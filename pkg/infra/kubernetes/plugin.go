@@ -6,7 +6,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"gopkg.in/yaml.v3"
@@ -26,7 +26,7 @@ func (p Plugin) Name() string {
 
 const HELM_CHARTS_DIR = "helm_charts"
 
-func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, error) {
+func (p Plugin) Translate(ctx solution.Solution) ([]kio.File, error) {
 	internalCharts := make(map[string]*construct.Resource)
 	customerCharts := make(map[string]*construct.Resource)
 	p.resourcesInChart = make(map[construct.ResourceId][]construct.ResourceId)
@@ -87,7 +87,7 @@ func (p Plugin) Translate(ctx solution_context.SolutionContext) ([]kio.File, err
 	return p.files, err
 }
 
-func (p *Plugin) placeResourceInChart(ctx solution_context.SolutionContext, resource *construct.Resource, chart *construct.Resource) (
+func (p *Plugin) placeResourceInChart(ctx solution.Solution, resource *construct.Resource, chart *construct.Resource) (
 	bool,
 	error,
 ) {
@@ -192,7 +192,7 @@ func writeChartYaml(c *construct.Resource) (kio.File, error) {
 	}, nil
 }
 
-func (p *Plugin) createChart(name string, clusterId construct.ResourceId, ctx solution_context.SolutionContext) (*construct.Resource, error) {
+func (p *Plugin) createChart(name string, clusterId construct.ResourceId, ctx solution.Solution) (*construct.Resource, error) {
 	chart, err := knowledgebase.CreateResource(ctx.KnowledgeBase(), construct.ResourceId{
 		Provider:  "kubernetes",
 		Type:      "helm_chart",

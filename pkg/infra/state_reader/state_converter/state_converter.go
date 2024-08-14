@@ -15,6 +15,7 @@ type (
 	StateConverter interface {
 		// ConvertState converts the state to the Klotho state
 		ConvertState(io.Reader) (State, error)
+		ConvertResource(Resource) (*construct.Resource, error)
 	}
 )
 

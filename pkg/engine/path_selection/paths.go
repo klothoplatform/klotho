@@ -3,15 +3,16 @@ package path_selection
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 )
 
 func GetPaths(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	source, target construct.ResourceId,
 	pathValidityChecks func(source, target construct.ResourceId, path construct.Path) bool,
 	hasPathCheck bool,
@@ -67,7 +68,7 @@ func GetPaths(
 						}
 
 					}
-					if !PathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
+					if !pathSatisfiesClassification(sol.KnowledgeBase(), path, expansion.Classification) {
 						continue PATHS
 					}
 					if !pathValidityChecks(source, target, path) {
@@ -97,7 +98,7 @@ func GetPaths(
 }
 
 func DeterminePathSatisfactionInputs(
-	sol solution_context.SolutionContext,
+	sol solution.Solution,
 	satisfaction knowledgebase.EdgePathSatisfaction,
 	edge construct.ResourceEdge,
 ) (expansions []ExpansionInput, errs error) {
@@ -105,7 +106,7 @@ func DeterminePathSatisfactionInputs(
 	targetIds := construct.ResourceList{edge.Target.ID}
 	var err error
 	if satisfaction.Source.PropertyReferenceChangesBoundary() {
-		srcIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
+		srcIds, err = solution.GetResourcesFromPropertyReference(sol, edge.Source.ID, satisfaction.Source.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"failed to determine path satisfaction inputs. could not find resource %s: %w",
@@ -114,7 +115,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Target.PropertyReferenceChangesBoundary() {
-		targetIds, err = solution_context.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
+		targetIds, err = solution.GetResourcesFromPropertyReference(sol, edge.Target.ID, satisfaction.Target.PropertyReference)
 		if err != nil {
 			errs = errors.Join(errs, fmt.Errorf(
 				"failed to determine path satisfaction inputs. could not find resource %s: %w",
@@ -124,7 +125,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Source.Script != "" {
-		dynamicCtx := solution_context.DynamicCtx(sol)
+		dynamicCtx := solution.DynamicCtx(sol)
 		err = dynamicCtx.ExecuteDecode(satisfaction.Source.Script,
 			knowledgebase.DynamicValueData{Resource: edge.Source.ID}, &srcIds)
 		if err != nil {
@@ -135,7 +136,7 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	if satisfaction.Target.Script != "" {
-		dynamicCtx := solution_context.DynamicCtx(sol)
+		dynamicCtx := solution.DynamicCtx(sol)
 		err = dynamicCtx.ExecuteDecode(satisfaction.Target.Script,
 			knowledgebase.DynamicValueData{Resource: edge.Target.ID}, &targetIds)
 		if err != nil {
@@ -178,4 +179,64 @@ func DeterminePathSatisfactionInputs(
 		}
 	}
 	return
+}
+
+func pathSatisfiesClassification(
+	kb knowledgebase.TemplateKB,
+	path []construct.ResourceId,
+	classification string,
+) bool {
+	if containsUnneccessaryHopsInPath(path, kb) {
+		return false
+	}
+	if classification == "" {
+		return true
+	}
+	metClassification := false
+	for i, res := range path {
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil || slices.Contains(resTemplate.PathSatisfaction.DenyClassifications, classification) {
+			return false
+		}
+		if slices.Contains(resTemplate.Classification.Is, classification) {
+			metClassification = true
+		}
+		if i > 0 {
+			et := kb.GetEdgeTemplate(path[i-1], res)
+			if slices.Contains(et.Classification, classification) {
+				metClassification = true
+			}
+		}
+	}
+	return metClassification
+}
+
+// containsUnneccessaryHopsInPath determines if the path contains any unnecessary hops to get to the destination
+//
+// We check if the source and destination of the dependency have a functionality. If they do, we check if the functionality of the source or destination
+// is the same as the functionality of the source or destination of the edge in the path. If it is then we ensure that the source or destination of the edge
+// in the path is not the same as the source or destination of the dependency. If it is then we know that the edge in the path is an unnecessary hop to get to the destination
+func containsUnneccessaryHopsInPath(p []construct.ResourceId, kb knowledgebase.TemplateKB) bool {
+	if len(p) == 2 {
+		return false
+	}
+	// Here we check if the edge or destination functionality exist within the path in another resource. If they do, we know that the path contains unnecessary hops.
+	for i, res := range p {
+
+		// We know that we can skip over the initial source and dest since those are the original edges passed in
+		if i == 0 || i == len(p)-1 {
+			continue
+		}
+
+		resTemplate, err := kb.GetResourceTemplate(res)
+		if err != nil {
+			return true
+		}
+		resFunctionality := resTemplate.GetFunctionality()
+		// Now we will look to see if there are duplicate functionality in resources within the edge, if there are we will say it contains unnecessary hops. We will verify first that those duplicates dont exist because of a constraint
+		if resFunctionality != knowledgebase.Unknown {
+			return true
+		}
+	}
+	return false
 }

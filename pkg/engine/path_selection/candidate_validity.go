@@ -8,7 +8,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ type (
 	// downstreamChecker is a validityChecker that checks if a candidate is valid based on what is downstream of the specified
 	// resources
 	downstreamChecker struct {
-		ctx solution_context.SolutionContext
+		ctx solution.Solution
 	}
 )
 
@@ -25,7 +25,7 @@ type (
 // If there is an edge rule modifying the resource then we consider the edge to be invalid
 func checkModifiesImportedResource(
 	source, target construct.ResourceId,
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	et *knowledgebase.EdgeTemplate,
 ) (bool, error) {
 	// see if the source resource exists in the graph
@@ -46,7 +46,7 @@ func checkModifiesImportedResource(
 		}
 		for _, rule := range et.OperationalRules {
 			for _, config := range rule.ConfigurationRules {
-				dynamicCtx := solution_context.DynamicCtx(ctx)
+				dynamicCtx := solution.DynamicCtx(ctx)
 				id := construct.ResourceId{}
 				// we ignore the error since phantom resources will cause errors in the decoding of templates
 				_ = dynamicCtx.ExecuteDecode(config.Resource, knowledgebase.DynamicValueData{
@@ -75,7 +75,7 @@ func checkModifiesImportedResource(
 
 // checkCandidatesValidity checks if the candidate is valid based on the validity of its own path satisfaction rules and namespace
 func checkCandidatesValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource *construct.Resource,
 	path []construct.ResourceId,
 	classification string,
@@ -117,12 +117,12 @@ func checkCandidatesValidity(
 //
 //	then the candidate is not valid if those namespace resources are the same type
 func checkNamespaceValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource *construct.Resource,
 	target construct.ResourceId,
 ) (bool, error) {
 	// Check if its a valid namespaced resource
-	ids, err := ctx.KnowledgeBase().GetAllowedNamespacedResourceIds(solution_context.DynamicCtx(ctx), resource.ID)
+	ids, err := ctx.KnowledgeBase().GetAllowedNamespacedResourceIds(solution.DynamicCtx(ctx), resource.ID)
 	if err != nil {
 		return false, err
 	}
@@ -144,7 +144,7 @@ func checkNamespaceValidity(
 // for the specified classification. If the candidate uses property references to check validity then the candidate
 // can be considered valid if those properties are not set
 func checkAsTargetValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource *construct.Resource,
 	source construct.ResourceId,
 	classification string,
@@ -161,7 +161,7 @@ func checkAsTargetValidity(
 		if ps.Classification == classification && ps.Validity != "" {
 			resources := []construct.ResourceId{resource.ID}
 			if ps.PropertyReference != "" {
-				resources, err = solution_context.GetResourcesFromPropertyReference(ctx,
+				resources, err = solution.GetResourcesFromPropertyReference(ctx,
 					resource.ID, ps.PropertyReference)
 				if err != nil {
 					// dont return error because it just means that the property isnt set and we can make the
@@ -194,7 +194,7 @@ func checkAsTargetValidity(
 // for the specified classification. If the candidate uses property references to check validity then the candidate
 // can be considered valid if those properties are not set
 func checkAsSourceValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource *construct.Resource,
 	target construct.ResourceId,
 	classification string,
@@ -211,7 +211,7 @@ func checkAsSourceValidity(
 		if ps.Classification == classification && ps.Validity != "" {
 			resources := []construct.ResourceId{resource.ID}
 			if ps.PropertyReference != "" {
-				resources, err = solution_context.GetResourcesFromPropertyReference(ctx,
+				resources, err = solution.GetResourcesFromPropertyReference(ctx,
 					resource.ID, ps.PropertyReference)
 				if err != nil {
 					// dont return error because it just means that the property isnt set and we can make the
@@ -242,7 +242,7 @@ func checkAsSourceValidity(
 
 // checkValidityOperation checks if the candidate is valid based on the operation the validity check specifies
 func checkValidityOperation(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	src, target construct.ResourceId,
 	ps knowledgebase.PathSatisfactionRoute,
 ) (bool, error) {
@@ -264,7 +264,7 @@ func checkValidityOperation(
 // assignForValidity assigns the candidate to be valid based on the operation the validity check specified
 // This is allowed to be run if the property reference used in the validity check is not set on the candidate
 func assignForValidity(
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 	resource *construct.Resource,
 	operationResourceId construct.ResourceId,
 	ps knowledgebase.PathSatisfactionRoute,
@@ -287,13 +287,13 @@ func assignForValidity(
 // makeValid makes the candidate valid based on the operation the validity check specified
 // It will find a resource to assign to the propertyRef specified based on what is downstream of the operationResource.
 func (d downstreamChecker) makeValid(resource, operationResource *construct.Resource, propertyRef string) error {
-	downstreams, err := solution_context.Downstream(d.ctx, operationResource.ID, knowledgebase.FirstFunctionalLayer)
+	downstreams, err := solution.Downstream(d.ctx, operationResource.ID, knowledgebase.FirstFunctionalLayer)
 	if err != nil {
 		return err
 	}
 	// include the operation resource in downstreams in case it also can be assigned to the target property
 	downstreams = append(downstreams, operationResource.ID)
-	cfgCtx := solution_context.DynamicCtx(d.ctx)
+	cfgCtx := solution.DynamicCtx(d.ctx)
 
 	assign := func(r construct.ResourceId, property string) (bool, error) {
 		var errs error
@@ -352,7 +352,7 @@ func (d downstreamChecker) makeValid(resource, operationResource *construct.Reso
 
 // isValid checks if the candidate is valid based on what is downstream of the resourceToCheck
 func (d downstreamChecker) isValid(resourceToCheck, targetResource construct.ResourceId) (bool, error) {
-	downstreams, err := solution_context.Downstream(d.ctx, resourceToCheck, knowledgebase.FirstFunctionalLayer)
+	downstreams, err := solution.Downstream(d.ctx, resourceToCheck, knowledgebase.FirstFunctionalLayer)
 	if err != nil {
 		return false, err
 	}

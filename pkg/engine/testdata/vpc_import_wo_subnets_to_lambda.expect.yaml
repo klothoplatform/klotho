@@ -20,8 +20,10 @@ resources:
     aws:lambda_function:lambda_function:
         ExecutionRole: aws:iam_role:lambda_function-ExecutionRole
         Image: aws:ecr_image:lambda_function-image#ImageName
-        LogGroup: aws:log_group:lambda_function-log-group
+        LogConfig:
+            Format: Text
         MemorySize: 512
+        Runtime: nodejs20.x
         SecurityGroups:
             - aws:security_group:vpc:lambda_function-security_group
         Subnets:
@@ -52,6 +54,12 @@ resources:
         Tags:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-ExecutionRole
+    aws:log_group:lambda_function-log_group:
+        LogGroupName: aws:lambda_function:lambda_function#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_function-log_group
     aws:subnet:vpc:lambda_function-vpc:
         AvailabilityZone: aws:availability_zone:region-0:availability_zone-0
         CidrBlock: 10.0.128.0/18
@@ -78,12 +86,11 @@ resources:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-image-ecr_repo
     aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table:
-        RouteTable: aws:route_table:vpc:lambda_function-vpc-route_table
-        Subnet: aws:subnet:vpc:lambda_function-vpc
-    aws:SERVICE_API:lambda_function-lambda_function-log-group:
+        RouteTableId: aws:route_table:vpc:lambda_function-vpc-route_table#Id
+        SubnetId: aws:subnet:vpc:lambda_function-vpc#Id
     aws:route_table_association:subnet-1-subnet-1-route_table:
-        RouteTable: aws:route_table:vpc:subnet-1-route_table
-        Subnet: aws:subnet:vpc:subnet-1
+        RouteTableId: aws:route_table:vpc:subnet-1-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-1#Id
     aws:route_table:vpc:lambda_function-vpc-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -92,12 +99,6 @@ resources:
             GLOBAL_KLOTHO_TAG: test
             RESOURCE_NAME: lambda_function-vpc-route_table
         Vpc: aws:vpc:vpc
-    aws:log_group:lambda_function-log-group:
-        LogGroupName: /aws/lambda/lambda_function
-        RetentionInDays: 5
-        Tags:
-            GLOBAL_KLOTHO_TAG: test
-            RESOURCE_NAME: lambda_function-log-group
     aws:route_table:vpc:subnet-1-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -150,14 +151,14 @@ resources:
         Index: 0
         Region: aws:region:region-0
     aws:route_table_association:subnet-2-subnet-2-route_table:
-        RouteTable: aws:route_table:vpc:subnet-2-route_table
-        Subnet: aws:subnet:vpc:subnet-2
+        RouteTableId: aws:route_table:vpc:subnet-2-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-2#Id
     aws:availability_zone:region-0:availability_zone-1:
         Index: 1
         Region: aws:region:region-0
     aws:route_table_association:subnet-3-subnet-3-route_table:
-        RouteTable: aws:route_table:vpc:subnet-3-route_table
-        Subnet: aws:subnet:vpc:subnet-3
+        RouteTableId: aws:route_table:vpc:subnet-3-route_table#Id
+        SubnetId: aws:subnet:vpc:subnet-3#Id
     aws:route_table:vpc:subnet-2-route_table:
         Routes:
             - CidrBlock: 0.0.0.0/0
@@ -188,24 +189,20 @@ resources:
 edges:
     aws:security_group:vpc:lambda_function-security_group -> aws:lambda_function:lambda_function:
     aws:security_group:vpc:lambda_function-security_group -> aws:vpc:vpc:
-    aws:lambda_function:lambda_function -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:lambda_function:lambda_function -> aws:ecr_image:lambda_function-image:
     aws:lambda_function:lambda_function -> aws:iam_role:lambda_function-ExecutionRole:
+    aws:lambda_function:lambda_function -> aws:log_group:lambda_function-log_group:
     aws:lambda_function:lambda_function -> aws:subnet:vpc:lambda_function-vpc:
     aws:lambda_function:lambda_function -> aws:subnet:vpc:subnet-1:
     aws:ecr_image:lambda_function-image -> aws:ecr_repo:lambda_function-image-ecr_repo:
-    aws:iam_role:lambda_function-ExecutionRole -> aws:log_group:lambda_function-log-group:
-    aws:subnet:vpc:lambda_function-vpc -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:vpc:lambda_function-vpc -> aws:availability_zone:region-0:availability_zone-0:
     aws:subnet:vpc:lambda_function-vpc -> aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table:
     aws:subnet:vpc:lambda_function-vpc -> aws:vpc:vpc:
-    aws:subnet:vpc:subnet-1 -> aws:SERVICE_API:lambda_function-lambda_function-log-group:
     aws:subnet:vpc:subnet-1 -> aws:availability_zone:region-0:availability_zone-1:
     aws:subnet:vpc:subnet-1 -> aws:route_table_association:subnet-1-subnet-1-route_table:
     aws:subnet:vpc:subnet-1 -> aws:vpc:vpc:
     ? aws:route_table_association:lambda_function-vpc-lambda_function-vpc-route_table -> aws:route_table:vpc:lambda_function-vpc-route_table
     :
-    aws:SERVICE_API:lambda_function-lambda_function-log-group -> aws:log_group:lambda_function-log-group:
     aws:route_table_association:subnet-1-subnet-1-route_table -> aws:route_table:vpc:subnet-1-route_table:
     aws:route_table:vpc:lambda_function-vpc-route_table -> aws:nat_gateway:subnet-2:lambda_function-vpc-route_table-nat_gateway:
     aws:route_table:vpc:lambda_function-vpc-route_table -> aws:vpc:vpc:
@@ -231,3 +228,4 @@ edges:
     aws:route_table:vpc:subnet-3-route_table -> aws:internet_gateway:vpc:internet_gateway-0:
     aws:route_table:vpc:subnet-3-route_table -> aws:vpc:vpc:
     aws:internet_gateway:vpc:internet_gateway-0 -> aws:vpc:vpc:
+outputs: {}

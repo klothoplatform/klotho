@@ -8,6 +8,6 @@ tab-width = 2
 # https://github.com/golangci/golangci-lint/issues/1981
 # enable = ["lll"]
 
-[run]
+[issues]
 # Don't bother linting test files
-skip-files = ["pkg/.*_test.go"]
+exclude-files = ["pkg/.*_test.go"]

@@ -1,0 +1,111 @@
+id: klotho.aws.Container
+version: 1.0.0
+description: A construct for creating a docker container from an image or Dockerfile
+resources:
+  TaskDefinition:
+    type: aws:ecs_task_definition
+    name: ${inputs:Name}-task
+    properties:
+      Cpu: ${inputs:Cpu}
+      Memory: ${inputs:Memory}
+      ContainerDefinitions:
+        - Name: ${inputs:Name}
+          Cpu: ${inputs:Cpu}
+          Memory: ${inputs:Memory}
+          Environment: ${inputs:EnvironmentVariables}
+          PortMappings:
+            - ContainerPort: ${inputs:Port}
+              HostPort: ${inputs:Port}
+              Protocol: TCP
+      RequiresCompatibilities:
+        - FARGATE
+  Service:
+    type: aws:ecs_service
+    name: ${inputs:Name}-service
+    properties:
+      LaunchType: FARGATE
+      TaskDefinition: ${resources:TaskDefinition}
+      EnableExecuteCommand: ${inputs:EnableExecuteCommand}
+
+inputs:
+  Cpu:
+    name: CPU
+    description: The amount of CPU to allocate to the container
+    type: number
+    default: 256
+    validation:
+      minimum: 1
+      maximum: 4096
+  Context:
+    name: Context
+    description: The context to use to build the container
+    type: path
+    default: .
+    validation:
+      minLength: 1
+      maxLength: 63
+  Dockerfile:
+    name: Dockerfile
+    description: The Dockerfile to use to build the container
+    type: path
+    default: Dockerfile
+    validation:
+      minLength: 1
+      maxLength: 63
+  EnvironmentVariables:
+    name: EnvironmentVariables
+    description: The environment variables to set in the container
+    type: KeyValueList
+    configuration:
+      keyField: Name
+  Image:
+    name: Image
+    description: The image to use for the container
+    type: string
+    validation:
+      minLength: 1
+      maxLength: 63
+  EnableExecuteCommand:
+    name: Enable Execute Command
+    description: Whether to enable the execute command functionality for the container
+    type: boolean
+    default: false
+  Memory:
+    name: Memory
+    description: The amount of memory to allocate to the container
+    type: number
+    default: 512
+    validation:
+      minimum: 1
+      maximum: 4096
+  Network:
+    name: Network
+    description: The network to deploy the container to
+    type: Construct(klotho.aws.Network)
+  Port:
+    name: Port
+    description: The port to expose on the container
+    type: number
+    default: 80
+    validation:
+      minimum: 1
+      maximum: 65535
+
+input_rules:
+  - if: '{{ and (inputs "Dockerfile") (not (inputs "Image")) }}'
+    then:
+      resources:
+        EcrImage:
+          type: aws:ecr_image
+          name: ${inputs:Name}-image
+          properties:
+            Dockerfile: ${inputs:Dockerfile}
+            Context: ${inputs:Context}
+        TaskDefinition:
+          properties:
+            ContainerDefinitions[0].Image: ${resources:EcrImage#ImageName}
+    else:
+      resources:
+        TaskDefinition:
+          properties:
+            ContainerDefinitions[0].Image: ${inputs:Image}

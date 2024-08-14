@@ -2,6 +2,10 @@ qualified_type_name: aws:elastic_ip
 display_name: Elastic IP
 
 properties:
+  Id:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
   aws:tags:
     type: model
 

@@ -7,7 +7,7 @@ import (
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/path_selection"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
@@ -17,7 +17,7 @@ import (
 // It will determine when edges within those paths are used for contexts outside of the source and target paths and not remove them.
 func RemovePath(
 	source, target construct.ResourceId,
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) error {
 	zap.S().Infof("Removing path %s -> %s", source, target)
 	paths, err := graph.AllPathsBetween(ctx.DataflowGraph(), source, target)
@@ -68,7 +68,7 @@ func removeSinglePath(
 	path []construct.ResourceId,
 	used set.Set[construct.ResourceId],
 	edges set.Set[construct.SimpleEdge],
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) error {
 	var errs error
 	// first we will remove all dependencies that make up the paths from the constraints source to target
@@ -113,7 +113,7 @@ func nodesInPaths(
 // paths being affected
 func nodesUsedOutsideOfContext(
 	nodes set.Set[construct.ResourceId],
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) (set.Set[construct.ResourceId], error) {
 	var errs error
 	used := make(set.Set[construct.ResourceId])
@@ -136,7 +136,7 @@ func nodesUsedOutsideOfContext(
 func findEdgesUsedInOtherPathSelection(
 	source, target construct.ResourceId,
 	nodes set.Set[construct.ResourceId],
-	ctx solution_context.SolutionContext,
+	ctx solution.Solution,
 ) (set.Set[construct.SimpleEdge], error) {
 	edges := make(set.Set[construct.SimpleEdge])
 	var errs error

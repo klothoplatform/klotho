@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 type (
@@ -35,25 +37,24 @@ func (r *FileRef) WriteTo(w io.Writer) (int64, error) {
 }
 
 func OutputTo(files []File, dest string) error {
+	return OutputToFS(afero.NewOsFs(), files, dest)
+}
+
+func OutputToFS(fs afero.Fs, files []File, dest string) error {
 	errChan := make(chan error)
 	for idx := range files {
 		go func(f File) {
 			path := filepath.Join(dest, f.Path())
 			dir := filepath.Dir(path)
-			err := os.MkdirAll(dir, 0777)
+			err := fs.MkdirAll(dir, 0777)
 			if err != nil {
 				errChan <- fmt.Errorf("could not create directory for %s: %w", path, err)
 				return
 			}
-			file, err := os.OpenFile(path, os.O_RDWR, 0777)
+			file, err := fs.OpenFile(path, os.O_RDWR, 0777)
 			if os.IsNotExist(err) {
-				file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0777)
+				file, err = fs.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0777)
 			} else if err == nil {
-				ovr, ok := f.(NonOverwritable)
-				if ok && !ovr.Overwrite(file) {
-					errChan <- nil
-					return
-				}
 				err = file.Truncate(0)
 			}
 			if err != nil {

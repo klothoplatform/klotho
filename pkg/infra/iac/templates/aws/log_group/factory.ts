@@ -11,7 +11,9 @@ interface Args {
 // noinspection JSUnusedLocalSymbols
 function create(args: Args): aws.cloudwatch.LogGroup {
     return new aws.cloudwatch.LogGroup(args.Name, {
+        //TMPL {{- if .LogGroupName }}
         name: args.LogGroupName,
+        //TMPL {{- end }}
         retentionInDays: args.RetentionInDays,
         //TMPL {{- if .Tags }}
         tags: args.Tags,

@@ -7,16 +7,17 @@ import (
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
+	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/set"
 	"go.uber.org/zap"
 )
 
 type (
 	Evaluator struct {
-		Solution solution_context.SolutionContext
+		Solution solution.Solution
 
 		// graph holds all of the property dependencies regardless of whether they've been evaluated or not
 		graph Graph
@@ -83,7 +84,7 @@ const (
 	keyTypePathExpand
 )
 
-func NewEvaluator(ctx solution_context.SolutionContext) *Evaluator {
+func NewEvaluator(ctx solution.Solution) *Evaluator {
 	return &Evaluator{
 		Solution:    ctx,
 		graph:       newGraph(nil),
@@ -191,7 +192,7 @@ func (eval *Evaluator) EvalutedOrder() [][]Key {
 
 func (eval *Evaluator) Log() *zap.SugaredLogger {
 	if eval.log == nil {
-		eval.log = zap.S().Named("engine.opeval")
+		eval.log = logging.GetLogger(eval.Solution.Context()).Named("engine.opeval").Sugar()
 	}
 	return eval.log.With("group", len(eval.evaluatedOrder))
 }
@@ -289,7 +290,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 	}
 	log := eval.Log().Named("enqueue")
 
-	var errs error
+	var errs EnqueueErrors
 	for key, v := range changes.nodes {
 		_, err := eval.graph.Vertex(key)
 		switch {
@@ -301,7 +302,7 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 				}
 			})
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not add vertex %s: %w", key, err))
+				errs.Append(key, fmt.Errorf("could not add vertex %s: %w", key, err))
 				continue
 			}
 			if eval.currentKey != nil {
@@ -309,21 +310,21 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 			}
 			log.Debugf("Enqueued %s", key)
 			if err := eval.unevaluated.AddVertex(v); err != nil {
-				errs = errors.Join(errs, err)
+				errs.Append(key, fmt.Errorf("could not add unevaluated vertex %s: %w", key, err))
 			}
 
 		case err == nil:
 			existing, err := eval.graph.Vertex(key)
 			if err != nil {
-				errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
+				errs.Append(key, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 				continue
 			}
 			if v != existing {
 				existing.UpdateFrom(v)
 			}
 
-		case err != nil:
-			errs = errors.Join(errs, fmt.Errorf("could not get existing vertex %s: %w", key, err))
+		default:
+			errs.Append(key, fmt.Errorf("could not get existing vertex %s: %w", key, err))
 		}
 	}
 	if errs != nil {
@@ -336,7 +337,9 @@ func (eval *Evaluator) enqueue(changes graphChanges) error {
 			log.Debug(source)
 		}
 		for target := range targets {
-			errs = errors.Join(errs, eval.addEdge(source, target))
+			if err := eval.addEdge(source, target); err != nil {
+				errs.Append(source, fmt.Errorf("-> %s: %w", target, err))
+			}
 		}
 	}
 	if errs != nil {
@@ -386,7 +389,7 @@ func (changes graphChanges) AddVertexAndDeps(eval *Evaluator, v Vertex) error {
 	changes.nodes[v.Key()] = v
 
 	depCaptureChanges := newChanges()
-	propCtx := newDepCapture(solution_context.DynamicCtx(eval.Solution), depCaptureChanges, v.Key())
+	propCtx := newDepCapture(solution.DynamicCtx(eval.Solution), depCaptureChanges, v.Key())
 
 	err := v.Dependencies(eval, propCtx)
 	if err != nil {
@@ -478,7 +481,13 @@ func (eval *Evaluator) UpdateId(oldId, newId construct.ResourceId) error {
 
 		case *edgeVertex:
 			if key.Edge.Source == oldId || key.Edge.Target == oldId {
-				vertex.Edge = UpdateEdgeId(vertex.Edge, oldId, newId)
+				updated := UpdateEdgeId(
+					construct.SimpleEdge{Source: vertex.Edge.Source, Target: vertex.Edge.Target},
+					oldId,
+					newId,
+				)
+				vertex.Edge.Source = updated.Source
+				vertex.Edge.Target = updated.Target
 				replaceVertex(key, vertex)
 			}
 		case *pathExpandVertex:

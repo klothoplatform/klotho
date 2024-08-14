@@ -98,7 +98,9 @@ func Test_pathExpandVertex_runEvaluation(t *testing.T) {
 			mockRunner := NewMockexpansionRunner(ctrl)
 			mockEdgeExpander := NewMockEdgeExpander(ctrl)
 			tt.mocks(mockRunner, mockEdgeExpander, tt.v)
-			eval := &Evaluator{}
+			eval := &Evaluator{
+				Solution: enginetesting.NewTestSolution(),
+			}
 			err := tt.v.runEvaluation(eval, mockRunner, mockEdgeExpander)
 			if tt.wantErr {
 				assert.Error(t, err)

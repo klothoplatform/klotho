@@ -30,3 +30,8 @@ engine_test:
 .PHONY: regen_tests
 regen_tests:
 	find pkg/engine/testdata -type f -name '*.input.yaml' -exec ./create_test.sh {} \;
+	find pkg/k2/testdata -mindepth 1 -maxdepth 1 -type d -exec ./create_k2_test.sh {} \;
+
+.PHONY: cancel-all
+cancel-all:
+	rm -rf ~/.k2/pulumi/state/.pulumi/locks

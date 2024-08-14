@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/klothoplatform/klotho/pkg/collectionutil"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 )
@@ -67,12 +67,12 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 	// it must be directly up/downstream and have no other dependencies in that direction
 	var ids []construct.ResourceId
 	if action.Step.Direction == knowledgebase.DirectionDownstream {
-		ids, err = solution_context.Downstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
+		ids, err = solution.Downstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return err
 		}
 	} else {
-		ids, err = solution_context.Upstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
+		ids, err = solution.Upstream(action.ruleCtx.Solution, resource.ID, knowledgebase.ResourceDirectLayer)
 		if err != nil {
 			return err
 		}
@@ -81,12 +81,12 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 		if priorityType.Matches(id) {
 			var uids []construct.ResourceId
 			if action.Step.Direction == knowledgebase.DirectionUpstream {
-				uids, err = solution_context.Downstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
+				uids, err = solution.Downstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
 				if err != nil {
 					return err
 				}
 			} else {
-				uids, err = solution_context.Upstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
+				uids, err = solution.Upstream(action.ruleCtx.Solution, id, knowledgebase.ResourceDirectLayer)
 				if err != nil {
 					return err
 				}
@@ -121,7 +121,7 @@ func (action *operationalResourceAction) createUniqueResources(resource *constru
 }
 
 func (action *operationalResourceAction) useAvailableResources(resource *construct.Resource) error {
-	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
+	configCtx := solution.DynamicCtx(action.ruleCtx.Solution)
 	availableResources := make(set.Set[*construct.Resource])
 
 	edges, err := action.ruleCtx.Solution.DataflowGraph().Edges()
@@ -251,7 +251,7 @@ func (action *operationalResourceAction) placeResources(resource *construct.Reso
 
 func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResource *construct.Resource, resource *construct.Resource) (bool, error) {
 	kb := action.ruleCtx.Solution.KnowledgeBase()
-	namespacedIds, err := kb.GetAllowedNamespacedResourceIds(solution_context.DynamicCtx(action.ruleCtx.Solution), resource.ID)
+	namespacedIds, err := kb.GetAllowedNamespacedResourceIds(solution.DynamicCtx(action.ruleCtx.Solution), resource.ID)
 	if err != nil {
 		return false, err
 	}
@@ -265,7 +265,7 @@ func (action *operationalResourceAction) doesResourceSatisfyNamespace(stepResour
 	for _, namespacedId := range namespacedIds {
 		// If theres no functional path from one resource to the other, then we dont care about that namespacedId
 		if kb.HasFunctionalPath(stepResource.ID, namespacedId) {
-			downstreams, err := solution_context.Downstream(action.ruleCtx.Solution, stepResource.ID, knowledgebase.FirstFunctionalLayer)
+			downstreams, err := solution.Downstream(action.ruleCtx.Solution, stepResource.ID, knowledgebase.FirstFunctionalLayer)
 			if err != nil {
 				return false, err
 			}
@@ -311,7 +311,7 @@ func (action *operationalResourceAction) getPriorityResourceType() (
 	error,
 ) {
 	for _, resourceSelector := range action.Step.Resources {
-		ids, err := resourceSelector.ExtractResourceIds(solution_context.DynamicCtx(action.ruleCtx.Solution), action.ruleCtx.Data)
+		ids, err := resourceSelector.ExtractResourceIds(solution.DynamicCtx(action.ruleCtx.Solution), action.ruleCtx.Data)
 		if err != nil {
 			return construct.ResourceId{}, resourceSelector, err
 		}
@@ -335,7 +335,7 @@ func (action *operationalResourceAction) addSelectorProperties(properties map[st
 		return err
 	}
 	var errs error
-	configCtx := solution_context.DynamicCtx(action.ruleCtx.Solution)
+	configCtx := solution.DynamicCtx(action.ruleCtx.Solution)
 	for key, value := range properties {
 		property := template.GetProperty(key)
 		if property == nil {
@@ -405,10 +405,10 @@ func (action *operationalResourceAction) generateResourceName(resourceToSet *con
 		resourceToSet.Name = fmt.Sprintf("%s-%s%s", resource.Name, resourceToSet.Type, suffix)
 		return nil
 	}
-	return generateResourceName(action.ruleCtx.Solution, resourceToSet, resource)
+	return generateResourceName(action.ruleCtx.Solution, resourceToSet)
 }
 
-func generateResourceName(sol solution_context.SolutionContext, resourceToSet *construct.ResourceId, resource construct.ResourceId) error {
+func generateResourceName(sol solution.Solution, resourceToSet *construct.ResourceId) error {
 	numResources := 0
 	ids, err := construct.TopologicalSort(sol.DataflowGraph())
 	if err != nil {

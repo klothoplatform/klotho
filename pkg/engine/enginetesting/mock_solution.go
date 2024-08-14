@@ -1,9 +1,11 @@
 package enginetesting
 
 import (
+	"context"
+
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/stretchr/testify/mock"
 )
@@ -13,8 +15,9 @@ type MockSolution struct {
 	KB MockKB
 }
 
-func (m *MockSolution) With(key string, value interface{}) solution_context.SolutionContext {
-	return m
+func (m *MockSolution) Context() context.Context {
+	// context is not used for any computation-critical operations so for ease of use, don't mock it
+	return context.Background()
 }
 
 func (m *MockSolution) KnowledgeBase() knowledgebase.TemplateKB {
@@ -27,13 +30,13 @@ func (m *MockSolution) Constraints() *constraints.Constraints {
 	return args.Get(0).(*constraints.Constraints)
 }
 
-func (m *MockSolution) RecordDecision(d solution_context.SolveDecision) {
+func (m *MockSolution) RecordDecision(d solution.SolveDecision) {
 	m.Called(d)
 }
 
-func (m *MockSolution) GetDecisions() solution_context.DecisionRecords {
+func (m *MockSolution) GetDecisions() []solution.SolveDecision {
 	args := m.Called()
-	return args.Get(0).(solution_context.DecisionRecords)
+	return args.Get(0).([]solution.SolveDecision)
 }
 
 func (m *MockSolution) DataflowGraph() construct.Graph {
@@ -46,9 +49,9 @@ func (m *MockSolution) DeploymentGraph() construct.Graph {
 	return args.Get(0).(construct.Graph)
 }
 
-func (m *MockSolution) OperationalView() solution_context.OperationalView {
+func (m *MockSolution) OperationalView() solution.OperationalView {
 	args := m.Called()
-	return args.Get(0).(solution_context.OperationalView)
+	return args.Get(0).(solution.OperationalView)
 }
 
 func (m *MockSolution) RawView() construct.Graph {
@@ -59,4 +62,9 @@ func (m *MockSolution) RawView() construct.Graph {
 func (m *MockSolution) GlobalTag() string {
 	args := m.Called()
 	return args.String(0)
+}
+
+func (m *MockSolution) Outputs() map[string]construct.Output {
+	args := m.Called()
+	return args.Get(0).(map[string]construct.Output)
 }

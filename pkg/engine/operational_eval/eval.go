@@ -5,20 +5,38 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/dominikbraun/graph"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/graph_addons"
+	"github.com/klothoplatform/klotho/pkg/tui"
 	"go.uber.org/zap"
 )
+
+func (eval *Evaluator) updateSolveProgress() error {
+	prog := tui.GetProgress(eval.Solution.Context())
+
+	size, err := eval.unevaluated.Order()
+	if err != nil {
+		return err
+	}
+	totalSize, err := eval.graph.Order()
+	if err != nil {
+		return err
+	}
+	prog.Update("Solving", totalSize-size, totalSize)
+	return nil
+}
 
 func (eval *Evaluator) Evaluate() error {
 	defer eval.writeGraph("property_deps")
 	defer eval.writeExecOrder()
+
 	for {
 		size, err := eval.unevaluated.Order()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get unevaluated order: %w", err)
 		}
 		if size == 0 {
 			return nil
@@ -30,7 +48,7 @@ func (eval *Evaluator) Evaluate() error {
 
 		ready, err := eval.pollReady()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to poll ready: %w", err)
 		}
 		if len(ready) == 0 {
 			return fmt.Errorf("possible circular dependency detected in properties graph: %d remaining", size)
@@ -38,13 +56,17 @@ func (eval *Evaluator) Evaluate() error {
 
 		log := eval.Log().Named("eval")
 
-		var errs error
+		groupStart := time.Now()
+		var errs []error
 		for _, v := range ready {
 			k := v.Key()
+			addErr := func(err error) {
+				errs = append(errs, fmt.Errorf("failed to evaluate %s: %w", k, err))
+			}
 			_, err := eval.unevaluated.Vertex(k)
 			switch {
 			case err != nil && !errors.Is(err, graph.ErrVertexNotFound):
-				errs = errors.Join(errs, err)
+				addErr(err)
 				continue
 			case errors.Is(err, graph.ErrVertexNotFound):
 				// vertex was removed by earlier ready vertex
@@ -53,21 +75,36 @@ func (eval *Evaluator) Evaluate() error {
 			log.Debugf("Evaluating %s", k)
 			eval.evaluatedOrder[len(eval.evaluatedOrder)-1] = append(eval.evaluatedOrder[len(eval.evaluatedOrder)-1], k)
 			eval.currentKey = &k
-			errs = errors.Join(errs, graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()))
+			if err := graph_addons.RemoveVertexAndEdges(eval.unevaluated, v.Key()); err != nil {
+				addErr(err)
+			}
+			start := time.Now()
 			err = v.Evaluate(eval)
+			duration := time.Since(start)
 			if err != nil {
 				eval.errored.Add(k)
-				errs = errors.Join(errs, fmt.Errorf("failed to evaluate %s: %w", k, err))
+				addErr(err)
 			}
 
+			if _, props, err := eval.graph.VertexWithProperties(k); err != nil {
+				log.Errorf("failed to get properties for %s: %s", k, err)
+			} else {
+				props.Attributes[attribDuration] = duration.String()
+			}
+			if err := eval.updateSolveProgress(); err != nil {
+				return err
+			}
 		}
-		if errs != nil {
-			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder), errs)
+		log.Debugf("Completed group in %s", time.Since(groupStart))
+		if len(errs) > 0 {
+			return fmt.Errorf("failed to evaluate group %d: %w", len(eval.evaluatedOrder), errors.Join(errs...))
 		}
 
+		recalcStart := time.Now()
 		if err := eval.RecalculateUnevaluated(); err != nil {
 			return err
 		}
+		log.Debugf("Recalculated unevaluated in %s", time.Since(recalcStart))
 	}
 }
 

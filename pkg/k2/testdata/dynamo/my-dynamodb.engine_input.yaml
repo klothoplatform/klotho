@@ -1,0 +1,61 @@
+constraints:
+    - scope: application
+      operator: must_exist
+      node: aws:dynamodb_table:my-dynamodb
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: Attributes
+      value:
+        - Name: id
+          Type: S
+        - Name: data
+          Type: S
+        - Name: status
+          Type: S
+        - Name: timestamp
+          Type: "N"
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: BillingMode
+      value: PAY_PER_REQUEST
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: GlobalSecondaryIndexes
+      value:
+        - HashKey: status
+          Name: StatusIndex
+          ProjectionType: ALL
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: HashKey
+      value: id
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: LocalSecondaryIndexes
+      value:
+        - Name: TimestampIndex
+          ProjectionType: ALL
+          RangeKey: timestamp
+    - scope: resource
+      operator: equals
+      target: aws:dynamodb_table:my-dynamodb
+      property: RangeKey
+      value: data
+    - scope: output
+      operator: must_exist
+      ref: aws:dynamodb_table:my-dynamodb#Arn
+      name: TableArn
+      value: null
+    - scope: output
+      operator: must_exist
+      ref: aws:dynamodb_table:my-dynamodb#Name
+      name: TableName
+      value: null
+resources:
+edges:
+outputs: {}

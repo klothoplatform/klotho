@@ -25,6 +25,7 @@ type (
 	EdgeConstraint struct {
 		Operator ConstraintOperator `yaml:"operator" json:"operator"`
 		Target   Edge               `yaml:"target" json:"target"`
+		Data     construct.EdgeData `yaml:"data" json:"data"`
 	}
 )
 

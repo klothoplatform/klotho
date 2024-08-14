@@ -87,6 +87,16 @@ func (s Set[T]) Intersection(other Set[T]) Set[T] {
 	return intersection
 }
 
+func (s Set[T]) Difference(other Set[T]) Set[T] {
+	subtract := make(Set[T])
+	for k := range s {
+		if _, ok := other[k]; !ok {
+			subtract.Add(k)
+		}
+	}
+	return subtract
+}
+
 func (s Set[T]) String() string {
 	sb := new(strings.Builder)
 	sb.WriteString("{")

@@ -2,25 +2,23 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
-	"runtime/pprof"
 	"strings"
 	"sync"
 
 	"github.com/iancoleman/strcase"
+	clicommon "github.com/klothoplatform/klotho/pkg/cli_common"
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	engine_errs "github.com/klothoplatform/klotho/pkg/engine/errors"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	kio "github.com/klothoplatform/klotho/pkg/io"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
-	"github.com/klothoplatform/klotho/pkg/knowledgebase/reader"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"github.com/klothoplatform/klotho/pkg/provider/aws"
 	"github.com/klothoplatform/klotho/pkg/templates"
 	"github.com/pkg/errors"
@@ -31,20 +29,16 @@ import (
 
 type (
 	EngineMain struct {
-		Engine *Engine
+		Engine  *Engine
+		cleanup func()
 	}
 )
 
-var commonCfg struct {
-	verbose bool
-	jsonLog bool
-	logsDir string
-}
+var commonCfg clicommon.CommonConfig
 
 var engineCfg struct {
 	provider   string
 	guardrails string
-	profileTo  string
 }
 
 var architectureEngineCfg struct {
@@ -64,23 +58,7 @@ var getValidEdgeTargetsCfg struct {
 }
 
 func (em *EngineMain) AddEngineCli(root *cobra.Command) {
-	flags := root.PersistentFlags()
-	flags.StringVar(&commonCfg.logsDir, "logs-dir", "logs", "Logs directory (set to empty to disable folder logging)")
-	flags.BoolVarP(&commonCfg.verbose, "verbose", "v", false, "Verbose flag")
-	flags.BoolVar(&commonCfg.jsonLog, "json-log", false, "Output logs in JSON format.")
-	root.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-		logOpts := logging.LogOpts{
-			Verbose:         commonCfg.verbose,
-			CategoryLogsDir: commonCfg.logsDir,
-		}
-		if commonCfg.jsonLog {
-			logOpts.Encoding = "json"
-		}
-		zap.ReplaceGlobals(logOpts.NewLogger())
-	}
-	root.PersistentPostRun = func(cmd *cobra.Command, args []string) {
-		zap.L().Sync() //nolint:errcheck
-	}
+	em.cleanup = clicommon.SetupCoreCommand(root, &commonCfg)
 
 	engineGroup := &cobra.Group{
 		ID:    "engine",
@@ -93,7 +71,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		RunE:    em.ListResourceTypes,
 	}
 
-	flags = listResourceTypesCmd.Flags()
+	flags := listResourceTypesCmd.Flags()
 	flags.StringVarP(&engineCfg.provider, "provider", "p", "aws", "Provider to use")
 	flags.StringVar(&engineCfg.guardrails, "guardrails", "", "Guardrails file")
 
@@ -114,6 +92,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 		GroupID: engineGroup.ID,
 		Run: func(cmd *cobra.Command, args []string) {
 			exitCode := em.RunEngine(cmd, args)
+			em.cleanup()
 			os.Exit(exitCode)
 		},
 	}
@@ -125,7 +104,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&architectureEngineCfg.constraints, "constraints", "c", "", "Constraints file")
 	flags.StringVarP(&architectureEngineCfg.outputDir, "output-dir", "o", "", "Output directory")
 	flags.StringVarP(&architectureEngineCfg.globalTag, "global-tag", "t", "", "Global tag")
-	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	getPossibleEdgesCmd := &cobra.Command{
 		Use:     "GetValidEdgeTargets",
@@ -139,7 +117,6 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 	flags.StringVarP(&getValidEdgeTargetsCfg.inputGraph, "input-graph", "i", "", "Input graph file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.configFile, "config", "c", "", "config file")
 	flags.StringVarP(&getValidEdgeTargetsCfg.outputDir, "output-dir", "o", "", "Output directory")
-	flags.StringVar(&engineCfg.profileTo, "profiling", "", "Profile to file")
 
 	root.AddGroup(engineGroup)
 	root.AddCommand(listResourceTypesCmd)
@@ -149,7 +126,7 @@ func (em *EngineMain) AddEngineCli(root *cobra.Command) {
 }
 
 func (em *EngineMain) AddEngine() error {
-	kb, err := reader.NewKBFromFs(templates.ResourceTemplates, templates.EdgeTemplates, templates.Models)
+	kb, err := templates.NewKBFromTemplates()
 	if err != nil {
 		return err
 	}
@@ -228,28 +205,6 @@ func (em *EngineMain) ListAttributes(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func setupProfiling() func() {
-	if engineCfg.profileTo != "" {
-		err := os.MkdirAll(filepath.Dir(engineCfg.profileTo), 0755)
-		if err != nil {
-			panic(fmt.Errorf("failed to create profile directory: %w", err))
-		}
-		profileF, err := os.OpenFile(engineCfg.profileTo, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-		if err != nil {
-			panic(fmt.Errorf("failed to open profile file: %w", err))
-		}
-		err = pprof.StartCPUProfile(profileF)
-		if err != nil {
-			panic(fmt.Errorf("failed to start profile: %w", err))
-		}
-		return func() {
-			pprof.StopCPUProfile()
-			profileF.Close()
-		}
-	}
-	return func() {}
-}
-
 func extractEngineErrors(err error) []engine_errs.EngineError {
 	if err == nil {
 		return nil
@@ -274,14 +229,14 @@ func extractEngineErrors(err error) []engine_errs.EngineError {
 	return errs
 }
 
-func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineError) {
+func (em *EngineMain) Run(ctx context.Context, req *SolveRequest) (int, solution.Solution, []engine_errs.EngineError) {
 	returnCode := 0
 	var engErrs []engine_errs.EngineError
 
 	log := zap.S().Named("engine")
 
 	log.Info("Running engine")
-	err := em.Engine.Run(context)
+	sol, err := em.Engine.Run(ctx, req)
 	if err != nil {
 		// When the engine returns an error, that indicates that it halted evaluation, thus is a fatal error.
 		// This is returned as exit code 1, and add the details to be printed to stdout.
@@ -290,28 +245,26 @@ func (em *EngineMain) Run(context *EngineContext) (int, []engine_errs.EngineErro
 		log.Errorf("Engine returned error: %v", err)
 	}
 
-	if len(context.Solutions) > 0 {
-		writeDebugGraphs(context.Solutions[0])
+	writeDebugGraphs(sol)
 
-		// If there are any decisions that are engine errors, add them to the list of error details
-		// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
-		for _, d := range context.Solutions[0].GetDecisions().GetRecords() {
-			d, ok := d.(solution_context.AsEngineError)
-			if !ok {
-				continue
-			}
-			ee := d.TryEngineError()
-			if ee == nil {
-				continue
-			}
-			engErrs = append(engErrs, ee)
-			if returnCode != 1 {
-				returnCode = 2
-			}
+	// If there are any decisions that are engine errors, add them to the list of error details
+	// to be printed to stdout. These are returned as exit code 2 unless it is already code 1.
+	for _, d := range sol.GetDecisions() {
+		d, ok := d.(solution.AsEngineError)
+		if !ok {
+			continue
+		}
+		ee := d.TryEngineError()
+		if ee == nil {
+			continue
+		}
+		engErrs = append(engErrs, ee)
+		if returnCode != 1 {
+			returnCode = 2
 		}
 	}
 
-	return returnCode, engErrs
+	return returnCode, sol, engErrs
 }
 
 func writeEngineErrsJson(errs []engine_errs.EngineError, out io.Writer) error {
@@ -361,7 +314,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 			engErrs = append(engErrs, engine_errs.InternalError{Err: fmt.Errorf("panic: %v", r)})
 		}
 	}()
-	defer setupProfiling()()
 
 	err := em.AddEngine()
 	if err != nil {
@@ -369,7 +321,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		return
 	}
 
-	context := &EngineContext{
+	context := &SolveRequest{
 		GlobalTag: architectureEngineCfg.globalTag,
 	}
 
@@ -404,9 +356,10 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 		}
 		context.Constraints = runConstraints
 	}
+
 	// len(engErrs) == 0 at this point so overwriting it is safe
 	// All other assignments prior are via 'internalError' and return
-	exitCode, engErrs = em.Run(context)
+	exitCode, sol, engErrs := em.Run(cmd.Context(), context)
 	if exitCode == 1 {
 		return
 	}
@@ -425,14 +378,14 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	})
 
 	log.Info("Engine finished running... Generating views")
-	vizFiles, err := em.Engine.VisualizeViews(context.Solutions[0])
+	vizFiles, err := em.Engine.VisualizeViews(sol)
 	if err != nil {
 		internalError(fmt.Errorf("failed to generate views %w", err))
 		return
 	}
 	files = append(files, vizFiles...)
 	log.Info("Generating resources.yaml")
-	b, err := yaml.Marshal(construct.YamlGraph{Graph: context.Solutions[0].DataflowGraph()})
+	b, err := yaml.Marshal(construct.YamlGraph{Graph: sol.DataflowGraph()})
 	if err != nil {
 		internalError(fmt.Errorf("failed to marshal graph: %w", err))
 		return
@@ -445,7 +398,7 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 	)
 
 	if architectureEngineCfg.provider == "aws" {
-		polictBytes, err := aws.DeploymentPermissionsPolicy(context.Solutions[0])
+		polictBytes, err := aws.DeploymentPermissionsPolicy(sol)
 		if err != nil {
 			internalError(fmt.Errorf("failed to generate deployment permissions policy: %w", err))
 			return
@@ -467,8 +420,6 @@ func (em *EngineMain) RunEngine(cmd *cobra.Command, args []string) (exitCode int
 }
 
 func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) error {
-	defer setupProfiling()()
-
 	log := zap.S().Named("engine")
 
 	err := em.AddEngine()
@@ -515,7 +466,7 @@ func (em *EngineMain) GetValidEdgeTargets(cmd *cobra.Command, args []string) err
 	return nil
 }
 
-func writeDebugGraphs(sol solution_context.SolutionContext) {
+func writeDebugGraphs(sol solution.Solution) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	go func() {

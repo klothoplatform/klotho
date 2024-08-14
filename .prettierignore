@@ -1,3 +1,4 @@
 gen/
 compiled*/
-pkg/engine2/testdata/
+pkg/engine/testdata/
+pkg/k2/testdata/

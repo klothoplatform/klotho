@@ -1,0 +1,107 @@
+resources:
+    aws:lambda_function:code_folder:
+        Code: my_folder
+        ExecutionRole: aws:iam_role:code_folder-ExecutionRole
+        Handler: my_function.handler
+        LogConfig:
+            Format: Text
+        MemorySize: 512
+        Runtime: nodejs20.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: code_folder
+        Timeout: 180
+    aws:lambda_function:remote:
+        Code: https://example.com/my_lambda.zip
+        ExecutionRole: aws:iam_role:remote-ExecutionRole
+        Handler: my_function.handler
+        LogConfig:
+            Format: Text
+        MemorySize: 512
+        Runtime: nodejs20.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: remote
+        Timeout: 180
+    aws:lambda_function:zip:
+        Code: mycode.zip
+        ExecutionRole: aws:iam_role:zip-ExecutionRole
+        Handler: my_function.handler
+        LogConfig:
+            Format: Text
+            LogGroup: aws:log_group:custom
+        MemorySize: 512
+        Runtime: nodejs20.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: zip
+        Timeout: 180
+    aws:log_group:custom:
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: custom
+    aws:iam_role:code_folder-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: code_folder-ExecutionRole
+    aws:log_group:code_folder-log_group:
+        LogGroupName: aws:lambda_function:code_folder#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: code_folder-log_group
+    aws:iam_role:remote-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: remote-ExecutionRole
+    aws:log_group:remote-log_group:
+        LogGroupName: aws:lambda_function:remote#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: remote-log_group
+    aws:iam_role:zip-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: zip-ExecutionRole
+edges:
+    aws:lambda_function:code_folder -> aws:iam_role:code_folder-ExecutionRole:
+    aws:lambda_function:code_folder -> aws:log_group:code_folder-log_group:
+    aws:lambda_function:remote -> aws:iam_role:remote-ExecutionRole:
+    aws:lambda_function:remote -> aws:log_group:remote-log_group:
+    aws:lambda_function:zip -> aws:iam_role:zip-ExecutionRole:
+outputs: {}

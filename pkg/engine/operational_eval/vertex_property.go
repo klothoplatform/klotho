@@ -9,7 +9,7 @@ import (
 	construct "github.com/klothoplatform/klotho/pkg/construct"
 	"github.com/klothoplatform/klotho/pkg/engine/constraints"
 	"github.com/klothoplatform/klotho/pkg/engine/operational_rule"
-	"github.com/klothoplatform/klotho/pkg/engine/solution_context"
+	"github.com/klothoplatform/klotho/pkg/engine/solution"
 	knowledgebase "github.com/klothoplatform/klotho/pkg/knowledgebase"
 	"github.com/klothoplatform/klotho/pkg/set"
 )
@@ -65,10 +65,15 @@ func (prop *propertyVertex) Dependencies(eval *Evaluator, propCtx dependencyCapt
 
 		for _, edge := range construct.EdgeKeys(prop.EdgeRules) {
 			rule := prop.EdgeRules[edge]
+			resEdge, err := eval.Solution.RawView().Edge(edge.Source, edge.Target)
+			if err != nil {
+				return fmt.Errorf("could not get edge for property vertex dependency calculation %s: %w", prop.Ref, err)
+			}
+			keyEdge := construct.ResourceEdgeToKeyEdge(resEdge)
 
 			edgeData := knowledgebase.DynamicValueData{
 				Resource: prop.Ref.Resource,
-				Edge:     &construct.Edge{Source: edge.Source, Target: edge.Target},
+				Edge:     &keyEdge,
 			}
 			var corrected_edge_rules []knowledgebase.OperationalRule
 			for _, opRule := range rule {
@@ -136,7 +141,7 @@ func (prop *propertyVertex) UpdateFrom(otherV Vertex) {
 }
 
 func (v *propertyVertex) Evaluate(eval *Evaluator) error {
-	sol := eval.Solution.With("resource", v.Ref.Resource).With("property", v.Ref.Property)
+	sol := eval.Solution
 	res, err := sol.RawView().Vertex(v.Ref.Resource)
 	if err != nil {
 		return fmt.Errorf("could not get resource to evaluate %s: %w", v.Ref, err)
@@ -149,8 +154,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	dynData := knowledgebase.DynamicValueData{Resource: res.ID, Path: path, GlobalTag: eval.Solution.GlobalTag()}
 
 	if err := v.evaluateConstraints(
-		&solution_context.Configurer{Ctx: sol},
-		solution_context.DynamicCtx(sol),
+		&solution.Configurer{Ctx: sol},
+		solution.DynamicCtx(sol),
 		res,
 		sol.Constraints().Resources,
 		dynData,
@@ -168,7 +173,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	}
 
 	if v.shouldEvalEdges(eval.Solution.Constraints().Resources) {
-		if err := v.evaluateEdgeOperational(res, &opCtx); err != nil {
+		if err := v.evaluateEdgeOperational(eval, res, &opCtx); err != nil {
 			return err
 		}
 	}
@@ -205,8 +210,8 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 	if err != nil {
 		return fmt.Errorf("error while validating resource property: could not get property %s on resource %s: %w", v.Ref.Property, v.Ref.Resource, err)
 	}
-	err = v.Template.Validate(res, val, solution_context.DynamicCtx(eval.Solution))
-	eval.Solution.RecordDecision(solution_context.PropertyValidationDecision{
+	err = v.Template.Validate(res, val, solution.DynamicCtx(eval.Solution))
+	eval.Solution.RecordDecision(solution.PropertyValidationDecision{
 		Resource: v.Ref.Resource,
 		Property: v.Template,
 		Value:    val,
@@ -216,7 +221,7 @@ func (v *propertyVertex) Evaluate(eval *Evaluator) error {
 }
 
 func (v *propertyVertex) evaluateConstraints(
-	rc solution_context.ResourceConfigurer,
+	rc solution.ResourceConfigurer,
 	ctx knowledgebase.DynamicValueContext,
 	res *construct.Resource,
 	rcs []constraints.ResourceConstraint,
@@ -328,6 +333,7 @@ func (v *propertyVertex) shouldEvalEdges(cs []constraints.ResourceConstraint) bo
 }
 
 func (v *propertyVertex) evaluateEdgeOperational(
+	eval *Evaluator,
 	res *construct.Resource,
 	opCtx operational_rule.OpRuleHandler,
 ) error {
@@ -338,12 +344,19 @@ func (v *propertyVertex) evaluateEdgeOperational(
 			// In case one of the previous rules changed the ID, update it
 			edge = UpdateEdgeId(edge, oldId, res.ID)
 
+			resEdge, err := eval.Solution.RawView().Edge(edge.Source, edge.Target)
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("could not get edge from graph for %s: %w", edge, err))
+				continue
+			}
+			keyEdge := construct.ResourceEdgeToKeyEdge(resEdge)
+
 			opCtx.SetData(knowledgebase.DynamicValueData{
 				Resource: res.ID,
-				Edge:     &graph.Edge[construct.ResourceId]{Source: edge.Source, Target: edge.Target},
+				Edge:     &keyEdge,
 			})
 
-			err := opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
+			err = opCtx.HandleOperationalRule(rule, constraints.AddConstraintOperator)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf(
 					"could not apply edge %s -> %s operational rule for %s: %w",
@@ -413,7 +426,7 @@ func (v *propertyVertex) Ready(eval *Evaluator) (ReadyPriority, error) {
 		return NotReadyHigh, fmt.Errorf("could not get property path for %s: %w", v.Ref, err)
 	}
 
-	defaultVal, err := v.Template.GetDefaultValue(solution_context.DynamicCtx(eval.Solution),
+	defaultVal, err := v.Template.GetDefaultValue(solution.DynamicCtx(eval.Solution),
 		knowledgebase.DynamicValueData{Resource: v.Ref.Resource, Path: path})
 	if err != nil {
 		return NotReadyMid, nil
@@ -512,7 +525,8 @@ func addConfigurationRuleToPropertyVertex(
 
 		switch v := v.(type) {
 		case *edgeVertex:
-			pv.EdgeRules[v.Edge] = append(pv.EdgeRules[v.Edge], knowledgebase.OperationalRule{
+			edge := construct.ToSimpleEdge(v.Edge)
+			pv.EdgeRules[edge] = append(pv.EdgeRules[edge], knowledgebase.OperationalRule{
 				If:                 rule.If,
 				ConfigurationRules: []knowledgebase.ConfigurationRule{config},
 			})

@@ -1,0 +1,7 @@
+qualified_type_name: aws:load_balancer
+iac_qualified_type: aws:lb/loadBalancer:LoadBalancer
+
+property_mappings:
+  arn: Arn
+  id: Id
+  loadBalancerType: Type

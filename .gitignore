@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+/dist/
 
 # Test binary, built with `go test -c`
 *.test
@@ -18,8 +19,6 @@ coverage.xml
 /_antlr-grammars/
 
 /compiled*/
-
-.vscode/launch.json
 
 # Go generated template files
 secret.js.tmpl
@@ -49,3 +48,10 @@ go.work.sum
 
 /logs
 __debug_bin*
+.k2/
+
+__pycache__
+*.egg-info
+
+
+Pipfile.lock

@@ -1,0 +1,6 @@
+qualified_type_name: aws:elastic_ip
+iac_qualified_type: aws:ec2/eip:Eip
+
+property_mappings:
+  id: Id
+  tags: Tags

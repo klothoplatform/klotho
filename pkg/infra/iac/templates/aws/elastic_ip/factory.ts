@@ -3,6 +3,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Id?: string
     Tags: ModelCaseWrapper<Record<string, string>>
 }
 
@@ -13,4 +14,14 @@ function create(args: Args): aws.ec2.Eip {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function properties(object: aws.ec2.Eip, args: Args) {
+    return {
+        Id: object.id,
+    }
+}
+
+function importResource(args: Args): aws.ec2.Eip {
+    return aws.ec2.Eip.get(args.Name, args.Id)
 }

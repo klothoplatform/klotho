@@ -1,0 +1,77 @@
+resources:
+    aws:lambda_function:lambda_test_app:
+        EnvironmentVariables:
+            MYBUCKET_BUCKET_NAME: aws:s3_bucket:mybucket#Id
+        ExecutionRole: aws:iam_role:lambda_test_app-ExecutionRole
+        Image: aws:ecr_image:lambda_test_app-image#ImageName
+        LogConfig:
+            Format: Text
+        MemorySize: 512
+        Runtime: nodejs20.x
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_test_app
+        Timeout: 180
+    aws:SERVICE_API:lambda_test_app-mybucket:
+    aws:ecr_image:lambda_test_app-image:
+        Context: .
+        Dockerfile: lambda_test_app-image.Dockerfile
+        Platform: linux/amd64
+        Repo: aws:ecr_repo:lambda_test_app-image-ecr_repo
+    aws:iam_role:lambda_test_app-ExecutionRole:
+        AssumeRolePolicyDoc:
+            Statement:
+                - Action:
+                    - sts:AssumeRole
+                  Effect: Allow
+                  Principal:
+                    Service:
+                        - lambda.amazonaws.com
+            Version: "2012-10-17"
+        InlinePolicies:
+            - Name: mybucket-policy
+              Policy:
+                Statement:
+                    - Action:
+                        - s3:DescribeJob
+                        - s3:Get*
+                        - s3:List*
+                      Effect: Allow
+                      Resource:
+                        - aws:s3_bucket:mybucket#Arn
+                        - aws:s3_bucket:mybucket#AllBucketDirectory
+                Version: "2012-10-17"
+        ManagedPolicies:
+            - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_test_app-ExecutionRole
+    aws:log_group:lambda_test_app-log_group:
+        LogGroupName: aws:lambda_function:lambda_test_app#DefaultLogGroup
+        RetentionInDays: 5
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_test_app-log_group
+    aws:ecr_repo:lambda_test_app-image-ecr_repo:
+        ForceDelete: true
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: lambda_test_app-image-ecr_repo
+    aws:s3_bucket:mybucket:
+        ForceDestroy: true
+        SSEAlgorithm: aws:kms
+        Tags:
+            GLOBAL_KLOTHO_TAG: test
+            RESOURCE_NAME: mybucket
+edges:
+    aws:lambda_function:lambda_test_app -> aws:SERVICE_API:lambda_test_app-mybucket:
+        connection_type: readonly
+    aws:lambda_function:lambda_test_app -> aws:ecr_image:lambda_test_app-image:
+    aws:lambda_function:lambda_test_app -> aws:iam_role:lambda_test_app-ExecutionRole:
+    aws:lambda_function:lambda_test_app -> aws:log_group:lambda_test_app-log_group:
+    aws:SERVICE_API:lambda_test_app-mybucket -> aws:s3_bucket:mybucket:
+        connection_type: readonly
+    aws:ecr_image:lambda_test_app-image -> aws:ecr_repo:lambda_test_app-image-ecr_repo:
+    aws:iam_role:lambda_test_app-ExecutionRole -> aws:s3_bucket:mybucket:
+        connection_type: readonly
+outputs: {}

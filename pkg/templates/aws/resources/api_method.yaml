@@ -37,9 +37,9 @@ properties:
   Authorization:
     type: string
     default_value: NONE
-
     description: The type of authorization used for the API method, such as NONE,
       AWS_IAM, or CUSTOM
+
 classification:
   is:
     - api_route
@@ -50,6 +50,6 @@ views:
   dataflow: small
 
 deployment_permissions:
-  deploy: ["apigateway:PutMethod"]
-  tear_down: ["apigateway:DeleteMethod"]
-  update: ["apigateway:UpdateMethod"]
+  deploy: ['apigateway:PutMethod']
+  tear_down: ['apigateway:DeleteMethod']
+  update: ['apigateway:UpdateMethod']

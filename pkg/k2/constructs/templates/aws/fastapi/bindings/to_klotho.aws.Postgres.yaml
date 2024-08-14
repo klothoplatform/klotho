@@ -1,0 +1,6 @@
+from: klotho.aws.FastAPI
+to: klotho.aws.Postgres
+
+edges:
+  - from: ${from.resources:Service}
+    to: ${to.resources:RDSInstance}

@@ -1,0 +1,45 @@
+from: klotho.aws.API
+to: klotho.aws.Container
+
+resources:
+  APILoadBalancer:
+    type: aws:load_balancer
+    name: api-${to.inputs:Name}-lb
+    properties:
+      Type: network
+      Scheme: internal
+      Subnets:
+        - ${to.inputs:Network.Resources.PrivateSubnet1}
+        - ${to.inputs:Network.Resources.PrivateSubnet2}
+  APIListener:
+    type: aws:load_balancer_listener
+    namespace: ${resources:APILoadBalancer.Name}
+    name: ${resources:APILoadBalancer.Name}-listener
+    properties:
+      LoadBalancer: ${resources:APILoadBalancer}
+      Port: 80
+      Protocol: TCP
+  APITargetGroup:
+    type: aws:target_group
+    name: ${to.inputs:Name}-tg
+    properties:
+      Port: ${to.inputs:Port}
+      Protocol: TCP
+      Vpc: ${to.inputs:Network.Resources.Vpc}
+
+  Service:
+    properties:
+      LoadBalancers[0]:
+        TargetGroup: ${resources:APITargetGroup}
+        ContainerName: ${to.resources:TaskDefinition.ContainerDefinitions[0].Name}
+        ContainerPort: ${to.inputs:Port}
+
+edges:
+  - from: APIListener
+    to: APITargetGroup
+
+  - from: APILoadBalancer
+    to: ${to.resources:Service}
+
+  - from: APITargetGroup
+    to: ${to.resources:Service}

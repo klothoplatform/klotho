@@ -1,0 +1,8 @@
+qualified_type_name: aws:internet_gateway
+iac_qualified_type: aws:ec2/internetGateway:InternetGateway
+
+property_mappings:
+  arn: Arn
+  id: Id
+  tags: Tags
+  vpcId: Vpc#Id

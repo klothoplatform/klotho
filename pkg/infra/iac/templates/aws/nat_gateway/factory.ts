@@ -3,6 +3,7 @@ import { ModelCaseWrapper } from '../../wrappers'
 
 interface Args {
     Name: string
+    Id?: string
     ElasticIp: aws.ec2.Eip
     Subnet: aws.ec2.Subnet
     Tags: ModelCaseWrapper<Record<string, string>>
@@ -17,4 +18,14 @@ function create(args: Args): aws.ec2.NatGateway {
         tags: args.Tags,
         //TMPL {{- end }}
     })
+}
+
+function properties(object: aws.ec2.NatGateway, args: Args) {
+    return {
+        Id: object.id,
+    }
+}
+
+function importResource(args: Args): aws.ec2.NatGateway {
+    return aws.ec2.NatGateway.get(args.Name, args.Id)
 }

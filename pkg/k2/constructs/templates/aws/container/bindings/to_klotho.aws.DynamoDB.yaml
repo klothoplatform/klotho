@@ -1,0 +1,6 @@
+from: klotho.aws.Container
+to: klotho.aws.DynamoDB
+
+edges:
+  - from: ${from.resources:Service}
+    to: ${to.resources:DynamoDBTable}

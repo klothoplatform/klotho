@@ -1,0 +1,26 @@
+provider: aws
+resources:
+  lambda_function/zip:
+
+  lambda_function/zip -> iam_role/zip-executionrole:
+  lambda_function/zip -> log_group/custom:
+  log_group/code_folder-log_group:
+
+  log_group/code_folder-log_group -> lambda_function/code_folder:
+  log_group/remote-log_group:
+
+  log_group/remote-log_group -> lambda_function/remote:
+  iam_role/zip-executionrole:
+
+  log_group/custom:
+
+  lambda_function/code_folder:
+
+  lambda_function/code_folder -> iam_role/code_folder-executionrole:
+  lambda_function/remote:
+
+  lambda_function/remote -> iam_role/remote-executionrole:
+  iam_role/code_folder-executionrole:
+
+  iam_role/remote-executionrole:
+
