@@ -19,7 +19,7 @@ echo "Running $name"
 # Run the engine
 set +e
 echo "Using $out_dir as output directory"
-go run ./cmd/k2 up \
+go run ./cmd/klotho up \
   -n=3 \
   --state-directory "$out_dir" \
   "$infrapy" > $out_dir/out.log 2> $out_dir/err.log
