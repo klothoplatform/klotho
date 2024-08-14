@@ -8,9 +8,9 @@ resources:
             RESOURCE_NAME: my-bucket
 edges:
 outputs:
+    Bucket:
+        ref: aws:s3_bucket:my-bucket#Bucket
     BucketArn:
         ref: aws:s3_bucket:my-bucket#Arn
     BucketRegionalDomainName:
         ref: aws:s3_bucket:my-bucket#BucketRegionalDomainName
-    Bucket:
-        ref: aws:s3_bucket:my-bucket#Bucket

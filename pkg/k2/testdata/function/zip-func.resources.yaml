@@ -67,7 +67,7 @@ edges:
     aws:iam_role:zip-func-function-ExecutionRole -> aws:s3_bucket:my-bucket:
         connection_type: readonly
 outputs:
-    FunctionArn:
-        ref: aws:lambda_function:zip-func-function#Arn
     FunctionName:
         ref: aws:lambda_function:zip-func-function#FunctionName
+    FunctionArn:
+        ref: aws:lambda_function:zip-func-function#Arn
