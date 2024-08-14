@@ -38,11 +38,11 @@ def release(goos, arch, out_dir):
 
     Path(out_dir).mkdir(parents=True, exist_ok=True)
 
-    for prog in ["engine", "iac", "k2"]:
+    for prog in ["engine", "iac", "klotho"]:
         prog_env = env.copy()
-        if prog == "iac" or prog == "k2":
+        if prog == "iac" or prog == "klotho":
             # IaC rendering requires cgo for treesitter parsing of the pulumi ts templates
-            # both 'iac' and 'k2' do iac rendering
+            # both 'iac' and 'klotho' do iac rendering
             prog_env["CGO_ENABLED"] = "1"
 
             zig_arch = arch_to_zig_target[arch]

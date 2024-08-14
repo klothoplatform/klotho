@@ -60,32 +60,11 @@
             }
         },
         {
-            "name": "Klotho",
+            "name": "Debug: Klotho",
             "type": "go",
             "request": "launch",
             "mode": "auto",
             "program": "./cmd/klotho",
-            "cwd": "${workspaceFolder}",
-            "args": [
-                "-v",
-                "-a",
-                // "b879296f-94dd-4cb7-a7fe-99980965376f", // prod ID
-                "2fa61fd0-e1db-4557-bf82-3c98c020a598", // local ID
-                "../infracopilot"
-            ],
-            "env": {
-                "BROWSER": "none",
-                "INFRACOPILOT_URL": "http://localhost:3000",
-                "AUTH_DOMAIN": "klotho-dev.us.auth0.com",
-                "AUTH_CLIENT_ID": "A0sIE3wvh8LpG8mtJEjWPnBqZgBs5cNM"
-            }
-        },
-        {
-            "name": "Debug: k2",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "./cmd/k2",
             // CWD is mostly responsible for the pipenv environment. There's one at the root that can be used generally.
             // If a specific env is needed, uncomment the following line.
             // "cwd": "${fileDirname}",
@@ -93,7 +72,7 @@
                 "up",
                 "-v=3",
                 "--state-directory=${workspaceFolder}/out",
-                "--profiling=${workspaceFolder}/out/k2.prof",
+                "--profiling=${workspaceFolder}/out/klotho.prof",
                 "-n=1",
                 "--debug=vscode",
                 "${file}"
@@ -115,11 +94,11 @@
             },
         },
         {
-            "name": "k2: deploy",
+            "name": "Klotho: deploy",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "./cmd/k2",
+            "program": "./cmd/klotho",
             "cwd": "${fileDirname}",
             "args": [
                 "up",
@@ -135,11 +114,11 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "k2: destroy",
+            "name": "Klotho: destroy",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "./cmd/k2",
+            "program": "./cmd/klotho",
             "cwd": "${fileDirname}",
             "args": [
                 "down",
@@ -157,9 +136,9 @@
     ],
     "compounds": [
         {
-            "name": "Debug: k2 + infra.py",
+            "name": "Debug: Llotho + infra.py",
             "configurations": [
-                "Debug: k2",
+                "Debug: Klotho",
                 "Python Debugger: Listen"
             ],
             "stopAll": true,

@@ -20,5 +20,6 @@
     "**/node_modules": true
   },
   "go.testTimeout": "5m",
-  "go.lintTool": "golangci-lint"
+  "go.lintTool": "golangci-lint",
+  "makefile.configureOnOpen": false
 }
