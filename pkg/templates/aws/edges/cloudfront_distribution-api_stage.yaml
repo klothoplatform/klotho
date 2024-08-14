@@ -16,7 +16,7 @@ operational_rules:
                   - TLSv1
                   - SSLv3
                   - TLSv1.1
-              DomainName: '{{ .Target }}#StageInvokeUrl'
+              DomainName: '{{ .Target }}#DomainName'
               OriginId: '{{ .Target.Name }}'
               OriginPath: '/{{ fieldValue "StageName" .Target }}'
       - resource: '{{ .Source }}'
@@ -24,7 +24,7 @@ operational_rules:
           field: CacheBehaviors
           value: |
             [
-            
+
             {{ $targetOriginId := .Target.Name }}
             {{ $routes := makeSlice }}
             {{ $integrations := allDownstream "aws:api_integration" .Target }}

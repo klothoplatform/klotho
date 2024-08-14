@@ -17,4 +17,4 @@ resources:
 outputs:
   Endpoint:
     description: The endpoint for the API
-    value: ${resources:APIStage#StageInvokeUrl}
+    value: ${resources:APIStage#InvokeUrl}

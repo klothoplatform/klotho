@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/klothoplatform/klotho/pkg/construct"
@@ -66,6 +67,12 @@ func GetState(ctx context.Context, stack StackInterface) (State, error) {
 
 	resourcesByResourceId := make(map[construct.ResourceId]apitype.ResourceV3)
 	for _, res := range unmarshalledState.Resources {
+		resType := res.URN.QualifiedType()
+		switch {
+		case strings.HasPrefix(string(resType), "pulumi:"), strings.HasPrefix(string(resType), "docker:"):
+			// Skip known non-cloud / Pulumi internal resource (eg: Stack or Provider)
+			continue
+		}
 		id, ok := resourceIdByUrn[string(res.URN)]
 		if !ok {
 			zap.S().Warnf("could not find resource id for urn %s", res.URN)
