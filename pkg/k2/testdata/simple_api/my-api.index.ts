@@ -77,7 +77,7 @@ const my_api_stage = new aws.apigateway.Stage("my-api-stage", {
 export const my_api_stage_Url = my_api_stage.invokeUrl
 
 export const $outputs = {
-	Endpoint: my_api_stage.invokeUrl.apply((d) => d.split('//')[1].split('/')[0]),
+	Endpoint: my_api_stage.invokeUrl,
 }
 
 export const $urns = {

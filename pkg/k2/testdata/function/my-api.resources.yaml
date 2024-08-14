@@ -63,4 +63,4 @@ edges:
     aws:lambda_permission:docker-func-docker-func-function -> aws:lambda_function:docker-func-function:
 outputs:
     Endpoint:
-        ref: aws:api_stage:my-api-api:my-api-stage#StageInvokeUrl
+        ref: aws:api_stage:my-api-api:my-api-stage#InvokeUrl
