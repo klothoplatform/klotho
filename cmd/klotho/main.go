@@ -27,8 +27,9 @@ func cli() int {
 	}()
 
 	var rootCmd = &cobra.Command{
-		Use:          "app",
-		SilenceUsage: true,
+		Use:           "app",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

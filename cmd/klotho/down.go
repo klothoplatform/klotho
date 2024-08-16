@@ -43,7 +43,7 @@ func newDownCmd() *cobra.Command {
 }
 
 func getProjectPath(ctx context.Context, inputPath string) (string, error) {
-	langHost, addr, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
+	langHost, srvState, err := language_host.StartPythonClient(ctx, language_host.DebugConfig{
 		Port: downConfig.debugPort,
 		Mode: downConfig.debugMode,
 	}, filepath.Dir(inputPath))
@@ -62,15 +62,20 @@ func getProjectPath(ctx context.Context, inputPath string) (string, error) {
 	log.Debug("Waiting for Python server to start")
 	if downConfig.debugMode != "" {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
-		<-addr.HasAddr
+		<-srvState.Done
 	} else {
 		select {
-		case <-addr.HasAddr:
+		case <-srvState.Done:
 		case <-time.After(30 * time.Second):
 			return "", errors.New("timeout waiting for Python server to start")
 		}
 	}
-	conn, err := grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+
+	if srvState.Error != nil {
+		return "", srvState.Error
+	}
+
+	conn, err := grpc.NewClient(srvState.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to Python server: %w", err)
 	}

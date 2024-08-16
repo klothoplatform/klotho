@@ -47,7 +47,7 @@ func (c *LogCore) With(f []zapcore.Field) zapcore.Core {
 			if c.verbosity.CombineLogs() {
 				field.AddTo(nc.enc)
 			}
-			// else (if the field is the construct and we're not combining logs) don't add it to the encoder
+			// else (if the field is the construct, and we're not combining logs) don't add it to the encoder
 			// because the log lines will already be in its own construct section of the output.
 		} else {
 			field.AddTo(nc.enc)
@@ -92,6 +92,14 @@ func (c *LogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	}
 	s := buf.String()
 	s = strings.TrimSuffix(s, "\n")
+
+	if c.construct == "" && zapcore.ErrorLevel.Enabled(ent.Level) {
+		c.program.Send(ErrorMessage{
+			Message: s,
+		})
+		buf.Free()
+		return nil
+	}
 
 	c.program.Send(LogMessage{
 		Construct: construct,
