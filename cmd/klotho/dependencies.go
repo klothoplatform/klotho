@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/klothoplatform/klotho/pkg/logging"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"github.com/klothoplatform/klotho/pkg/logging"
 
 	pulumi "github.com/pulumi/pulumi/sdk/v3"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
@@ -95,8 +96,8 @@ func installPulumi(ctx context.Context) error {
 }
 
 func isDockerInstalled() bool {
-	// Check if docker is installed
-	cmd := exec.Command("docker", "--version")
+	// Check if docker is installed and the daemon is running
+	cmd := exec.Command("docker", "ps")
 	err := cmd.Run()
 	return err == nil
 }
