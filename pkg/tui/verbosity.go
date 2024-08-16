@@ -27,14 +27,8 @@ func (v Verbosity) LogLevel() zapcore.Level {
 	}
 }
 
-// CombineLogs controls whether to show all logs comingled in the TUI. In other words,
-// sorted by timestamp, not grouped by construct.
+// CombineLogs controls whether to show all logs commingled in the TUI.
+// In other words, sorted by timestamp, not grouped by construct.
 func (v Verbosity) CombineLogs() bool {
-	switch v {
-	case VerbosityConcise, VerbosityDebugMore:
-		return true
-
-	default:
-		return false
-	}
+	return VerbosityDebugMore == v
 }

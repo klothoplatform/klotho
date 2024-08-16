@@ -4,17 +4,37 @@ import signal
 from concurrent import futures
 from enum import Enum
 from time import sleep
+import importlib.util
+from typing import Optional
 
 import grpc
 import yaml
-from klotho import service_pb2, service_pb2_grpc
-from klotho.runtime import instance as runtime
-
 
 class DebugMode(Enum):
     NONE = 0
     VSCODE = 1
     INTELLIJ = 2
+
+class CLIErrorReporter:
+    def __init__(self, error_message: Optional[str] = None):
+        self.error_message = error_message
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        message = self.error_message if self.error_message else (f"Exception occurred: {exc_type.__name__}: {exc_value}" if exc_type is not None else "The language host exited unexpectedly.")
+        if exc_type is not None:
+            print(f"Exception occurred: {message}", flush=True)
+
+with CLIErrorReporter("The Klotho Python IaC SDK is not installed. Please install it by running `pipenv install klotho`."):
+    spec = importlib.util.find_spec("klotho")
+    if spec is None:
+        raise ModuleNotFoundError
+
+with CLIErrorReporter("The Klotho Python IaC SDK could not be imported. Please check the installation."):
+    # TODO: Add a check for the minimum required version of the SDK
+    from klotho import service_pb2, service_pb2_grpc
+    from klotho.runtime import instance as runtime
 
 
 def configure_debugging(port: int, mode: DebugMode = DebugMode.VSCODE):
@@ -113,4 +133,5 @@ def cli():
 
 
 if __name__ == "__main__":
-    cli()
+    with CLIErrorReporter("The Python language host exited unexpectedly."):
+        cli()

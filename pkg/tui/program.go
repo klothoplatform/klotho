@@ -27,6 +27,10 @@ type (
 		Value     any
 	}
 
+	ErrorMessage struct {
+		Message string
+	}
+
 	TuiProgress struct {
 		Prog      *tea.Program
 		Construct string

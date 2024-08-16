@@ -3,11 +3,13 @@ package language_host
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/klothoplatform/klotho/pkg/command"
@@ -19,27 +21,47 @@ import (
 //go:embed python/python_language_host.py
 var pythonLanguageHost string
 
-type ServerAddress struct {
+type ServerState struct {
 	Log     *zap.SugaredLogger
 	Address string
-	HasAddr chan struct{}
+	Error   error
+	Done    chan struct{}
+}
+
+func NewServerState(log *zap.SugaredLogger) *ServerState {
+	return &ServerState{
+		Log:  log,
+		Done: make(chan struct{}),
+	}
 }
 
 var listenOnPattern = regexp.MustCompile(`(?m)^\s*Listening on (\S+)$`)
+var exceptionPattern = regexp.MustCompile(`(?s)(?:^|\n)\s*Exception occurred: (.+)$`)
 
-func (f *ServerAddress) Write(b []byte) (int, error) {
+func (f *ServerState) Write(b []byte) (int, error) {
 	if f.Address != "" {
 		return len(b), nil
 	}
 	s := string(b)
-	matches := listenOnPattern.FindStringSubmatch(s)
+
+	// captures the gRPC server address
+	matches := exceptionPattern.FindStringSubmatch(s)
+	if len(matches) >= 2 {
+		f.Error = errors.New(strings.TrimSpace(matches[1]))
+		f.Log.Debug(s)
+	}
+
+	// captures a fatal error in the language host that occurs before the address is printed to stdout
+	matches = listenOnPattern.FindStringSubmatch(s)
 	if len(matches) >= 2 {
 		// address is the first match
 		f.Address = matches[1]
 		f.Log.Debugf("Found language host listening on %s", f.Address)
-		close(f.HasAddr)
 	}
 
+	if f.Address != "" || f.Error != nil {
+		close(f.Done)
+	}
 	return len(b), nil
 }
 
@@ -66,7 +88,7 @@ func copyToTempDir(name, content string) (string, error) {
 
 }
 
-func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath string) (*exec.Cmd, *ServerAddress, error) {
+func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath string) (*exec.Cmd, *ServerState, error) {
 	log := logging.GetLogger(ctx).Sugar()
 	hostPath, err := copyToTempDir("python_language_host", pythonLanguageHost)
 	if err != nil {
@@ -97,10 +119,7 @@ func StartPythonClient(ctx context.Context, debugConfig DebugConfig, pythonPath 
 	}
 	cmd.Env = append(cmd.Env, "PYTHONPATH="+pythonPath)
 
-	lf := &ServerAddress{
-		Log:     log,
-		HasAddr: make(chan struct{}),
-	}
+	lf := NewServerState(log)
 	cmd.Stdout = io.MultiWriter(cmd.Stdout, lf)
 	command.SetProcAttr(cmd)
 

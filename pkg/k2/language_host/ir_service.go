@@ -26,24 +26,28 @@ func (irs *LanguageHost) Start(ctx context.Context, debug DebugConfig, pythonPat
 
 	irs.debugCfg = debug
 
-	var addr *ServerAddress
-	irs.langHost, addr, err = StartPythonClient(ctx, debug, pythonPath)
+	var srvState *ServerState
+	irs.langHost, srvState, err = StartPythonClient(ctx, debug, pythonPath)
 	if err != nil {
 		return
 	}
 	log.Debug("Waiting for Python server to start")
 	if debug.Enabled() {
 		// Don't add a timeout in case there are breakpoints in the language host before an address is printed
-		<-addr.HasAddr
+		<-srvState.Done
 	} else {
 		select {
-		case <-addr.HasAddr:
+		case <-srvState.Done:
 		case <-time.After(30 * time.Second):
 			return errors.New("timeout waiting for Python server to start")
 		}
 	}
 
-	irs.conn, err = grpc.NewClient(addr.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if srvState.Error != nil {
+		return srvState.Error
+	}
+
+	irs.conn, err = grpc.NewClient(srvState.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("failed to connect to Python server: %w", err)
 	}

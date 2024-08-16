@@ -23,6 +23,7 @@ type (
 		consoleWidth   int
 		constructWidth int
 		statusWidth    int
+		errors         []string
 	}
 
 	constructModel struct {
@@ -81,7 +82,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cm := m.constructModel(msg.Construct)
 			cm.logs.Push(msg.Message)
 		}
-
+	case ErrorMessage:
+		m.errors = append(m.errors, msg.Message)
 	case UpdateMessage:
 		cm := m.constructModel(msg.Construct)
 
@@ -194,6 +196,13 @@ func (m *model) viewCompact() string {
 				fmt.Fprintf(sb, "├ %s: %v\n", name, out)
 			}
 		}
+	}
+	if len(m.constructs) > 0 && len(m.errors) > 0 {
+		sb.WriteRune('\n')
+	}
+	for _, log := range m.errors {
+		sb.WriteString(log)
+		sb.WriteRune('\n')
 	}
 	return sb.String()
 }
@@ -320,6 +329,12 @@ func (m *model) viewVerbose() string {
 		m.renderConstructBox(lines, sb)
 		sb.WriteRune('\n') // extra newline to separate constructs
 	}
+
+	for _, log := range m.errors {
+		sb.WriteString(log)
+		sb.WriteRune('\n')
+	}
+
 	s := sb.String()
 	return s
 }
