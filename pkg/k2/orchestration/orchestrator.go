@@ -87,7 +87,15 @@ func (o *Orchestrator) resolveInitialState(ir *model.ApplicationEnvironment) (ma
 
 	// Check for default region mismatch
 	if state.DefaultRegion != ir.DefaultRegion {
-		return nil, fmt.Errorf("default region mismatch: %s != %s", state.DefaultRegion, ir.DefaultRegion)
+		deployed := make(map[string]model.ConstructStatus)
+		for k, v := range state.Constructs {
+			if model.IsDeletable(v.Status) {
+				deployed[k] = v.Status
+			}
+		}
+		if len(deployed) > 0 {
+			return nil, fmt.Errorf("cannot change region (%s -> %s) with deployed resources: %v", state.DefaultRegion, ir.DefaultRegion, deployed)
+		}
 	}
 
 	// Check for schema version mismatch
