@@ -20,7 +20,6 @@ import (
 
 var upConfig struct {
 	stateDir  string
-	region    string
 	debugMode string
 	debugPort int
 }
@@ -33,7 +32,6 @@ func newUpCmd() *cobra.Command {
 	}
 	flags := upCommand.Flags()
 	flags.StringVar(&upConfig.stateDir, "state-directory", "", "State directory")
-	flags.StringVarP(&upConfig.region, "region", "r", "us-west-2", "AWS region")
 	flags.StringVar(&upConfig.debugMode, "debug", "", "Debug mode")
 	flags.IntVar(&upConfig.debugPort, "debug-port", 5678, "Language Host Debug port")
 	return upCommand
