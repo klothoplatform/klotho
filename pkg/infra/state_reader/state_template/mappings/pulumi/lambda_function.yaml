@@ -3,5 +3,5 @@ iac_qualified_type: aws:lambda/function:Function
 
 property_mappings:
   arn: Arn
-  id: Id
+  name: FunctionName
   tags: Tags
