@@ -39,27 +39,21 @@ var listenOnPattern = regexp.MustCompile(`(?m)^\s*Listening on (\S+)$`)
 var exceptionPattern = regexp.MustCompile(`(?s)(?:^|\n)\s*Exception occurred: (.+)$`)
 
 func (f *ServerState) Write(b []byte) (int, error) {
-	if f.Address != "" {
+	if f.Address != "" || f.Error != nil {
 		return len(b), nil
 	}
+
 	s := string(b)
 
-	// captures the gRPC server address
-	matches := exceptionPattern.FindStringSubmatch(s)
-	if len(matches) >= 2 {
+	// captures a fatal error in the language host that occurs before the address is printed to stdout
+	if matches := exceptionPattern.FindStringSubmatch(s); len(matches) >= 2 {
 		f.Error = errors.New(strings.TrimSpace(matches[1]))
 		f.Log.Debug(s)
-	}
-
-	// captures a fatal error in the language host that occurs before the address is printed to stdout
-	matches = listenOnPattern.FindStringSubmatch(s)
-	if len(matches) >= 2 {
-		// address is the first match
+		close(f.Done)
+		// captures the gRPC server address
+	} else if matches := listenOnPattern.FindStringSubmatch(s); len(matches) >= 2 {
 		f.Address = matches[1]
 		f.Log.Debugf("Found language host listening on %s", f.Address)
-	}
-
-	if f.Address != "" || f.Error != nil {
 		close(f.Done)
 	}
 	return len(b), nil
