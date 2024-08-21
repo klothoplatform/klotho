@@ -5,10 +5,8 @@ import klotho.aws as aws
 
 # Create the Application instance
 app = klotho.Application(
-    "my-app",
-    project=os.getenv("PROJECT_NAME", "my-project"), # Default to 'my-project' or the environment variable value
-    environment=os.getenv("KLOTHO_ENVIRONMENT", "default"), # Default to 'default' or the environment variable value
-    default_region=os.getenv("AWS_REGION", "us-east-1"),  # Default to 'us-east-1' or the environment variable value
+    "app",
+    project=os.getenv("PROJECT_NAME", "fastapi_postgres"),
 )
 
 # Generate an absolute path to the directory containing the infra.py file /Dockerfile
