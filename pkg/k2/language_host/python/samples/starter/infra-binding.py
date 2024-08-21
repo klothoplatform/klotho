@@ -4,8 +4,8 @@ import klotho
 import klotho.aws as aws
 
 app = klotho.Application(
-    "my-app",
-    project=os.getenv("PROJECT_NAME", "starter.binding"),
+    "binding",
+    project=os.getenv("PROJECT_NAME", "starter"),
 )
 
 bucket = aws.Bucket("my-bucket", force_destroy=True)
