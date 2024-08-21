@@ -1,0 +1,6 @@
+qualified_type_name: aws:rds_subnet_group
+iac_qualified_type: aws:rds/subnetGroup:SubnetGroup
+
+property_mappings:
+  tags: Tags
+  name: DeployedName

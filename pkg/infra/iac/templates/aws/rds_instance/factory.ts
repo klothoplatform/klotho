@@ -56,7 +56,7 @@ function create(args: Args): aws.rds.Instance {
 function properties(object: aws.rds.Instance, args: Args) {
     return {
         Username: object.username,
-        Password: object.password,
+        Password: object.password.apply((password) => password || ''),
         CredentialsSecretValue: pulumi.jsonStringify({
             username: object.username,
             password: object.password,

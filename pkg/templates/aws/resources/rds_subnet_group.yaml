@@ -12,6 +12,12 @@ sanitize_name:
   }}
 
 properties:
+  DeployedName:
+    type: string
+    configuration_disabled: true
+    deploy_time: true
+    required: true
+    
   Subnets:
     type: list(resource(aws:subnet))
     operational_rule:
