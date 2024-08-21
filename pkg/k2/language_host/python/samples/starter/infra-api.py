@@ -6,7 +6,7 @@ import klotho.aws as aws
 
 app = klotho.Application(
     "api",
-    project=os.getenv("PROJECT_NAME", "starter1"),
+    project=os.getenv("PROJECT_NAME", "starter"),
 )
 
 dir = Path(__file__).parent.absolute()
