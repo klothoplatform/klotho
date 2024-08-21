@@ -136,7 +136,7 @@
     ],
     "compounds": [
         {
-            "name": "Debug: Llotho + infra.py",
+            "name": "Debug: Klotho + infra.py",
             "configurations": [
                 "Debug: Klotho",
                 "Python Debugger: Listen"

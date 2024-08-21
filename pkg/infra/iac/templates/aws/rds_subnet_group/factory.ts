@@ -16,3 +16,15 @@ function create(args: Args): aws.rds.SubnetGroup {
         //TMPL {{- end }}
     })
 }
+
+function properties(object: aws.rds.SubnetGroup, args: Args) {
+    return {
+        DeployedName: object.name,
+    }
+}
+
+type AllProperties = Args & ReturnType<typeof properties>
+
+function importResource(args: AllProperties): aws.rds.SubnetGroup {
+    return aws.rds.SubnetGroup.get(args.Name, args.DeployedName)
+}
