@@ -146,7 +146,7 @@ func (uo *UpOrchestrator) executeAction(ctx context.Context, c model.ConstructSt
 
 	ctx = ConstructContext(ctx, *c.URN)
 	if debugDir := debug.GetDebugDir(ctx); debugDir != "" {
-		ctx = debug.WithDebugDir(ctx, filepath.Join(debugDir, outDir))
+		ctx = debug.WithDebugDir(ctx, filepath.Join(debugDir, c.URN.ResourceID))
 	}
 	prog := tui.GetProgress(ctx)
 	prog.UpdateIndeterminate(fmt.Sprintf("Starting %s", action))
